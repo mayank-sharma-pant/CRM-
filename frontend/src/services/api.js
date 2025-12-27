@@ -3,7 +3,7 @@ import { MOCK_DATA } from './mockData';
 
 // --- MOCK MODE CONFIGURATION ---
 // Set this to true to use mock data instead of real backend
-const USE_MOCK_BACKEND = false;
+const USE_MOCK_BACKEND = true;
 // -------------------------------
 
 const api = axios.create({

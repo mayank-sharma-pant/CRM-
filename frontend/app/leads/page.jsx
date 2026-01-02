@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import { VARIANTS, TRANSITIONS } from '../../lib/motion';
 import {
   Plus,
   Search,
@@ -17,7 +18,8 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  ArrowUpRight
+  ArrowUpRight,
+  Users
 } from 'lucide-react';
 
 // ===============================================
@@ -54,27 +56,6 @@ const statusConfig = {
     border: 'border-slate-200 dark:border-slate-700',
     dot: 'bg-slate-400'
   },
-};
-
-// ===============================================
-// MOTION VARIANTS (Fast, Weighted)
-// ===============================================
-const listContainer = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.03 } // Very fast stagger for "Table" feel
-  }
-};
-
-const listItem = {
-  hidden: { opacity: 0, x: -10 },
-  show: {
-    opacity: 1,
-    x: 0,
-    transition: { type: "spring", stiffness: 400, damping: 25 }
-  },
-  exit: { opacity: 0, height: 0, transition: { duration: 0.2 } }
 };
 
 export default function Leads() {
@@ -129,17 +110,23 @@ export default function Leads() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-64px)] bg-slate-50 dark:bg-slate-950">
+      <div className="flex items-center justify-center h-[calc(100vh-64px)] bg-page">
         <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] flex flex-col font-sans text-slate-900 dark:text-slate-100">
+    <motion.div
+      variants={VARIANTS.page}
+      initial="hidden"
+      animate="show"
+      exit="exit"
+      className="min-h-screen bg-page flex flex-col font-sans text-primary"
+    >
 
       {/* 1. COMPACT TOOLBAR HEADER */}
-      <div className="bg-white dark:bg-[#0F172A] border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 shadow-sm">
+      <motion.div variants={VARIANTS.header} className="bg-card border-b border-subtle sticky top-0 z-20 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 
           <div className="flex items-center gap-4">
@@ -186,7 +173,7 @@ export default function Leads() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="appearance-none pl-3 pr-8 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-medium text-slate-600 dark:text-slate-300 focus:outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                className="appearance-none pl-3 pr-8 py-1.5 bg-card border border-subtle rounded-md text-sm font-medium text-secondary focus:outline-none focus:border-indigo-500 transition-all cursor-pointer"
               >
                 <option value="">Status: All</option>
                 <option value="New">New</option>
@@ -205,10 +192,10 @@ export default function Leads() {
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* 2. DENSE LIST VIEW */}
-      <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0B1120] p-4 sm:p-6">
+      <div className="flex-1 overflow-y-auto bg-page p-4 sm:p-6">
         <div className="max-w-[1600px] mx-auto">
           {/* Table Header */}
           <div className="grid grid-cols-12 gap-4 px-4 py-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 select-none">
@@ -227,17 +214,17 @@ export default function Leads() {
               <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Adjust filters or add a new lead.</p>
             </div>
           ) : (
-            <motion.div variants={listContainer} initial="hidden" animate="show" className="space-y-2">
-              <AnimatePresence>
+            <motion.div variants={VARIANTS.container} initial="hidden" animate="show" className="space-y-2">
+              <AnimatePresence mode="popLayout">
                 {leads.map((lead) => (
                   <motion.div
                     key={lead.id}
                     layout
-                    variants={listItem}
+                    variants={VARIANTS.row}
                     initial="hidden"
                     animate="show"
-                    exit="exit"
-                    className="group bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-indigo-900/10 transition-all p-3 grid grid-cols-12 gap-4 items-center relative overflow-hidden"
+                    exit={{ opacity: 0, height: 0 }}
+                    className="group bg-card border border-master rounded-lg hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-indigo-900/10 transition-all p-3 grid grid-cols-12 gap-4 items-center relative overflow-hidden"
                   >
                     {/* Active Stripe */}
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -319,7 +306,7 @@ export default function Leads() {
           />
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 
@@ -359,13 +346,15 @@ function LeadModal({ onClose, onSuccess }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
       className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-w-md w-full overflow-hidden"
+        transition={TRANSITIONS.heavy}
+        className="bg-card border border-master rounded-xl shadow-2xl max-w-md w-full overflow-hidden"
       >
         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-white/[0.02]">
           <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">Add New Lead</h2>
@@ -471,24 +460,5 @@ function LeadModal({ onClose, onSuccess }) {
         </form>
       </motion.div>
     </motion.div>
-  );
-}
-// --- Icons (Users) ---
-function Users({ size = 24, className = "" }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
   );
 }

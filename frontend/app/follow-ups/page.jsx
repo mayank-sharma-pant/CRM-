@@ -5,6 +5,7 @@ import Link from 'next/link';
 import api from '../../services/api';
 import { format, isPast, isToday, parseISO, compareAsc, differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { VARIANTS, TRANSITIONS } from '../../lib/motion';
 import {
   CheckCircle2,
   AlertCircle,
@@ -13,29 +14,6 @@ import {
   ChevronRight,
   Filter
 } from 'lucide-react';
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 12 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: "spring", stiffness: 400, damping: 25 }
-  },
-  exit: {
-    opacity: 0,
-    height: 0,
-    marginBottom: 0,
-    transition: { duration: 0.2 }
-  }
-};
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.05, delayChildren: 0.1 }
-  }
-};
 
 export default function FollowUps() {
   const [followUps, setFollowUps] = useState([]);
@@ -121,12 +99,17 @@ export default function FollowUps() {
   const hasFollowUps = followUps.length > 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] pb-20 font-sans">
+    <motion.div
+      variants={VARIANTS.page}
+      initial="hidden"
+      animate="show"
+      className="min-h-screen bg-page pb-20 font-sans"
+    >
 
       {/* Dense Header */}
-      <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0F172A] sticky top-0 z-10 shadow-sm">
+      <motion.div variants={VARIANTS.header} className="border-b border-subtle bg-card sticky top-0 z-10 shadow-sm">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <h1 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
+          <h1 className="text-lg font-bold text-primary flex items-center gap-2 tracking-tight">
             <Clock size={18} className="text-indigo-600 dark:text-indigo-400" />
             Execution Mode
           </h1>
@@ -146,14 +129,14 @@ export default function FollowUps() {
             ))}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
         {!hasFollowUps ? (
           <EmptyState />
         ) : (
           <motion.div
-            variants={containerVariants}
+            variants={VARIANTS.container}
             initial="hidden"
             animate="show"
             className="space-y-8"
@@ -162,7 +145,7 @@ export default function FollowUps() {
             {/* OVERDUE SECTION - "Pressure" */}
             <AnimatePresence>
               {groupedData.overdue.length > 0 && (
-                <div key="overdue-section" className="space-y-2">
+                <motion.div key="overdue-section" variants={VARIANTS.container} className="space-y-2">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-pulse"></span>
                     <h2 className="text-sm font-bold text-rose-600 uppercase tracking-widest">Overdue Requirements</h2>
@@ -177,14 +160,14 @@ export default function FollowUps() {
                       />
                     ))}
                   </div>
-                </div>
+                </motion.div>
               )}
             </AnimatePresence>
 
             {/* TODAY SECTION */}
             <AnimatePresence>
               {groupedData.today.length > 0 && (
-                <div key="today-section" className="space-y-2">
+                <motion.div key="today-section" variants={VARIANTS.container} className="space-y-2">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="flex h-2 w-2 rounded-full bg-indigo-500"></span>
                     <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Today's Focus</h2>
@@ -199,14 +182,14 @@ export default function FollowUps() {
                       />
                     ))}
                   </div>
-                </div>
+                </motion.div>
               )}
             </AnimatePresence>
 
             {/* UPCOMING SECTION */}
             <AnimatePresence>
               {groupedData.upcoming.length > 0 && (
-                <div key="upcoming-section" className="space-y-2">
+                <motion.div key="upcoming-section" variants={VARIANTS.container} className="space-y-2">
                   <div className="flex items-center gap-2 mb-3 opacity-60">
                     <Calendar size={14} className="text-slate-500" />
                     <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest">Upcoming</h2>
@@ -221,13 +204,13 @@ export default function FollowUps() {
                       />
                     ))}
                   </div>
-                </div>
+                </motion.div>
               )}
             </AnimatePresence>
 
             {/* COMPLETED SECTION */}
             {groupedData.completed.length > 0 && (
-              <div className="pt-8 opacity-60 hover:opacity-100 transition-opacity">
+              <motion.div variants={VARIANTS.container} className="pt-8 opacity-60 hover:opacity-100 transition-opacity">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Completed Recently</h3>
                 <div className="space-y-2">
                   {groupedData.completed.map((item) => (
@@ -239,13 +222,13 @@ export default function FollowUps() {
                     />
                   ))}
                 </div>
-              </div>
+              </motion.div>
             )}
 
           </motion.div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -260,15 +243,16 @@ function FollowUpCard({ item, type, onStatusChange }) {
 
   const styles = {
     overdue: "border-l-rose-500 bg-rose-50/10 dark:bg-rose-900/10 hover:border-l-[6px]",
-    today: "border-l-indigo-500 bg-white dark:bg-[#1E293B] hover:border-l-[6px]",
-    upcoming: "border-l-slate-300 dark:border-l-slate-600 bg-white dark:bg-[#1E293B] opacity-90",
-    completed: "border-l-emerald-500 bg-slate-50 dark:bg-slate-900 opacity-60 grayscale"
+    today: "border-l-indigo-500 bg-card hover:border-l-[6px]",
+    upcoming: "border-l-subtle bg-card opacity-90",
+    completed: "border-l-emerald-500 bg-surface opacity-60 grayscale"
   };
 
   return (
     <motion.div
-      variants={itemVariants}
+      variants={VARIANTS.row}
       layout
+      exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
       className={`group relative flex items-center gap-4 p-4 rounded-r-lg border-l-4 shadow-sm border border-y-slate-100 dark:border-y-slate-800 border-r-slate-100 dark:border-r-slate-800 transition-all ${styles[type] || styles.upcoming}`}
     >
       {/* 1. Checkbox Action */}

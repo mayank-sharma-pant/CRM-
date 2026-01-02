@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import api from '../../../services/api';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { VARIANTS, TRANSITIONS } from '../../../lib/motion';
 import {
   ArrowLeft,
   Mail,
@@ -12,12 +13,8 @@ import {
   Calendar,
   Clock,
   FileText,
-  MoreHorizontal,
   Trash2,
-  CheckCircle2,
   X,
-  Edit2,
-  Plus,
   Briefcase
 } from 'lucide-react';
 
@@ -27,20 +24,6 @@ const statusConfig = {
   'Follow-up': { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-800' },
   Converted: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-800' },
   Lost: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-400', border: 'border-slate-200 dark:border-slate-700' },
-};
-
-// Motion Variants
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 }
-  }
-};
-
-const itemAnim = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
 export default function LeadDetail() {
@@ -62,7 +45,7 @@ export default function LeadDetail() {
     try {
       const [leadRes, notesRes, followUpsRes] = await Promise.all([
         api.get(`/leads/${id}`),
-        api.get(`/notes/lead/${id}`).catch(() => ({ data: [] })), // Handle potential empty/404
+        api.get(`/notes/lead/${id}`).catch(() => ({ data: [] })),
         api.get('/follow-ups', { params: { date: '' } }).catch(() => ({ data: [] })),
       ]);
 
@@ -71,7 +54,6 @@ export default function LeadDetail() {
       setFollowUps(followUpsRes.data ? followUpsRes.data.filter((fu) => fu.lead_id == id) : []);
     } catch (error) {
       console.error('Failed to fetch lead data:', error);
-      // router.push('/leads'); // Don't redirect immediately on error for now, clearer debugging
     } finally {
       setLoading(false);
     }
@@ -106,7 +88,7 @@ export default function LeadDetail() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-64px)] bg-slate-50 dark:bg-[#0B1120]">
+      <div className="flex items-center justify-center min-h-[calc(100vh-64px)] bg-page">
         <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -116,16 +98,16 @@ export default function LeadDetail() {
 
   return (
     <motion.div
-      variants={container}
+      variants={VARIANTS.page}
       initial="hidden"
       animate="show"
-      className="min-h-screen bg-slate-50 dark:bg-[#0B1120] pb-20 font-sans text-slate-900 dark:text-slate-100"
+      className="min-h-screen bg-page pb-20 font-sans text-primary"
     >
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         {/* Back Button */}
         <motion.button
-          variants={itemAnim}
+          variants={VARIANTS.header}
           onClick={() => router.push('/leads')}
           className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors mb-6 uppercase tracking-wider"
         >
@@ -138,10 +120,10 @@ export default function LeadDetail() {
           <div className="lg:col-span-2 space-y-8">
 
             {/* 1. Identity Header */}
-            <motion.div variants={itemAnim} className="bg-white dark:bg-[#0F172A] rounded-xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
+            <motion.div variants={VARIANTS.card} className="bg-card rounded-xl border border-master p-8 shadow-sm">
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">{lead.name}</h1>
+                  <h1 className="text-3xl font-bold tracking-tight text-primary mb-2">{lead.name}</h1>
                   <div className="flex flex-wrap gap-4 text-sm text-slate-500 dark:text-slate-400">
                     <div className="flex items-center gap-2">
                       <Briefcase size={14} /> {lead.service_type || 'General Lead'}
@@ -171,9 +153,9 @@ export default function LeadDetail() {
             </motion.div>
 
             {/* 2. Timeline / Activity */}
-            <motion.div variants={itemAnim} className="bg-white dark:bg-[#0F172A] rounded-xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm min-h-[400px]">
+            <motion.div variants={VARIANTS.card} className="bg-card rounded-xl border border-master p-8 shadow-sm min-h-[400px]">
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <h2 className="text-lg font-bold text-primary flex items-center gap-2">
                   <Clock size={18} className="text-slate-400" /> Activity Timeline
                 </h2>
                 <button onClick={() => setShowNoteModal(true)} className="text-xs font-bold text-indigo-600 hover:text-indigo-500 uppercase tracking-wide">
@@ -181,14 +163,14 @@ export default function LeadDetail() {
                 </button>
               </div>
 
-              <div className="relative pl-4 border-l-2 border-slate-100 dark:border-slate-800 space-y-8 ml-2">
+              <motion.div variants={VARIANTS.container} initial="hidden" animate="show" className="relative pl-4 border-l-2 border-subtle space-y-8 ml-2">
                 {timelineItems.length === 0 ? (
                   <div className="pl-6 py-8 text-slate-400 text-sm italic">
                     No history yet. Start by adding a note or scheduling a follow-up.
                   </div>
                 ) : (
                   timelineItems.map((item, idx) => (
-                    <div key={`${item.type}-${item.id}`} className="relative pl-6 group">
+                    <motion.div key={`${item.type}-${item.id}`} variants={VARIANTS.row} className="relative pl-6 group">
                       {/* Dot */}
                       <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-2 border-white dark:border-[#0F172A] 
                              ${item.type === 'note' ? 'bg-indigo-500' : 'bg-emerald-500'}`}
@@ -203,7 +185,7 @@ export default function LeadDetail() {
                         </span>
                       </div>
 
-                      <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 border border-slate-100 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300">
+                      <div className="bg-surface rounded-lg p-4 border border-subtle text-sm text-secondary">
                         {item.type === 'note' ? (
                           <>
                             <p className="whitespace-pre-wrap">{item.content}</p>
@@ -229,10 +211,10 @@ export default function LeadDetail() {
                           </div>
                         )}
                       </div>
-                    </div>
+                    </motion.div>
                   ))
                 )}
-              </div>
+              </motion.div>
             </motion.div>
           </div>
 
@@ -240,7 +222,7 @@ export default function LeadDetail() {
           <div className="space-y-6">
 
             {/* Actions Card */}
-            <motion.div variants={itemAnim} className="bg-white dark:bg-[#0F172A] rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <motion.div variants={VARIANTS.card} className="bg-card rounded-xl border border-master p-6 shadow-sm">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Quick Actions</h3>
               <div className="space-y-3">
                 <button
@@ -259,13 +241,13 @@ export default function LeadDetail() {
             </motion.div>
 
             {/* Status Control */}
-            <motion.div variants={itemAnim} className="bg-white dark:bg-[#0F172A] rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <motion.div variants={VARIANTS.card} className="bg-card rounded-xl border border-master p-6 shadow-sm">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Lead Status</h3>
               <div className="relative">
                 <select
                   value={lead.status}
                   onChange={(e) => handleStatusChange(e.target.value)}
-                  className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-medium rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                  className="w-full appearance-none bg-page border border-master text-primary text-sm font-medium rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
                 >
                   <option value="New">New</option>
                   <option value="Contacted">Contacted</option>
@@ -277,12 +259,12 @@ export default function LeadDetail() {
             </motion.div>
 
             {/* Meta Info */}
-            <motion.div variants={itemAnim} className="bg-slate-50 dark:bg-[#0B1120] rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+            <motion.div variants={VARIANTS.card} className="bg-page rounded-xl border border-master p-6">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Metadata</h3>
               <div className="space-y-3 text-xs text-slate-600 dark:text-slate-400">
                 <div className="flex justify-between">
                   <span>Source</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">{lead.source || 'Unknown'}</span>
+                  <span className="font-semibold text-primary">{lead.source || 'Unknown'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Created On</span>
@@ -338,7 +320,13 @@ function NoteModal({ leadId, note, onClose, onSuccess }) {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white dark:bg-[#0F172A] p-6 rounded-xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-800">
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={TRANSITIONS.heavy}
+        className="bg-white dark:bg-[#0F172A] p-6 rounded-xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-800"
+      >
         <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">{note ? 'Edit Note' : 'Add Note'}</h2>
         <form onSubmit={handleSubmit}>
           <textarea
@@ -376,7 +364,13 @@ function FollowUpModal({ leadId, onClose, onSuccess }) {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white dark:bg-[#0F172A] p-6 rounded-xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-800">
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={TRANSITIONS.heavy}
+        className="bg-white dark:bg-[#0F172A] p-6 rounded-xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-800"
+      >
         <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Schedule Follow-up</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -404,4 +398,3 @@ function FollowUpModal({ leadId, onClose, onSuccess }) {
     </motion.div>
   );
 }
-

@@ -7,6 +7,7 @@ import {
   Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart
 } from 'recharts';
 import { motion } from 'framer-motion';
+import { VARIANTS, TRANSITIONS } from '../../lib/motion';
 import {
   TrendingUp,
   Users,
@@ -27,23 +28,6 @@ const COLORS = {
 };
 
 const PIE_COLORS = [COLORS.accent1, COLORS.accent2, COLORS.accent3, COLORS.accent4, '#ef4444'];
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: "spring", stiffness: 400, damping: 30 }
-  }
-};
 
 // Custom Hook for CountUp Animation
 function useCountUp(end, duration = 1500) {
@@ -82,8 +66,9 @@ function MetricCard({ label, value, color, icon: Icon, suffix = '', prefix = '' 
 
   return (
     <motion.div
-      variants={itemVariants}
-      className="bg-white dark:bg-[#1E293B] rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group"
+      variants={VARIANTS.card}
+      whileHover={{ y: -4, transition: TRANSITIONS.fast }}
+      className="bg-card rounded-xl border border-master p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group"
     >
       <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
         {Icon && <Icon size={48} />}
@@ -151,17 +136,22 @@ export default function Reports() {
   })) || [];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] pb-20 font-sans text-slate-900 dark:text-slate-100">
+    <motion.div
+      variants={VARIANTS.page}
+      initial="hidden"
+      animate="show"
+      className="min-h-screen bg-page pb-20 font-sans text-primary"
+    >
 
       {/* 1. Header Section */}
-      <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0F172A] sticky top-0 z-10 shadow-sm">
+      <motion.div variants={VARIANTS.header} className="border-b border-subtle bg-card sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
               <Activity size={20} className="text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">Reports & Analytics</h1>
+              <h1 className="text-lg font-bold text-primary tracking-tight leading-none">Reports & Analytics</h1>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Data-driven insights</p>
             </div>
           </div>
@@ -182,17 +172,12 @@ export default function Reports() {
             ))}
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-        className="max-w-7xl mx-auto px-4 sm:px-6 py-8"
-      >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
 
         {/* 2. Overview Metrics (Trust via Numbers) */}
-        <section className="mb-8">
+        <motion.section variants={VARIANTS.container} initial="hidden" animate="show" className="mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
               label="Total Leads"
@@ -220,16 +205,16 @@ export default function Reports() {
               icon={TrendingUp}
             />
           </div>
-        </section>
+        </motion.section>
 
         {/* 3. Primary Trends (The "Story") */}
         <motion.section
-          variants={itemVariants}
-          className="mb-8 bg-white dark:bg-[#1E293B] rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm"
+          variants={VARIANTS.card}
+          className="mb-8 bg-card rounded-xl border border-master p-6 shadow-sm"
         >
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Growth Trajectory</h3>
+              <h3 className="text-base font-bold text-primary">Growth Trajectory</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Lead volume vs. successful conversions.</p>
             </div>
             {/* Legend Replacement */}
@@ -305,10 +290,10 @@ export default function Reports() {
 
           {/* Status Breakdown */}
           <motion.div
-            variants={itemVariants}
-            className="bg-white dark:bg-[#1E293B] rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm h-[360px]"
+            variants={VARIANTS.card}
+            className="bg-card rounded-xl border border-master p-6 shadow-sm h-[360px]"
           >
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Pipeline Distribution</h3>
+            <h3 className="text-sm font-bold text-primary mb-4">Pipeline Distribution</h3>
             <div className="w-full h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -336,10 +321,10 @@ export default function Reports() {
 
           {/* Source Breakdown */}
           <motion.div
-            variants={itemVariants}
-            className="bg-white dark:bg-[#1E293B] rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm h-[360px]"
+            variants={VARIANTS.card}
+            className="bg-card rounded-xl border border-master p-6 shadow-sm h-[360px]"
           >
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Top Sources</h3>
+            <h3 className="text-sm font-bold text-primary mb-4">Top Sources</h3>
             <div className="w-full h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={leadsBySourceData} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
@@ -368,7 +353,7 @@ export default function Reports() {
           </motion.div>
 
         </section>
-      </motion.div>
-    </div>
+      </div>
+    </motion.div>
   );
 }

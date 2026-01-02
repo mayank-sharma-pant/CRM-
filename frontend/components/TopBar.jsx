@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import ThemeToggle from './ThemeToggle';
 
 export default function TopBar() {
     const { user, logout } = useAuth();
@@ -15,7 +16,7 @@ export default function TopBar() {
     };
 
     return (
-        <div className="bg-gray-100 border-b border-gray-300 h-14 flex items-center justify-between px-6">
+        <div className="bg-white dark:bg-navy-900 border-b border-slate-200 dark:border-slate-800 h-14 flex items-center justify-between px-6 shadow-sm">
             <div className="flex-1">
                 {/* Global search can go here */}
             </div>
@@ -42,6 +43,8 @@ export default function TopBar() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                 </button>
+                {/* Theme Toggle */}
+                <ThemeToggle />
                 <div className="relative">
                     <button
                         onClick={() => setDropdownOpen(!dropdownOpen)}

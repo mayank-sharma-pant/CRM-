@@ -21,6 +21,13 @@ export default {
           800: '#075985',
           900: '#0c4a6e',
         },
+        navy: {
+          950: '#020617', // Black-ish Navy
+          900: '#0B1120', // Deep Background
+          800: '#0F172A', // Card Surface
+          700: '#1E293B', // Elevated Surface
+          600: '#334155', // Borders/Separators
+        }
       },
     },
   },

@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import api from '../../services/api';
 import { format } from 'date-fns';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
+import { VARIANTS, TRANSITIONS } from '../../lib/motion';
 import {
   Users,
   CheckCircle,
@@ -14,33 +15,8 @@ import {
   ArrowRight,
   MoreHorizontal,
   Phone,
-  Mail,
   Calendar
 } from 'lucide-react';
-
-// ===============================================
-// MOTION CONFIGURATION (Weighted & Immediate)
-// ===============================================
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05, // Fast stagger
-      delayChildren: 0.1
-    }
-  }
-};
-
-const cardItem = {
-  hidden: { opacity: 0, y: 10, scale: 0.98 },
-  show: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { type: "spring", stiffness: 300, damping: 24 }
-  }
-};
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -93,13 +69,13 @@ export default function Dashboard() {
 
   return (
     <motion.div
-      variants={container}
+      variants={VARIANTS.page}
       initial="hidden"
       animate="show"
-      className="p-4 lg:p-6 space-y-6 max-w-[1600px] mx-auto min-h-[calc(100vh-64px)] bg-slate-50/50 dark:bg-[#0B1120]"
+      className="p-4 lg:p-6 space-y-6 max-w-[1600px] mx-auto min-h-[calc(100vh-64px)] bg-page"
     >
       {/* --- TOP BAR: Header & Actions --- */}
-      <motion.div variants={cardItem} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div variants={VARIANTS.header} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             Command Center
@@ -171,9 +147,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* --- LEFT: PRIORITY FOCUS (2/3 width) --- */}
-        <motion.div variants={cardItem} className="lg:col-span-2 flex flex-col gap-6">
-          <div className="flex-1 bg-white dark:bg-[#0F172A] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-white/[0.02]">
+        <motion.div variants={VARIANTS.card} className="lg:col-span-2 flex flex-col gap-6">
+          <div className="flex-1 bg-card rounded-xl border border-master shadow-sm overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-subtle flex items-center justify-between bg-surface">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
                 <h2 className="font-bold text-slate-900 dark:text-white text-sm uppercase tracking-wide">Priority Focus</h2>
@@ -193,10 +169,16 @@ export default function Dashboard() {
                   <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">No pending follow-ups for today.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                <motion.div
+                  variants={VARIANTS.container}
+                  initial="hidden"
+                  animate="show"
+                  className="divide-y divide-slate-100 dark:divide-slate-800"
+                >
                   {priorityList.map((item) => (
-                    <div
+                    <motion.div
                       key={item.id}
+                      variants={VARIANTS.row}
                       className="group flex flex-col sm:flex-row sm:items-center px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors gap-3"
                     >
                       {/* Priority Indicator */}
@@ -243,9 +225,9 @@ export default function Dashboard() {
                           <CheckCircle size={12} /> Complete
                         </button>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
               )}
             </div>
           </div>
@@ -254,7 +236,7 @@ export default function Dashboard() {
         {/* --- RIGHT: INSIGHTS & ACTIONS (1/3 width) --- */}
         <div className="space-y-6">
           {/* Quick Actions */}
-          <motion.div variants={cardItem} className="bg-white dark:bg-[#0F172A] rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+          <motion.div variants={VARIANTS.card} className="bg-card rounded-xl border border-master p-4 shadow-sm">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Quick Navigation</h3>
             <div className="space-y-2">
               {[
@@ -276,7 +258,7 @@ export default function Dashboard() {
           </motion.div>
 
           {/* Revenue Trend Chart (Recharts) */}
-          <motion.div variants={cardItem} className="bg-white dark:bg-[#0F172A] rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+          <motion.div variants={VARIANTS.card} className="bg-card rounded-xl border border-master p-5 shadow-sm">
             <div className="flex justify-between items-end mb-4">
               <div>
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Revenue Trend</div>
@@ -330,9 +312,9 @@ function MetricCard({ label, value, trend, trendLabel, trendPositive, icon, colo
 
   return (
     <motion.div
-      variants={cardItem}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className="bg-white dark:bg-[#0F172A] rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-shadow cursor-default"
+      variants={VARIANTS.card}
+      whileHover={{ y: -4, transition: TRANSITIONS.fast }}
+      className="bg-card rounded-xl border border-master p-5 shadow-sm hover:shadow-md transition-shadow cursor-default"
     >
       <div className="flex justify-between items-start mb-4">
         <div className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</div>
@@ -350,5 +332,3 @@ function MetricCard({ label, value, trend, trendLabel, trendPositive, icon, colo
     </motion.div>
   );
 }
-
-

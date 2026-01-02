@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import { VARIANTS, TRANSITIONS } from '../../lib/motion';
 import {
   User,
   Building2,
   Lock,
-  Save,
   CheckCircle2,
   AlertCircle,
   Loader2
@@ -53,20 +53,25 @@ export default function Settings() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0B1120] pb-20 font-sans text-slate-900 dark:text-slate-100">
+    <motion.div
+      variants={VARIANTS.page}
+      initial="hidden"
+      animate="show"
+      className="min-h-screen bg-page pb-20 font-sans text-primary"
+    >
 
       {/* 1. Header (Stable) */}
-      <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0F172A] sticky top-0 z-10 shadow-sm">
+      <motion.div variants={VARIANTS.header} className="border-b border-subtle bg-card sticky top-0 z-10 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center">
-          <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">System Configuration</h1>
+          <h1 className="text-lg font-bold text-primary tracking-tight">System Configuration</h1>
         </div>
-      </div>
+      </motion.div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex flex-col md:flex-row gap-8 items-start">
 
           {/* 2. Navigation (Calm & Predictable) */}
-          <nav className="w-full md:w-64 flex-shrink-0 space-y-1">
+          <motion.nav variants={VARIANTS.card} className="w-full md:w-64 flex-shrink-0 space-y-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -87,17 +92,18 @@ export default function Settings() {
                 </button>
               );
             })}
-          </nav>
+          </motion.nav>
 
           {/* 3. Main Content (Subtle Transitions) */}
           <div className="flex-1 min-w-0">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.15 }}
+                initial="hidden"
+                animate="show"
+                exit="hidden"
+                variants={VARIANTS.card}
+                transition={TRANSITIONS.smooth}
               >
                 {activeTab === 'profile' && <ProfileTab user={user} onUpdate={fetchSettings} />}
                 {activeTab === 'business' && <BusinessTab business={business} onUpdate={fetchSettings} />}
@@ -107,7 +113,7 @@ export default function Settings() {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -135,9 +141,9 @@ function ProfileTab({ user, onUpdate }) {
   };
 
   return (
-    <div className="bg-white dark:bg-[#1E293B] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-        <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Personal Identity</h2>
+    <div className="bg-card rounded-xl border border-master shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-subtle bg-surface">
+        <h2 className="text-sm font-bold text-primary uppercase tracking-wider">Personal Identity</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -221,9 +227,9 @@ function BusinessTab({ business, onUpdate }) {
   };
 
   return (
-    <div className="bg-white dark:bg-[#1E293B] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-        <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Business Info</h2>
+    <div className="bg-card rounded-xl border border-master shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-subtle bg-surface">
+        <h2 className="text-sm font-bold text-primary uppercase tracking-wider">Business Info</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -342,9 +348,9 @@ function PasswordTab() {
   };
 
   return (
-    <div className="bg-white dark:bg-[#1E293B] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-        <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Credential Management</h2>
+    <div className="bg-card rounded-xl border border-master shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-subtle bg-surface">
+        <h2 className="text-sm font-bold text-primary uppercase tracking-wider">Credential Management</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6">

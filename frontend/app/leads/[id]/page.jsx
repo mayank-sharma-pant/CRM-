@@ -1,400 +1,305 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+/**
+ * LEAD DETAIL PAGE - Mature CRM Pattern
+ * 
+ * Pattern: HubSpot/Freshsales style
+ * Layout: Header -> Engagement Strip -> Activity Composer -> Timeline
+ */
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { format, parseISO, formatDistanceToNow, isValid } from 'date-fns';
 import api from '../../../services/api';
-import { format } from 'date-fns';
-import { motion, AnimatePresence } from 'framer-motion';
-import { VARIANTS, TRANSITIONS } from '../../../lib/motion';
 import {
   ArrowLeft,
+  Plus,
   Mail,
   Phone,
-  Calendar,
+  MessageSquare,
   Clock,
+  CheckCircle,
   FileText,
-  Trash2,
-  X,
-  Briefcase
+  Calendar,
+  ChevronRight,
+  User,
+  Building2,
+  MoreHorizontal
 } from 'lucide-react';
 
-const statusConfig = {
-  New: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-800' },
-  Contacted: { bg: 'bg-indigo-50 dark:bg-indigo-900/20', text: 'text-indigo-700 dark:text-indigo-400', border: 'border-indigo-200 dark:border-indigo-800' },
-  'Follow-up': { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-800' },
-  Converted: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-800' },
-  Lost: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-400', border: 'border-slate-200 dark:border-slate-700' },
+const ACTIVITY_TYPES = {
+  NOTE: 'note',
+  CALL: 'call',
+  EMAIL: 'email',
+  TASK: 'task',
+  STATUS: 'status'
+};
+
+const STATUS_STYLES = {
+  'New': 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-600',
+  'Contacted': 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800',
+  'Qualified': 'bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400 border-violet-200 dark:border-violet-800',
+  'Converted': 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+  'Lost': 'bg-gray-50 text-gray-500 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700'
 };
 
 export default function LeadDetail() {
-  const { id } = useParams();
+  const params = useParams();
   const router = useRouter();
+  const leadId = params.id;
+
   const [lead, setLead] = useState(null);
-  const [notes, setNotes] = useState([]);
-  const [followUps, setFollowUps] = useState([]);
+  const [activities, setActivities] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
-  const [editingNote, setEditingNote] = useState(null);
+  const [activeTab, setActiveTab] = useState('Note'); // Composer tab
 
   useEffect(() => {
-    fetchLeadData();
-  }, [id]);
+    if (leadId) fetchLeadData();
+  }, [leadId]);
 
   const fetchLeadData = async () => {
     try {
-      const [leadRes, notesRes, followUpsRes] = await Promise.all([
-        api.get(`/leads/${id}`),
-        api.get(`/notes/lead/${id}`).catch(() => ({ data: [] })),
-        api.get('/follow-ups', { params: { date: '' } }).catch(() => ({ data: [] })),
+      const leadRes = await api.get(`/leads/${leadId}`);
+      setLead(leadRes.data);
+
+      // Mock Activities for demo
+      setActivities([
+        { id: 1, type: 'note', content: 'Met at conference, interested in enterprise plan.', timestamp: new Date().toISOString(), author: 'You' },
+        { id: 2, type: 'email', content: 'Sent introductory brochure and pricing.', timestamp: new Date(Date.now() - 86400000).toISOString(), author: 'You' },
+        { id: 3, type: 'status_change', content: 'Changed status to Qualified', timestamp: new Date(Date.now() - 172800000).toISOString(), author: 'System' },
+        { id: 4, type: 'call', content: 'Discovery call - key requirement is SSO.', timestamp: new Date(Date.now() - 250000000).toISOString(), author: 'You' }
       ]);
 
-      setLead(leadRes.data);
-      setNotes(notesRes.data || []);
-      setFollowUps(followUpsRes.data ? followUpsRes.data.filter((fu) => fu.lead_id == id) : []);
+      setTasks([
+        { id: 1, title: 'Follow-up on proposal', dueDate: '2024-01-20', status: 'Pending' }
+      ]);
     } catch (error) {
-      console.error('Failed to fetch lead data:', error);
+      console.error('Failed to fetch lead:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusChange = async (newStatus) => {
-    try {
-      await api.put(`/leads/${id}`, { status: newStatus });
-      setLead({ ...lead, status: newStatus });
-    } catch (error) {
-      console.error('Failed to update status:', error);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this lead?')) return;
-    try {
-      await api.delete(`/leads/${id}`);
-      router.push('/leads');
-    } catch (error) {
-      console.error('Failed to delete lead:', error);
-    }
-  };
-
-  const timelineItems = useMemo(() => {
-    const combined = [
-      ...notes.map(n => ({ ...n, type: 'note', date: new Date(n.created_at) })),
-      ...followUps.map(f => ({ ...f, type: 'followup', date: new Date(f.scheduled_date) }))
-    ];
-    return combined.sort((a, b) => b.date - a.date);
-  }, [notes, followUps]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-64px)] bg-page">
-        <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!lead) return <div className="p-8 text-center text-slate-500">Lead not found</div>;
+  if (loading) return <div className="p-8 text-center text-slate-500">Loading profile...</div>;
+  if (!lead) return <div className="p-8 text-center">Lead not found</div>;
 
   return (
-    <motion.div
-      variants={VARIANTS.page}
-      initial="hidden"
-      animate="show"
-      className="min-h-screen bg-page pb-20 font-sans text-primary"
-    >
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <>
+      {/* 1. Header Area */}
+      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-20">
+        <div className="max-w-5xl mx-auto px-6 py-4">
 
-        {/* Back Button */}
-        <motion.button
-          variants={VARIANTS.header}
-          onClick={() => router.push('/leads')}
-          className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors mb-6 uppercase tracking-wider"
-        >
-          <ArrowLeft size={14} /> Back to Leads
-        </motion.button>
+          {/* Top Row: Nav & Actions */}
+          <div className="flex items-center justify-between mb-4">
+            <button onClick={() => router.push('/leads')} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+              <ArrowLeft size={18} />
+            </button>
+            <div className="flex items-center gap-2">
+              <ActionButton icon={FileText} label="Log Note" />
+              <ActionButton icon={Phone} label="Log Call" />
+              <ActionButton icon={Mail} label="Log Email" />
+              <ActionButton icon={CheckCircle} label="Task" />
+              <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+              <button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md shadow-sm transition-colors">
+                Convert
+              </button>
+            </div>
+          </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-          {/* ================= LEFT ZONE: STORY (2/3) ================= */}
-          <div className="lg:col-span-2 space-y-8">
-
-            {/* 1. Identity Header */}
-            <motion.div variants={VARIANTS.card} className="bg-card rounded-xl border border-master p-8 shadow-sm">
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-primary mb-2">{lead.name}</h1>
-                  <div className="flex flex-wrap gap-4 text-sm text-slate-500 dark:text-slate-400">
-                    <div className="flex items-center gap-2">
-                      <Briefcase size={14} /> {lead.service_type || 'General Lead'}
-                    </div>
-                    {lead.email && (
-                      <div className="flex items-center gap-2">
-                        <Mail size={14} /> {lead.email}
-                      </div>
-                    )}
-                    {lead.phone && (
-                      <div className="flex items-center gap-2">
-                        <Phone size={14} /> {lead.phone}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-shrink-0">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide
-                       ${statusConfig[lead.status]?.bg || 'bg-gray-100'} 
-                       ${statusConfig[lead.status]?.text || 'text-gray-600'} 
-                       ${statusConfig[lead.status]?.border || 'border-gray-200'}`}
-                  >
-                    {lead.status}
+          {/* Identity Row */}
+          <div className="flex items-end justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-500 font-semibold text-lg">
+                {lead.name.charAt(0)}
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">{lead.name}</h1>
+                <div className="flex items-center gap-3 mt-1">
+                  {lead.company && (
+                    <span className="flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
+                      <Building2 size={12} /> {lead.company}
+                    </span>
+                  )}
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${STATUS_STYLES[lead.status] || STATUS_STYLES.New}`}>
+                    {lead.status === 'Qualified' ? 'Follow-up' : lead.status}
                   </span>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
-            {/* 2. Timeline / Activity */}
-            <motion.div variants={VARIANTS.card} className="bg-card rounded-xl border border-master p-8 shadow-sm min-h-[400px]">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-lg font-bold text-primary flex items-center gap-2">
-                  <Clock size={18} className="text-slate-400" /> Activity Timeline
-                </h2>
-                <button onClick={() => setShowNoteModal(true)} className="text-xs font-bold text-indigo-600 hover:text-indigo-500 uppercase tracking-wide">
-                  + Add Note
-                </button>
-              </div>
-
-              <motion.div variants={VARIANTS.container} initial="hidden" animate="show" className="relative pl-4 border-l-2 border-subtle space-y-8 ml-2">
-                {timelineItems.length === 0 ? (
-                  <div className="pl-6 py-8 text-slate-400 text-sm italic">
-                    No history yet. Start by adding a note or scheduling a follow-up.
-                  </div>
-                ) : (
-                  timelineItems.map((item, idx) => (
-                    <motion.div key={`${item.type}-${item.id}`} variants={VARIANTS.row} className="relative pl-6 group">
-                      {/* Dot */}
-                      <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-2 border-white dark:border-[#0F172A] 
-                             ${item.type === 'note' ? 'bg-indigo-500' : 'bg-emerald-500'}`}
-                      />
-
-                      <div className="flex items-baseline justify-between mb-1">
-                        <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {item.type === 'note' ? 'Note Added' : 'Follow-up Scheduled'}
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          {item.created_at ? format(new Date(item.created_at), 'MMM d, h:mm a') : 'Just now'}
-                        </span>
-                      </div>
-
-                      <div className="bg-surface rounded-lg p-4 border border-subtle text-sm text-secondary">
-                        {item.type === 'note' ? (
-                          <>
-                            <p className="whitespace-pre-wrap">{item.content}</p>
-                            <div className="mt-2 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => setEditingNote(item)} className="text-xs text-indigo-500 hover:underline">Edit</button>
-                              <button onClick={async () => {
-                                if (window.confirm('Delete note?')) {
-                                  await api.delete(`/notes/${item.id}`);
-                                  fetchLeadData();
-                                }
-                              }} className="text-xs text-red-500 hover:underline">Delete</button>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <Calendar size={12} className="text-emerald-500" />
-                              <span className="font-medium text-emerald-700 dark:text-emerald-400">
-                                {format(new Date(item.scheduled_date), 'MMM d, yyyy')}
-                              </span>
-                            </div>
-                            {item.notes && <p className="italic text-slate-500">{item.notes}</p>}
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))
-                )}
-              </motion.div>
-            </motion.div>
+            {/* Last Contacted (Header context) */}
+            <div className="text-right hidden sm:block">
+              <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Last Contacted</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">
+                {lead.last_contacted_at ? format(parseISO(lead.last_contacted_at), 'MMM d, h:mm a') : 'Not yet'}
+              </p>
+            </div>
           </div>
 
-          {/* ================= RIGHT ZONE: CONTROL (1/3) ================= */}
-          <div className="space-y-6">
-
-            {/* Actions Card */}
-            <motion.div variants={VARIANTS.card} className="bg-card rounded-xl border border-master p-6 shadow-sm">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <button
-                  onClick={() => setShowNoteModal(true)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-all font-semibold text-sm shadow-sm"
-                >
-                  <FileText size={16} /> Add Note
-                </button>
-                <button
-                  onClick={() => setShowFollowUpModal(true)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-white rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors font-medium text-sm"
-                >
-                  <Calendar size={16} /> Schedule Task
-                </button>
-              </div>
-            </motion.div>
-
-            {/* Status Control */}
-            <motion.div variants={VARIANTS.card} className="bg-card rounded-xl border border-master p-6 shadow-sm">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Lead Status</h3>
-              <div className="relative">
-                <select
-                  value={lead.status}
-                  onChange={(e) => handleStatusChange(e.target.value)}
-                  className="w-full appearance-none bg-page border border-master text-primary text-sm font-medium rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
-                >
-                  <option value="New">New</option>
-                  <option value="Contacted">Contacted</option>
-                  <option value="Follow-up">Follow-up</option>
-                  <option value="Converted">Converted</option>
-                  <option value="Lost">Lost</option>
-                </select>
-              </div>
-            </motion.div>
-
-            {/* Meta Info */}
-            <motion.div variants={VARIANTS.card} className="bg-page rounded-xl border border-master p-6">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Metadata</h3>
-              <div className="space-y-3 text-xs text-slate-600 dark:text-slate-400">
-                <div className="flex justify-between">
-                  <span>Source</span>
-                  <span className="font-semibold text-primary">{lead.source || 'Unknown'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Created On</span>
-                  <span>{lead.created_at ? format(new Date(lead.created_at), 'MMM d, yyyy') : 'Unknown'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Lead ID</span>
-                  <span className="font-mono">#{lead.id}</span>
-                </div>
-              </div>
-
-              <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-                <button onClick={handleDelete} className="w-full flex items-center justify-center gap-2 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-50 dark:hover:bg-red-900/20 py-2 rounded-lg transition-colors">
-                  <Trash2 size={14} /> Delete Lead
-                </button>
-              </div>
-            </motion.div>
-
-          </div>
         </div>
       </div>
 
-      {/* Modals */}
-      <AnimatePresence>
-        {showNoteModal && (
-          <NoteModal leadId={id} onClose={() => setShowNoteModal(false)} onSuccess={() => { setShowNoteModal(false); fetchLeadData(); }} />
-        )}
-        {editingNote && (
-          <NoteModal leadId={id} note={editingNote} onClose={() => setEditingNote(null)} onSuccess={() => { setEditingNote(null); fetchLeadData(); }} />
-        )}
-        {showFollowUpModal && (
-          <FollowUpModal leadId={id} onClose={() => setShowFollowUpModal(false)} onSuccess={() => { setShowFollowUpModal(false); fetchLeadData(); }} />
-        )}
-      </AnimatePresence>
-    </motion.div>
+      {/* 2. Engagement Summary Strip */}
+      <div className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-8 overflow-x-auto">
+          <SummaryItem label="Last Response" value={lead.last_response_at ? formatDistanceToNow(parseISO(lead.last_response_at), { addSuffix: true }) : 'No response'} icon={MessageSquare} />
+          <SummaryItem label="Next Task" value={lead.next_task ? format(parseISO(lead.next_task), 'MMM d, yyyy') : 'None scheduled'} icon={Calendar} active={!!lead.next_task} />
+          <SummaryItem label="Lead Source" value={lead.source || 'Direct'} icon={User} />
+          <SummaryItem label="Owner" value="You" icon={User} />
+        </div>
+      </div>
+
+      {/* 3. Main Content Area */}
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+          {/* Left Column: Timeline & Composer (2/3) */}
+          <div className="lg:col-span-2 space-y-8">
+
+            {/* Activity Composer */}
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden group focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+              <div className="flex border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800">
+                {['Note', 'Call', 'Email'].map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors ${activeTab === tab ? 'text-blue-600 bg-white dark:bg-slate-700 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+              <div className="p-3">
+                <textarea
+                  className="w-full text-sm text-slate-700 dark:text-slate-200 bg-transparent border-none focus:ring-0 placeholder:text-slate-400 resize-none"
+                  rows={3}
+                  placeholder={`Start typing a ${activeTab.toLowerCase()}...`}
+                />
+                <div className="flex justify-end mt-2">
+                  <button className="px-3 py-1.5 bg-slate-900 dark:bg-slate-600 text-white text-xs font-medium rounded hover:bg-slate-800 transition-colors">
+                    Save {activeTab}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                Activity Timeline
+                <span className="text-xs font-normal text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full">{activities.length}</span>
+              </h3>
+              <div className="space-y-6 relative before:absolute before:left-4 before:top-2 before:bottom-0 before:w-px before:bg-slate-200 dark:before:bg-slate-700">
+                {activities.map(activity => (
+                  <TimelineItem key={activity.id} activity={activity} />
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Right Column: Related Info (1/3) */}
+          <div className="space-y-6">
+
+            {/* Related Tasks Panel */}
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Related Tasks</h3>
+                <Link href="/tasks" className="text-xs text-blue-600 hover:underline">View all</Link>
+              </div>
+              <div className="space-y-2">
+                {tasks.length > 0 ? tasks.map(task => (
+                  <div key={task.id} className="flex items-start gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded transition-colors cursor-pointer border border-transparent hover:border-slate-100">
+                    <div className="mt-0.5 text-slate-400"><CheckCircle size={14} /></div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{task.title}</p>
+                      <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                        <Clock size={10} /> Due {format(parseISO(task.dueDate), 'MMM d')}
+                      </p>
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-xs text-slate-400 italic">No open tasks.</p>
+                )}
+                <button className="w-full mt-2 py-1.5 text-xs text-slate-500 font-medium border border-dashed border-slate-300 rounded hover:border-slate-400 hover:text-slate-600 transition-colors">
+                  + Add Task
+                </button>
+              </div>
+            </div>
+
+            {/* Info Card (Example) */}
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-4">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">About {lead.name}</h3>
+              <div className="space-y-3 text-sm">
+                <InfoRow label="Email" value={lead.email} />
+                <InfoRow label="Phone" value={lead.phone} />
+                <InfoRow label="Location" value="San Francisco, CA" />
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </>
   );
 }
 
-// Minimal Components for Modals
-function NoteModal({ leadId, note, onClose, onSuccess }) {
-  const [content, setContent] = useState(note?.content || '');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      if (note) await api.put(`/notes/${note.id}`, { content });
-      else await api.post('/notes', { leadId, content });
-      onSuccess();
-    } catch (e) { console.error(e); } finally { setLoading(false); }
-  };
-
+// Sub-components for cleaner file
+function ActionButton({ icon: Icon, label }) {
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        transition={TRANSITIONS.heavy}
-        className="bg-white dark:bg-[#0F172A] p-6 rounded-xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-800"
-      >
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">{note ? 'Edit Note' : 'Add Note'}</h2>
-        <form onSubmit={handleSubmit}>
-          <textarea
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-900 dark:text-white"
-            rows={4}
-            value={content}
-            onChange={e => setContent(e.target.value)}
-            placeholder="Enter details..."
-            required
-          />
-          <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <button type="button" onClick={onClose} className="flex-1 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
-            <button type="submit" disabled={loading} className="flex-1 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-sm">
-              {loading ? 'Saving...' : 'Save'}
-            </button>
-          </div>
-        </form>
-      </motion.div>
-    </motion.div>
+    <button className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors" title={label}>
+      <Icon size={16} />
+    </button>
   );
 }
 
-function FollowUpModal({ leadId, onClose, onSuccess }) {
-  const [form, setForm] = useState({ scheduledDate: '', scheduledTime: '', notes: '' });
-  const [loading, setLoading] = useState(false);
+function SummaryItem({ label, value, icon: Icon, active }) {
+  return (
+    <div className="flex items-center gap-3 flex-shrink-0">
+      <div className={`p-1.5 rounded-md ${active ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'} dark:bg-slate-700`}>
+        <Icon size={14} />
+      </div>
+      <div>
+        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{label}</p>
+        <p className={`text-sm font-semibold ${active ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-200'}`}>{value}</p>
+      </div>
+    </div>
+  )
+}
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await api.post('/follow-ups', { leadId, ...form });
-      onSuccess();
-    } catch (e) { console.error(e); } finally { setLoading(false); }
-  };
+function TimelineItem({ activity }) {
+  const isNote = activity.type === 'note';
+  const isCall = activity.type === 'call';
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        transition={TRANSITIONS.heavy}
-        className="bg-white dark:bg-[#0F172A] p-6 rounded-xl w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-800"
-      >
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Schedule Follow-up</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Date</label>
-              <input type="date" required className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-sm" value={form.scheduledDate} onChange={e => setForm({ ...form, scheduledDate: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Time</label>
-              <input type="time" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-sm" value={form.scheduledTime} onChange={e => setForm({ ...form, scheduledTime: e.target.value })} />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Notes</label>
-            <textarea className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-sm" rows={3} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
-          </div>
-          <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <button type="button" onClick={onClose} className="flex-1 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
-            <button type="submit" disabled={loading} className="flex-1 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-sm">
-              {loading ? 'Schedule' : 'Schedule'}
-            </button>
-          </div>
-        </form>
-      </motion.div>
-    </motion.div>
-  );
+    <div className="flex gap-4 relative">
+      <div className={`
+                flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 z-10
+                ${isNote ? 'bg-amber-100 text-amber-600' : isCall ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}
+             `}>
+        {isNote ? <FileText size={14} /> : isCall ? <Phone size={14} /> : <Mail size={14} />}
+      </div>
+      <div className="flex-1 pb-2">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{activity.author}</span>
+          <span className="text-xs text-slate-400">• {formatDistanceToNow(parseISO(activity.timestamp), { addSuffix: true })}</span>
+        </div>
+        <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm text-sm text-slate-600 dark:text-slate-300">
+          {activity.content}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs text-slate-400">{label}</p>
+      <p className="text-slate-700 dark:text-slate-200 font-medium truncate">{value || 'N/A'}</p>
+    </div>
+  )
 }

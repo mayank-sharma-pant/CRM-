@@ -355,7 +355,7 @@ function PasswordTab() {
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
         <div>
-          <label htmlFor="currentPassword" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Current Password</label>
+          <label htmlFor="currentPassword" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Current Password</label>
           <input
             id="currentPassword"
             type="password"
@@ -370,7 +370,7 @@ function PasswordTab() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label htmlFor="newPassword" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">New Password</label>
+            <label htmlFor="newPassword" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">New Password</label>
             <input
               id="newPassword"
               type="password"
@@ -384,7 +384,7 @@ function PasswordTab() {
             />
           </div>
           <div>
-            <label htmlFor="confirmPassword" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Confirm</label>
+            <label htmlFor="confirmPassword" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Confirm</label>
             <input
               id="confirmPassword"
               type="password"

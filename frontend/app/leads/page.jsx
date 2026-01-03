@@ -1,23 +1,46 @@
 'use client';
 
 /**
- * LEADS LIST PAGE - Mature CRM Pattern (Refined)
+ * LEADS LIST PAGE - Static Execution Focus
  * 
- * Pattern: One-line engagement signal, clean scan
+ * Purpose: Frontend-only demo with robust static data.
+ * Tabs: All | Active | New | Contacted | Follow-up | Converted | Lost
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { formatDistanceToNow, parseISO, differenceInDays, isFuture } from 'date-fns';
-import api from '../../services/api';
+import { formatDistanceToNow, parseISO, differenceInDays } from 'date-fns';
 import {
   Plus,
   ChevronRight,
-  Filter
+  Filter,
+  Briefcase
 } from 'lucide-react';
 
-const STATUS_FILTERS = [
-  { id: 'all', label: 'All' },
+// --- ROBUST STATIC MOCK DATA ---
+const ALL_LEADS = [
+  // NEW
+  { id: 101, name: 'Sarah Miller', company: 'TechFlow Inc.', status: 'New', created_at: new Date().toISOString() },
+  { id: 102, name: 'David Chen', company: 'CloudSystems', status: 'New', created_at: new Date().toISOString() },
+
+  // CONTACTED
+  { id: 201, name: 'Michael Ross', company: 'Alpha Group', status: 'Contacted', last_contacted_at: new Date(Date.now() - 86400000 * 2).toISOString(), last_response_at: null },
+  { id: 202, name: 'Emily White', company: 'Design Co.', status: 'Contacted', last_contacted_at: new Date(Date.now() - 86400000 * 5).toISOString(), last_response_at: new Date(Date.now() - 86400000 * 1).toISOString() },
+
+  // QUALIFIED / FOLLOW-UP
+  { id: 301, name: 'James Wilson', company: 'Enterprise Ltd', status: 'Qualified', last_contacted_at: new Date(Date.now() - 86400000 * 2).toISOString(), next_task: new Date().toISOString() }, // Overdue/Today depending on time
+  { id: 302, name: 'Linda Martinez', company: 'Global Corp', status: 'Qualified', last_contacted_at: new Date(Date.now() - 86400000 * 10).toISOString(), next_task: new Date(Date.now() - 86400000 * 3).toISOString() }, // Overdue
+
+  // CONVERTED
+  { id: 401, name: 'Robert Taylor', company: 'BigBank', status: 'Converted', last_contacted_at: new Date(Date.now() - 86400000 * 20).toISOString() },
+
+  // LOST
+  { id: 501, name: 'Angela Martin', company: 'SmallStart', status: 'Lost', last_contacted_at: new Date(Date.now() - 86400000 * 30).toISOString() }
+];
+
+const TABS = [
+  { id: 'all', label: 'All Leads' },
+  { id: 'active', label: 'Active' },
   { id: 'New', label: 'New' },
   { id: 'Contacted', label: 'Contacted' },
   { id: 'Qualified', label: 'Follow-up' },
@@ -34,30 +57,25 @@ const STATUS_STYLES = {
 };
 
 export default function Leads() {
-  const [leads, setLeads] = useState([]);
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('active');
 
-  useEffect(() => {
-    fetchLeads();
-  }, [activeFilter]);
+  // Static Data Filtering Logic
+  const getFilteredLeads = () => {
+    if (activeTab === 'all') return ALL_LEADS;
 
-  const fetchLeads = async () => {
-    try {
-      const response = await api.get('/leads');
-      let filteredLeads = response.data;
-      if (activeFilter !== 'all') filteredLeads = filteredLeads.filter(lead => lead.status === activeFilter);
-      setLeads(filteredLeads);
-    } catch (error) {
-      console.error('Failed to fetch leads:', error);
-    } finally {
-      setLoading(false);
+    // "Active" group: New, Contacted, Qualified
+    if (activeTab === 'active') {
+      return ALL_LEADS.filter(l => ['New', 'Contacted', 'Qualified'].includes(l.status));
     }
+
+    // Specific Status
+    return ALL_LEADS.filter(l => l.status === activeTab);
   };
+
+  const leads = getFilteredLeads();
 
   /**
    * Helper to determine the single most important engagement signal
-   * Priority: Overdue/Today -> Response -> Awaiting -> Contact History -> New
    */
   const getEngagementSignal = (lead) => {
     const NOW = new Date();
@@ -85,11 +103,9 @@ export default function Leads() {
       return { text: `Contacted ${daysSinceContact === 0 ? 'today' : daysSinceContact + ' days ago'}`, color: 'text-slate-500' };
     }
 
-    // 4. Default
+    // 4. Default -> Empty string (Silent)
     return { text: '', color: '' };
   };
-
-  if (loading) return <div className="h-screen flex items-center justify-center text-slate-400 text-sm">Loading leads...</div>;
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-slate-50 dark:bg-slate-900">
@@ -98,24 +114,26 @@ export default function Leads() {
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 py-5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <h1 className="text-xl font-bold text-slate-800 dark:text-white">Leads</h1>
-          <Link href="/leads?action=new" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-sm transition-all">
+          <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-sm transition-all cursor-default">
             <Plus size={16} /> Add Lead
-          </Link>
+          </button>
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
+      {/* Tabs / Filter Bar */}
+      <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 transition-all">
         <div className="max-w-7xl mx-auto px-8 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
-          <Filter size={14} className="text-slate-400 mr-2" />
-          {STATUS_FILTERS.map(filter => (
+          <Filter size={14} className="text-slate-400 mr-2 flex-shrink-0" />
+          {TABS.map(tab => (
             <button
-              key={filter.id}
-              onClick={() => setActiveFilter(filter.id)}
-              className={`px-3 py-1 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${activeFilter === filter.id ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-3 py-1 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${activeTab === tab.id
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
                 }`}
             >
-              {filter.label}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -129,17 +147,24 @@ export default function Leads() {
           ) : (
             leads.map(lead => {
               const signal = getEngagementSignal(lead);
+              const isMuted = ['Converted', 'Lost'].includes(lead.status);
 
               return (
                 <Link
                   key={lead.id}
                   href={`/leads/${lead.id}`}
-                  className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
+                  className={`flex items-center gap-4 px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group ${isMuted ? 'opacity-60 grayscale-[0.5]' : ''}`}
                 >
                   {/* Left: Identity */}
                   <div className="w-[30%] min-w-[180px]">
-                    <p className="text-[15px] font-semibold text-slate-900 dark:text-white truncate">{lead.name}</p>
-                    {lead.company && <p className="text-xs text-slate-500 truncate">{lead.company}</p>}
+                    <p className={`text-[15px] font-semibold truncate ${isMuted ? 'text-slate-500' : 'text-slate-900 dark:text-white'}`}>
+                      {lead.name}
+                    </p>
+                    {lead.company && (
+                      <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                        <Briefcase size={10} /> {lead.company}
+                      </p>
+                    )}
                   </div>
 
                   {/* Center: Context */}
@@ -147,9 +172,11 @@ export default function Leads() {
                     <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide border ${STATUS_STYLES[lead.status] || STATUS_STYLES.New}`}>
                       {lead.status === 'Qualified' ? 'Follow-up' : lead.status}
                     </span>
-                    <span className={`text-sm ${signal.color} truncate`}>
-                      {signal.text}
-                    </span>
+                    {signal.text && (
+                      <span className={`text-sm ${isMuted ? 'text-slate-400' : signal.color} truncate`}>
+                        {signal.text}
+                      </span>
+                    )}
                   </div>
 
                   {/* Right: Action */}

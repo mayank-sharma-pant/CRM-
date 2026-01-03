@@ -1,305 +1,270 @@
 'use client';
 
-/**
- * LEAD DETAIL PAGE - Mature CRM Pattern
- * 
- * Pattern: HubSpot/Freshsales style
- * Layout: Header -> Engagement Strip -> Activity Composer -> Timeline
- */
-
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { format, parseISO, formatDistanceToNow, isValid } from 'date-fns';
-import api from '../../../services/api';
+import { useRouter, useParams } from 'next/navigation';
 import {
   ArrowLeft,
-  Plus,
   Mail,
   Phone,
-  MessageSquare,
-  Clock,
-  CheckCircle,
   FileText,
-  Calendar,
-  ChevronRight,
-  User,
+  CheckSquare,
+  Clock,
   Building2,
-  MoreHorizontal
+  MapPin,
+  ChevronDown,
+  ChevronRight,
+  MoreHorizontal,
+  PlusCircle,
+  History,
+  Briefcase
 } from 'lucide-react';
+import { formatDistanceToNow, parseISO } from 'date-fns';
 
-const ACTIVITY_TYPES = {
-  NOTE: 'note',
-  CALL: 'call',
-  EMAIL: 'email',
-  TASK: 'task',
-  STATUS: 'status'
+// --- ROBUST MOCK DATA ---
+const LEAD_DATA = {
+  id: 101,
+  name: 'Sarah Miller',
+  title: 'VP of Engineering',
+  company: 'TechFlow Inc.',
+  status: 'Contacted',
+  email: 'sarah.m@techflow.io',
+  phone: '+1 (415) 555-0123',
+  source: 'LinkedIn Campaign',
+  assignee: 'Alex Johnson (Self)',
+  location: 'San Francisco, CA',
+  industry: 'SaaS / DevTools',
+  internal_ref: 'L-2024-882',
+
+  tasks: [
+    { id: 1, title: 'Send technical requirements doc', status: 'Open', due: 'Tomorrow', assignee: 'Self' },
+    { id: 2, title: 'Schedule follow-up demo', status: 'Open', due: 'Jan 12', assignee: 'Manager' },
+    { id: 3, title: 'Initial outreach', status: 'Completed', due: 'Dec 20', assignee: 'Self' },
+  ],
+
+  notes: [
+    { id: 1, content: 'She is looking for a solution that supports SSO.', date: '2 days ago', author: 'Alex Johnson' },
+    { id: 2, content: 'Budget approval happens in Q1.', date: '1 week ago', author: 'Alex Johnson' },
+  ],
+
+  timeline: [
+    { id: 1, type: 'note', title: 'Note added', description: 'Interested in the Enterprise plan for 50+ seats.', timestamp: '2 hours ago', icon: FileText, color: 'text-amber-600 bg-amber-100' },
+    { id: 2, type: 'status', title: 'Status changed', description: 'Moved to "Contacted"', timestamp: 'Yesterday', icon: History, color: 'text-blue-600 bg-blue-100' },
+    { id: 3, type: 'task', title: 'Task completed', description: 'Initial outreach call', timestamp: 'Yesterday', icon: CheckSquare, color: 'text-emerald-600 bg-emerald-100' },
+    { id: 4, type: 'email', title: 'Email sent', description: 'Follow-up with pricing deck', timestamp: '3 days ago', icon: Mail, color: 'text-slate-600 bg-slate-100' },
+    { id: 5, type: 'creation', title: 'Lead created', description: 'Imported from LinkedIn', timestamp: '5 days ago', icon: PlusCircle, color: 'text-violet-600 bg-violet-100' },
+  ]
 };
 
-const STATUS_STYLES = {
-  'New': 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-600',
-  'Contacted': 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800',
-  'Qualified': 'bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400 border-violet-200 dark:border-violet-800',
-  'Converted': 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
-  'Lost': 'bg-gray-50 text-gray-500 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700'
-};
-
-export default function LeadDetail() {
-  const params = useParams();
+export default function LeadDetailPage() {
   const router = useRouter();
-  const leadId = params.id;
-
-  const [lead, setLead] = useState(null);
-  const [activities, setActivities] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('Note'); // Composer tab
-
-  useEffect(() => {
-    if (leadId) fetchLeadData();
-  }, [leadId]);
-
-  const fetchLeadData = async () => {
-    try {
-      const leadRes = await api.get(`/leads/${leadId}`);
-      setLead(leadRes.data);
-
-      // Mock Activities for demo
-      setActivities([
-        { id: 1, type: 'note', content: 'Met at conference, interested in enterprise plan.', timestamp: new Date().toISOString(), author: 'You' },
-        { id: 2, type: 'email', content: 'Sent introductory brochure and pricing.', timestamp: new Date(Date.now() - 86400000).toISOString(), author: 'You' },
-        { id: 3, type: 'status_change', content: 'Changed status to Qualified', timestamp: new Date(Date.now() - 172800000).toISOString(), author: 'System' },
-        { id: 4, type: 'call', content: 'Discovery call - key requirement is SSO.', timestamp: new Date(Date.now() - 250000000).toISOString(), author: 'You' }
-      ]);
-
-      setTasks([
-        { id: 1, title: 'Follow-up on proposal', dueDate: '2024-01-20', status: 'Pending' }
-      ]);
-    } catch (error) {
-      console.error('Failed to fetch lead:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) return <div className="p-8 text-center text-slate-500">Loading profile...</div>;
-  if (!lead) return <div className="p-8 text-center">Lead not found</div>;
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   return (
-    <>
-      {/* 1. Header Area */}
-      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-6 py-4">
+    <div className="bg-slate-50 dark:bg-slate-900 min-h-full font-sans text-slate-900 dark:text-slate-100 pb-12">
 
-          {/* Top Row: Nav & Actions */}
-          <div className="flex items-center justify-between mb-4">
-            <button onClick={() => router.push('/leads')} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+      {/* --- PAGE HEADER --- */}
+      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-20 px-6 py-4 shadow-sm">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push('/leads')}
+              className="p-2 -ml-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            >
               <ArrowLeft size={18} />
             </button>
-            <div className="flex items-center gap-2">
-              <ActionButton icon={FileText} label="Log Note" />
-              <ActionButton icon={Phone} label="Log Call" />
-              <ActionButton icon={Mail} label="Log Email" />
-              <ActionButton icon={CheckCircle} label="Task" />
-              <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
-              <button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md shadow-sm transition-colors">
-                Convert
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">
+                  {LEAD_DATA.name}
+                </h1>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 uppercase tracking-wide border border-slate-200 dark:border-slate-600">
+                  Lead
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 uppercase tracking-wide border border-blue-100 dark:border-blue-800/50">
+                  {LEAD_DATA.status}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                <span className="flex items-center gap-1">
+                  <Building2 size={12} /> {LEAD_DATA.company}
+                </span>
+                <span>•</span>
+                <span>{LEAD_DATA.title}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
+              Update Status
+            </button>
+            <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+              Convert to Client
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        {/* --- LEFT COLUMN: CORE ACTIVITY (7 cols) --- */}
+        <div className="lg:col-span-7 space-y-6">
+
+          {/* Section 2: Activity Timeline */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+            <h2 className="text-sm font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+              <History size={16} className="text-slate-400" />
+              Activity History
+            </h2>
+
+            <div className="relative space-y-8 pl-3 border-l-2 border-slate-100 dark:border-slate-700 ml-2">
+              {LEAD_DATA.timeline.map((item) => (
+                <div key={item.id} className="relative pl-6 group">
+                  <div className={`
+                          absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 border-white dark:border-slate-800 
+                          ${item.color.replace('text-', 'bg-')} ring-1 ring-slate-100 dark:ring-slate-700
+                       `}></div>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-900 dark:text-white">
+                        {item.title}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {item.timestamp}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">
+                      {item.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+
+              <div className="relative pl-6">
+                <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+                <p className="text-[10px] text-slate-400 italic">Start of timeline</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* --- RIGHT COLUMN: CONTEXT & TASKS (5 cols) --- */}
+        <div className="lg:col-span-5 space-y-6">
+
+          {/* Section 1: Lead Overview (Compact) */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-4">Lead Overview</h2>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-sm">
+                <Mail size={14} className="text-slate-400 w-4" />
+                <span className="text-blue-600 hover:underline cursor-pointer truncate">{LEAD_DATA.email}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <Phone size={14} className="text-slate-400 w-4" />
+                <span className="text-slate-700 dark:text-slate-300">{LEAD_DATA.phone}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <Briefcase size={14} className="text-slate-400 w-4" />
+                <span className="text-slate-700 dark:text-slate-300">{LEAD_DATA.source}</span>
+              </div>
+              <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between text-xs">
+                <span className="text-slate-500">Assignee</span>
+                <span className="font-medium text-slate-900 dark:text-white">{LEAD_DATA.assignee}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Tasks */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Pending Tasks</h2>
+              <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">{LEAD_DATA.tasks.filter(t => t.status === 'Open').length} Open</span>
+            </div>
+            <div className="space-y-1">
+              {LEAD_DATA.tasks.map((task) => (
+                <div key={task.id} className="group p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer">
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-0.5 w-3.5 h-3.5 rounded border flex items-center justify-center ${task.status === 'Completed' ? 'bg-slate-200 border-slate-300' : 'border-slate-300 dark:border-slate-500'}`}>
+                      {task.status === 'Completed' && <CheckSquare size={10} className="text-slate-500" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-medium truncate ${task.status === 'Completed' ? 'text-slate-400 line-through' : 'text-slate-700 dark:text-slate-200'}`}>
+                        {task.title}
+                      </p>
+                      {task.status === 'Open' && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-[10px] ${task.due === 'Tomorrow' ? 'text-amber-600' : 'text-slate-400'} flex items-center gap-1`}>
+                            <Clock size={10} /> {task.due}
+                          </span>
+                          <span className="text-[10px] text-slate-400">• {task.assignee}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button className="w-full py-2 mt-2 text-xs font-medium text-slate-500 hover:text-blue-600 dashed border border-slate-200 rounded hover:border-blue-200 transition-all flex items-center justify-center gap-2">
+                <PlusCircle size={12} /> Add Task
               </button>
             </div>
           </div>
 
-          {/* Identity Row */}
-          <div className="flex items-end justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-500 font-semibold text-lg">
-                {lead.name.charAt(0)}
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">{lead.name}</h1>
-                <div className="flex items-center gap-3 mt-1">
-                  {lead.company && (
-                    <span className="flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
-                      <Building2 size={12} /> {lead.company}
-                    </span>
-                  )}
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${STATUS_STYLES[lead.status] || STATUS_STYLES.New}`}>
-                    {lead.status === 'Qualified' ? 'Follow-up' : lead.status}
-                  </span>
-                </div>
-              </div>
+          {/* Section 4: Notes */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Recent Notes</h2>
+              <button className="text-xs text-blue-600 hover:underline">Add Note</button>
             </div>
-
-            {/* Last Contacted (Header context) */}
-            <div className="text-right hidden sm:block">
-              <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Last Contacted</p>
-              <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">
-                {lead.last_contacted_at ? format(parseISO(lead.last_contacted_at), 'MMM d, h:mm a') : 'Not yet'}
-              </p>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      {/* 2. Engagement Summary Strip */}
-      <div className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-8 overflow-x-auto">
-          <SummaryItem label="Last Response" value={lead.last_response_at ? formatDistanceToNow(parseISO(lead.last_response_at), { addSuffix: true }) : 'No response'} icon={MessageSquare} />
-          <SummaryItem label="Next Task" value={lead.next_task ? format(parseISO(lead.next_task), 'MMM d, yyyy') : 'None scheduled'} icon={Calendar} active={!!lead.next_task} />
-          <SummaryItem label="Lead Source" value={lead.source || 'Direct'} icon={User} />
-          <SummaryItem label="Owner" value="You" icon={User} />
-        </div>
-      </div>
-
-      {/* 3. Main Content Area */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-          {/* Left Column: Timeline & Composer (2/3) */}
-          <div className="lg:col-span-2 space-y-8">
-
-            {/* Activity Composer */}
-            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden group focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-              <div className="flex border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800">
-                {['Note', 'Call', 'Email'].map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-colors ${activeTab === tab ? 'text-blue-600 bg-white dark:bg-slate-700 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-              <div className="p-3">
-                <textarea
-                  className="w-full text-sm text-slate-700 dark:text-slate-200 bg-transparent border-none focus:ring-0 placeholder:text-slate-400 resize-none"
-                  rows={3}
-                  placeholder={`Start typing a ${activeTab.toLowerCase()}...`}
-                />
-                <div className="flex justify-end mt-2">
-                  <button className="px-3 py-1.5 bg-slate-900 dark:bg-slate-600 text-white text-xs font-medium rounded hover:bg-slate-800 transition-colors">
-                    Save {activeTab}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Timeline */}
-            <div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                Activity Timeline
-                <span className="text-xs font-normal text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full">{activities.length}</span>
-              </h3>
-              <div className="space-y-6 relative before:absolute before:left-4 before:top-2 before:bottom-0 before:w-px before:bg-slate-200 dark:before:bg-slate-700">
-                {activities.map(activity => (
-                  <TimelineItem key={activity.id} activity={activity} />
-                ))}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Right Column: Related Info (1/3) */}
-          <div className="space-y-6">
-
-            {/* Related Tasks Panel */}
-            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Related Tasks</h3>
-                <Link href="/tasks" className="text-xs text-blue-600 hover:underline">View all</Link>
-              </div>
-              <div className="space-y-2">
-                {tasks.length > 0 ? tasks.map(task => (
-                  <div key={task.id} className="flex items-start gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded transition-colors cursor-pointer border border-transparent hover:border-slate-100">
-                    <div className="mt-0.5 text-slate-400"><CheckCircle size={14} /></div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{task.title}</p>
-                      <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                        <Clock size={10} /> Due {format(parseISO(task.dueDate), 'MMM d')}
-                      </p>
-                    </div>
+            <div className="space-y-4">
+              {LEAD_DATA.notes.map((note) => (
+                <div key={note.id} className="text-xs">
+                  <p className="text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-700/30 p-3 rounded-lg border border-slate-100 dark:border-slate-700/50">
+                    {note.content}
+                  </p>
+                  <div className="flex items-center justify-between mt-1 px-1">
+                    <span className="text-slate-400">{note.author}</span>
+                    <span className="text-slate-400">{note.date}</span>
                   </div>
-                )) : (
-                  <p className="text-xs text-slate-400 italic">No open tasks.</p>
-                )}
-                <button className="w-full mt-2 py-1.5 text-xs text-slate-500 font-medium border border-dashed border-slate-300 rounded hover:border-slate-400 hover:text-slate-600 transition-colors">
-                  + Add Task
-                </button>
-              </div>
+                </div>
+              ))}
             </div>
+          </div>
 
-            {/* Info Card (Example) */}
-            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-4">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">About {lead.name}</h3>
-              <div className="space-y-3 text-sm">
-                <InfoRow label="Email" value={lead.email} />
-                <InfoRow label="Phone" value={lead.phone} />
-                <InfoRow label="Location" value="San Francisco, CA" />
+          {/* Section 5: Lead Details (Collapsible) */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <button
+              onClick={() => setIsDetailsOpen(!isDetailsOpen)}
+              className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+            >
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Full Details</span>
+              <ChevronDown size={14} className={`text-slate-400 transition-transform ${isDetailsOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isDetailsOpen && (
+              <div className="px-5 pb-5 pt-0 border-t border-slate-100 dark:border-slate-700/50 animate-in slide-in-from-top-1">
+                <div className="space-y-3 pt-3">
+                  <div>
+                    <span className="block text-[10px] text-slate-400 uppercase">Location</span>
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{LEAD_DATA.location}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-slate-400 uppercase">Industry</span>
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{LEAD_DATA.industry}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-slate-400 uppercase">Internal Ref</span>
+                    <span className="text-sm font-mono text-slate-600 dark:text-slate-400">{LEAD_DATA.internal_ref}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-
+            )}
           </div>
 
         </div>
+
       </div>
-    </>
+    </div>
   );
-}
-
-// Sub-components for cleaner file
-function ActionButton({ icon: Icon, label }) {
-  return (
-    <button className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors" title={label}>
-      <Icon size={16} />
-    </button>
-  );
-}
-
-function SummaryItem({ label, value, icon: Icon, active }) {
-  return (
-    <div className="flex items-center gap-3 flex-shrink-0">
-      <div className={`p-1.5 rounded-md ${active ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'} dark:bg-slate-700`}>
-        <Icon size={14} />
-      </div>
-      <div>
-        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{label}</p>
-        <p className={`text-sm font-semibold ${active ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-200'}`}>{value}</p>
-      </div>
-    </div>
-  )
-}
-
-function TimelineItem({ activity }) {
-  const isNote = activity.type === 'note';
-  const isCall = activity.type === 'call';
-
-  return (
-    <div className="flex gap-4 relative">
-      <div className={`
-                flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 z-10
-                ${isNote ? 'bg-amber-100 text-amber-600' : isCall ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}
-             `}>
-        {isNote ? <FileText size={14} /> : isCall ? <Phone size={14} /> : <Mail size={14} />}
-      </div>
-      <div className="flex-1 pb-2">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{activity.author}</span>
-          <span className="text-xs text-slate-400">• {formatDistanceToNow(parseISO(activity.timestamp), { addSuffix: true })}</span>
-        </div>
-        <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm text-sm text-slate-600 dark:text-slate-300">
-          {activity.content}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function InfoRow({ label, value }) {
-  return (
-    <div>
-      <p className="text-xs text-slate-400">{label}</p>
-      <p className="text-slate-700 dark:text-slate-200 font-medium truncate">{value || 'N/A'}</p>
-    </div>
-  )
 }

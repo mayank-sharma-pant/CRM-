@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
+import AIAssistant from './AIAssistant';
 
 export default function Layout({ children }) {
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -16,6 +17,7 @@ export default function Layout({ children }) {
                     {children}
                 </main>
             </div>
+            <AIAssistant />
         </div>
     );
 }

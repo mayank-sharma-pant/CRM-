@@ -4,54 +4,7 @@ import Link from 'next/link';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { ChevronRight, Briefcase, FileText } from 'lucide-react';
 
-// --- MOCK DATA ---
-const CLIENTS = [
-    {
-        id: 101,
-        name: 'Robert Taylor',
-        company: 'BigBank',
-        status: 'Active',
-        source: 'Converted from Lead',
-        last_activity: 'Quarterly review scheduled for next week.',
-        last_interaction_at: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
-    },
-    {
-        id: 102,
-        name: 'Elena Rodriguez',
-        company: 'Solaris systems',
-        status: 'Active',
-        source: 'Converted from Lead',
-        last_activity: 'Sent updated contract proposal.',
-        last_interaction_at: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
-    },
-    {
-        id: 103,
-        name: 'Marcus Chen',
-        company: 'Future Net',
-        status: 'Active',
-        source: 'Direct Account',
-        last_activity: 'Discussed expansion plans for Q3.',
-        last_interaction_at: new Date(Date.now() - 86400000 * 12).toISOString(), // 12 days ago
-    },
-    {
-        id: 104,
-        name: 'Sarah Jenkins',
-        company: 'Lawson & Partners',
-        status: 'Active',
-        source: 'Referral',
-        last_activity: 'Resolved billing inquiry #4492.',
-        last_interaction_at: new Date(Date.now() - 86400000 * 20).toISOString(), // 20 days ago
-    },
-    {
-        id: 105,
-        name: 'David Kim',
-        company: 'Orbital Tech',
-        status: 'Active',
-        source: 'Converted from Lead',
-        last_activity: 'Onboarding completed successfully.',
-        last_interaction_at: new Date(Date.now() - 86400000 * 60).toISOString(), // 2 months ago
-    }
-];
+import { CLIENTS_DATA as CLIENTS } from './data';
 
 export default function ClientsPage() {
     return (
@@ -78,7 +31,7 @@ export default function ClientsPage() {
                     {CLIENTS.map((client) => (
                         <Link
                             key={client.id}
-                            href={`/clients/${client.id}`}
+                            href={`/sales/clients/${client.id}`}
                             className="group block hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors duration-150"
                         >
                             <div className="px-6 py-5 flex items-center justify-between">

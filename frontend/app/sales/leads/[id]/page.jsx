@@ -68,7 +68,7 @@ export default function LeadDetailPage() {
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => router.push('/leads')}
+              onClick={() => router.push('/sales/leads')}
               className="p-2 -ml-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
             >
               <ArrowLeft size={18} />

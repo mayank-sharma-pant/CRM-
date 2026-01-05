@@ -129,8 +129,8 @@ export default function Leads() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`px-3 py-1 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${activeTab === tab.id
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
                 }`}
             >
               {tab.label}
@@ -152,7 +152,7 @@ export default function Leads() {
               return (
                 <Link
                   key={lead.id}
-                  href={`/leads/${lead.id}`}
+                  href={`/sales/leads/${lead.id}`}
                   className={`flex items-center gap-4 px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group ${isMuted ? 'opacity-60 grayscale-[0.5]' : ''}`}
                 >
                   {/* Left: Identity */}

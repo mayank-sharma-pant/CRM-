@@ -2,6 +2,6 @@
 
 import Layout from '../../components/Layout';
 
-export default function LeadsLayout({ children }) {
+export default function SalesLayout({ children }) {
     return <Layout>{children}</Layout>;
 }

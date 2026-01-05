@@ -21,7 +21,7 @@ export default function Login() {
         try {
             await login(email, password);
             // Success is silent/redirect
-            router.push('/dashboard');
+            router.push('/sales/dashboard');
         } catch (err) {
             setError(err.response?.data?.error || 'Login failed. Please try again.');
         } finally {

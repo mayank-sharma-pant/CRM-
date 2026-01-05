@@ -14,7 +14,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { format, parseISO, isPast, isSameDay } from 'date-fns';
-import api from '../../services/api';
+import api from '../../../services/api';
 import {
   Plus,
   Users,
@@ -142,14 +142,14 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              href="/leads"
+              href="/sales/leads"
               className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm"
             >
               View All Leads
             </Link>
             {canAddLead && (
               <Link
-                href="/leads?action=new"
+                href="/sales/leads?action=new"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
               >
                 <Plus size={16} />
@@ -205,7 +205,7 @@ export default function Dashboard() {
               priorityTasks.map((task) => (
                 <Link
                   key={task.id}
-                  href="/tasks"
+                  href="/sales/tasks"
                   className="group flex items-center justify-between px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                 >
                   {/* Left: Identity & Info */}
@@ -255,7 +255,7 @@ export default function Dashboard() {
 
           {/* Footer Link */}
           <div className="bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 px-6 py-3">
-            <Link href="/tasks" className="text-sm font-medium text-slate-600 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 flex items-center gap-1 transition-colors">
+            <Link href="/sales/tasks" className="text-sm font-medium text-slate-600 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 flex items-center gap-1 transition-colors">
               View all tasks <ArrowRight size={14} />
             </Link>
           </div>
@@ -280,3 +280,4 @@ function CompactMetric({ label, value, sub, icon: Icon, color = "text-slate-800 
     </div>
   )
 }
+

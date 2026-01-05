@@ -100,7 +100,7 @@ function Sidebar({ user }) {
             Get Started
           </Link>
         ) : (
-          <Link href="/dashboard" className="flex items-center justify-center w-full bg-indigo-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:shadow-lg hover:shadow-indigo-500/25 transition-all">
+          <Link href="/sales/dashboard" className="flex items-center justify-center w-full bg-indigo-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:shadow-lg hover:shadow-indigo-500/25 transition-all">
             Dashboard
           </Link>
         )}

@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import api from '../../services/api';
+import api from '../../../services/api';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart
 } from 'recharts';
 import { motion } from 'framer-motion';
-import { VARIANTS, TRANSITIONS } from '../../lib/motion';
+import { VARIANTS, TRANSITIONS } from '../../../lib/motion';
 import {
   TrendingUp,
   Users,
@@ -357,3 +357,4 @@ export default function Reports() {
     </motion.div>
   );
 }
+

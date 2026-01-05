@@ -12,7 +12,7 @@ import {
   Sun,
   Bell
 } from 'lucide-react';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
@@ -205,3 +205,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

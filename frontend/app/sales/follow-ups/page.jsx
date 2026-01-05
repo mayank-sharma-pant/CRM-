@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import api from '../../services/api';
+import api from '../../../services/api';
 import { format, isPast, isToday, parseISO, compareAsc, differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { VARIANTS, TRANSITIONS } from '../../lib/motion';
+import { VARIANTS, TRANSITIONS } from '../../../lib/motion';
 import {
   CheckCircle2,
   AlertCircle,
@@ -317,3 +317,4 @@ function EmptyState() {
     </div>
   );
 }
+

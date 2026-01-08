@@ -7,36 +7,16 @@
  * Tabs: All | Active | New | Contacted | Follow-up | Converted | Lost
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { formatDistanceToNow, parseISO, differenceInDays } from 'date-fns';
+import api from '../../../services/api';
 import {
   Plus,
   ChevronRight,
   Filter,
   Briefcase
 } from 'lucide-react';
-
-// --- ROBUST STATIC MOCK DATA ---
-const ALL_LEADS = [
-  // NEW
-  { id: 101, name: 'Sarah Miller', company: 'TechFlow Inc.', status: 'New', created_at: new Date().toISOString() },
-  { id: 102, name: 'David Chen', company: 'CloudSystems', status: 'New', created_at: new Date().toISOString() },
-
-  // CONTACTED
-  { id: 201, name: 'Michael Ross', company: 'Alpha Group', status: 'Contacted', last_contacted_at: new Date(Date.now() - 86400000 * 2).toISOString(), last_response_at: null },
-  { id: 202, name: 'Emily White', company: 'Design Co.', status: 'Contacted', last_contacted_at: new Date(Date.now() - 86400000 * 5).toISOString(), last_response_at: new Date(Date.now() - 86400000 * 1).toISOString() },
-
-  // QUALIFIED / FOLLOW-UP
-  { id: 301, name: 'James Wilson', company: 'Enterprise Ltd', status: 'Qualified', last_contacted_at: new Date(Date.now() - 86400000 * 2).toISOString(), next_task: new Date().toISOString() }, // Overdue/Today depending on time
-  { id: 302, name: 'Linda Martinez', company: 'Global Corp', status: 'Qualified', last_contacted_at: new Date(Date.now() - 86400000 * 10).toISOString(), next_task: new Date(Date.now() - 86400000 * 3).toISOString() }, // Overdue
-
-  // CONVERTED
-  { id: 401, name: 'Robert Taylor', company: 'BigBank', status: 'Converted', last_contacted_at: new Date(Date.now() - 86400000 * 20).toISOString() },
-
-  // LOST
-  { id: 501, name: 'Angela Martin', company: 'SmallStart', status: 'Lost', last_contacted_at: new Date(Date.now() - 86400000 * 30).toISOString() }
-];
 
 const TABS = [
   { id: 'all', label: 'All Leads' },
@@ -58,21 +38,34 @@ const STATUS_STYLES = {
 
 export default function Leads() {
   const [activeTab, setActiveTab] = useState('active');
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Static Data Filtering Logic
-  const getFilteredLeads = () => {
-    if (activeTab === 'all') return ALL_LEADS;
+  useEffect(() => {
+    fetchLeads();
+  }, []);
 
-    // "Active" group: New, Contacted, Qualified
-    if (activeTab === 'active') {
-      return ALL_LEADS.filter(l => ['New', 'Contacted', 'Qualified'].includes(l.status));
+  const fetchLeads = async () => {
+    try {
+      const response = await api.get('/leads');
+      setLeads(response.data || []);
+    } catch (error) {
+      console.error("Failed to fetch leads", error);
+    } finally {
+      setLoading(false);
     }
-
-    // Specific Status
-    return ALL_LEADS.filter(l => l.status === activeTab);
   };
 
-  const leads = getFilteredLeads();
+  // Static Logic for filtering the API data
+  const getFilteredLeads = () => {
+    if (activeTab === 'all') return leads;
+    if (activeTab === 'active') {
+      return leads.filter(l => ['New', 'Contacted', 'Qualified'].includes(l.status));
+    }
+    return leads.filter(l => l.status === activeTab);
+  };
+
+  const filteredLeads = getFilteredLeads();
 
   /**
    * Helper to determine the single most important engagement signal
@@ -106,6 +99,14 @@ export default function Leads() {
     // 4. Default -> Empty string (Silent)
     return { text: '', color: '' };
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-slate-50 dark:bg-slate-900">
+        <div className="text-sm text-slate-500 font-medium animate-pulse">Loading leads...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-slate-50 dark:bg-slate-900">
@@ -142,10 +143,10 @@ export default function Leads() {
       {/* List */}
       <div className="max-w-7xl mx-auto px-8 py-6">
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden divide-y divide-slate-100 dark:divide-slate-700/50">
-          {leads.length === 0 ? (
+          {filteredLeads.length === 0 ? (
             <div className="p-12 text-center text-slate-500 text-sm">No leads found in this view.</div>
           ) : (
-            leads.map(lead => {
+            filteredLeads.map(lead => {
               const signal = getEngagementSignal(lead);
               const isMuted = ['Converted', 'Lost'].includes(lead.status);
 

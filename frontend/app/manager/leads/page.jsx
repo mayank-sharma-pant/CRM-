@@ -1,8 +1,12 @@
-export default function ManagerLeadsPage() {
-    return (
-        <div className="p-8">
-            <h1 className="text-2xl font-bold mb-4">Manager Leads</h1>
-            <p className="text-gray-500">Work in progress...</p>
-        </div>
-    );
-}
+'use client';
+
+/**
+ * MANAGER LEADS PAGE
+ * 
+ * Reuses the Sales Leads Page strictly.
+ * Data scope (Team vs Personal) is handled by the API layer based on the route context.
+ */
+
+import Leads from '../../sales/leads/page.jsx';
+
+export default Leads;

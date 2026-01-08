@@ -1,8 +1,12 @@
-export default function ManagerTasksPage() {
-    return (
-        <div className="p-8">
-            <h1 className="text-2xl font-bold mb-4">Manager Tasks</h1>
-            <p className="text-gray-500">Work in progress...</p>
-        </div>
-    );
-}
+'use client';
+
+/**
+ * MANAGER TASKS PAGE
+ * 
+ * Reuses the Sales Tasks Page strictly.
+ * Data scope (Team vs Personal) is handled by the API layer based on the route context.
+ */
+
+import TasksPage from '../../sales/tasks/page.jsx';
+
+export default TasksPage;

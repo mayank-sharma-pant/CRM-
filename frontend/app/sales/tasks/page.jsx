@@ -7,40 +7,40 @@
  * Pattern: Static Tabs (Overdue, Today, Upcoming)
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
+    CornerDownRight,
+    Briefcase,
+    UserCircle,
     Plus,
     Check,
     Clock,
-    User,
-    CornerDownRight,
-    Briefcase,
-    UserCircle
+    User
 } from 'lucide-react';
+import api from '../../../services/api';
+import { isPast, isSameDay, parseISO, isFuture } from 'date-fns';
 
-// --- MOCK DATA ---
-const OVERDUE_TASKS = [
-    { id: 1, title: 'Finalize contract agreement', entity: 'Acme Corp', entityType: 'Client', assignedBy: 'manager', dueDate: 'Yesterday', isParent: true },
-    { id: 2, title: 'Upload signed NDA', entity: 'Acme Corp', entityType: 'Client', assignedBy: 'self', dueDate: 'Yesterday', isChild: true },
-    { id: 3, title: 'Follow up on missing requirements', entity: 'John Doe', entityType: 'Lead', assignedBy: 'self', dueDate: '2 days ago' },
-];
-
-const TODAY_TASKS = [
-    { id: 4, title: 'Prepare Q3 presentation draft', entity: 'Internal', entityType: 'System', assignedBy: 'manager', dueDate: '10:00 AM' },
-    { id: 5, title: 'Call Sarah about renewal', entity: 'TechStart Inc', entityType: 'Client', assignedBy: 'self', dueDate: '2:00 PM' },
-    { id: 6, title: 'Send invoice #4022', entity: 'Global Solutions', entityType: 'Client', assignedBy: 'self', dueDate: '4:30 PM' },
-    { id: 7, title: 'Update CRM contact details', entity: 'New Logistics', entityType: 'Lead', assignedBy: 'self', dueDate: '5:00 PM' },
-];
-
-const UPCOMING_TASKS = [
-    { id: 8, title: 'Weekly Pipeline Review', entity: 'Sales Team', entityType: 'System', assignedBy: 'manager', dueDate: 'Tomorrow', isParent: true },
-    { id: 9, title: 'Update personal metrics', entity: 'Sales Team', entityType: 'System', assignedBy: 'manager', dueDate: 'Tomorrow', isChild: true },
-    { id: 10, title: 'Lunch with potential partner', entity: 'City Bistro', entityType: 'Event', assignedBy: 'self', dueDate: 'Fri, Jan 12' },
-];
+// --- MOCK DATA REMOVED (Replaced by API) ---
 
 export default function TasksPage() {
     const [activeTab, setActiveTab] = useState('Today');
     const [completedTasks, setCompletedTasks] = useState(new Set());
+    const [tasks, setTasks] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchTasks = async () => {
+            try {
+                const res = await api.get('/tasks/list');
+                setTasks(res.data || []);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchTasks();
+    }, []);
 
     const toggleTask = (id) => {
         const newCompleted = new Set(completedTasks);
@@ -52,13 +52,24 @@ export default function TasksPage() {
         setCompletedTasks(newCompleted);
     };
 
+    // Filter Logic simulating the original tabs using string matching on 'dueDate'
+    // NOTE: In a real app we'd parse dates. Here we match the Mock Data strings to preserve the UI exactly.
     const getTasksForTab = () => {
-        switch (activeTab) {
-            case 'Overdue': return OVERDUE_TASKS;
-            case 'Today': return TODAY_TASKS;
-            case 'Upcoming': return UPCOMING_TASKS;
-            default: return [];
-        }
+        if (!tasks.length) return [];
+
+        return tasks.filter(t => {
+            const d = t.dueDate.toLowerCase();
+            if (activeTab === 'Overdue') {
+                return d.includes('yesterday') || d.includes('ago');
+            }
+            if (activeTab === 'Today') {
+                return d.includes('am') || d.includes('pm') || d.includes('today');
+            }
+            if (activeTab === 'Upcoming') {
+                return d.includes('tomorrow') || d.includes('jan') || d.includes('feb') || d.includes('mar') || d.includes('apr') || d.includes('may') || d.includes('jun') || d.includes('jul') || d.includes('aug') || d.includes('sep') || d.includes('oct') || d.includes('nov') || d.includes('dec');
+            }
+            return false;
+        });
     };
 
     // Color logic for tabs

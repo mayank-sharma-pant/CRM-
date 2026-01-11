@@ -84,7 +84,10 @@ function MetricCard({ label, value, color, icon: Icon, suffix = '', prefix = '' 
   );
 }
 
-export default function Reports() {
+export default function Reports({
+  dashboardEndpoint = '/reports/dashboard',
+  overviewEndpoint = '/reports/overview'
+}) {
   const [stats, setStats] = useState(null);
   const [overview, setOverview] = useState(null);
   const [period, setPeriod] = useState('month');
@@ -97,8 +100,8 @@ export default function Reports() {
   const fetchReports = async () => {
     try {
       const [statsRes, overviewRes] = await Promise.all([
-        api.get('/reports/dashboard'),
-        api.get('/reports/overview', { params: { period } }),
+        api.get(dashboardEndpoint),
+        api.get(overviewEndpoint, { params: { period } }),
       ]);
 
       setStats(statsRes.data);

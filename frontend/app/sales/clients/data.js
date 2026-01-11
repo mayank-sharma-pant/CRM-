@@ -34,6 +34,13 @@ export const CLIENTS_DATA = [
         last_activity: 'Quarterly review scheduled for next week.',
         last_interaction_at: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
 
+        // MOCK PERMISSIONS (Sales View Default)
+        permissions: {
+            canEdit: true,
+            canAddNote: true,
+            canCreateTask: true
+        },
+
         timeline: [
             { id: 1, type: 'status', label: 'Client is now Active', timestamp: '2 days ago', icon: History },
             { id: 2, type: 'task', label: 'Completed: Initial Onboarding Call', timestamp: '3 days ago', icon: CheckSquare },

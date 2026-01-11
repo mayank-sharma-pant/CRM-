@@ -29,13 +29,36 @@ export default function ClientDetailPage() {
     const [client, setClient] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    // MOCK DATA FETCHING SIMULATION
+    // In a real app, the API endpoint would differ (/api/sales/clients vs /api/manager/clients)
+    // and the backend would return the correct permissions.
     useEffect(() => {
         if (params?.id) {
-            const foundClient = CLIENTS_DATA.find(c => c.id === parseInt(params.id));
+            let foundClient = CLIENTS_DATA.find(c => c.id === parseInt(params.id));
+
             if (foundClient) {
-                setClient(foundClient);
+                // CLONE to avoid mutating shared reference
+                const clientData = { ...foundClient };
+                const isManager = window.location.pathname.startsWith('/manager');
+
+                // MOCK API LOGIC: Override permissions based on "Role Context"
+                // This simulates the Backend response difference.
+                if (isManager) {
+                    clientData.permissions = {
+                        canEdit: false,
+                        canAddNote: false, // Read Only
+                        canCreateTask: false // Structural changes only via dedicated tools, not here
+                    };
+                } else {
+                    // Default Sales Permissions (if not present)
+                    clientData.permissions = clientData.permissions || {
+                        canEdit: true,
+                        canAddNote: true,
+                        canCreateTask: true
+                    };
+                }
+                setClient(clientData);
             } else {
-                // Handle not found - could redirect or show error
                 console.error(`Client ${params.id} not found`);
             }
             setLoading(false);
@@ -97,15 +120,24 @@ export default function ClientDetailPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <button className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm">
-                            <Plus size={14} /> Add Note
-                        </button>
-                        <button className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
-                            <CheckSquare size={14} /> Create Task
-                        </button>
-                        <button className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
-                            <MoreHorizontal size={20} />
-                        </button>
+                        {/* PERMISSION CHECK: Add Note */}
+                        {client.permissions?.canAddNote && (
+                            <button className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm">
+                                <Plus size={14} /> Add Note
+                            </button>
+                        )}
+                        {/* PERMISSION CHECK: Create Task */}
+                        {client.permissions?.canCreateTask && (
+                            <button className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                                <CheckSquare size={14} /> Create Task
+                            </button>
+                        )}
+                        {/* PERMISSION CHECK: Edit (More) */}
+                        {client.permissions?.canEdit && (
+                            <button className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+                                <MoreHorizontal size={20} />
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -253,7 +285,9 @@ export default function ClientDetailPage() {
                                         <FileText size={18} className="text-amber-500" />
                                         Notes
                                     </h2>
-                                    <button className="text-xs text-blue-600 hover:underline font-medium">Add Note</button>
+                                    {client.permissions?.canAddNote && (
+                                        <button className="text-xs text-blue-600 hover:underline font-medium">Add Note</button>
+                                    )}
                                 </div>
 
                                 <div className="space-y-4">

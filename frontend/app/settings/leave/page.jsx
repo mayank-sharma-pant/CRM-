@@ -11,6 +11,7 @@ const mockApi = {
             setTimeout(() => {
                 resolve({
                     canSubmit: true,
+                    canApprove: true, // MOCK: Simulating Manager Role
                 });
             }, 300);
         });
@@ -229,11 +230,62 @@ const LeaveRequestList = ({ requests }) => {
     );
 };
 
+const LeaveApprovalList = ({ requests }) => {
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden mb-8">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/50 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800">
+                <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    <CheckCircle size={16} className="text-emerald-600 dark:text-emerald-400" />
+                    Pending Approvals (Team)
+                </h2>
+                <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold">
+                    {requests.length}
+                </span>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+                        <tr>
+                            <th className="px-6 py-3 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Employee</th>
+                            <th className="px-6 py-3 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Type</th>
+                            <th className="px-6 py-3 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Dates</th>
+                            <th className="px-6 py-3 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                        {requests.map((req) => (
+                            <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-none">
+                                <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{req.employee}</td>
+                                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{req.type}</td>
+                                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                                    {req.start} → {req.end}
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-2">
+                                        <button className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded transition-colors">
+                                            Approve
+                                        </button>
+                                        <button className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded transition-colors dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600">
+                                            Reject
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
 // --- MAIN PAGE ---
 
 export default function LeaveRequestsPage() {
     const [permissions, setPermissions] = useState(null);
     const [history, setHistory] = useState([]);
+    const [pendingApprovals, setPendingApprovals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
@@ -246,6 +298,11 @@ export default function LeaveRequestsPage() {
                 ]);
                 setPermissions(perms);
                 setHistory(hist);
+
+                if (perms.canApprove) {
+                    const approvals = await mockApi.getTeamRequests();
+                    setPendingApprovals(approvals);
+                }
             } catch (error) {
                 console.error("Failed to load leave data", error);
             } finally {
@@ -299,6 +356,12 @@ export default function LeaveRequestsPage() {
                                 {/* Section 1: Form (Conditional) */}
                                 {permissions?.canSubmit && (
                                     <LeaveRequestForm onSubmit={handleCreateRequest} isLoading={submitting} />
+                                {permissions?.canSubmit && (
+                                    <LeaveRequestForm onSubmit={handleCreateRequest} isLoading={submitting} />
+                                )}
+
+                                {permissions?.canApprove && pendingApprovals.length > 0 && (
+                                    <LeaveApprovalList requests={pendingApprovals} />
                                 )}
 
                                 {/* Section 2: List (Always Visible) */}

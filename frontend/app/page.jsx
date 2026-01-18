@@ -96,11 +96,16 @@ function Sidebar({ user }) {
           <ThemeToggle />
         </div>
         {!user ? (
-          <Link href="/signup" className="flex items-center justify-center w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-2.5 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity">
-            Get Started
-          </Link>
+          <>
+            <Link href="/login" className="flex items-center justify-center w-full border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              Sign in
+            </Link>
+            <Link href="/signup" className="flex items-center justify-center w-full bg-slate-900 dark:bg-slate-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity">
+              Get Started
+            </Link>
+          </>
         ) : (
-          <Link href="/sales/dashboard" className="flex items-center justify-center w-full bg-indigo-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:shadow-lg hover:shadow-indigo-500/25 transition-all">
+          <Link href="/login" className="flex items-center justify-center w-full bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all">
             Dashboard
           </Link>
         )}
@@ -110,16 +115,68 @@ function Sidebar({ user }) {
 }
 
 function MobileHeader({ user }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
-    <div className="md:hidden flex items-center justify-between p-6 bg-white/80 dark:bg-[#0B1120]/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
-      <div className="flex items-center gap-3 font-bold text-slate-900 dark:text-white">
-        <div className="w-8 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-lg flex items-center justify-center text-white">
-          <LayoutDashboard size={18} strokeWidth={3} />
+    <>
+      <div className="md:hidden flex items-center justify-between p-4 bg-white/80 dark:bg-[#0B1120]/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
+        <div className="flex items-center gap-3 font-bold text-slate-900 dark:text-white">
+          <div className="w-8 h-8 bg-slate-900 dark:bg-slate-700 rounded-lg flex items-center justify-center text-white">
+            <LayoutDashboard size={18} strokeWidth={3} />
+          </div>
+          <span className="tracking-tight text-lg">CRM.pro</span>
         </div>
-        <span className="tracking-tight text-lg">CRM.pro</span>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {mobileMenuOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
       </div>
-      <ThemeToggle />
-    </div>
+
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 top-[73px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl z-40 p-6">
+          <nav className="space-y-2">
+            {!user ? (
+              <>
+                <Link
+                  href="/login"
+                  className="block px-4 py-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-medium transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href="/signup"
+                  className="block px-4 py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-lg font-medium text-center hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Get Started
+                </Link>
+              </>
+            ) : (
+              <Link
+                href="/sales/dashboard"
+                className="block px-4 py-3 bg-blue-600 text-white rounded-lg font-medium text-center hover:bg-blue-700 transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Dashboard
+              </Link>
+            )}
+          </nav>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -488,8 +545,11 @@ function FinalCTA() {
           Ready to professionalize?
         </h2>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link href="/signup" className="h-16 px-10 rounded-lg bg-indigo-600 text-white text-lg font-bold flex items-center gap-2 shadow-2xl hover:scale-105 transition-all">
+          <Link href="/signup" className="h-14 sm:h-16 px-8 sm:px-10 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-base sm:text-lg font-bold flex items-center gap-2 shadow-xl hover:shadow-2xl hover:scale-105 transition-all">
             Start Free Trial <ArrowRight size={20} />
+          </Link>
+          <Link href="/login" className="h-14 sm:h-16 px-8 sm:px-10 rounded-lg border-2 border-slate-900 dark:border-slate-700 text-slate-900 dark:text-white text-base sm:text-lg font-bold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+            Sign in
           </Link>
         </div>
         <p className="text-xs font-mono uppercase tracking-widest text-slate-500">No Credit Card • Cancel Anytime</p>

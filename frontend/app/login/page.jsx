@@ -19,9 +19,21 @@ export default function Login() {
         setLoading(true);
 
         try {
+            const formData = new FormData(e.target);
+            const role = formData.get('role');
+
             await login(email, password);
-            // Success is silent/redirect
-            router.push('/sales/dashboard');
+
+            // Role-based redirect
+            const routes = {
+                sales: '/sales/dashboard',
+                manager: '/manager/dashboard',
+                md: '/md/dashboard',
+                purchase: '/purchase/dashboard',
+                admin: '/admin/dashboard'
+            };
+
+            router.push(routes[role] || '/sales/dashboard');
         } catch (err) {
             setError(err.response?.data?.error || 'Login failed. Please try again.');
         } finally {
@@ -87,6 +99,23 @@ export default function Login() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                 />
+                            </div>
+                            <div>
+                                <label htmlFor="role" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                                    Role
+                                </label>
+                                <select
+                                    id="role"
+                                    name="role"
+                                    className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-600 transition-all shadow-sm"
+                                    defaultValue="sales"
+                                >
+                                    <option value="sales">Sales Executive</option>
+                                    <option value="manager">Manager</option>
+                                    <option value="md">Managing Director</option>
+                                    <option value="purchase">Purchase</option>
+                                    <option value="admin">Admin</option>
+                                </select>
                             </div>
                         </div>
 

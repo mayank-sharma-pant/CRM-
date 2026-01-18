@@ -1,222 +1,116 @@
-# Backend API Documentation
+# CRM Backend API
 
-## Base URL
-```
-http://localhost:5000/api
-```
+Professional FastAPI backend for the CRM application.
 
-## Authentication
+## Setup
 
-All protected routes require a JWT token in the Authorization header:
-```
-Authorization: Bearer <token>
-```
+### Prerequisites
+- Python 3.10+
+- PostgreSQL (or SQLite for development)
 
-## Endpoints
+### Installation
 
-### Auth
-
-#### POST `/auth/register`
-Register a new user and business.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "password": "password123",
-  "fullName": "John Doe",
-  "businessName": "My Business",
-  "phone": "+1234567890",
-  "address": "123 Main St"
-}
+1. Create virtual environment:
+```bash
+python -m venv venv
 ```
 
-**Response:**
-```json
-{
-  "message": "User registered successfully",
-  "token": "jwt-token",
-  "user": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "fullName": "John Doe"
-  }
-}
+2. Activate virtual environment:
+```bash
+# Windows
+venv\Scripts\activate
+
+# Linux/Mac
+source venv/bin/activate
 ```
 
-#### POST `/auth/login`
-Login with email and password.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
 ```
 
-**Response:**
-```json
-{
-  "message": "Login successful",
-  "token": "jwt-token",
-  "user": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "fullName": "John Doe"
-  }
-}
+4. Configure environment:
+```bash
+cp .env.example .env
+# Edit .env with your configuration
 ```
 
-#### GET `/auth/me`
-Get current user information.
+5. Initialize database:
+```bash
+# Create database migrations
+alembic revision --autogenerate -m "Initial migration"
 
----
+# Run migrations
+alembic upgrade head
+```
+
+6. Run development server:
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+## API Documentation
+
+Once running, access:
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+## Project Structure
+
+```
+backend/
+├── app/
+│   ├── main.py              # FastAPI app
+│   ├── config.py            # Configuration
+│   ├── database.py          # Database connection
+│   ├── models/              # SQLAlchemy models
+│   ├── schemas/             # Pydantic schemas
+│   ├── routers/             # API endpoints
+│   ├── services/            # Business logic
+│   └── utils/               # Utilities
+├── alembic/                 # Database migrations
+├── tests/                   # Tests
+└── requirements.txt         # Dependencies
+```
+
+## Available Endpoints
+
+### Authentication
+- `POST /api/auth/signup` - Register new user
+- `POST /api/auth/login` - Login and get token
+- `POST /api/auth/refresh` - Refresh access token
+
+### Users
+- `GET /api/users/me` - Get current user
+- `PUT /api/users/me` - Update current user
+- `GET /api/users` - List users (admin only)
 
 ### Leads
+- `GET /api/leads` - List leads
+- `POST /api/leads` - Create lead
+- `GET /api/leads/{id}` - Get lead
+- `PUT /api/leads/{id}` - Update lead
+- `DELETE /api/leads/{id}` - Delete lead
 
-#### GET `/leads`
-Get all leads for the authenticated user's business.
+### Tasks
+- `GET /api/tasks` - List tasks
+- `POST /api/tasks` - Create task
+- `GET /api/tasks/{id}` - Get task
+- `PUT /api/tasks/{id}` - Update task
+- `DELETE /api/tasks/{id}` - Delete task
 
-**Query Parameters:**
-- `status` (optional): Filter by status (New, Contacted, Follow-up, Converted, Lost)
-- `search` (optional): Search by name, email, or phone
+## Testing
 
-#### GET `/leads/:id`
-Get a single lead by ID.
-
-#### POST `/leads`
-Create a new lead.
-
-**Request Body:**
-```json
-{
-  "name": "Jane Smith",
-  "email": "jane@example.com",
-  "phone": "+1234567890",
-  "serviceType": "Plumbing",
-  "source": "Website",
-  "status": "New"
-}
+Run tests:
+```bash
+pytest
 ```
 
-#### PUT `/leads/:id`
-Update a lead.
+## Database
 
-#### DELETE `/leads/:id`
-Delete a lead.
+Default: PostgreSQL
 
----
-
-### Follow-ups
-
-#### GET `/follow-ups`
-Get all follow-ups.
-
-**Query Parameters:**
-- `date` (optional): Filter by scheduled date (YYYY-MM-DD)
-- `status` (optional): Filter by status (Pending, Completed, Missed)
-
-#### GET `/follow-ups/today`
-Get today's pending follow-ups.
-
-#### GET `/follow-ups/overdue`
-Get overdue pending follow-ups.
-
-#### POST `/follow-ups`
-Create a new follow-up.
-
-**Request Body:**
-```json
-{
-  "leadId": "uuid",
-  "scheduledDate": "2024-01-15",
-  "scheduledTime": "14:30",
-  "notes": "Call about pricing",
-  "status": "Pending"
-}
+For development, you can use SQLite by setting:
 ```
-
-#### PUT `/follow-ups/:id`
-Update a follow-up.
-
-#### DELETE `/follow-ups/:id`
-Delete a follow-up.
-
----
-
-### Notes
-
-#### GET `/notes/lead/:leadId`
-Get all notes for a lead.
-
-#### POST `/notes`
-Create a new note.
-
-**Request Body:**
-```json
-{
-  "leadId": "uuid",
-  "content": "Customer interested in premium package"
-}
+DATABASE_URL=sqlite:///./crm.db
 ```
-
-#### PUT `/notes/:id`
-Update a note.
-
-#### DELETE `/notes/:id`
-Delete a note.
-
----
-
-### Reports
-
-#### GET `/reports/dashboard`
-Get dashboard statistics.
-
-**Response:**
-```json
-{
-  "totalLeads": 100,
-  "convertedLeads": 25,
-  "lostLeads": 10,
-  "conversionRate": 25.0,
-  "recentLeads": 15,
-  "leadsByStatus": [...],
-  "leadsBySource": [...]
-}
-```
-
-#### GET `/reports/overview`
-Get weekly/monthly overview.
-
-**Query Parameters:**
-- `period` (optional): "week" or "month" (default: "month")
-
----
-
-### Settings
-
-#### GET `/settings/business`
-Get business settings.
-
-#### PUT `/settings/business`
-Update business settings.
-
-#### GET `/settings/profile`
-Get user profile.
-
-#### PUT `/settings/profile`
-Update user profile.
-
-#### PUT `/settings/password`
-Change password.
-
-**Request Body:**
-```json
-{
-  "currentPassword": "oldpassword",
-  "newPassword": "newpassword123"
-}
-```
-

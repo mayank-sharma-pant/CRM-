@@ -17,7 +17,16 @@ import {
     CheckSquare,
     BarChart3,
     Sun,
-    Moon
+    Moon,
+    ShoppingCart,
+    DollarSign,
+    Award,
+    BrainCircuit,
+    UserSearch,
+    UserCheck,
+    UsersRound,
+    GitBranch,
+    FileText
 } from 'lucide-react';
 
 const ICON_MAP = {
@@ -32,7 +41,16 @@ const ICON_MAP = {
     Receipt,
     Calendar,
     PieChart,
-    LogOut
+    LogOut,
+    ShoppingCart,
+    DollarSign,
+    Award,
+    BrainCircuit,
+    UserSearch,
+    UserCheck,
+    UsersRound,
+    GitBranch,
+    FileText
 };
 
 import { MOCK_DATA } from '../services/mockData';
@@ -49,7 +67,14 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     useEffect(() => {
         const fetchNavigation = () => {
             const isManager = pathname?.startsWith('/manager');
-            const role = isManager ? 'manager' : 'sales';
+            const isMD = pathname?.startsWith('/md');
+            const isPurchase = pathname?.startsWith('/purchase');
+            const isAdmin = pathname?.startsWith('/admin');
+            let role = 'sales';
+            if (isManager) role = 'manager';
+            if (isMD) role = 'md';
+            if (isPurchase) role = 'purchase';
+            if (isAdmin) role = 'admin';
 
             // SIMULATE API CALL
             // In real app: const response = await api.get('/navigation');

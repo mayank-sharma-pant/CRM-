@@ -1,10 +1,27 @@
 # Dependencies
 node_modules/
-.pnp
-.pnp.js
+frontend/node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+venv/
+env/
+ENV/
+.venv
+backend/venv/
+backend/env/
 
 # Testing
 coverage/
+
+# Next.js
+.next/
+out/
+build
 
 # Production
 build/

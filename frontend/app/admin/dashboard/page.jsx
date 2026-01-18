@@ -3,16 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-    TrendingUp,
-    TrendingDown,
-    Minus,
-    UserCheck,
     Users,
-    UsersRound,
     UserX,
-    ChevronRight,
+    UsersRound,
     Clock,
-    Shield
+    AlertCircle,
+    ChevronRight
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -22,198 +18,134 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         setTimeout(() => {
-            // Mock admin dashboard data
             const dashData = {
-                kpis: [
-                    { id: 1, label: 'Pending Approvals', value: '8', change: '+2', trend: 'up', route: '/admin/approvals' },
-                    { id: 2, label: 'Active Users', value: '156', change: '+5', trend: 'up', route: '/admin/users' },
-                    { id: 3, label: 'Disabled Users', value: '12', change: '0', trend: 'neutral', route: '/admin/users' },
-                    { id: 4, label: 'Teams', value: '8', change: '+1', trend: 'up', route: '/admin/teams' }
+                stats: [
+                    { id: 1, label: 'Active Users', value: '156', route: '/admin/users' },
+                    { id: 2, label: 'Pending Invites', value: '8', route: '/admin/users' },
+                    { id: 3, label: 'Teams', value: '8', route: '/admin/teams-hierarchy' },
+                    { id: 4, label: 'Disabled Users', value: '12', route: '/admin/users' }
                 ],
-                pendingApprovals: [
-                    { id: 1, name: 'John Miller', email: 'john.miller@example.com', requestedRole: 'Sales Executive', submittedAt: '2 hours ago' },
-                    { id: 2, name: 'Sarah Chen', email: 'sarah.chen@example.com', requestedRole: 'Manager', submittedAt: '5 hours ago' },
-                    { id: 3, name: 'Mike Johnson', email: 'mike.j@example.com', requestedRole: 'Sales Executive', submittedAt: '1 day ago' },
-                    { id: 4, name: 'Emily Davis', email: 'emily.d@example.com', requestedRole: 'Sales Executive', submittedAt: '1 day ago' },
-                    { id: 5, name: 'Robert Wilson', email: 'r.wilson@example.com', requestedRole: 'Purchase', submittedAt: '2 days ago' }
+                actionRequired: [
+                    { id: 1, type: 'invite', title: '3 invites expiring in 48h', link: '/admin/users' },
+                    { id: 2, type: 'reassign', title: '2 users need reassignment before deactivation', link: '/admin/users' },
+                    { id: 3, type: 'hierarchy', title: '1 team missing manager assignment', link: '/admin/teams-hierarchy' }
                 ],
-                recentChanges: [
-                    { id: 1, action: 'User Approved', entity: 'Alex Thompson', actor: 'Admin', time: '30 min ago' },
-                    { id: 2, action: 'Role Changed', entity: 'Lisa Brown → Manager', actor: 'Admin', time: '2 hours ago' },
-                    { id: 3, action: 'Team Created', entity: 'Sales Team Delta', actor: 'Admin', time: '4 hours ago' },
-                    { id: 4, action: 'User Deactivated', entity: 'Mark Stevens', actor: 'Admin', time: '1 day ago' }
+                recentActivity: [
+                    { id: 1, action: 'User approved', entity: 'John Miller', time: '30 min ago' },
+                    { id: 2, action: 'Role changed', entity: 'Lisa Brown → Manager', time: '2 hours ago' },
+                    { id: 3, action: 'Team created', entity: 'Sales Delta', time: '4 hours ago' },
+                    { id: 4, action: 'User deactivated', entity: 'Mark Stevens', time: '1 day ago' },
+                    { id: 5, action: 'Team shift', entity: 'Alex Johnson → Sales Alpha', time: '1 day ago' },
+                    { id: 6, action: 'Invite sent', entity: 'Sarah Chen', time: '2 days ago' },
+                    { id: 7, action: 'Manager changed', entity: 'Sales Bravo → James Wilson', time: '2 days ago' },
+                    { id: 8, action: 'User approved', entity: 'Emily Davis', time: '3 days ago' },
+                    { id: 9, action: 'Role changed', entity: 'Mike Johnson → Sales Executive', time: '3 days ago' },
+                    { id: 10, action: 'Settings updated', entity: 'Pipeline stages', time: '4 days ago' }
                 ]
             };
             setData(dashData);
             setLoading(false);
-        }, 400);
+        }, 300);
     }, []);
 
     if (loading) return <DashboardSkeleton />;
 
     return (
-        <div className="mx-auto max-w-[1360px] space-y-6 pb-12 font-sans text-slate-900 dark:text-slate-100">
+        <div className="mx-auto max-w-[1360px] space-y-4 pb-8 font-sans text-slate-900 dark:text-slate-100">
 
             {/* Header */}
             <div>
-                <h1 className="text-[28px] font-semibold tracking-tight text-slate-900 dark:text-white leading-tight">Dashboard</h1>
-                <p className="text-[15px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">System overview and pending authorizations.</p>
+                <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Dashboard</h1>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">System administration overview</p>
             </div>
 
-            {/* KPI Strip */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                {data.kpis.map((kpi) => (
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                {data.stats.map((stat) => (
                     <div
-                        key={kpi.id}
-                        onClick={() => router.push(kpi.route)}
-                        className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 h-[110px] flex flex-col justify-between hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-800 transition-all cursor-pointer"
+                        key={stat.id}
+                        onClick={() => router.push(stat.route)}
+                        className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
                     >
-                        <div className="flex justify-between items-start">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{kpi.label}</span>
-                            <BadgeChange change={kpi.change} trend={kpi.trend} />
-                        </div>
-                        <span className="text-[36px] font-bold tracking-tight text-slate-900 dark:text-white leading-none">{kpi.value}</span>
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">{stat.label}</div>
+                        <div className="text-2xl font-bold text-slate-900 dark:text-white">{stat.value}</div>
                     </div>
                 ))}
             </div>
 
-            {/* Pending Approvals + Recent Changes */}
-            <div className="grid grid-cols-12 gap-5">
+            {/* Action Required + Recent Activity */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-                {/* Pending Approvals */}
-                <div className="col-span-12 lg:col-span-7 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700/50">
-                        <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white">Pending Approvals</h3>
-                        <button
-                            onClick={() => router.push('/admin/approvals')}
-                            className="text-[12px] font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 flex items-center gap-1"
-                        >
-                            View All <ChevronRight size={14} />
-                        </button>
+                {/* Action Required */}
+                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-700/50">
+                        <AlertCircle size={16} className="text-amber-600" />
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Action Required</h3>
                     </div>
                     <div className="divide-y divide-slate-50 dark:divide-slate-700/50">
-                        {data.pendingApprovals.map((item) => (
+                        {data.actionRequired.map((item) => (
                             <div
                                 key={item.id}
-                                onClick={() => router.push('/admin/approvals')}
-                                className="group flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer transition-colors"
+                                onClick={() => router.push(item.link)}
+                                className="group flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer transition-colors"
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
-                                        <UserCheck size={16} className="text-indigo-600 dark:text-indigo-400" />
-                                    </div>
-                                    <div>
-                                        <div className="text-[13px] font-semibold text-slate-800 dark:text-white group-hover:text-indigo-600 transition-colors">{item.name}</div>
-                                        <div className="text-[11px] text-slate-400 font-medium mt-0.5">{item.requestedRole}</div>
-                                    </div>
+                                <div className="flex items-center gap-2">
+                                    <div className={`w-1.5 h-1.5 rounded-full ${item.type === 'invite' ? 'bg-blue-500' : item.type === 'reassign' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
+                                    <span className="text-sm text-slate-700 dark:text-slate-300">{item.title}</span>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <span className="text-[11px] text-slate-400">{item.submittedAt}</span>
-                                    <ChevronRight size={16} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
-                                </div>
+                                <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-600 transition-colors" />
                             </div>
                         ))}
                     </div>
                 </div>
 
-                {/* Recent Changes + Quick Actions */}
-                <div className="col-span-12 lg:col-span-5 space-y-5">
-
-                    {/* Quick Actions */}
-                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                        <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white mb-4">Quick Actions</h3>
-                        <div className="space-y-2">
-                            <button
-                                onClick={() => router.push('/admin/approvals')}
-                                className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-left transition-colors group"
-                            >
-                                <UserCheck size={18} className="text-slate-400 group-hover:text-indigo-600" />
-                                <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-indigo-700 dark:group-hover:text-indigo-400">Approve Member</span>
-                                <ChevronRight size={16} className="ml-auto text-slate-300 group-hover:text-indigo-500" />
-                            </button>
-                            <button
-                                onClick={() => router.push('/admin/teams')}
-                                className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-left transition-colors group"
-                            >
-                                <UsersRound size={18} className="text-slate-400 group-hover:text-indigo-600" />
-                                <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-indigo-700 dark:group-hover:text-indigo-400">Create Team</span>
-                                <ChevronRight size={16} className="ml-auto text-slate-300 group-hover:text-indigo-500" />
-                            </button>
-                            <button
-                                onClick={() => router.push('/admin/hierarchy')}
-                                className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-left transition-colors group"
-                            >
-                                <Shield size={18} className="text-slate-400 group-hover:text-indigo-600" />
-                                <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-indigo-700 dark:group-hover:text-indigo-400">Assign Manager</span>
-                                <ChevronRight size={16} className="ml-auto text-slate-300 group-hover:text-indigo-500" />
-                            </button>
+                {/* Recent Activity */}
+                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700/50">
+                        <div className="flex items-center gap-2">
+                            <Clock size={16} className="text-slate-500" />
+                            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Recent Activity</h3>
                         </div>
+                        <button
+                            onClick={() => router.push('/admin/audit')}
+                            className="text-xs font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                        >
+                            View All
+                        </button>
                     </div>
-
-                    {/* Recent Changes */}
-                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white">Recent Changes</h3>
-                            <button
-                                onClick={() => router.push('/admin/audit')}
-                                className="text-[12px] font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 flex items-center gap-1"
-                            >
-                                Audit Log <ChevronRight size={14} />
-                            </button>
-                        </div>
-                        <div className="space-y-3">
-                            {data.recentChanges.map((item) => (
-                                <div key={item.id} className="flex items-start gap-3">
-                                    <Clock size={14} className="text-slate-400 mt-0.5" />
-                                    <div className="flex-1">
-                                        <p className="text-[13px] text-slate-700 dark:text-slate-300">
+                    <div className="divide-y divide-slate-50 dark:divide-slate-700/50 max-h-[280px] overflow-y-auto">
+                        {data.recentActivity.map((item) => (
+                            <div key={item.id} className="px-4 py-2">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-slate-700 dark:text-slate-300 truncate">
                                             <span className="font-medium">{item.action}</span>: {item.entity}
                                         </p>
-                                        <p className="text-[11px] text-slate-400">{item.time}</p>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">{item.time}</p>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
-        </div>
-    );
-}
-
-function BadgeChange({ change, trend }) {
-    let colors = 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
-    let Icon = Minus;
-
-    if (trend === 'up') {
-        colors = 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400';
-        Icon = TrendingUp;
-    } else if (trend === 'down') {
-        colors = 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-        Icon = TrendingDown;
-    }
-
-    return (
-        <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${colors}`}>
-            <Icon size={11} strokeWidth={2.5} />
-            {change}
         </div>
     );
 }
 
 function DashboardSkeleton() {
     return (
-        <div className="mx-auto max-w-[1360px] space-y-6 animate-pulse">
-            <div className="space-y-2">
-                <div className="h-7 w-32 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                <div className="h-4 w-64 bg-slate-200 dark:bg-slate-800 rounded"></div>
+        <div className="mx-auto max-w-[1360px] space-y-4 animate-pulse">
+            <div className="space-y-1">
+                <div className="h-6 w-28 bg-slate-200 dark:bg-slate-800 rounded"></div>
+                <div className="h-4 w-48 bg-slate-200 dark:bg-slate-800 rounded"></div>
             </div>
-            <div className="grid grid-cols-4 gap-5">
-                {[...Array(4)].map((_, i) => <div key={i} className="h-[110px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>)}
+            <div className="grid grid-cols-4 gap-3">
+                {[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>)}
             </div>
-            <div className="grid grid-cols-12 gap-5">
-                <div className="col-span-7 h-[300px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
-                <div className="col-span-5 h-[300px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+            <div className="grid grid-cols-2 gap-4">
+                <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+                <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
             </div>
         </div>
     );

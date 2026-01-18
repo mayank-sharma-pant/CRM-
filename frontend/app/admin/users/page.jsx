@@ -4,10 +4,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     Search,
-    Filter,
+    Plus,
     ChevronRight,
     CheckCircle,
-    XCircle
+    XCircle,
+    Mail,
+    Clock,
+    X
 } from 'lucide-react';
 
 export default function AdminUsersPage() {
@@ -15,55 +18,83 @@ export default function AdminUsersPage() {
     const [loading, setLoading] = useState(true);
     const [users, setUsers] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [roleFilter, setRoleFilter] = useState('All');
     const [statusFilter, setStatusFilter] = useState('All');
+    const [roleFilter, setRoleFilter] = useState('All');
     const [teamFilter, setTeamFilter] = useState('All');
+    const [showInviteModal, setShowInviteModal] = useState(false);
+
+    // Invite form state
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteName, setInviteName] = useState('');
+    const [invitePhone, setInvitePhone] = useState('');
+    const [inviteRole, setInviteRole] = useState('');
+    const [inviteTeam, setInviteTeam] = useState('');
+    const [inviteManager, setInviteManager] = useState('');
 
     useEffect(() => {
         setTimeout(() => {
             const data = [
-                { id: 'EMP001', name: 'Alex Johnson', email: 'alex.j@company.com', role: 'Sales Executive', team: 'Sales Alpha', status: 'Active', createdAt: '2023-06-15', lastLogin: '2024-01-15 09:30' },
-                { id: 'EMP002', name: 'Sarah Smith', email: 'sarah.s@company.com', role: 'Sales Executive', team: 'Sales Alpha', status: 'Active', createdAt: '2023-07-20', lastLogin: '2024-01-15 08:45' },
-                { id: 'EMP003', name: 'Mike Brown', email: 'mike.b@company.com', role: 'Manager', team: 'Sales Alpha', status: 'Active', createdAt: '2023-05-10', lastLogin: '2024-01-14 17:20' },
-                { id: 'EMP004', name: 'James Wilson', email: 'james.w@company.com', role: 'Manager', team: 'Sales Bravo', status: 'Active', createdAt: '2023-04-01', lastLogin: '2024-01-15 07:00' },
-                { id: 'EMP005', name: 'Emily Davis', email: 'emily.d@company.com', role: 'Sales Executive', team: 'Sales Bravo', status: 'Inactive', createdAt: '2023-08-25', lastLogin: '2023-12-20 16:00' },
-                { id: 'EMP006', name: 'Robert Thompson', email: 'robert.t@company.com', role: 'MD', team: null, status: 'Active', createdAt: '2023-01-15', lastLogin: '2024-01-15 10:00' },
-                { id: 'EMP007', name: 'Lisa Chen', email: 'lisa.c@company.com', role: 'Purchase', team: null, status: 'Active', createdAt: '2023-09-01', lastLogin: '2024-01-14 15:30' },
-                { id: 'EMP008', name: 'David Martinez', email: 'david.m@company.com', role: 'Sales Executive', team: 'Sales Charlie', status: 'Active', createdAt: '2023-10-05', lastLogin: '2024-01-15 09:15' },
-                { id: 'EMP009', name: 'Jennifer Lee', email: 'jennifer.l@company.com', role: 'Sales Executive', team: 'Sales Charlie', status: 'Inactive', createdAt: '2023-03-20', lastLogin: '2023-11-30 12:00' }
+                { id: 'EMP001', name: 'Alex Johnson', email: 'alex.j@company.com', phone: '+1 555-0101', role: 'Sales Executive', team: 'Sales Alpha', status: 'Active', joinedAt: '2023-06-15', lastActive: '2024-01-18 09:30' },
+                { id: 'EMP002', name: 'Sarah Smith', email: 'sarah.s@company.com', phone: '+1 555-0102', role: 'Sales Executive', team: 'Sales Alpha', status: 'Active', joinedAt: '2023-07-20', lastActive: '2024-01-18 08:45' },
+                { id: 'INV001', name: 'John Miller', email: 'john.miller@example.com', phone: '+1 555-0201', role: 'Sales Executive', team: 'Sales Alpha', status: 'Invite Pending', joinedAt: '2024-01-17', lastActive: null },
+                { id: 'INV002', name: 'Sarah Chen', email: 'sarah.chen@example.com', phone: '+1 555-0202', role: 'Manager', team: null, status: 'Invite Pending', joinedAt: '2024-01-17', lastActive: null },
+                { id: 'EMP003', name: 'Mike Brown', email: 'mike.b@company.com', phone: '+1 555-0103', role: 'Manager', team: 'Sales Alpha', status: 'Active', joinedAt: '2023-05-10', lastActive: '2024-01-18 07:20' },
+                { id: 'INV003', name: 'Robert Wilson', email: 'r.wilson@example.com', phone: '+1 555-0203', role: 'Purchase', team: null, status: 'Invite Expired', joinedAt: '2024-01-10', lastActive: null },
+                { id: 'EMP004', name: 'Emily Davis', email: 'emily.d@company.com', phone: '+1 555-0104', role: 'Sales Executive', team: 'Sales Bravo', status: 'Disabled', joinedAt: '2023-08-25', lastActive: '2023-12-20 16:00' }
             ];
             setUsers(data);
             setLoading(false);
-        }, 400);
+        }, 300);
     }, []);
 
     const filteredUsers = users.filter(user => {
         const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
             user.id.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesRole = roleFilter === 'All' || user.role === roleFilter;
         const matchesStatus = statusFilter === 'All' || user.status === statusFilter;
+        const matchesRole = roleFilter === 'All' || user.role === roleFilter;
         const matchesTeam = teamFilter === 'All' || user.team === teamFilter;
-        return matchesSearch && matchesRole && matchesStatus && matchesTeam;
+        return matchesSearch && matchesStatus && matchesRole && matchesTeam;
     });
 
-    const roles = ['All', 'Sales Executive', 'Manager', 'MD', 'Purchase'];
-    const statuses = ['All', 'Active', 'Inactive'];
-    const teams = ['All', 'Sales Alpha', 'Sales Bravo', 'Sales Charlie'];
+    const handleInvite = () => {
+        // Would call backend API here
+        setShowInviteModal(false);
+        // Reset form
+        setInviteEmail('');
+        setInviteName('');
+        setInvitePhone('');
+        setInviteRole('');
+        setInviteTeam('');
+        setInviteManager('');
+    };
 
     if (loading) return <UsersSkeleton />;
 
+    const roles = ['All', 'Sales Executive', 'Manager', 'MD', 'Purchase'];
+    const statuses = ['All', 'Active', 'Disabled', 'Invite Pending', 'Invite Expired'];
+    const teams = ['All', 'Sales Alpha', 'Sales Bravo', 'Sales Charlie'];
+
     return (
-        <div className="mx-auto max-w-[1360px] space-y-6 pb-12 font-sans text-slate-900 dark:text-slate-100">
+        <div className="mx-auto max-w-[1360px] space-y-4 pb-8 font-sans text-slate-900 dark:text-slate-100">
 
             {/* Header */}
-            <div>
-                <h1 className="text-[28px] font-semibold tracking-tight text-slate-900 dark:text-white leading-tight">Users</h1>
-                <p className="text-[15px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Manage user roles, teams, and lifecycle.</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Users</h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Invite and manage system users</p>
+                </div>
+                <button
+                    onClick={() => setShowInviteModal(true)}
+                    className="flex items-center gap-2 px-3 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
+                >
+                    <Plus size={16} />
+                    Invite Member
+                </button>
             </div>
 
             {/* Filters Row */}
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-3">
                 {/* Search */}
                 <div className="relative flex-1 max-w-md">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -72,37 +103,35 @@ export default function AdminUsersPage() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search by name, email, or ID..."
-                        className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[13px] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
                     />
                 </div>
 
-                {/* Role Filter */}
-                <select
-                    value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value)}
-                    className="px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[13px] text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                    {roles.map(role => (
-                        <option key={role} value={role}>{role === 'All' ? 'All Roles' : role}</option>
-                    ))}
-                </select>
-
-                {/* Status Filter */}
+                {/* Filters */}
                 <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[13px] text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
                 >
                     {statuses.map(status => (
                         <option key={status} value={status}>{status === 'All' ? 'All Statuses' : status}</option>
                     ))}
                 </select>
 
-                {/* Team Filter */}
+                <select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                >
+                    {roles.map(role => (
+                        <option key={role} value={role}>{role === 'All' ? 'All Roles' : role}</option>
+                    ))}
+                </select>
+
                 <select
                     value={teamFilter}
                     onChange={(e) => setTeamFilter(e.target.value)}
-                    className="px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[13px] text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
                 >
                     {teams.map(team => (
                         <option key={team} value={team}>{team === 'All' ? 'All Teams' : team}</option>
@@ -111,18 +140,19 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Users Table */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <table className="w-full text-left text-[13px]">
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                <table className="w-full text-left text-sm">
                     <thead>
                         <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Employee ID</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Name</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Role</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Team</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Status</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Created</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Last Login</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px] text-right">Action</th>
+                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">ID</th>
+                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Name</th>
+                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Contact</th>
+                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Role</th>
+                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Team</th>
+                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Status</th>
+                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Joined</th>
+                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Last Active</th>
+                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
@@ -132,23 +162,20 @@ export default function AdminUsersPage() {
                                 onClick={() => router.push(`/admin/users/${user.id}`)}
                                 className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
                             >
-                                <td className="px-5 py-3.5 font-mono text-slate-600 dark:text-slate-400">{user.id}</td>
-                                <td className="px-5 py-3.5">
-                                    <div className="font-medium text-slate-800 dark:text-slate-200">{user.name}</div>
-                                    <div className="text-[11px] text-slate-400">{user.email}</div>
+                                <td className="px-4 py-2.5 font-mono text-xs text-slate-600 dark:text-slate-400">{user.id}</td>
+                                <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-200">{user.name}</td>
+                                <td className="px-4 py-2.5">
+                                    <div className="text-slate-700 dark:text-slate-300 text-xs">{user.email}</div>
+                                    <div className="text-[10px] text-slate-400">{user.phone}</div>
                                 </td>
-                                <td className="px-5 py-3.5">
-                                    <RoleBadge role={user.role} />
-                                </td>
-                                <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400">
+                                <td className="px-4 py-2.5"><RoleBadge role={user.role} /></td>
+                                <td className="px-4 py-2.5 text-slate-600 dark:text-slate-400 text-xs">
                                     {user.team || <span className="text-slate-400">-</span>}
                                 </td>
-                                <td className="px-5 py-3.5">
-                                    <StatusBadge status={user.status} />
-                                </td>
-                                <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{user.createdAt}</td>
-                                <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{user.lastLogin}</td>
-                                <td className="px-5 py-3.5 text-right">
+                                <td className="px-4 py-2.5"><StatusBadge status={user.status} /></td>
+                                <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 text-xs">{user.joinedAt}</td>
+                                <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 text-xs">{user.lastActive || '-'}</td>
+                                <td className="px-4 py-2.5 text-right">
                                     <ChevronRight size={16} className="inline text-slate-300" />
                                 </td>
                             </tr>
@@ -157,25 +184,133 @@ export default function AdminUsersPage() {
                 </table>
 
                 {filteredUsers.length === 0 && (
-                    <div className="flex items-center justify-center h-32 text-slate-500 dark:text-slate-400">
-                        No users found matching your criteria.
+                    <div className="flex items-center justify-center h-32 text-slate-500 dark:text-slate-400 text-sm">
+                        No users found
                     </div>
                 )}
             </div>
+
+            {/* Invite Modal */}
+            {showInviteModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowInviteModal(false)}></div>
+                    <div className="relative bg-white dark:bg-slate-900 rounded-lg shadow-xl p-5 w-full max-w-md">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Invite Member</h3>
+                            <button onClick={() => setShowInviteModal(false)} className="text-slate-400 hover:text-slate-600">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3 mb-5">
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Email *</label>
+                                <input
+                                    type="email"
+                                    value={inviteEmail}
+                                    onChange={(e) => setInviteEmail(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                    placeholder="email@company.com"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Full Name *</label>
+                                <input
+                                    type="text"
+                                    value={inviteName}
+                                    onChange={(e) => setInviteName(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                    placeholder="John Smith"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Phone</label>
+                                <input
+                                    type="tel"
+                                    value={invitePhone}
+                                    onChange={(e) => setInvitePhone(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                    placeholder="+1 555-0100"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Role *</label>
+                                <select
+                                    value={inviteRole}
+                                    onChange={(e) => setInviteRole(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                >
+                                    <option value="">Select role...</option>
+                                    <option value="Sales Executive">Sales Executive</option>
+                                    <option value="Manager">Manager</option>
+                                    <option value="MD">Managing Director</option>
+                                    <option value="Purchase">Purchase</option>
+                                    <option value="Admin">Admin</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Team</label>
+                                <select
+                                    value={inviteTeam}
+                                    onChange={(e) => setInviteTeam(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                >
+                                    <option value="">No team</option>
+                                    <option value="Sales Alpha">Sales Alpha</option>
+                                    <option value="Sales Bravo">Sales Bravo</option>
+                                    <option value="Sales Charlie">Sales Charlie</option>
+                                </select>
+                            </div>
+                            {inviteRole === 'Sales Executive' && (
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Reporting Manager</label>
+                                    <select
+                                        value={inviteManager}
+                                        onChange={(e) => setInviteManager(e.target.value)}
+                                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                    >
+                                        <option value="">Select manager...</option>
+                                        <option value="mgr1">Mike Brown</option>
+                                        <option value="mgr2">James Wilson</option>
+                                        <option value="mgr3">Sarah Thompson</option>
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowInviteModal(false)}
+                                className="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-medium text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleInvite}
+                                disabled={!inviteEmail || !inviteName || !inviteRole}
+                                className="flex-1 px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg font-medium text-sm hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Send Invite
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
 function RoleBadge({ role }) {
     const colors = {
-        'Sales Executive': 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-        'Manager': 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-        'MD': 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-        'Purchase': 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+        'Sales Executive': 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
+        'Manager': 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400',
+        'MD': 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400',
+        'Purchase': 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400',
+        'Admin': 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
     };
 
     return (
-        <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium ${colors[role] || 'bg-slate-100 text-slate-600'}`}>
+        <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${colors[role] || 'bg-slate-100 text-slate-600'}`}>
             {role}
         </span>
     );
@@ -184,31 +319,51 @@ function RoleBadge({ role }) {
 function StatusBadge({ status }) {
     if (status === 'Active') {
         return (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded text-[11px] font-bold uppercase">
-                <CheckCircle size={12} /> Active
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded text-[10px] font-medium">
+                <CheckCircle size={10} /> Active
             </span>
         );
     }
-    return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded text-[11px] font-bold uppercase">
-            <XCircle size={12} /> Inactive
-        </span>
-    );
+    if (status === 'Disabled') {
+        return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded text-[10px] font-medium">
+                <XCircle size={10} /> Disabled
+            </span>
+        );
+    }
+    if (status === 'Invite Pending') {
+        return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded text-[10px] font-medium">
+                <Mail size={10} /> Pending
+            </span>
+        );
+    }
+    if (status === 'Invite Expired') {
+        return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded text-[10px] font-medium">
+                <Clock size={10} /> Expired
+            </span>
+        );
+    }
+    return <span className="text-xs text-slate-400">{status}</span>;
 }
 
 function UsersSkeleton() {
     return (
-        <div className="mx-auto max-w-[1360px] space-y-6 animate-pulse">
-            <div className="space-y-2">
-                <div className="h-7 w-24 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                <div className="h-4 w-56 bg-slate-200 dark:bg-slate-800 rounded"></div>
+        <div className="mx-auto max-w-[1360px] space-y-4 animate-pulse">
+            <div className="flex justify-between">
+                <div className="space-y-1">
+                    <div className="h-6 w-24 bg-slate-200 dark:bg-slate-800 rounded"></div>
+                    <div className="h-4 w-48 bg-slate-200 dark:bg-slate-800 rounded"></div>
+                </div>
+                <div className="h-9 w-32 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
             </div>
-            <div className="flex gap-4">
-                <div className="h-10 w-96 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
-                <div className="h-10 w-32 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
-                <div className="h-10 w-32 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+            <div className="flex gap-3">
+                <div className="h-9 flex-1 max-w-md bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+                <div className="h-9 w-32 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
+                <div className="h-9 w-32 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
             </div>
-            <div className="h-[400px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+            <div className="h-96 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>
         </div>
     );
 }

@@ -354,8 +354,7 @@ export default function LeaveRequestsPage() {
                         ) : (
                             <>
                                 {/* Section 1: Form (Conditional) */}
-                                {permissions?.canSubmit && (
-                                    <LeaveRequestForm onSubmit={handleCreateRequest} isLoading={submitting} />
+
                                 {permissions?.canSubmit && (
                                     <LeaveRequestForm onSubmit={handleCreateRequest} isLoading={submitting} />
                                 )}

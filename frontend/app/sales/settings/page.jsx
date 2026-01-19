@@ -146,39 +146,39 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* --- SECTION 3: ADMINISTRATIVE --- */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <Calendar size={16} className="text-slate-400" />
-                Administrative
-              </h2>
-            </div>
+        {/* --- SECTION 3: ADMINISTRATIVE --- */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <Calendar size={16} className="text-slate-400" />
+              Administrative
+            </h2>
+          </div>
 
-            <div className="p-6">
-              <Link
-                href="/settings/leave"
-                className="flex items-center justify-between p-4 rounded-lg border border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                    <Calendar size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      Leave Requests
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Submit leave requests and view application history
-                    </p>
-                  </div>
+          <div className="p-6">
+            <Link
+              href="/settings/leave"
+              className="flex items-center justify-between p-4 rounded-lg border border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                  <Calendar size={20} />
                 </div>
-                <div className="text-slate-400 group-hover:translate-x-1 transition-transform">
-                  →
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    Leave Requests
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Submit leave requests and view application history
+                  </p>
                 </div>
-              </Link>
-            </div>
+              </div>
+              <div className="text-slate-400 group-hover:translate-x-1 transition-transform">
+                →
+              </div>
+            </Link>
           </div>
         </div>
 

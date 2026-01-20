@@ -229,7 +229,7 @@ export const MOCK_DATA = {
             { name: 'Leads', href: '/sales/leads', icon: 'Users' },
             { name: 'Clients', href: '/sales/clients', icon: 'Briefcase' },
             { name: 'My Performance', href: '/sales/performance', icon: 'BarChart3' },
-            { name: 'Invoices', href: '/sales/invoices', icon: 'Receipt' },
+
             { name: 'Settings', href: '/sales/settings', icon: 'Settings' }
         ],
         manager: [
@@ -649,5 +649,26 @@ export const MOCK_DATA = {
             { id: 2, text: 'Lead inflow spiked 18% this period without corresponding increase in sales headcount. Current conversion rate is holding, but sustained volume at this level may require capacity review.', evidence: ['Leads: +18%', 'Conv: 22%', 'Headcount: Same'], links: ['/md/leads', '/md/sales'] },
             { id: 3, text: 'Two high-severity monitoring alerts have persisted for over 48 hours. Both relate to cash flow projections and key account engagement. These represent elevated but manageable risk given current mitigation visibility.', evidence: ['Alerts: 2 High', 'Duration: 48h+'], links: ['/md/monitoring'] }
         ]
-    }
+    },
+    '/teams/my-team': {
+        id: 'team-alpha',
+        name: 'Sales Team Alpha',
+        manager: { id: 101, name: 'Alex Johnson', role: 'Team Manager' },
+        tier: 'Tier 1 - Enterprise',
+        members: [
+            { id: 201, name: 'Sarah Miller', role: 'Senior Executive', performance: 'Top Performer', joined: '2022-03-15' },
+            { id: 202, name: 'David Chen', role: 'Sales Executive', performance: 'Consistent', joined: '2023-01-10' },
+            { id: 203, name: 'Michael Ross', role: 'Sales Executive', performance: 'Needs Improvement', joined: '2023-06-20' },
+            { id: 204, name: 'Emily White', role: 'Junior Executive', performance: 'Ramping Up', joined: '2023-11-01' }
+        ],
+        hierarchy: {
+            'Manager': ['Senior Executive', 'Sales Executive', 'Junior Executive']
+        },
+        openRoles: 1
+    },
+    '/team-requests/list': [
+        { id: 1, type: 'ADD_MEMBER', target: 'John Doe (Candidate)', status: 'Pending', date: '2024-01-15', notes: 'Replacement for Bob' },
+        { id: 2, type: 'ROLE_CHANGE', target: 'Sarah Miller', status: 'Approved', date: '2024-01-10', notes: 'Promote to Team Lead', adminResponse: 'Approved. Effective Feb 1.' },
+        { id: 3, type: 'remove_MEMBER', target: 'Michael Ross', status: 'Rejected', date: '2023-12-20', notes: 'Performance issues', adminResponse: 'PIP required first.' }
+    ]
 };

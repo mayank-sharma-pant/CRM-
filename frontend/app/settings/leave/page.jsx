@@ -9,9 +9,11 @@ const mockApi = {
     getPermissions: async () => {
         return new Promise((resolve) => {
             setTimeout(() => {
+                // MOCK: Simulating MANAGER role permissions
+                // In production, this comes from the user's role in the JWT/Session
                 resolve({
-                    canSubmit: true,
-                    canApprove: true, // MOCK: Simulating Manager Role
+                    canSubmit: true,  // Managers can apply for their own leave
+                    canApprove: true, // Managers can approve team leave
                 });
             }, 300);
         });
@@ -45,6 +47,19 @@ const mockApi = {
                     },
                 });
             }, 600);
+        });
+    },
+
+    getTeamRequests: async () => {
+        // MOCK: Manager sees requests from their team
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve([
+                    { id: 201, employee: 'Sarah Miller', type: 'Annual', start: '2024-02-10', end: '2024-02-15', status: 'Pending' },
+                    { id: 202, employee: 'David Chen', type: 'Sick', start: '2024-01-20', end: '2024-01-21', status: 'Pending' },
+                    { id: 203, employee: 'Mike Ross', type: 'Compassionate', start: '2024-01-25', end: '2024-01-26', status: 'Pending' },
+                ]);
+            }, 400);
         });
     },
 };

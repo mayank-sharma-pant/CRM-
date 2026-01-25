@@ -7,16 +7,16 @@ import sys
 sys.path.insert(0, '.')
 
 from datetime import datetime, timedelta
-import hashlib
 from app.database import SessionLocal, engine, Base
 from app.models import (
     User, Team, Lead, Client, Task, FollowUp, Invoice, InvoiceItem, 
     Note, AuditLog, CompanySettings
 )
+from app.utils.security import get_password_hash
 
 
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode('utf-8')).hexdigest()
+    return get_password_hash(password)
 
 
 def seed_database():

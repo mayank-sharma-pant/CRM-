@@ -6,7 +6,8 @@ from datetime import datetime
 from app.database import get_db
 from app.utils.dependencies import get_current_user
 from app.models.user import User
-from app.schemas.sales import ClientResponse, ClientListResponse, ClientCreate, ClientUpdate
+from app.models.client import Client
+from app.models.invoice import Invoice
 
 router = APIRouter()
 
@@ -15,102 +16,137 @@ router = APIRouter()
 # Clients Endpoints
 # ===============================
 
-@router.get("/", response_model=List[ClientResponse])
+@router.get("/")
 def list_clients(
-    search: Optional[str] = Query(None, description="Search by name, email, company"),
+    search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
-    """List all clients for the current user"""
-    clients = [
-        ClientResponse(id=1, name="John Smith", email="john@acmecorp.com", phone="+1 555-0101",
-                      company="Acme Corp", address="123 Business St, New York",
-                      created_at="2024-01-15", total_invoices=3, total_revenue=15000.0),
-        ClientResponse(id=2, name="Sarah Johnson", email="sarah@techstart.io", phone="+1 555-0102",
-                      company="TechStart Inc", address="456 Tech Ave, San Francisco",
-                      created_at="2024-01-10", total_invoices=2, total_revenue=8500.0),
-        ClientResponse(id=3, name="Mike Williams", email="mike@designco.com", phone="+1 555-0103",
-                      company="Design Co", address="789 Creative Blvd, Los Angeles",
-                      created_at="2024-01-05", total_invoices=5, total_revenue=25000.0),
-        ClientResponse(id=4, name="Emily Brown", email="emily@globaltech.com", phone="+1 555-0104",
-                      company="Global Tech", address="321 Innovation Way, Seattle",
-                      created_at="2023-12-20", total_invoices=8, total_revenue=42000.0),
-        ClientResponse(id=5, name="David Lee", email="david@enterprise.com", phone="+1 555-0105",
-                      company="Enterprise Solutions", address="654 Corporate Park, Chicago",
-                      created_at="2023-11-15", total_invoices=12, total_revenue=78000.0),
-    ]
+    """List all clients"""
+    query = db.query(Client)
     
     if search:
-        search_lower = search.lower()
-        clients = [c for c in clients if 
-                  search_lower in c.name.lower() or 
-                  (c.email and search_lower in c.email.lower()) or
-                  (c.company and search_lower in c.company.lower())]
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            (Client.name.ilike(search_pattern)) |
+            (Client.email.ilike(search_pattern)) |
+            (Client.company.ilike(search_pattern))
+        )
     
-    return clients
+    clients = query.order_by(Client.created_at.desc()).all()
+    
+    return [
+        {
+            "id": client.id,
+            "name": client.name,
+            "email": client.email,
+            "phone": client.phone,
+            "company": client.company,
+            "address": client.address,
+            "created_at": client.created_at.strftime("%Y-%m-%d") if client.created_at else None
+        }
+        for client in clients
+    ]
 
 
-@router.get("/{client_id}", response_model=ClientResponse)
+@router.get("/{client_id}")
 def get_client(
     client_id: int,
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
     """Get client details by ID"""
-    clients = {
-        1: ClientResponse(id=1, name="John Smith", email="john@acmecorp.com", phone="+1 555-0101",
-                         company="Acme Corp", address="123 Business St, New York, NY 10001",
-                         created_at="2024-01-15", total_invoices=3, total_revenue=15000.0),
-        2: ClientResponse(id=2, name="Sarah Johnson", email="sarah@techstart.io", phone="+1 555-0102",
-                         company="TechStart Inc", address="456 Tech Ave, San Francisco, CA 94102",
-                         created_at="2024-01-10", total_invoices=2, total_revenue=8500.0),
-    }
+    client = db.query(Client).filter(Client.id == client_id).first()
     
-    if client_id not in clients:
+    if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     
-    return clients[client_id]
+    # Get client invoices
+    invoices = db.query(Invoice).filter(Invoice.client_id == client_id).all()
+    
+    return {
+        "id": client.id,
+        "name": client.name,
+        "email": client.email,
+        "phone": client.phone,
+        "company": client.company,
+        "address": client.address,
+        "created_at": client.created_at.strftime("%Y-%m-%d") if client.created_at else None,
+        "invoices": [
+            {
+                "id": inv.id,
+                "invoice_number": inv.invoice_number,
+                "total": inv.total,
+                "status": inv.status,
+                "issued_date": inv.issued_date.strftime("%Y-%m-%d") if inv.issued_date else None
+            }
+            for inv in invoices
+        ]
+    }
 
 
-@router.post("/", response_model=ClientResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 def create_client(
-    client_data: ClientCreate,
+    name: str = Query(...),
+    email: Optional[str] = Query(None),
+    phone: Optional[str] = Query(None),
+    company: Optional[str] = Query(None),
+    address: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
     """Create a new client"""
-    return ClientResponse(
-        id=100,
-        name=client_data.name,
-        email=client_data.email,
-        phone=client_data.phone,
-        company=client_data.company,
-        address=client_data.address,
-        created_at=datetime.now().strftime("%Y-%m-%d"),
-        total_invoices=0,
-        total_revenue=0.0
+    new_client = Client(
+        name=name,
+        email=email,
+        phone=phone,
+        company=company,
+        address=address
     )
+    
+    db.add(new_client)
+    db.commit()
+    db.refresh(new_client)
+    
+    return {
+        "id": new_client.id,
+        "name": new_client.name,
+        "message": "Client created successfully"
+    }
 
 
-@router.put("/{client_id}", response_model=ClientResponse)
+@router.put("/{client_id}")
 def update_client(
     client_id: int,
-    client_data: ClientUpdate,
+    name: Optional[str] = Query(None),
+    email: Optional[str] = Query(None),
+    phone: Optional[str] = Query(None),
+    company: Optional[str] = Query(None),
+    address: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
     """Update client details"""
-    return ClientResponse(
-        id=client_id,
-        name=client_data.name or "Updated Client",
-        email=client_data.email,
-        phone=client_data.phone,
-        company=client_data.company,
-        address=client_data.address,
-        created_at="2024-01-15",
-        total_invoices=0,
-        total_revenue=0.0
-    )
+    client = db.query(Client).filter(Client.id == client_id).first()
+    
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    if name:
+        client.name = name
+    if email:
+        client.email = email
+    if phone:
+        client.phone = phone
+    if company:
+        client.company = company
+    if address:
+        client.address = address
+    
+    db.commit()
+    db.refresh(client)
+    
+    return {"message": "Client updated successfully", "id": client.id}
 
 
 @router.delete("/{client_id}")
@@ -120,11 +156,19 @@ def delete_client(
     # current_user: User = Depends(get_current_user)
 ):
     """Delete a client"""
+    client = db.query(Client).filter(Client.id == client_id).first()
+    
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    db.delete(client)
+    db.commit()
+    
     return {"message": f"Client {client_id} deleted successfully"}
 
 
 # ===============================
-# Client Activity Endpoints
+# Client Invoices
 # ===============================
 
 @router.get("/{client_id}/invoices")
@@ -134,37 +178,22 @@ def get_client_invoices(
     # current_user: User = Depends(get_current_user)
 ):
     """Get all invoices for a client"""
-    invoices = [
-        {"id": 1, "invoice_number": "INV-001", "amount": 5000.0, "status": "Paid", "date": "2024-01-10"},
-        {"id": 2, "invoice_number": "INV-002", "amount": 7500.0, "status": "Pending", "date": "2024-01-15"},
-        {"id": 3, "invoice_number": "INV-003", "amount": 2500.0, "status": "Draft", "date": "2024-01-18"},
+    client = db.query(Client).filter(Client.id == client_id).first()
+    
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    invoices = db.query(Invoice).filter(Invoice.client_id == client_id).all()
+    
+    return [
+        {
+            "id": inv.id,
+            "invoice_number": inv.invoice_number,
+            "total": inv.total,
+            "status": inv.status,
+            "issued_date": inv.issued_date.strftime("%Y-%m-%d") if inv.issued_date else None,
+            "due_date": inv.due_date.strftime("%Y-%m-%d") if inv.due_date else None,
+            "paid_date": inv.paid_date.strftime("%Y-%m-%d") if inv.paid_date else None
+        }
+        for inv in invoices
     ]
-    return {"client_id": client_id, "invoices": invoices}
-
-
-@router.get("/{client_id}/tasks")
-def get_client_tasks(
-    client_id: int,
-    db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
-):
-    """Get all tasks related to a client"""
-    tasks = [
-        {"id": 1, "title": "Quarterly review meeting", "dueDate": "Jan 25", "status": "Pending"},
-        {"id": 2, "title": "Send updated contract", "dueDate": "Jan 22", "status": "Completed"},
-    ]
-    return {"client_id": client_id, "tasks": tasks}
-
-
-@router.get("/{client_id}/notes")
-def get_client_notes(
-    client_id: int,
-    db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
-):
-    """Get all notes for a client"""
-    notes = [
-        {"id": 1, "content": "Discussed Q1 requirements", "created_at": "2024-01-15 10:30", "created_by": "Sales User"},
-        {"id": 2, "content": "Client prefers email communication", "created_at": "2024-01-12 14:00", "created_by": "Sales User"},
-    ]
-    return {"client_id": client_id, "notes": notes}

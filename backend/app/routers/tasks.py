@@ -6,131 +6,202 @@ from datetime import datetime, timedelta
 from app.database import get_db
 from app.utils.dependencies import get_current_user
 from app.models.user import User
-from app.schemas.sales import TaskResponse, TaskListResponse, TaskCreate, TaskUpdate
+from app.models.task import Task
+from app.models.lead import Lead
+from app.models.client import Client
 
 router = APIRouter()
 
 
 # ===============================
-# Tasks List Endpoint (Main endpoint used by frontend)
+# Tasks List (for Tasks page)
 # ===============================
 
-@router.get("/list", response_model=List[TaskResponse])
-def list_tasks_for_page(
+@router.get("/list")
+def get_tasks_list(
+    status: Optional[str] = Query(None, description="Filter by status"),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
-    """List all tasks for the tasks page - returns formatted data for frontend"""
-    # Mock tasks matching frontend expectations
-    tasks = [
-        # Overdue tasks
-        TaskResponse(id=1, title="Send proposal to Acme Corp", dueDate="Yesterday 5:00 PM",
-                    status="Pending", entity="John Smith", entityType="Lead", assignedBy="manager"),
-        TaskResponse(id=2, title="Follow up on contract review", dueDate="2 days ago",
-                    status="Pending", entity="TechStart Inc", entityType="Client", assignedBy="self"),
-        
-        # Today's tasks
-        TaskResponse(id=3, title="Call Sarah about requirements", dueDate="Today 10:00 AM",
-                    status="Pending", entity="Sarah Johnson", entityType="Lead", assignedBy="self"),
-        TaskResponse(id=4, title="Prepare quarterly report", dueDate="Today 2:00 PM",
-                    status="Pending", entity="Internal", entityType="General", assignedBy="manager"),
-        TaskResponse(id=5, title="Client meeting - Design Co", dueDate="Today 4:00 PM",
-                    status="Pending", entity="Design Co", entityType="Client", assignedBy="self"),
-        
-        # Upcoming tasks
-        TaskResponse(id=6, title="Demo presentation for Enterprise", dueDate="Tomorrow 11:00 AM",
-                    status="Pending", entity="Enterprise Solutions", entityType="Lead", assignedBy="self"),
-        TaskResponse(id=7, title="Submit expense report", dueDate="Jan 25",
-                    status="Pending", entity="Internal", entityType="General", assignedBy="self"),
-        TaskResponse(id=8, title="Training session attendance", dueDate="Jan 28",
-                    status="Pending", entity="Internal", entityType="General", assignedBy="manager"),
-    ]
+    """Get full task list with grouping"""
+    query = db.query(Task)
     
-    return tasks
+    if status:
+        query = query.filter(Task.status == status)
+    
+    tasks = query.order_by(Task.due_date.asc()).all()
+    
+    def get_due_label(task):
+        if not task.due_date:
+            return "No date"
+        now = datetime.now()
+        diff = task.due_date - now
+        if diff.days < 0:
+            return f"{abs(diff.days)} days ago"
+        elif diff.days == 0:
+            return task.due_date.strftime("%I:%M %p") if task.due_date.date() == now.date() else "Today"
+        elif diff.days == 1:
+            return "Tomorrow"
+        else:
+            return task.due_date.strftime("%a, %b %d")
+    
+    def get_entity_info(task):
+        if task.lead_id:
+            lead = db.query(Lead).filter(Lead.id == task.lead_id).first()
+            return (lead.name if lead else "Unknown Lead", "Lead")
+        elif task.client_id:
+            client = db.query(Client).filter(Client.id == task.client_id).first()
+            return (client.name if client else "Unknown Client", "Client")
+        return ("Internal", "System")
+    
+    result = []
+    for task in tasks:
+        entity_name, entity_type = get_entity_info(task)
+        result.append({
+            "id": task.id,
+            "title": task.title,
+            "description": task.description,
+            "entity": entity_name,
+            "entityType": entity_type,
+            "assignedBy": "manager" if task.is_manager_assigned else "self",
+            "dueDate": get_due_label(task),
+            "status": task.status,
+            "priority": task.priority
+        })
+    
+    return result
 
 
-@router.get("/", response_model=List[TaskResponse])
-def list_tasks(
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status"),
-    due: Optional[str] = Query(None, description="Filter by due: overdue, today, upcoming"),
+@router.get("/")
+def get_priority_tasks(
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
-    """List all tasks with optional filters"""
-    tasks = [
-        TaskResponse(id=1, title="Send proposal to Acme Corp", dueDate="Yesterday",
-                    status="Pending", entity="John Smith", entityType="Lead"),
-        TaskResponse(id=2, title="Follow up with TechStart", dueDate="Today 2:00 PM",
-                    status="Pending", entity="TechStart Inc", entityType="Client"),
-        TaskResponse(id=3, title="Prepare demo", dueDate="Tomorrow",
-                    status="Pending", entity="Enterprise", entityType="Lead"),
-    ]
+    """Get priority tasks for dashboard (overdue and due today)"""
+    now = datetime.now()
+    today_start = datetime(now.year, now.month, now.day)
+    today_end = today_start + timedelta(days=1)
     
-    return tasks
+    # Overdue tasks
+    overdue = db.query(Task).filter(
+        Task.due_date < today_start,
+        Task.status != "Completed"
+    ).all()
+    
+    # Due today
+    due_today = db.query(Task).filter(
+        Task.due_date >= today_start,
+        Task.due_date < today_end,
+        Task.status != "Completed"
+    ).all()
+    
+    result = []
+    for task in overdue:
+        result.append({
+            "id": task.id,
+            "title": task.title,
+            "dueDate": task.due_date.isoformat() if task.due_date else None,
+            "status": task.status
+        })
+    for task in due_today:
+        result.append({
+            "id": task.id,
+            "title": task.title,
+            "dueDate": task.due_date.isoformat() if task.due_date else None,
+            "status": task.status
+        })
+    
+    return result
 
 
-@router.get("/{task_id}", response_model=TaskResponse)
+@router.get("/{task_id}")
 def get_task(
     task_id: int,
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
     """Get task details by ID"""
-    tasks = {
-        1: TaskResponse(id=1, title="Send proposal to Acme Corp", dueDate="Today 2:00 PM",
-                       status="Pending", entity="John Smith", entityType="Lead"),
-        2: TaskResponse(id=2, title="Follow up with TechStart", dueDate="Tomorrow",
-                       status="Pending", entity="TechStart Inc", entityType="Client"),
-    }
+    task = db.query(Task).filter(Task.id == task_id).first()
     
-    if task_id not in tasks:
+    if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    return tasks[task_id]
+    return {
+        "id": task.id,
+        "title": task.title,
+        "description": task.description,
+        "status": task.status,
+        "priority": task.priority,
+        "due_date": task.due_date.isoformat() if task.due_date else None,
+        "lead_id": task.lead_id,
+        "client_id": task.client_id,
+        "is_manager_assigned": task.is_manager_assigned,
+        "created_at": task.created_at.isoformat() if task.created_at else None
+    }
 
 
-@router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 def create_task(
-    task_data: TaskCreate,
+    title: str = Query(...),
+    description: Optional[str] = Query(None),
+    priority: str = Query("medium"),
+    due_date: Optional[str] = Query(None),
+    lead_id: Optional[int] = Query(None),
+    client_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
     """Create a new task"""
-    return TaskResponse(
-        id=100,
-        title=task_data.title,
-        dueDate=task_data.due_date,
-        status="Pending",
-        entity=task_data.entity_name,
-        entityType=task_data.entity_type,
-        assignedBy="self"
+    new_task = Task(
+        title=title,
+        description=description,
+        priority=priority,
+        due_date=datetime.fromisoformat(due_date) if due_date else None,
+        lead_id=lead_id,
+        client_id=client_id,
+        status="Pending"
     )
+    
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+    
+    return {
+        "id": new_task.id,
+        "title": new_task.title,
+        "status": new_task.status,
+        "message": "Task created successfully"
+    }
 
 
-@router.put("/{task_id}", response_model=TaskResponse)
+@router.put("/{task_id}")
 def update_task(
     task_id: int,
-    task_data: TaskUpdate,
+    title: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    priority: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
-    """Update task details"""
-    return TaskResponse(
-        id=task_id,
-        title=task_data.title or "Updated Task",
-        dueDate=task_data.due_date or "Today",
-        status=task_data.status or "Pending"
-    )
-
-
-@router.delete("/{task_id}")
-def delete_task(
-    task_id: int,
-    db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
-):
-    """Delete a task"""
-    return {"message": f"Task {task_id} deleted successfully"}
+    """Update a task"""
+    task = db.query(Task).filter(Task.id == task_id).first()
+    
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    if title:
+        task.title = title
+    if status:
+        task.status = status
+        if status == "Completed":
+            task.completed_at = datetime.now()
+    if priority:
+        task.priority = priority
+    
+    db.commit()
+    db.refresh(task)
+    
+    return {"message": "Task updated successfully", "id": task.id}
 
 
 @router.post("/{task_id}/complete")
@@ -140,27 +211,32 @@ def complete_task(
     # current_user: User = Depends(get_current_user)
 ):
     """Mark task as completed"""
-    return {
-        "message": f"Task {task_id} marked as completed",
-        "status": "Completed",
-        "completed_at": datetime.now().isoformat()
-    }
+    task = db.query(Task).filter(Task.id == task_id).first()
+    
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task.status = "Completed"
+    task.completed_at = datetime.now()
+    
+    db.commit()
+    
+    return {"message": f"Task {task_id} completed successfully"}
 
 
-# ===============================
-# Manager-specific task endpoints
-# ===============================
-
-@router.post("/{task_id}/assign")
-def assign_task(
+@router.delete("/{task_id}")
+def delete_task(
     task_id: int,
-    user_id: int = Query(..., description="User ID to assign task to"),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
-    """Assign a task to a team member (Manager only)"""
-    return {
-        "message": f"Task {task_id} assigned to user {user_id}",
-        "assigned_to": user_id,
-        "assigned_by": "manager"
-    }
+    """Delete a task"""
+    task = db.query(Task).filter(Task.id == task_id).first()
+    
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    db.delete(task)
+    db.commit()
+    
+    return {"message": f"Task {task_id} deleted successfully"}

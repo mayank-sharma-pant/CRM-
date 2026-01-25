@@ -4,8 +4,8 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.config import settings
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing - using pbkdf2_sha256 (works without native bcrypt library issues)
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""

@@ -1,11 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Optional, List
 from datetime import datetime
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user
 from app.models.user import User
+from app.models.client import Client
+from app.models.invoice import Invoice, InvoiceItem
+from app.models.lead import Lead
 
 router = APIRouter()
 
@@ -20,70 +24,79 @@ def get_purchase_dashboard(
     # current_user: User = Depends(get_current_user)
 ):
     """Get purchase department dashboard"""
+    # Invoice stats
+    paid = db.query(Invoice).filter(Invoice.status == "Paid").count()
+    pending = db.query(Invoice).filter(Invoice.status == "Pending").count()
+    overdue = db.query(Invoice).filter(Invoice.status == "Overdue").count()
+    draft = db.query(Invoice).filter(Invoice.status == "Draft").count()
+    
+    # Get recent pending invoices
+    pending_invoices = db.query(Invoice).filter(Invoice.status == "Pending").order_by(Invoice.created_at.desc()).limit(5).all()
+    
+    approval_queue = []
+    for inv in pending_invoices:
+        client = db.query(Client).filter(Client.id == inv.client_id).first()
+        creator = db.query(User).filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
+        approval_queue.append({
+            "id": inv.id,
+            "client": client.name if client else "Unknown",
+            "amount": inv.total,
+            "date": inv.issued_date.strftime("%Y-%m-%d") if inv.issued_date else None,
+            "salesperson": creator.full_name if creator else "Unknown"
+        })
+    
     return {
         "kpis": [
-            {"id": 1, "label": "Pending Approvals", "value": 18, "change": "+3", "trend": "up", "route": "/purchase/sales"},
-            {"id": 2, "label": "Approved Today", "value": 12, "change": "+5", "trend": "up", "route": "/purchase/sales"},
-            {"id": 3, "label": "Rejected Today", "value": 2, "change": "-1", "trend": "down", "route": "/purchase/sales"},
-            {"id": 4, "label": "Overdue Invoices", "value": 8, "change": "+2", "trend": "up", "route": "/purchase/invoices"}
+            {"id": 1, "label": "Pending Invoices", "value": pending, "route": "/purchase/invoices"},
+            {"id": 2, "label": "Paid Invoices", "value": paid, "route": "/purchase/invoices"},
+            {"id": 3, "label": "Overdue Invoices", "value": overdue, "route": "/purchase/invoices"},
+            {"id": 4, "label": "Draft Invoices", "value": draft, "route": "/purchase/invoices"}
         ],
-        "approval_queue": [
-            {"id": 1, "client": "BigBank International", "amount": 45000, "type": "Enterprise", 
-             "date": "2024-01-10", "priority": "high", "salesperson": "James Wilson"},
-            {"id": 2, "client": "TechFlow Inc.", "amount": 12500, "type": "SMB",
-             "date": "2024-01-09", "priority": "medium", "salesperson": "Alex Johnson"},
-            {"id": 3, "client": "CloudNet Corp", "amount": 8200, "type": "SMB",
-             "date": "2024-01-07", "priority": "low", "salesperson": "Sarah Smith"}
-        ],
+        "approval_queue": approval_queue,
         "invoice_health": {
-            "paid": 145,
-            "pending": 24,
-            "overdue": 8,
-            "draft": 12
-        },
-        "monitoring_highlights": [
-            {"id": 1, "title": "High discount rate detected", "severity": "Medium", "time": "2h ago"},
-            {"id": 2, "title": "Invoice collection delay", "severity": "High", "time": "4h ago"}
-        ]
+            "paid": paid,
+            "pending": pending,
+            "overdue": overdue,
+            "draft": draft
+        }
     }
 
 
 # ===============================
-# Sales Approvals
+# Sales Approvals (Invoices pending approval)
 # ===============================
 
 @router.get("/sales")
 def list_sales_for_approval(
-    status: Optional[str] = Query(None, description="pending, approved, rejected"),
-    priority: Optional[str] = Query(None, description="high, medium, low"),
+    status: Optional[str] = Query(None),
+    priority: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
-    """List all sales pending approval"""
-    sales = [
-        {"id": 1, "client": "BigBank International", "amount": 45000, "discount": 15,
-         "type": "Enterprise", "date": "2024-01-10", "status": "pending", "priority": "high",
-         "salesperson": "James Wilson", "team": "Enterprise", "notes": "Strategic account"},
-        {"id": 2, "client": "TechFlow Inc.", "amount": 12500, "discount": 10,
-         "type": "SMB", "date": "2024-01-09", "status": "pending", "priority": "medium",
-         "salesperson": "Alex Johnson", "team": "Sales Alpha", "notes": "Referral from existing client"},
-        {"id": 3, "client": "CloudNet Corp", "amount": 8200, "discount": 5,
-         "type": "SMB", "date": "2024-01-07", "status": "pending", "priority": "low",
-         "salesperson": "Sarah Smith", "team": "Sales Bravo", "notes": ""},
-        {"id": 4, "client": "StartupXYZ", "amount": 4500, "discount": 20,
-         "type": "Startup", "date": "2024-01-06", "status": "pending", "priority": "medium",
-         "salesperson": "Mike Williams", "team": "Sales Charlie", "notes": "High discount - needs review"},
-        {"id": 5, "client": "RetailGiant", "amount": 85000, "discount": 8,
-         "type": "Enterprise", "date": "2024-01-05", "status": "approved", "priority": "high",
-         "salesperson": "Lisa Chen", "team": "Enterprise", "notes": "Multi-year deal"}
-    ]
+    """List all sales/invoices pending approval"""
+    query = db.query(Invoice)
     
     if status:
-        sales = [s for s in sales if s["status"] == status]
-    if priority:
-        sales = [s for s in sales if s["priority"] == priority]
+        query = query.filter(Invoice.status == status.title())
+    else:
+        query = query.filter(Invoice.status.in_(["Draft", "Pending"]))
     
-    return {"sales": sales, "total": len(sales)}
+    invoices = query.order_by(Invoice.created_at.desc()).all()
+    
+    result = []
+    for inv in invoices:
+        client = db.query(Client).filter(Client.id == inv.client_id).first()
+        creator = db.query(User).filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
+        result.append({
+            "id": inv.id,
+            "client": client.name if client else "Unknown",
+            "amount": inv.total,
+            "status": inv.status.lower(),
+            "date": inv.issued_date.strftime("%Y-%m-%d") if inv.issued_date else None,
+            "salesperson": creator.full_name if creator else "Unknown"
+        })
+    
+    return {"sales": result, "total": len(result)}
 
 
 @router.get("/sales/{sale_id}")
@@ -92,36 +105,31 @@ def get_sale_detail(
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
-    """Get detailed sale information for approval"""
+    """Get detailed sale/invoice information for approval"""
+    invoice = db.query(Invoice).filter(Invoice.id == sale_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Sale not found")
+    
+    client = db.query(Client).filter(Client.id == invoice.client_id).first()
+    creator = db.query(User).filter(User.id == invoice.created_by_id).first() if invoice.created_by_id else None
+    items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == sale_id).all()
+    
     return {
-        "id": sale_id,
+        "id": invoice.id,
         "client": {
-            "name": "BigBank International",
-            "type": "Enterprise",
-            "industry": "Banking",
-            "existing_client": True,
-            "total_revenue": 250000
+            "name": client.name if client else "Unknown",
+            "email": client.email if client else None
         },
         "deal": {
-            "amount": 45000,
-            "discount": 15,
-            "discount_amount": 7941,
-            "net_amount": 37059,
-            "products": ["CRM Pro", "Analytics Suite"],
-            "term": "Annual"
+            "amount": invoice.total,
+            "subtotal": invoice.subtotal,
+            "tax": invoice.tax,
+            "items": [{"description": i.description, "quantity": i.quantity, "total": i.total} for i in items]
         },
         "salesperson": {
-            "name": "James Wilson",
-            "team": "Enterprise",
-            "performance": "above_target"
+            "name": creator.full_name if creator else "Unknown"
         },
-        "history": [
-            {"action": "Created", "by": "James Wilson", "date": "2024-01-10 09:30"},
-            {"action": "Submitted for approval", "by": "James Wilson", "date": "2024-01-10 14:00"}
-        ],
-        "flags": [
-            {"type": "discount", "message": "Discount above 10% threshold", "severity": "medium"}
-        ]
+        "status": invoice.status
     }
 
 
@@ -132,46 +140,40 @@ def approve_sale(
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
-    """Approve a sale"""
+    """Approve a sale/invoice"""
+    invoice = db.query(Invoice).filter(Invoice.id == sale_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Sale not found")
+    
+    invoice.status = "Pending"  # Move from Draft to Pending (sent to client)
+    db.commit()
+    
     return {
         "message": f"Sale {sale_id} approved successfully",
-        "sale_id": sale_id,
-        "status": "approved",
-        "approved_at": datetime.now().isoformat(),
-        "approved_by": "Purchase Admin"
+        "status": "Pending",
+        "approved_at": datetime.now().isoformat()
     }
 
 
 @router.post("/sales/{sale_id}/reject")
 def reject_sale(
     sale_id: int,
-    reason: str = Query(..., description="Rejection reason"),
+    reason: str = Query(...),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
-    """Reject a sale"""
+    """Reject a sale/invoice"""
+    invoice = db.query(Invoice).filter(Invoice.id == sale_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Sale not found")
+    
+    invoice.status = "Rejected"
+    db.commit()
+    
     return {
         "message": f"Sale {sale_id} rejected",
-        "sale_id": sale_id,
-        "status": "rejected",
         "reason": reason,
         "rejected_at": datetime.now().isoformat()
-    }
-
-
-@router.post("/sales/{sale_id}/request-revision")
-def request_revision(
-    sale_id: int,
-    feedback: str = Query(...),
-    db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
-):
-    """Request revision on a sale"""
-    return {
-        "message": f"Revision requested for sale {sale_id}",
-        "sale_id": sale_id,
-        "status": "revision_requested",
-        "feedback": feedback
     }
 
 
@@ -181,36 +183,42 @@ def request_revision(
 
 @router.get("/invoices")
 def list_invoices(
-    status: Optional[str] = Query(None, description="draft, pending, paid, overdue"),
+    status: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
     """List all invoices"""
-    invoices = [
-        {"id": 1, "number": "INV-2024-001", "client": "BigBank International", "amount": 45000,
-         "status": "paid", "issued": "2024-01-05", "due": "2024-02-04", "paid_at": "2024-01-20"},
-        {"id": 2, "number": "INV-2024-002", "client": "TechFlow Inc.", "amount": 12500,
-         "status": "pending", "issued": "2024-01-10", "due": "2024-02-09", "paid_at": None},
-        {"id": 3, "number": "INV-2024-003", "client": "GlobalRetail Corp", "amount": 28000,
-         "status": "overdue", "issued": "2023-12-15", "due": "2024-01-14", "paid_at": None},
-        {"id": 4, "number": "INV-2024-004", "client": "StartupXYZ", "amount": 4500,
-         "status": "draft", "issued": None, "due": None, "paid_at": None},
-        {"id": 5, "number": "INV-2024-005", "client": "CloudNet Corp", "amount": 8200,
-         "status": "pending", "issued": "2024-01-12", "due": "2024-02-11", "paid_at": None}
-    ]
+    query = db.query(Invoice)
     
     if status:
-        invoices = [i for i in invoices if i["status"] == status]
+        query = query.filter(Invoice.status == status.title())
     
+    invoices = query.order_by(Invoice.created_at.desc()).all()
+    
+    result = []
+    for inv in invoices:
+        client = db.query(Client).filter(Client.id == inv.client_id).first()
+        result.append({
+            "id": inv.id,
+            "number": inv.invoice_number,
+            "client": client.name if client else "Unknown",
+            "amount": inv.total,
+            "status": inv.status.lower(),
+            "issued": inv.issued_date.strftime("%Y-%m-%d") if inv.issued_date else None,
+            "due": inv.due_date.strftime("%Y-%m-%d") if inv.due_date else None,
+            "paid_at": inv.paid_date.strftime("%Y-%m-%d") if inv.paid_date else None
+        })
+    
+    # Summary
     summary = {
-        "paid": sum(1 for i in invoices if i["status"] == "paid"),
-        "pending": sum(1 for i in invoices if i["status"] == "pending"),
-        "overdue": sum(1 for i in invoices if i["status"] == "overdue"),
-        "draft": sum(1 for i in invoices if i["status"] == "draft"),
-        "total_outstanding": sum(i["amount"] for i in invoices if i["status"] in ["pending", "overdue"])
+        "paid": db.query(Invoice).filter(Invoice.status == "Paid").count(),
+        "pending": db.query(Invoice).filter(Invoice.status == "Pending").count(),
+        "overdue": db.query(Invoice).filter(Invoice.status == "Overdue").count(),
+        "draft": db.query(Invoice).filter(Invoice.status == "Draft").count(),
+        "total_outstanding": db.query(func.sum(Invoice.total)).filter(Invoice.status.in_(["Pending", "Overdue"])).scalar() or 0
     }
     
-    return {"invoices": invoices, "summary": summary}
+    return {"invoices": result, "summary": summary}
 
 
 @router.get("/invoices/{invoice_id}")
@@ -220,25 +228,31 @@ def get_invoice_detail(
     # current_user: User = Depends(get_current_user)
 ):
     """Get detailed invoice information"""
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    client = db.query(Client).filter(Client.id == invoice.client_id).first()
+    items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice_id).all()
+    
     return {
-        "id": invoice_id,
-        "number": "INV-2024-002",
+        "id": invoice.id,
+        "number": invoice.invoice_number,
         "client": {
-            "name": "TechFlow Inc.",
-            "email": "billing@techflow.io",
-            "address": "456 Tech Ave, San Francisco, CA"
+            "name": client.name if client else "Unknown",
+            "email": client.email if client else None,
+            "address": client.address if client else None
         },
         "items": [
-            {"description": "CRM Pro License (Annual)", "quantity": 1, "unit_price": 10000, "total": 10000},
-            {"description": "Implementation Services", "quantity": 1, "unit_price": 2500, "total": 2500}
+            {"description": i.description, "quantity": i.quantity, "unit_price": i.unit_price, "total": i.total}
+            for i in items
         ],
-        "subtotal": 12500,
-        "tax": 0,
-        "total": 12500,
-        "status": "pending",
-        "issued": "2024-01-10",
-        "due": "2024-02-09",
-        "payment_history": []
+        "subtotal": invoice.subtotal,
+        "tax": invoice.tax,
+        "total": invoice.total,
+        "status": invoice.status,
+        "issued": invoice.issued_date.strftime("%Y-%m-%d") if invoice.issued_date else None,
+        "due": invoice.due_date.strftime("%Y-%m-%d") if invoice.due_date else None
     }
 
 
@@ -249,10 +263,15 @@ def send_invoice(
     # current_user: User = Depends(get_current_user)
 ):
     """Send invoice to client"""
-    return {
-        "message": f"Invoice {invoice_id} sent to client",
-        "sent_at": datetime.now().isoformat()
-    }
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    invoice.status = "Pending"
+    invoice.issued_date = datetime.now().date()
+    db.commit()
+    
+    return {"message": f"Invoice {invoice_id} sent to client"}
 
 
 @router.post("/invoices/{invoice_id}/mark-paid")
@@ -265,12 +284,15 @@ def mark_invoice_paid(
     # current_user: User = Depends(get_current_user)
 ):
     """Mark invoice as paid"""
-    return {
-        "message": f"Invoice {invoice_id} marked as paid",
-        "payment_date": payment_date,
-        "payment_method": payment_method,
-        "reference": reference
-    }
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    invoice.status = "Paid"
+    invoice.paid_date = datetime.strptime(payment_date, "%Y-%m-%d").date()
+    db.commit()
+    
+    return {"message": f"Invoice {invoice_id} marked as paid"}
 
 
 @router.post("/invoices/{invoice_id}/send-reminder")
@@ -280,10 +302,11 @@ def send_payment_reminder(
     # current_user: User = Depends(get_current_user)
 ):
     """Send payment reminder for invoice"""
-    return {
-        "message": f"Payment reminder sent for invoice {invoice_id}",
-        "sent_at": datetime.now().isoformat()
-    }
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    return {"message": f"Payment reminder sent for invoice {invoice_id}"}
 
 
 # ===============================
@@ -296,33 +319,20 @@ def get_purchase_monitoring(
     # current_user: User = Depends(get_current_user)
 ):
     """Get purchase department monitoring and analytics"""
+    # Invoice stats
+    overdue_count = db.query(Invoice).filter(Invoice.status == "Overdue").count()
+    overdue_amount = db.query(func.sum(Invoice.total)).filter(Invoice.status == "Overdue").scalar() or 0
+    
+    pending_count = db.query(Invoice).filter(Invoice.status == "Pending").count()
+    
     return {
         "alerts": [
-            {"id": 1, "type": "discount", "severity": "High", "title": "Excessive discount pattern",
-             "message": "3 sales this week with >20% discount from Sales Charlie",
-             "detected": "2h ago", "action_required": True},
-            {"id": 2, "type": "invoice", "severity": "High", "title": "Invoice collection delay",
-             "message": "8 invoices overdue totaling $186K",
-             "detected": "4h ago", "action_required": True},
-            {"id": 3, "type": "approval", "severity": "Medium", "title": "Pending approval backlog",
-             "message": "5 sales pending >48 hours",
-             "detected": "1d ago", "action_required": False}
-        ],
+            {"id": 1, "type": "invoice", "severity": "High", 
+             "message": f"{overdue_count} invoices overdue totaling ${overdue_amount:,.0f}"}
+        ] if overdue_count > 0 else [],
         "metrics": {
-            "avg_approval_time": "4.2 hours",
-            "approval_rate": "92%",
-            "avg_discount": "8.5%",
-            "collection_rate": "94%"
-        },
-        "discount_analysis": [
-            {"team": "Sales Alpha", "avg_discount": 7.2, "count": 24},
-            {"team": "Sales Bravo", "avg_discount": 9.1, "count": 18},
-            {"team": "Sales Charlie", "avg_discount": 14.5, "count": 12},
-            {"team": "Enterprise", "avg_discount": 6.8, "count": 8}
-        ],
-        "collection_timeline": [
-            {"range": "0-30 days", "count": 145, "amount": 1250000},
-            {"range": "31-60 days", "count": 16, "amount": 98000},
-            {"range": "60+ days", "count": 8, "amount": 186000}
-        ]
+            "pending_invoices": pending_count,
+            "overdue_invoices": overdue_count,
+            "overdue_amount": overdue_amount
+        }
     }

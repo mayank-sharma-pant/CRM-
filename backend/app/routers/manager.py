@@ -1,11 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user
 from app.models.user import User
+from app.models.lead import Lead
+from app.models.task import Task
+from app.models.client import Client
+from app.models.invoice import Invoice
 
 router = APIRouter()
 
@@ -20,22 +25,50 @@ def get_manager_dashboard(
     # current_user: User = Depends(get_current_user)
 ):
     """Get manager dashboard with team metrics"""
+    # Get real counts
+    total_leads = db.query(Lead).count()
+    closed_leads = db.query(Lead).filter(Lead.status.in_(["Converted", "Lost"])).count()
+    conversion_rate = int((closed_leads / total_leads * 100)) if total_leads > 0 else 0
+    
+    # Get team members (sales users)
+    team_members = db.query(User).filter(User.role == "sales").all()
+    team_stats = []
+    for member in team_members:
+        active = db.query(Lead).filter(Lead.assigned_to_id == member.id, Lead.status.notin_(["Converted", "Lost"])).count()
+        converted = db.query(Lead).filter(Lead.assigned_to_id == member.id, Lead.status == "Converted").count()
+        team_stats.append({
+            "id": member.id,
+            "name": member.full_name,
+            "leads_active": active,
+            "leads_converted": converted
+        })
+    
+    # Get priority tasks
+    now = datetime.now()
+    today_start = datetime(now.year, now.month, now.day)
+    
+    overdue_tasks = db.query(Task).filter(
+        Task.due_date < today_start,
+        Task.status != "Completed"
+    ).limit(3).all()
+    
+    priority_tasks = []
+    for task in overdue_tasks:
+        priority_tasks.append({
+            "id": task.id,
+            "title": task.title,
+            "dueDate": task.due_date.isoformat() if task.due_date else None,
+            "statusReason": "OVERDUE"
+        })
+    
     return {
         "metrics": {
-            "total_team_leads": 387,
-            "closed_deals": 98,
-            "team_conversion_rate": 25
+            "total_team_leads": total_leads,
+            "closed_deals": closed_leads,
+            "team_conversion_rate": conversion_rate
         },
-        "team_members": [
-            {"id": 1, "name": "Alex Johnson", "leads_active": 24, "leads_converted": 8},
-            {"id": 2, "name": "Sarah Smith", "leads_active": 31, "leads_converted": 12},
-            {"id": 3, "name": "Mike Williams", "leads_active": 18, "leads_converted": 5},
-        ],
-        "priority_tasks": [
-            {"id": 201, "title": "Approve Contract Review (Team A)", "dueDate": datetime.now().isoformat(), "statusReason": "DUE_TODAY"},
-            {"id": 202, "title": "Client Escalation: Delta Corp", "dueDate": "2024-01-17", "statusReason": "OVERDUE"},
-            {"id": 203, "title": "Quarterly Team Performance Review", "dueDate": datetime.now().isoformat(), "statusReason": "DUE_TODAY"},
-        ]
+        "team_members": team_stats,
+        "priority_tasks": priority_tasks
     }
 
 
@@ -49,38 +82,49 @@ def get_team_monitoring(
     # current_user: User = Depends(get_current_user)
 ):
     """Get team activity monitoring data"""
+    team_members = db.query(User).filter(User.role == "sales").all()
+    
+    members_data = []
+    online_count = 0
+    
+    for member in team_members:
+        # Check if active in last 5 minutes
+        is_online = member.last_active_at and (datetime.now() - member.last_active_at).seconds < 300 if member.last_active_at else False
+        
+        pending = db.query(Task).filter(Task.assigned_to_id == member.id, Task.status == "Pending").count()
+        overdue = db.query(Task).filter(
+            Task.assigned_to_id == member.id,
+            Task.due_date < datetime.now(),
+            Task.status != "Completed"
+        ).count()
+        
+        if is_online:
+            online_count += 1
+            status = "online"
+            last_active = "Just now"
+        elif member.last_active_at:
+            status = "away" if (datetime.now() - member.last_active_at).seconds < 3600 else "offline"
+            last_active = member.last_active_at.strftime("%I:%M %p")
+        else:
+            status = "offline"
+            last_active = "Never"
+        
+        members_data.append({
+            "id": member.id,
+            "name": member.full_name,
+            "role": "Sales Executive",
+            "status": status,
+            "last_active": last_active,
+            "pending_tasks": pending,
+            "overdue_tasks": overdue
+        })
+    
     return {
-        "team_members": [
-            {
-                "id": 1, "name": "Alex Johnson", "role": "Sales Executive",
-                "status": "online", "last_active": "2 min ago",
-                "today_stats": {"calls": 8, "emails": 12, "meetings": 2},
-                "pending_tasks": 5, "overdue_tasks": 1
-            },
-            {
-                "id": 2, "name": "Sarah Smith", "role": "Sales Executive",
-                "status": "online", "last_active": "5 min ago",
-                "today_stats": {"calls": 12, "emails": 8, "meetings": 3},
-                "pending_tasks": 3, "overdue_tasks": 0
-            },
-            {
-                "id": 3, "name": "Mike Williams", "role": "Sales Executive",
-                "status": "away", "last_active": "1 hour ago",
-                "today_stats": {"calls": 4, "emails": 6, "meetings": 1},
-                "pending_tasks": 7, "overdue_tasks": 2
-            },
-            {
-                "id": 4, "name": "Emily Brown", "role": "Sales Executive",
-                "status": "offline", "last_active": "3 hours ago",
-                "today_stats": {"calls": 0, "emails": 2, "meetings": 0},
-                "pending_tasks": 4, "overdue_tasks": 0
-            }
-        ],
+        "team_members": members_data,
         "team_summary": {
-            "total_members": 4,
-            "online": 2,
-            "away": 1,
-            "offline": 1
+            "total_members": len(team_members),
+            "online": online_count,
+            "offline": len(team_members) - online_count
         }
     }
 
@@ -92,62 +136,74 @@ def get_team_member_detail(
     # current_user: User = Depends(get_current_user)
 ):
     """Get detailed activity for a team member"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get lead counts
+    leads_contacted = db.query(Lead).filter(Lead.assigned_to_id == user_id, Lead.status == "Contacted").count()
+    leads_converted = db.query(Lead).filter(Lead.assigned_to_id == user_id, Lead.status == "Converted").count()
+    
+    # Get active leads
+    active_leads = db.query(Lead).filter(
+        Lead.assigned_to_id == user_id,
+        Lead.status.notin_(["Converted", "Lost"])
+    ).limit(5).all()
+    
     return {
         "user": {
-            "id": user_id,
-            "name": "Alex Johnson",
-            "email": "alex.j@company.com",
-            "role": "Sales Executive",
-            "status": "online"
+            "id": user.id,
+            "name": user.full_name,
+            "email": user.email,
+            "role": user.role,
+            "status": "active" if user.status == "active" else "inactive"
         },
         "current_week": {
-            "calls": 42,
-            "emails": 78,
-            "meetings": 12,
-            "leads_contacted": 18,
-            "leads_converted": 3
+            "leads_contacted": leads_contacted,
+            "leads_converted": leads_converted
         },
-        "recent_activity": [
-            {"action": "Called lead", "entity": "John Smith - Acme Corp", "time": "10 min ago"},
-            {"action": "Sent email", "entity": "Sarah - TechStart", "time": "25 min ago"},
-            {"action": "Completed task", "entity": "Follow up reminder", "time": "1 hour ago"},
-        ],
         "active_leads": [
-            {"id": 1, "name": "John Smith", "company": "Acme Corp", "status": "Contacted"},
-            {"id": 2, "name": "Emily Davis", "company": "Startup IO", "status": "New"},
+            {"id": l.id, "name": l.name, "company": l.company, "status": l.status}
+            for l in active_leads
         ]
     }
 
 
 # ===============================
-# Team Leads (Manager sees all team leads)
+# Team Leads
 # ===============================
 
 @router.get("/leads")
 def get_team_leads(
     status: Optional[str] = Query(None),
-    member_id: Optional[int] = Query(None, description="Filter by team member"),
+    member_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
     """Get all leads for the manager's team"""
-    leads = [
-        {"id": 1, "name": "John Smith", "company": "Acme Corp", "status": "New", 
-         "assigned_to": "Alex Johnson", "assigned_to_id": 1, "created_at": "2024-01-15"},
-        {"id": 2, "name": "Sarah Johnson", "company": "TechStart Inc", "status": "Contacted",
-         "assigned_to": "Sarah Smith", "assigned_to_id": 2, "created_at": "2024-01-14"},
-        {"id": 3, "name": "Mike Williams", "company": "Design Co", "status": "Qualified",
-         "assigned_to": "Alex Johnson", "assigned_to_id": 1, "created_at": "2024-01-10"},
-        {"id": 4, "name": "Emily Brown", "company": "Startup IO", "status": "Contacted",
-         "assigned_to": "Mike Williams", "assigned_to_id": 3, "created_at": "2024-01-18"},
-    ]
+    query = db.query(Lead)
     
     if status:
-        leads = [l for l in leads if l["status"] == status]
+        query = query.filter(Lead.status == status)
     if member_id:
-        leads = [l for l in leads if l["assigned_to_id"] == member_id]
+        query = query.filter(Lead.assigned_to_id == member_id)
     
-    return {"leads": leads, "total": len(leads)}
+    leads = query.order_by(Lead.created_at.desc()).all()
+    
+    result = []
+    for lead in leads:
+        assignee = db.query(User).filter(User.id == lead.assigned_to_id).first() if lead.assigned_to_id else None
+        result.append({
+            "id": lead.id,
+            "name": lead.name,
+            "company": lead.company,
+            "status": lead.status,
+            "assigned_to": assignee.full_name if assignee else "Unassigned",
+            "assigned_to_id": lead.assigned_to_id,
+            "created_at": lead.created_at.strftime("%Y-%m-%d") if lead.created_at else None
+        })
+    
+    return {"leads": result, "total": len(result)}
 
 
 @router.post("/leads/{lead_id}/reassign")
@@ -158,8 +214,19 @@ def reassign_lead(
     # current_user: User = Depends(get_current_user)
 ):
     """Reassign a lead to a different team member"""
+    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    new_assignee = db.query(User).filter(User.id == new_assignee_id).first()
+    if not new_assignee:
+        raise HTTPException(status_code=404, detail="Assignee not found")
+    
+    lead.assigned_to_id = new_assignee_id
+    db.commit()
+    
     return {
-        "message": f"Lead {lead_id} reassigned to user {new_assignee_id}",
+        "message": f"Lead {lead_id} reassigned to {new_assignee.full_name}",
         "lead_id": lead_id,
         "new_assignee_id": new_assignee_id
     }
@@ -177,19 +244,29 @@ def get_team_tasks(
     # current_user: User = Depends(get_current_user)
 ):
     """Get all tasks for the team"""
-    tasks = [
-        {"id": 1, "title": "Call Acme Corp", "dueDate": "Today", "status": "Pending",
-         "assigned_to": "Alex Johnson", "assigned_to_id": 1, "priority": "high"},
-        {"id": 2, "title": "Send proposal", "dueDate": "Tomorrow", "status": "Pending",
-         "assigned_to": "Sarah Smith", "assigned_to_id": 2, "priority": "medium"},
-        {"id": 3, "title": "Follow up meeting", "dueDate": "Yesterday", "status": "Overdue",
-         "assigned_to": "Mike Williams", "assigned_to_id": 3, "priority": "high"},
-    ]
+    query = db.query(Task)
     
+    if status:
+        query = query.filter(Task.status == status)
     if member_id:
-        tasks = [t for t in tasks if t["assigned_to_id"] == member_id]
+        query = query.filter(Task.assigned_to_id == member_id)
     
-    return {"tasks": tasks, "total": len(tasks)}
+    tasks = query.order_by(Task.due_date.asc()).all()
+    
+    result = []
+    for task in tasks:
+        assignee = db.query(User).filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
+        result.append({
+            "id": task.id,
+            "title": task.title,
+            "dueDate": task.due_date.strftime("%Y-%m-%d") if task.due_date else None,
+            "status": task.status,
+            "assigned_to": assignee.full_name if assignee else "Unassigned",
+            "assigned_to_id": task.assigned_to_id,
+            "priority": task.priority
+        })
+    
+    return {"tasks": result, "total": len(result)}
 
 
 @router.post("/tasks")
@@ -197,18 +274,35 @@ def create_team_task(
     title: str = Query(...),
     assignee_id: int = Query(...),
     due_date: str = Query(...),
+    priority: str = Query("medium"),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
     """Create and assign a task to a team member"""
+    assignee = db.query(User).filter(User.id == assignee_id).first()
+    if not assignee:
+        raise HTTPException(status_code=404, detail="Assignee not found")
+    
+    new_task = Task(
+        title=title,
+        assigned_to_id=assignee_id,
+        due_date=datetime.strptime(due_date, "%Y-%m-%d"),
+        priority=priority,
+        status="Pending",
+        is_manager_assigned=True
+    )
+    
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+    
     return {
         "message": "Task created and assigned",
         "task": {
-            "id": 100,
-            "title": title,
-            "assigned_to_id": assignee_id,
-            "due_date": due_date,
-            "assigned_by": "manager"
+            "id": new_task.id,
+            "title": new_task.title,
+            "assigned_to": assignee.full_name,
+            "due_date": due_date
         }
     }
 
@@ -219,82 +313,76 @@ def create_team_task(
 
 @router.get("/reports/performance")
 def get_team_performance(
-    period: str = Query("month", description="week, month, quarter"),
+    period: str = Query("month"),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
     """Get team performance report"""
+    leads_total = db.query(Lead).count()
+    leads_converted = db.query(Lead).filter(Lead.status == "Converted").count()
+    conversion_rate = round((leads_converted / leads_total * 100), 1) if leads_total > 0 else 0
+    
+    # Get revenue from paid invoices
+    revenue = db.query(func.sum(Invoice.total)).filter(Invoice.status == "Paid").scalar() or 0
+    
+    # Member breakdown
+    team_members = db.query(User).filter(User.role == "sales").all()
+    member_breakdown = []
+    for member in team_members:
+        m_leads = db.query(Lead).filter(Lead.assigned_to_id == member.id).count()
+        m_converted = db.query(Lead).filter(Lead.assigned_to_id == member.id, Lead.status == "Converted").count()
+        member_breakdown.append({
+            "id": member.id,
+            "name": member.full_name,
+            "leads": m_leads,
+            "converted": m_converted
+        })
+    
     return {
         "period": period,
         "team_totals": {
-            "leads_created": 156,
-            "leads_converted": 42,
-            "conversion_rate": 26.9,
-            "revenue": 185000.0
+            "leads_created": leads_total,
+            "leads_converted": leads_converted,
+            "conversion_rate": conversion_rate,
+            "revenue": revenue
         },
-        "member_breakdown": [
-            {"id": 1, "name": "Alex Johnson", "leads": 45, "converted": 12, "revenue": 52000},
-            {"id": 2, "name": "Sarah Smith", "leads": 52, "converted": 18, "revenue": 78000},
-            {"id": 3, "name": "Mike Williams", "leads": 35, "converted": 8, "revenue": 35000},
-            {"id": 4, "name": "Emily Brown", "leads": 24, "converted": 4, "revenue": 20000},
-        ],
-        "trends": {
-            "leads_trend": "+12%",
-            "conversion_trend": "+5%",
-            "revenue_trend": "+18%"
-        }
-    }
-
-
-@router.get("/reports/activity")
-def get_team_activity_report(
-    period: str = Query("week"),
-    db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
-):
-    """Get team activity summary report"""
-    return {
-        "period": period,
-        "summary": {
-            "total_calls": 245,
-            "total_emails": 412,
-            "total_meetings": 38,
-            "avg_response_time": "2.4 hours"
-        },
-        "daily_breakdown": [
-            {"date": "2024-01-18", "calls": 42, "emails": 68, "meetings": 8},
-            {"date": "2024-01-17", "calls": 38, "emails": 72, "meetings": 6},
-            {"date": "2024-01-16", "calls": 45, "emails": 65, "meetings": 7},
-        ]
+        "member_breakdown": member_breakdown
     }
 
 
 # ===============================
-# Invoices (Manager can view team invoices)
+# Invoices
 # ===============================
 
 @router.get("/invoices")
 def get_team_invoices(
-    status: Optional[str] = Query(None, description="Draft, Pending, Paid, Overdue"),
+    status: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
     """Get all invoices created by team members"""
-    invoices = [
-        {"id": 1, "number": "INV-001", "client": "Acme Corp", "amount": 15000.0, 
-         "status": "Paid", "created_by": "Alex Johnson", "date": "2024-01-10"},
-        {"id": 2, "number": "INV-002", "client": "TechStart Inc", "amount": 8500.0,
-         "status": "Pending", "created_by": "Sarah Smith", "date": "2024-01-15"},
-        {"id": 3, "number": "INV-003", "client": "Design Co", "amount": 12000.0,
-         "status": "Overdue", "created_by": "Mike Williams", "date": "2024-01-05"},
-        {"id": 4, "number": "INV-004", "client": "Startup IO", "amount": 5000.0,
-         "status": "Draft", "created_by": "Emily Brown", "date": "2024-01-18"},
-    ]
+    query = db.query(Invoice)
     
     if status:
-        invoices = [i for i in invoices if i["status"] == status]
+        query = query.filter(Invoice.status == status)
     
-    return {"invoices": invoices, "total": len(invoices)}
+    invoices = query.order_by(Invoice.created_at.desc()).all()
+    
+    result = []
+    for inv in invoices:
+        client = db.query(Client).filter(Client.id == inv.client_id).first()
+        creator = db.query(User).filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
+        result.append({
+            "id": inv.id,
+            "number": inv.invoice_number,
+            "client": client.name if client else "Unknown",
+            "amount": inv.total,
+            "status": inv.status,
+            "created_by": creator.full_name if creator else "Unknown",
+            "date": inv.issued_date.strftime("%Y-%m-%d") if inv.issued_date else None
+        })
+    
+    return {"invoices": result, "total": len(result)}
 
 
 @router.post("/invoices/{invoice_id}/approve")
@@ -303,9 +391,15 @@ def approve_invoice(
     db: Session = Depends(get_db),
     # current_user: User = Depends(get_current_user)
 ):
-    """Approve an invoice (send to client)"""
+    """Approve an invoice"""
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    invoice.status = "Pending"  # Approved and sent to client
+    db.commit()
+    
     return {
-        "message": f"Invoice {invoice_id} approved and sent to client",
-        "invoice_id": invoice_id,
+        "message": f"Invoice {invoice_id} approved",
         "new_status": "Pending"
     }

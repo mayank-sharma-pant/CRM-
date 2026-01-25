@@ -21,6 +21,23 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # Relationships
+    # Self-referential for manager hierarchy
     manager = relationship("User", remote_side=[id], backref="direct_reports")
-
+    
+    # Lead and Client ownership
+    leads = relationship("Lead", back_populates="assigned_to")
+    clients = relationship("Client", back_populates="assigned_to")
+    
+    # Tasks
+    tasks_assigned = relationship("Task", foreign_keys="Task.assigned_to_id", back_populates="assigned_to")
+    tasks_created = relationship("Task", foreign_keys="Task.assigned_by_id", back_populates="assigned_by")
+    
+    # Follow-ups
+    follow_ups = relationship("FollowUp", back_populates="created_by")
+    
+    # Invoices
+    invoices_created = relationship("Invoice", foreign_keys="Invoice.created_by_id", back_populates="created_by")
+    invoices_approved = relationship("Invoice", foreign_keys="Invoice.approved_by_id", back_populates="approved_by")
+    
+    # Notes
+    notes = relationship("Note", back_populates="created_by")

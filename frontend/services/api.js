@@ -3,11 +3,14 @@ import { MOCK_DATA } from './mockData';
 
 // --- MOCK MODE CONFIGURATION ---
 // Set this to true to use mock data instead of real backend
-const USE_MOCK_BACKEND = true;
+const USE_MOCK_BACKEND = false;  // Changed to false to use real backend
 // -------------------------------
 
+// Backend API base URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_BASE_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },

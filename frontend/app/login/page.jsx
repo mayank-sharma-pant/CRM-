@@ -19,10 +19,10 @@ export default function Login() {
         setLoading(true);
 
         try {
-            const formData = new FormData(e.target);
-            const role = formData.get('role');
+            const result = await login(email, password);
 
-            await login(email, password);
+            // Get user role from backend response
+            const role = result.user?.role || 'sales';
 
             // Role-based redirect
             const routes = {
@@ -35,7 +35,7 @@ export default function Login() {
 
             router.push(routes[role] || '/sales/dashboard');
         } catch (err) {
-            setError(err.response?.data?.error || 'Login failed. Please try again.');
+            setError(err.response?.data?.detail || 'Login failed. Please check your credentials.');
         } finally {
             setLoading(false);
         }
@@ -100,23 +100,13 @@ export default function Login() {
                                     onChange={(e) => setPassword(e.target.value)}
                                 />
                             </div>
-                            <div>
-                                <label htmlFor="role" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                                    Role
-                                </label>
-                                <select
-                                    id="role"
-                                    name="role"
-                                    className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-600 transition-all shadow-sm"
-                                    defaultValue="sales"
-                                >
-                                    <option value="sales">Sales Executive</option>
-                                    <option value="manager">Manager</option>
-                                    <option value="md">Managing Director</option>
-                                    <option value="purchase">Purchase</option>
-                                    <option value="admin">Admin</option>
-                                </select>
-                            </div>
+                        </div>
+
+                        {/* Test credentials hint */}
+                        <div className="bg-blue-50 border border-blue-100 text-blue-700 px-4 py-3 rounded-lg text-xs">
+                            <p className="font-semibold mb-1">Test Credentials:</p>
+                            <p>Admin: admin@company.com / admin123</p>
+                            <p>Sales: alex.j@company.com / sales123</p>
                         </div>
 
                         <div>

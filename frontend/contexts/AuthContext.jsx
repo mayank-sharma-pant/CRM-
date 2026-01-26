@@ -7,8 +7,8 @@ import api from '../services/api';
 const AuthContext = createContext();
 
 // --- AUTH BYPASS CONFIGURATION ---
-// Set to true to access dashboard without login
-const BYPASS_AUTH = true;
+// Set to true to access dashboard without login (for development)
+const BYPASS_AUTH = false;  // Changed to false to use real auth
 // ---------------------------------
 
 export function AuthProvider({ children }) {
@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
     const fetchUser = async () => {
         try {
             const response = await api.get('/auth/me');
-            setUser(response.data.user);
+            setUser(response.data);
         } catch (error) {
             localStorage.removeItem('token');
             delete api.defaults.headers.common['Authorization'];
@@ -50,20 +50,27 @@ export function AuthProvider({ children }) {
     };
 
     const login = async (email, password) => {
-        const response = await api.post('/auth/login', { email, password });
-        const { token, user } = response.data;
-        localStorage.setItem('token', token);
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        setUser(user);
+        // Backend uses OAuth2PasswordRequestForm which expects form data
+        // with 'username' and 'password' fields
+        const formData = new URLSearchParams();
+        formData.append('username', email);
+        formData.append('password', password);
+
+        const response = await api.post('/auth/login', formData, {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        });
+
+        const { access_token, user: userData } = response.data;
+        localStorage.setItem('token', access_token);
+        api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+        setUser(userData);
         return response.data;
     };
 
     const signup = async (userData) => {
-        const response = await api.post('/auth/register', userData);
-        const { token, user } = response.data;
-        localStorage.setItem('token', token);
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        setUser(user);
+        const response = await api.post('/auth/signup', userData);
         return response.data;
     };
 

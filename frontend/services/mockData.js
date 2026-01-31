@@ -229,7 +229,22 @@ export const MOCK_DATA = {
             { name: 'Leads', href: '/sales/leads', icon: 'Users' },
             { name: 'Clients', href: '/sales/clients', icon: 'Briefcase' },
             { name: 'My Performance', href: '/sales/performance', icon: 'BarChart3' },
-
+            {
+                name: 'Financial Ledgers',
+                href: '/ledgers',
+                icon: 'FileText',
+                children: [
+                    { name: 'Stock Register', href: '/ledgers/stock-register' },
+                    { name: 'Payments Made', href: '/ledgers/payments-made' },
+                    { name: 'Payments Received', href: '/ledgers/payments-received' },
+                    { name: 'Daily Expenses', href: '/ledgers/daily-expenses' },
+                    { name: 'Cash & Bank Bal.', href: '/ledgers/cash-bank-balance' },
+                    { name: 'PDC Issued', href: '/ledgers/pdc-given' },
+                    { name: 'PDC Received', href: '/ledgers/pdc-received' },
+                    { name: 'Transfer (Purch)', href: '/ledgers/transfer-purchase' },
+                    { name: 'Transfer (Sale)', href: '/ledgers/transfer-sales' }
+                ]
+            },
             { name: 'Settings', href: '/sales/settings', icon: 'Settings' }
         ],
         manager: [
@@ -240,12 +255,44 @@ export const MOCK_DATA = {
             { name: 'Clients', href: '/manager/clients', icon: 'Briefcase' },
             { name: 'Reports', href: '/manager/reports', icon: 'BarChart3' },
             { name: 'Invoices', href: '/manager/invoices', icon: 'Receipt' },
+            {
+                name: 'Financial Ledgers',
+                href: '/ledgers',
+                icon: 'FileText',
+                children: [
+                    { name: 'Stock Register', href: '/ledgers/stock-register' },
+                    { name: 'Payments Made', href: '/ledgers/payments-made' },
+                    { name: 'Payments Received', href: '/ledgers/payments-received' },
+                    { name: 'Daily Expenses', href: '/ledgers/daily-expenses' },
+                    { name: 'Cash & Bank Bal.', href: '/ledgers/cash-bank-balance' },
+                    { name: 'PDC Issued', href: '/ledgers/pdc-given' },
+                    { name: 'PDC Received', href: '/ledgers/pdc-received' },
+                    { name: 'Transfer (Purch)', href: '/ledgers/transfer-purchase' },
+                    { name: 'Transfer (Sale)', href: '/ledgers/transfer-sales' }
+                ]
+            },
             { name: 'Settings', href: '/manager/settings', icon: 'Settings' }
         ],
         md: [
             { name: 'Dashboard', href: '/md/dashboard', icon: 'LayoutDashboard' },
             { name: 'Revenue', href: '/md/revenue', icon: 'DollarSign' },
             { name: 'Monitoring', href: '/md/monitoring', icon: 'Activity' },
+            {
+                name: 'Financial Ledgers',
+                href: '/ledgers',
+                icon: 'FileText',
+                children: [
+                    { name: 'Stock Register', href: '/ledgers/stock-register' },
+                    { name: 'Payments Made', href: '/ledgers/payments-made' },
+                    { name: 'Payments Received', href: '/ledgers/payments-received' },
+                    { name: 'Daily Expenses', href: '/ledgers/daily-expenses' },
+                    { name: 'Cash & Bank Bal.', href: '/ledgers/cash-bank-balance' },
+                    { name: 'PDC Issued', href: '/ledgers/pdc-given' },
+                    { name: 'PDC Received', href: '/ledgers/pdc-received' },
+                    { name: 'Transfer (Purch)', href: '/ledgers/transfer-purchase' },
+                    { name: 'Transfer (Sale)', href: '/ledgers/transfer-sales' }
+                ]
+            },
             { name: 'Employee Lookup', href: '/md/employee-lookup', icon: 'UserSearch' },
             { name: 'AI Assistant', href: '/md/ai-assistant', icon: 'BrainCircuit' }
         ],
@@ -254,6 +301,22 @@ export const MOCK_DATA = {
             { name: 'Sales Review', href: '/purchase/sales', icon: 'ShoppingCart' },
             { name: 'Invoices', href: '/purchase/invoices', icon: 'Receipt' },
             { name: 'Monitoring', href: '/purchase/monitoring', icon: 'Activity' },
+            {
+                name: 'Financial Ledgers',
+                href: '/ledgers',
+                icon: 'FileText',
+                children: [
+                    { name: 'Stock Register', href: '/ledgers/stock-register' },
+                    { name: 'Payments Made', href: '/ledgers/payments-made' },
+                    { name: 'Payments Received', href: '/ledgers/payments-received' },
+                    { name: 'Daily Expenses', href: '/ledgers/daily-expenses' },
+                    { name: 'Cash & Bank Bal.', href: '/ledgers/cash-bank-balance' },
+                    { name: 'PDC Issued', href: '/ledgers/pdc-given' },
+                    { name: 'PDC Received', href: '/ledgers/pdc-received' },
+                    { name: 'Transfer (Purch)', href: '/ledgers/transfer-purchase' },
+                    { name: 'Transfer (Sale)', href: '/ledgers/transfer-sales' }
+                ]
+            },
             { name: 'AI Assistant', href: '/purchase/ai-assistant', icon: 'BrainCircuit' }
         ],
         admin: [

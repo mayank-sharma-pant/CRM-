@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import api from '@/services/api';
 import {
     Search,
     Plus,
@@ -17,11 +18,14 @@ export default function AdminUsersPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [users, setUsers] = useState([]);
+    const [teams, setTeams] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [roleFilter, setRoleFilter] = useState('All');
     const [teamFilter, setTeamFilter] = useState('All');
     const [showInviteModal, setShowInviteModal] = useState(false);
+    const [inviteLoading, setInviteLoading] = useState(false);
+    const [error, setError] = useState(null);
 
     // Invite form state
     const [inviteEmail, setInviteEmail] = useState('');
@@ -31,20 +35,41 @@ export default function AdminUsersPage() {
     const [inviteTeam, setInviteTeam] = useState('');
     const [inviteManager, setInviteManager] = useState('');
 
-    useEffect(() => {
-        setTimeout(() => {
-            const data = [
-                { id: 'EMP001', name: 'Alex Johnson', email: 'alex.j@company.com', phone: '+1 555-0101', role: 'Sales Executive', team: 'Sales Alpha', status: 'Active', joinedAt: '2023-06-15', lastActive: '2024-01-18 09:30' },
-                { id: 'EMP002', name: 'Sarah Smith', email: 'sarah.s@company.com', phone: '+1 555-0102', role: 'Sales Executive', team: 'Sales Alpha', status: 'Active', joinedAt: '2023-07-20', lastActive: '2024-01-18 08:45' },
-                { id: 'INV001', name: 'John Miller', email: 'john.miller@example.com', phone: '+1 555-0201', role: 'Sales Executive', team: 'Sales Alpha', status: 'Invite Pending', joinedAt: '2024-01-17', lastActive: null },
-                { id: 'INV002', name: 'Sarah Chen', email: 'sarah.chen@example.com', phone: '+1 555-0202', role: 'Manager', team: null, status: 'Invite Pending', joinedAt: '2024-01-17', lastActive: null },
-                { id: 'EMP003', name: 'Mike Brown', email: 'mike.b@company.com', phone: '+1 555-0103', role: 'Manager', team: 'Sales Alpha', status: 'Active', joinedAt: '2023-05-10', lastActive: '2024-01-18 07:20' },
-                { id: 'INV003', name: 'Robert Wilson', email: 'r.wilson@example.com', phone: '+1 555-0203', role: 'Purchase', team: null, status: 'Invite Expired', joinedAt: '2024-01-10', lastActive: null },
-                { id: 'EMP004', name: 'Emily Davis', email: 'emily.d@company.com', phone: '+1 555-0104', role: 'Sales Executive', team: 'Sales Bravo', status: 'Disabled', joinedAt: '2023-08-25', lastActive: '2023-12-20 16:00' }
-            ];
-            setUsers(data);
+    const fetchUsers = async () => {
+        try {
+            setLoading(true);
+            const [usersRes, teamsRes] = await Promise.all([
+                api.get('/admin/users'),
+                api.get('/admin/teams')
+            ]);
+
+            const usersData = (usersRes.data.users || []).map(u => ({
+                id: `EMP${String(u.id).padStart(3, '0')}`,
+                rawId: u.id,
+                name: u.name || u.full_name,
+                email: u.email,
+                phone: u.phone || '–',
+                role: u.role,
+                team: u.team_name || u.team || null,
+                status: u.status === 'active' ? 'Active' :
+                    u.status === 'disabled' ? 'Disabled' :
+                        u.status === 'pending' ? 'Pending Approval' : u.status,
+                joinedAt: u.created_at ? u.created_at.split('T')[0] : null,
+                lastActive: u.last_active
+            }));
+
+            setUsers(usersData);
+            setTeams(teamsRes.data.teams || []);
+        } catch (err) {
+            console.error('Failed to fetch users:', err);
+            setError('Failed to load users');
+        } finally {
             setLoading(false);
-        }, 300);
+        }
+    };
+
+    useEffect(() => {
+        fetchUsers();
     }, []);
 
     const filteredUsers = users.filter(user => {
@@ -57,23 +82,43 @@ export default function AdminUsersPage() {
         return matchesSearch && matchesStatus && matchesRole && matchesTeam;
     });
 
-    const handleInvite = () => {
-        // Would call backend API here
-        setShowInviteModal(false);
-        // Reset form
-        setInviteEmail('');
-        setInviteName('');
-        setInvitePhone('');
-        setInviteRole('');
-        setInviteTeam('');
-        setInviteManager('');
+    const handleInvite = async () => {
+        try {
+            setInviteLoading(true);
+            const params = new URLSearchParams({
+                email: inviteEmail,
+                full_name: inviteName,
+                role: inviteRole
+            });
+            if (invitePhone) params.append('phone', invitePhone);
+            if (inviteTeam) params.append('team_id', inviteTeam);
+            if (inviteManager) params.append('manager_id', inviteManager);
+
+            await api.post(`/admin/invites?${params.toString()}`);
+
+            setShowInviteModal(false);
+            // Reset form
+            setInviteEmail('');
+            setInviteName('');
+            setInvitePhone('');
+            setInviteRole('');
+            setInviteTeam('');
+            setInviteManager('');
+            // Refresh users list
+            fetchUsers();
+        } catch (err) {
+            console.error('Failed to create invite:', err);
+            alert(err.response?.data?.detail || 'Failed to create invite');
+        } finally {
+            setInviteLoading(false);
+        }
     };
 
     if (loading) return <UsersSkeleton />;
 
-    const roles = ['All', 'Sales Executive', 'Manager', 'MD', 'Purchase'];
-    const statuses = ['All', 'Active', 'Disabled', 'Invite Pending', 'Invite Expired'];
-    const teams = ['All', 'Sales Alpha', 'Sales Bravo', 'Sales Charlie'];
+    const roles = ['All', 'sales', 'manager', 'md', 'admin'];
+    const statuses = ['All', 'Active', 'Disabled', 'Pending Approval'];
+    const teamOptions = ['All', ...teams.map(t => t.name)];
 
     return (
         <div className="mx-auto max-w-[1360px] space-y-4 pb-8 font-sans text-slate-900 dark:text-slate-100">

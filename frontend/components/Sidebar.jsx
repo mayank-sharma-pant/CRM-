@@ -90,29 +90,32 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
             {/* Sidebar */}
             <div
-                className={`fixed top-0 left-0 z-30 h-full bg-surface border-r border-border transition-all duration-200 ${isOpen ? 'w-64' : 'w-16'}`}
+                className={`fixed top-0 left-0 z-30 h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-200 ${isOpen ? 'w-64' : 'w-16'}`}
             >
                 <div className="flex flex-col h-full">
                     {/* Header */}
-                    <div className="flex items-center justify-between h-16 px-4 border-b border-border shrink-0">
+                    <div className="flex items-center justify-between h-[72px] px-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
                         {isOpen && (
                             <Link
                                 href="/"
-                                className="text-lg font-semibold text-stone-900 tracking-tight hover:text-accent transition-colors"
+                                className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white tracking-tight hover:opacity-80 transition-opacity"
                             >
-                                LocalCRM
+                                <div className="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center text-white">
+                                    <LayoutDashboard size={18} fill="currentColor" className="text-white/20" />
+                                </div>
+                                <span>LocalCRM</span>
                             </Link>
                         )}
                         <button
                             onClick={() => setIsOpen(!isOpen)}
-                            className="p-2 rounded-md hover:bg-surface-elevated text-stone-500 hover:text-stone-700 transition-colors"
+                            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
                         >
                             {isOpen ? <X size={20} /> : <Menu size={20} />}
                         </button>
                     </div>
 
                     {/* Navigation */}
-                    <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+                    <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
                         {navigation.map((item) => {
                             const isActive = pathname === item.href;
                             const Icon = ICON_MAP[item.icon] || Activity;
@@ -120,23 +123,22 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                 <Link
                                     key={item.name}
                                     href={item.href}
-                                    className={`relative flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-150 ${isActive
-                                            ? 'bg-stone-100 text-stone-900'
-                                            : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                                    className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive
+                                        ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
                                         }`}
                                 >
-                                    {/* Active indicator */}
                                     {isActive && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-stone-900 rounded-r" />
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-r-full" />
                                     )}
 
                                     <Icon
-                                        size={18}
+                                        size={20}
                                         strokeWidth={isActive ? 2 : 1.5}
-                                        className={isActive ? 'text-stone-900' : 'text-stone-500'}
+                                        className={`${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`}
                                     />
                                     {isOpen && (
-                                        <span className={`text-sm ${isActive ? 'font-medium' : ''}`}>
+                                        <span className={`text-sm ${isActive ? 'font-semibold' : 'font-medium'}`}>
                                             {item.name}
                                         </span>
                                     )}
@@ -146,13 +148,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     </nav>
 
                     {/* Footer */}
-                    <div className="p-3 border-t border-border shrink-0">
+                    <div className="p-4 border-t border-slate-200 dark:border-slate-800 shrink-0">
                         <Link
                             href="/settings"
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors"
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                         >
-                            <Settings size={18} strokeWidth={1.5} className="text-stone-500" />
-                            {isOpen && <span className="text-sm">Settings</span>}
+                            <Settings size={20} strokeWidth={1.5} className="text-slate-400 dark:text-slate-500" />
+                            {isOpen && <span className="text-sm font-medium">Settings</span>}
                         </Link>
                     </div>
                 </div>

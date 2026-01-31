@@ -38,79 +38,25 @@ export default function ManagerDashboard() {
     }, []);
 
     const fetchDashboardData = async () => {
-        let leads = [];
-        let allTasks = [];
-        let useMockData = false;
-
         try {
-            // API implicitly returns Team Scope for Manager
-            const [leadsRes, tasksRes] = await Promise.all([
-                api.get('/leads'),
-                api.get('/tasks')
-            ]);
+            const response = await api.get('/manager/dashboard');
+            const data = response.data;
 
-            leads = leadsRes.data || [];
-            allTasks = tasksRes.data || [];
+            setMetrics({
+                totalLeads: data.metrics.total_team_leads,
+                closedLeads: data.metrics.closed_deals,
+                conversionRate: data.metrics.team_conversion_rate
+            });
 
-            if (leads.length === 0 && allTasks.length === 0) {
-                useMockData = true;
-            }
+            // The backend returns pre-filtered priority tasks
+            setPriorityTasks(data.priority_tasks || []);
+            setLoading(false);
 
         } catch (error) {
-            console.warn('Dashboard fetch failed (using mock data):', error);
-            useMockData = true;
-        }
-
-        // --- MOCK DATA FOR MANAGER (TEAM SCOPE SIMULATION) ---
-        if (useMockData) {
-            // Higher numbers for Team view
-            const total = Math.floor(Math.random() * (450 - 300 + 1)) + 300;
-            const closed = Math.floor(Math.random() * (120 - 80 + 1)) + 80;
-            const rate = Math.floor(Math.random() * (35 - 20 + 1)) + 20;
-
-            setMetrics({ totalLeads: total, closedLeads: closed, conversionRate: rate });
-
-            setPriorityTasks([
-                { id: 201, title: 'Approve Contract Review (Team A)', dueDate: new Date().toISOString(), statusReason: 'DUE_TODAY' },
-                { id: 202, title: 'Client Escalation: Delta Corp', dueDate: new Date(Date.now() - 86400000).toISOString(), statusReason: 'OVERDUE' },
-                { id: 203, title: 'Quarterly Team Performance Review', dueDate: new Date().toISOString(), statusReason: 'DUE_TODAY' },
-                { id: 204, title: 'Sign off on Q3 Budget', dueDate: new Date(Date.now() - 172800000).toISOString(), statusReason: 'OVERDUE' },
-                { id: 205, title: 'Onboard new hire: Sarah J.', dueDate: new Date().toISOString(), statusReason: 'DUE_TODAY' }
-            ]);
-
+            console.error('Dashboard fetch failed:', error);
+            // Fallback to empty state or error handling
             setLoading(false);
-            return;
         }
-
-        // --- REAL BACKEND LOGIC ---
-        const total = leads.length;
-        const closed = leads.filter(l => l.status === 'Converted').length;
-        const rate = total > 0 ? Math.round((closed / total) * 100) : 0;
-
-        setMetrics({
-            totalLeads: total,
-            closedLeads: closed,
-            conversionRate: rate
-        });
-
-        const now = new Date();
-        const urgentTasks = allTasks
-            .filter(t => {
-                const dueDate = parseISO(t.dueDate);
-                return (isPast(dueDate) && !isSameDay(dueDate, now) && t.status !== 'Completed') ||
-                    (isSameDay(dueDate, now) && t.status !== 'Completed');
-            })
-            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-            .slice(0, 5)
-            .map(t => ({
-                ...t,
-                statusReason: isPast(parseISO(t.dueDate)) && !isSameDay(parseISO(t.dueDate), now)
-                    ? 'OVERDUE'
-                    : 'DUE_TODAY'
-            }));
-
-        setPriorityTasks(urgentTasks);
-        setLoading(false);
     };
 
     if (loading) {

@@ -383,7 +383,7 @@ function Features() {
     },
     {
       title: 'Team Dashboard',
-      description: 'See who's doing what.Track performance and identify bottlenecks.',
+      description: "See who's doing what. Track performance and identify bottlenecks.",
       icon: Users,
     },
     {

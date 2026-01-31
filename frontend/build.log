@@ -1,0 +1,96 @@
+
+> local-service-crm-frontend@1.0.0 build
+> next build
+
+▲ Next.js 16.1.1 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed with 4 errors:
+./app/globals.css:2972:8
+Parsing CSS source code failed
+[0m [90m 2970 |[39m [90m============================================ */[39m
+ [90m 2971 |[39m
+[31m[1m>[22m[39m[90m 2972 |[39m [33m@[39m[36mimport[39m url([32m'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap'[39m)[33m;[39m
+ [90m      |[39m        [31m[1m^[22m[39m
+ [90m 2973 |[39m
+ [90m 2974 |[39m [90m/* ============================================[39m
+ [90m 2975 |[39m [90m   ANIMATIONS - Subtle, Editorial[39m[0m
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Import trace:
+  Client Component Browser:
+    ./app/globals.css [Client Component Browser]
+    ./app/layout.js [Server Component]
+
+
+./app/page.jsx:386:29
+Parsing ecmascript source code failed
+[0m [90m 384 |[39m     {
+ [90m 385 |[39m       title[33m:[39m [32m'Team Dashboard'[39m[33m,[39m
+[31m[1m>[22m[39m[90m 386 |[39m       description[33m:[39m [32m'See who'[39ms doing what[33m.[39m[33mTrack[39m performance and identify bottlenecks[33m.[39m[32m',[39m
+ [90m     |[39m                             [31m[1m^[22m[39m
+ [90m 387 |[39m       icon[33m:[39m [33mUsers[39m[33m,[39m
+ [90m 388 |[39m     }[33m,[39m
+ [90m 389 |[39m     {[0m
+
+Expected ',', got 's'
+
+
+./app/manager/clients/[id]/page.jsx:13:1
+Module not found: Can't resolve '../../../../sales/clients/[id]/page.jsx'
+[0m [90m 11 |[39m [90m */[39m
+ [90m 12 |[39m
+[31m[1m>[22m[39m[90m 13 |[39m [36mimport[39m [33mClientDetailPage[39m [36mfrom[39m [32m'../../../../sales/clients/[id]/page.jsx'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 14 |[39m
+ [90m 15 |[39m [36mexport[39m [36mdefault[39m [33mClientDetailPage[39m[33m;[39m
+ [90m 16 |[39m[0m
+
+
+
+Import traces:
+  Client Component Browser:
+    ./app/manager/clients/[id]/page.jsx [Client Component Browser]
+    ./app/manager/clients/[id]/page.jsx [Server Component]
+
+  Client Component SSR:
+    ./app/manager/clients/[id]/page.jsx [Client Component SSR]
+    ./app/manager/clients/[id]/page.jsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./app/manager/leads/[id]/page.jsx:13:1
+Module not found: Can't resolve '../../../../sales/leads/[id]/page.jsx'
+[0m [90m 11 |[39m [90m */[39m
+ [90m 12 |[39m
+[31m[1m>[22m[39m[90m 13 |[39m [36mimport[39m [33mLeadDetailPage[39m [36mfrom[39m [32m'../../../../sales/leads/[id]/page.jsx'[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 14 |[39m
+ [90m 15 |[39m [36mexport[39m [36mdefault[39m [33mLeadDetailPage[39m[33m;[39m
+ [90m 16 |[39m[0m
+
+
+
+Import traces:
+  Client Component Browser:
+    ./app/manager/leads/[id]/page.jsx [Client Component Browser]
+    ./app/manager/leads/[id]/page.jsx [Server Component]
+
+  Client Component SSR:
+    ./app/manager/leads/[id]/page.jsx [Client Component SSR]
+    ./app/manager/leads/[id]/page.jsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (./app/globals.css:2972:8)
+    at <unknown> (./app/page.jsx:386:29)
+    at <unknown> (./app/manager/clients/[id]/page.jsx:13:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./app/manager/leads/[id]/page.jsx:13:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)

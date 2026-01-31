@@ -47,8 +47,9 @@ export default function ManagerLeads() {
 
     const fetchLeads = async () => {
         try {
-            const response = await api.get('/leads');
-            setLeads(response.data || []);
+            const response = await api.get('/manager/leads');
+            // Manager endpoint returns { leads: [...], total: N }
+            setLeads(response.data.leads || []);
         } catch (error) {
             console.error("Failed to fetch leads", error);
         } finally {

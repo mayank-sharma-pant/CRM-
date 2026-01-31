@@ -10,6 +10,6 @@
  * based on the route context (/manager/...).
  */
 
-import LeadDetailPage from '../../../../sales/leads/[id]/page.jsx';
+import LeadDetailPage from '../../../sales/leads/[id]/page.jsx';
 
 export default LeadDetailPage;

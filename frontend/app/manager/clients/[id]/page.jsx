@@ -10,6 +10,6 @@
  * based on the route context (/manager/...).
  */
 
-import ClientDetailPage from '../../../../sales/clients/[id]/page.jsx';
+import ClientDetailPage from '../../../sales/clients/[id]/page.jsx';
 
 export default ClientDetailPage;

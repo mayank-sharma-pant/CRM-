@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import api from '@/services/api';
 import {
     Search,
     Calendar,
@@ -13,33 +14,47 @@ export default function AdminAuditPage() {
     const [logs, setLogs] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [actionFilter, setActionFilter] = useState('All');
+    const [daysFilter, setDaysFilter] = useState(30);
+    const [error, setError] = useState(null);
+
+    const fetchAuditLogs = async () => {
+        try {
+            setLoading(true);
+            const params = new URLSearchParams({ days: daysFilter });
+            if (actionFilter !== 'All') {
+                params.append('action', actionFilter);
+            }
+
+            const response = await api.get(`/admin/audit-log?${params.toString()}`);
+            const logsData = (response.data.logs || []).map(log => ({
+                id: log.id,
+                timestamp: log.timestamp ? new Date(log.timestamp).toLocaleString() : '–',
+                admin: log.admin_name || 'System',
+                action: log.action?.replace(/_/g, ' ') || 'Unknown',
+                entity: log.entity_name || log.entity_type || '–',
+                before: log.before_value ? (typeof log.before_value === 'string' ? log.before_value : JSON.stringify(log.before_value).slice(0, 50)) : null,
+                after: log.after_value ? (typeof log.after_value === 'string' ? log.after_value : JSON.stringify(log.after_value).slice(0, 50)) : null
+            }));
+            setLogs(logsData);
+        } catch (err) {
+            console.error('Failed to fetch audit logs:', err);
+            setError('Failed to load audit logs');
+            setLogs([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        setTimeout(() => {
-            const data = [
-                { id: 1, timestamp: '2024-01-18 10:30', admin: 'Admin', action: 'User approved', entity: 'John Miller', before: 'Pending', after: 'Active' },
-                { id: 2, timestamp: '2024-01-18 09:15', admin: 'Admin', action: 'Role changed', entity: 'Lisa Brown', before: 'Sales Executive', after: 'Manager' },
-                { id: 3, timestamp: '2024-01-18 08:45', admin: 'Admin', action: 'Team created', entity: 'Sales Delta', before: null, after: 'Created' },
-                { id: 4, timestamp: '2024-01-17 17:20', admin: 'Admin', action: 'User deactivated', entity: 'Mark Stevens', before: 'Active', after: 'Inactive' },
-                { id: 5, timestamp: '2024-01-17 15:10', admin: 'Admin', action: 'Team shift', entity: 'Alex Johnson', before: 'Sales Bravo', after: 'Sales Alpha' },
-                { id: 6, timestamp: '2024-01-17 14:00', admin: 'Admin', action: 'Manager changed', entity: 'Sales Alpha', before: 'James Wilson', after: 'Mike Brown' },
-                { id: 7, timestamp: '2024-01-17 11:30', admin: 'Admin', action: 'Invite sent', entity: 'Sarah Chen', before: null, after: 'Pending' },
-                { id: 8, timestamp: '2024-01-16 16:45', admin: 'Admin', action: 'User rejected', entity: 'Bob Wilson', before: 'Pending', after: 'Rejected' },
-                { id: 9, timestamp: '2024-01-16 14:20', admin: 'Admin', action: 'Settings updated', entity: 'Invoice prefix', before: 'INVOICE', after: 'INV' },
-                { id: 10, timestamp: '2024-01-16 10:00', admin: 'System', action: 'User created', entity: 'New Employee', before: null, after: 'Pending' }
-            ];
-            setLogs(data);
-            setLoading(false);
-        }, 300);
-    }, []);
+        fetchAuditLogs();
+    }, [daysFilter, actionFilter]);
 
-    const actionTypes = ['All', 'User approved', 'User rejected', 'User deactivated', 'Role changed', 'Team shift', 'Team created', 'Manager changed', 'Invite sent', 'Settings updated'];
+    const actionTypes = ['All', 'user_updated', 'user_approved', 'user_rejected', 'user_disabled', 'user_deleted', 'team_created', 'team_updated', 'team_deleted', 'team_member_added', 'team_member_removed', 'invite_created', 'invite_resent', 'invite_cancelled', 'settings_updated'];
 
     const filteredLogs = logs.filter(log => {
         const matchesSearch = log.entity.toLowerCase().includes(searchQuery.toLowerCase()) ||
             log.admin.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesAction = actionFilter === 'All' || log.action === actionFilter;
-        return matchesSearch && matchesAction;
+        return matchesSearch;
     });
 
     if (loading) return <AuditSkeleton />;

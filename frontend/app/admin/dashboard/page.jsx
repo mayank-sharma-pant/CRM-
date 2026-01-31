@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import api from '@/services/api';
 import {
     Users,
     UserX,
@@ -15,37 +16,52 @@ export default function AdminDashboard() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState(null);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
-        setTimeout(() => {
-            const dashData = {
-                stats: [
-                    { id: 1, label: 'Active Users', value: '156', route: '/admin/users' },
-                    { id: 2, label: 'Pending Invites', value: '8', route: '/admin/users' },
-                    { id: 3, label: 'Teams', value: '8', route: '/admin/teams-hierarchy' },
-                    { id: 4, label: 'Disabled Users', value: '12', route: '/admin/users' }
-                ],
-                actionRequired: [
-                    { id: 1, type: 'invite', title: '3 invites expiring in 48h', link: '/admin/users' },
-                    { id: 2, type: 'reassign', title: '2 users need reassignment before deactivation', link: '/admin/users' },
-                    { id: 3, type: 'hierarchy', title: '1 team missing manager assignment', link: '/admin/teams-hierarchy' }
-                ],
-                recentActivity: [
-                    { id: 1, action: 'User approved', entity: 'John Miller', time: '30 min ago' },
-                    { id: 2, action: 'Role changed', entity: 'Lisa Brown → Manager', time: '2 hours ago' },
-                    { id: 3, action: 'Team created', entity: 'Sales Delta', time: '4 hours ago' },
-                    { id: 4, action: 'User deactivated', entity: 'Mark Stevens', time: '1 day ago' },
-                    { id: 5, action: 'Team shift', entity: 'Alex Johnson → Sales Alpha', time: '1 day ago' },
-                    { id: 6, action: 'Invite sent', entity: 'Sarah Chen', time: '2 days ago' },
-                    { id: 7, action: 'Manager changed', entity: 'Sales Bravo → James Wilson', time: '2 days ago' },
-                    { id: 8, action: 'User approved', entity: 'Emily Davis', time: '3 days ago' },
-                    { id: 9, action: 'Role changed', entity: 'Mike Johnson → Sales Executive', time: '3 days ago' },
-                    { id: 10, action: 'Settings updated', entity: 'Pipeline stages', time: '4 days ago' }
-                ]
-            };
-            setData(dashData);
-            setLoading(false);
-        }, 300);
+        const fetchDashboardData = async () => {
+            try {
+                setLoading(true);
+                const response = await api.get('/admin/dashboard/stats');
+                const stats = response.data;
+
+                // Transform API response to dashboard format
+                const dashData = {
+                    stats: [
+                        { id: 1, label: 'Active Users', value: stats.active_users?.toString() || '0', route: '/admin/users' },
+                        { id: 2, label: 'Pending Invites', value: stats.pending_users?.toString() || '0', route: '/admin/users' },
+                        { id: 3, label: 'Teams', value: stats.teams?.toString() || '0', route: '/admin/teams-hierarchy' },
+                        { id: 4, label: 'Disabled Users', value: stats.disabled_users?.toString() || '0', route: '/admin/users' }
+                    ],
+                    actionRequired: stats.action_required || [],
+                    recentActivity: (stats.recent_activity || []).map((item, idx) => ({
+                        id: item.id || idx + 1,
+                        action: item.action,
+                        entity: item.entity,
+                        time: item.time
+                    }))
+                };
+                setData(dashData);
+            } catch (err) {
+                console.error('Failed to fetch dashboard data:', err);
+                setError('Failed to load dashboard data');
+                // Fallback to empty state
+                setData({
+                    stats: [
+                        { id: 1, label: 'Active Users', value: '–', route: '/admin/users' },
+                        { id: 2, label: 'Pending Invites', value: '–', route: '/admin/users' },
+                        { id: 3, label: 'Teams', value: '–', route: '/admin/teams-hierarchy' },
+                        { id: 4, label: 'Disabled Users', value: '–', route: '/admin/users' }
+                    ],
+                    actionRequired: [],
+                    recentActivity: []
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboardData();
     }, []);
 
     if (loading) return <DashboardSkeleton />;

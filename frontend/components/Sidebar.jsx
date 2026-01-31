@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '../contexts/AuthContext';
+import { financeService } from '../services/financeService';
 import {
     LayoutDashboard,
     Users,
@@ -25,6 +27,7 @@ import {
     UsersRound,
     GitBranch,
     FileText,
+    BookOpen,
     Menu,
     X
 } from 'lucide-react';
@@ -50,35 +53,54 @@ const ICON_MAP = {
     UserCheck,
     UsersRound,
     GitBranch,
-    FileText
+    FileText,
+    BookOpen
 };
 
 import { MOCK_DATA } from '../services/mockData';
 
 export default function Sidebar({ isOpen, setIsOpen }) {
     const pathname = usePathname();
+    const { user, loading } = useAuth();
     const [navigation, setNavigation] = useState([]);
 
-    // Fetch navigation based on current route
+    // Fetch navigation based on user role (PERSISTENT for session)
     useEffect(() => {
-        const fetchNavigation = () => {
-            const isManager = pathname?.startsWith('/manager');
-            const isTeamLead = pathname?.startsWith('/team-lead');
-            const isMD = pathname?.startsWith('/md');
-            const isPurchase = pathname?.startsWith('/purchase');
-            const isAdmin = pathname?.startsWith('/admin');
-            let role = 'sales';
-            if (isManager) role = 'manager';
-            if (isTeamLead) role = 'team_lead';
-            if (isMD) role = 'md';
-            if (isPurchase) role = 'purchase';
-            if (isAdmin) role = 'admin';
+        const fetchNavigation = async () => {
+            // Do not build navigation until user is loaded
+            if (loading) return;
 
-            const navData = MOCK_DATA['/navigation'][role] || [];
+            // Use authenticated role, default to 'sales' if undefined
+            // This ensures Managers viewing Finance pages still see Manager sidebar
+            const role = user?.role || 'sales';
+
+            const navData = [...(MOCK_DATA['/navigation'][role] || [])];
+
+            // DYNAMICALLY BUILD FINANCE LEDGERS WITH SUB-ITEMS (API-DRIVEN)
+            // Only add if not Admin role (Admin has no ledger access)
+            if (role !== 'admin') {
+                try {
+                    const ledgers = await financeService.getAuthorizedLedgers();
+                    if (ledgers && ledgers.length > 0) {
+                        navData.push({
+                            name: 'Financial Ledgers',
+                            href: '/finance',
+                            icon: 'BookOpen',
+                            children: ledgers.map(l => ({
+                                name: l.name,
+                                href: `/finance/${l.slug}`
+                            }))
+                        });
+                    }
+                } catch (e) {
+                    console.error("Sidebar finance check failed", e);
+                }
+            }
+
             setNavigation(navData);
         };
         fetchNavigation();
-    }, [pathname]);
+    }, [user?.role, loading]);
 
     return (
         <>
@@ -182,8 +204,8 @@ function NavItem({ item, isActive, Icon, isOpen, pathname }) {
                 <button
                     onClick={handleClick}
                     className={`w-full relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive && !expanded
-                            ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+                        ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
                         }`}
                 >
                     {isActive && !expanded && (
@@ -221,8 +243,8 @@ function NavItem({ item, isActive, Icon, isOpen, pathname }) {
                                     key={child.name}
                                     href={child.href}
                                     className={`block text-sm py-2 px-2 rounded-md transition-colors ${isChildActive
-                                            ? 'text-indigo-600 dark:text-indigo-400 font-medium bg-indigo-50/50 dark:bg-indigo-900/10'
-                                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                                        ? 'text-indigo-600 dark:text-indigo-400 font-medium bg-indigo-50/50 dark:bg-indigo-900/10'
+                                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                                         }`}
                                 >
                                     {child.name}

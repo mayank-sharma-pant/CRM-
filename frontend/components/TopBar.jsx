@@ -18,16 +18,39 @@ export default function TopBar() {
     return (
         <header className="bg-surface border-b border-border h-14 flex items-center justify-between px-6">
             {/* Left - Search */}
-            <div className="flex-1 max-w-md">
-                <div className="relative">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-                    <input
-                        type="text"
-                        placeholder="Search..."
-                        className="w-full pl-9 pr-4 py-2 text-sm bg-surface-elevated border border-transparent rounded-md focus:border-stone-300 focus:outline-none transition-colors"
-                    />
+            {/* Left - Search or Branding */}
+            {user?.role === 'md' ? (
+                <div className="flex items-center gap-4">
+                    <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                        Enterprise Corp
+                    </h1>
+                    <div className="h-5 w-px bg-slate-300 dark:bg-slate-600"></div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                        Managing Director
+                    </span>
                 </div>
-            </div>
+            ) : user?.role === 'purchase' ? (
+                <div className="flex items-center gap-4">
+                    <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                        Enterprise Corp
+                    </h1>
+                    <div className="h-5 w-px bg-slate-300 dark:bg-slate-600"></div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                        Purchase Department
+                    </span>
+                </div>
+            ) : (
+                <div className="flex-1 max-w-md">
+                    <div className="relative">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            className="w-full pl-9 pr-4 py-2 text-sm bg-surface-elevated border border-transparent rounded-md focus:border-stone-300 focus:outline-none transition-colors"
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* Right - Actions */}
             <div className="flex items-center gap-2">

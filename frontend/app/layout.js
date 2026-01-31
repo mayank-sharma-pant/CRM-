@@ -1,6 +1,7 @@
 import './globals.css';
 import { AuthProvider } from '../contexts/AuthContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
+import Layout from '../components/Layout';
 
 export const metadata = {
     title: 'LocalCRM - Simple CRM for Service Businesses',
@@ -17,7 +18,9 @@ export default function RootLayout({ children }) {
             <body className="antialiased">
                 <ThemeProvider>
                     <AuthProvider>
-                        {children}
+                        <Layout>
+                            {children}
+                        </Layout>
                     </AuthProvider>
                 </ThemeProvider>
             </body>

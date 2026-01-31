@@ -3,7 +3,7 @@ import { MOCK_DATA } from './mockData';
 
 // --- MOCK MODE CONFIGURATION ---
 // Set this to true to use mock data instead of real backend
-const USE_MOCK_BACKEND = false;  // Changed to false to use real backend
+const USE_MOCK_BACKEND = true;  // Enabled for demo without backend
 // -------------------------------
 
 // Backend API base URL
@@ -180,6 +180,210 @@ if (USE_MOCK_BACKEND) {
     }
 
     // 3. Handle specific keys
+    // 3. Handle specific keys
+    // Intercept Ledger Requests to enforce Role-Based Permissions
+    if (url.startsWith('/ledgers/')) {
+      let role = 'sales'; // Default
+      if (typeof window !== 'undefined') {
+        const path = window.location.pathname;
+        if (path.startsWith('/manager')) role = 'manager';
+        else if (path.startsWith('/team-lead')) role = 'team_lead';
+        else if (path.startsWith('/md')) role = 'md';
+        else if (path.startsWith('/purchase')) role = 'purchase';
+        else if (path.startsWith('/admin')) role = 'admin';
+      }
+
+      // MOCK: GET /ledgers/ (List of Authorized Ledgers)
+      if (url === '/ledgers/' || url === '/ledgers') {
+        console.log(`[MOCK] GET /ledgers/ List (Role: ${role})`);
+
+        const ALL_LEDGERS = {
+          "stock-register": "Stock Register",
+          "payments-made": "Payments Made",
+          "payments-received": "Payments Received",
+          "daily-expenses": "Daily Expenses",
+          "cash-bank-balance": "Cash & Bank Balance",
+          "pdc-given": "PDC Cheque Given",
+          "pdc-received": "PDC Cheque Received",
+          "transfer-purchase": "Account Transfer Purchase",
+          "transfer-sales": "Account Transfer Sales"
+        };
+
+        // Re-use the rules logic to filter
+        const rules = {
+          // SALES
+          sales: {
+            '/ledgers/stock-register': [false, false],
+            '/ledgers/payments-made': [false, false],
+            '/ledgers/payments-received': [true, true],
+            '/ledgers/daily-expenses': [true, true],
+            '/ledgers/cash-bank-balance': [false, false],
+            '/ledgers/pdc-given': [true, false], // View Only
+            '/ledgers/pdc-received': [true, false], // View Only
+            '/ledgers/transfer-purchase': [false, false],
+            '/ledgers/transfer-sales': [false, false]
+          },
+          // TEAM LEAD
+          team_lead: {
+            '/ledgers/stock-register': [true, false], // View Only
+            '/ledgers/payments-made': [false, false],
+            '/ledgers/payments-received': [true, true],
+            '/ledgers/daily-expenses': [true, true],
+            '/ledgers/cash-bank-balance': [false, false],
+            '/ledgers/pdc-given': [true, true],
+            '/ledgers/pdc-received': [true, true],
+            '/ledgers/transfer-purchase': [false, false],
+            '/ledgers/transfer-sales': [false, false]
+          },
+          // MANAGER
+          manager: {
+            '/ledgers/stock-register': [true, false], // View Only
+            '/ledgers/payments-made': [true, true],
+            '/ledgers/payments-received': [true, true],
+            '/ledgers/daily-expenses': [true, true],
+            '/ledgers/cash-bank-balance': [true, false], // View Only
+            '/ledgers/pdc-given': [true, true],
+            '/ledgers/pdc-received': [true, true],
+            '/ledgers/transfer-purchase': [true, true],
+            '/ledgers/transfer-sales': [true, true]
+          },
+          // MD
+          md: {
+            // All View Only
+            '/ledgers/stock-register': [true, false],
+            '/ledgers/payments-made': [true, false],
+            '/ledgers/payments-received': [true, false],
+            '/ledgers/daily-expenses': [true, false],
+            '/ledgers/cash-bank-balance': [true, false],
+            '/ledgers/pdc-given': [true, false],
+            '/ledgers/pdc-received': [true, false],
+            '/ledgers/transfer-purchase': [true, false],
+            '/ledgers/transfer-sales': [true, false]
+          },
+          // PURCHASE
+          purchase: {
+            '/ledgers/stock-register': [true, true],
+            '/ledgers/payments-made': [true, true],
+            '/ledgers/payments-received': [true, false], // View Only
+            '/ledgers/daily-expenses': [true, false], // View Only
+            '/ledgers/cash-bank-balance': [false, false],
+            '/ledgers/pdc-given': [true, true],
+            '/ledgers/pdc-received': [true, false],
+            '/ledgers/transfer-purchase': [true, true],
+            '/ledgers/transfer-sales': [false, false]
+          }
+        };
+
+        const roleRules = rules[role] || {};
+        const authorized = [];
+
+        for (const [slug, name] of Object.entries(ALL_LEDGERS)) {
+          // The rules keys utilize the full path /ledgers/slug
+          const pathKey = `/ledgers/${slug}`;
+          const [canView, canEdit] = roleRules[pathKey] || [false, false];
+
+          if (canView) {
+            authorized.push({
+              slug: slug,
+              name: name,
+              can_view: true,
+              can_edit: canEdit
+            });
+          }
+        }
+
+        return new Promise(resolve => setTimeout(() => resolve({ data: authorized, status: 200 }), 400));
+      }
+
+      const mockKey = Object.keys(MOCK_DATA).find(key => url === key);
+      if (mockKey) {
+        console.log(`[MOCK] Serving Ledger ${url} for Role: ${role}`);
+        const originalData = MOCK_DATA[mockKey];
+
+        // --- PERMISSION MATRIX ---
+        // Define rules: [can_view, can_edit]
+        const rules = {
+          // SALES
+          sales: {
+            '/ledgers/stock-register': [false, false],
+            '/ledgers/payments-made': [false, false],
+            '/ledgers/payments-received': [true, true],
+            '/ledgers/daily-expenses': [true, true],
+            '/ledgers/cash-bank-balance': [false, false],
+            '/ledgers/pdc-given': [true, false], // View Only
+            '/ledgers/pdc-received': [true, false], // View Only
+            '/ledgers/transfer-purchase': [false, false],
+            '/ledgers/transfer-sales': [false, false]
+          },
+          // TEAM LEAD
+          team_lead: {
+            '/ledgers/stock-register': [true, false], // View Only
+            '/ledgers/payments-made': [false, false],
+            '/ledgers/payments-received': [true, true],
+            '/ledgers/daily-expenses': [true, true],
+            '/ledgers/cash-bank-balance': [false, false],
+            '/ledgers/pdc-given': [true, true],
+            '/ledgers/pdc-received': [true, true],
+            '/ledgers/transfer-purchase': [false, false],
+            '/ledgers/transfer-sales': [false, false]
+          },
+          // MANAGER
+          manager: {
+            '/ledgers/stock-register': [true, false], // View Only
+            '/ledgers/payments-made': [true, true],
+            '/ledgers/payments-received': [true, true],
+            '/ledgers/daily-expenses': [true, true],
+            '/ledgers/cash-bank-balance': [true, false], // View Only
+            '/ledgers/pdc-given': [true, true],
+            '/ledgers/pdc-received': [true, true],
+            '/ledgers/transfer-purchase': [true, true],
+            '/ledgers/transfer-sales': [true, true]
+          },
+          // MD
+          md: {
+            // All View Only
+            '/ledgers/stock-register': [true, false],
+            '/ledgers/payments-made': [true, false],
+            '/ledgers/payments-received': [true, false],
+            '/ledgers/daily-expenses': [true, false],
+            '/ledgers/cash-bank-balance': [true, false],
+            '/ledgers/pdc-given': [true, false],
+            '/ledgers/pdc-received': [true, false],
+            '/ledgers/transfer-purchase': [true, false],
+            '/ledgers/transfer-sales': [true, false]
+          },
+          // PURCHASE
+          purchase: {
+            '/ledgers/stock-register': [true, true],
+            '/ledgers/payments-made': [true, true],
+            '/ledgers/payments-received': [true, false], // View Only
+            '/ledgers/daily-expenses': [true, false], // View Only
+            '/ledgers/cash-bank-balance': [false, false],
+            '/ledgers/pdc-given': [true, true],
+            '/ledgers/pdc-received': [true, false],
+            '/ledgers/transfer-purchase': [true, true],
+            '/ledgers/transfer-sales': [false, false]
+          }
+        };
+
+        const roleRules = rules[role] || {};
+        const [canView, canEdit] = roleRules[url] || [false, false];
+
+        // Override permissions
+        const responseData = {
+          ...originalData,
+          can_view: canView,
+          can_edit: canEdit
+        };
+
+        return new Promise(resolve => {
+          setTimeout(() => {
+            resolve({ data: responseData, status: 200 });
+          }, 400);
+        });
+      }
+    }
+
     const mockKey = Object.keys(MOCK_DATA).find(key => url.includes(key) && key !== '/leads');
     if (mockKey) {
       console.log(`[MOCK] Serving ${url}`);

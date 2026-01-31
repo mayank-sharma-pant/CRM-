@@ -268,7 +268,22 @@ export const MOCK_DATA = {
             { name: 'My Tasks', href: '/team-lead/tasks', icon: 'CheckSquare' },
             { name: 'Team Leads', href: '/team-lead/leads', icon: 'Users' },
             { name: 'Leave Requests', href: '/team-lead/leaves', icon: 'Calendar' },
-            { name: 'Ledgers', href: '/ledgers', icon: 'FileText' }
+            {
+                name: 'Financial Ledgers',
+                href: '/ledgers', // Optional fallback if logic allowed it, but here it's just a toggle
+                icon: 'FileText',
+                children: [
+                    { name: 'Stock Register', href: '/ledgers/stock-register' },
+                    { name: 'Payments Made', href: '/ledgers/payments-made' },
+                    { name: 'Payments Received', href: '/ledgers/payments-received' },
+                    { name: 'Daily Expenses', href: '/ledgers/daily-expenses' },
+                    { name: 'Cash & Bank Bal.', href: '/ledgers/cash-bank-balance' },
+                    { name: 'PDC Issued', href: '/ledgers/pdc-given' },
+                    { name: 'PDC Received', href: '/ledgers/pdc-received' },
+                    { name: 'Transfer (Purch)', href: '/ledgers/transfer-purchase' },
+                    { name: 'Transfer (Sale)', href: '/ledgers/transfer-sales' }
+                ]
+            }
         ]
     },
     // Managing Director Mock Data
@@ -677,5 +692,154 @@ export const MOCK_DATA = {
         { id: 1, type: 'ADD_MEMBER', target: 'John Doe (Candidate)', status: 'Pending', date: '2024-01-15', notes: 'Replacement for Bob' },
         { id: 2, type: 'ROLE_CHANGE', target: 'Sarah Miller', status: 'Approved', date: '2024-01-10', notes: 'Promote to Team Lead', adminResponse: 'Approved. Effective Feb 1.' },
         { id: 3, type: 'remove_MEMBER', target: 'Michael Ross', status: 'Rejected', date: '2023-12-20', notes: 'Performance issues', adminResponse: 'PIP required first.' }
-    ]
+    ],
+    // --- LEDGERS ---
+    '/ledgers/stock-register': {
+        can_view: true,
+        can_edit: true,
+        columns: [
+            { key: 'date', label: 'Date', width: '120px', type: 'date' },
+            { key: 'product', label: 'Product', width: '200px', autoFocus: true },
+            { key: 'category', label: 'Category', width: '150px' },
+            { key: 'brand', label: 'Brand', width: '150px' },
+            { key: 'qty_in', label: 'Qty In', width: '100px', type: 'number', className: 'text-green-600 font-medium' },
+            { key: 'qty_out', label: 'Qty Out', width: '100px', type: 'number', className: 'text-red-500 font-medium' },
+            { key: 'stock', label: 'Current Stock', width: '120px', readOnly: true, className: 'font-bold bg-slate-50' },
+            { key: 'purchase_rate', label: 'Pur. Rate', width: '120px', type: 'number', format: 'currency' },
+            { key: 'sale_rate', label: 'Sale Rate', width: '120px', type: 'number', format: 'currency' },
+            { key: 'remarks', label: 'Remarks', width: '200px' }
+        ],
+        rows: [
+            { id: 1, date: '2024-01-20', product: 'Laptop Stand Pro', category: 'Accessories', brand: 'ErgoTech', qty_in: 50, qty_out: 0, stock: 150, purchase_rate: 1200, sale_rate: 2500, remarks: 'New Batch' },
+            { id: 2, date: '2024-01-21', product: 'Wireless Mouse', category: 'Peripherals', brand: 'LogiMega', qty_in: 0, qty_out: 12, stock: 88, purchase_rate: 450, sale_rate: 999, remarks: 'Sales' },
+        ]
+    },
+    '/ledgers/payments-made': {
+        can_view: true,
+        can_edit: true,
+        columns: [
+            { key: 'date', label: 'Date', width: '120px', type: 'date' },
+            { key: 'party_name', label: 'Party Name', width: '200px', autoFocus: true },
+            { key: 'mode', label: 'Mode', width: '120px' },
+            { key: 'reference', label: 'Reference / UTR', width: '150px' },
+            { key: 'amount', label: 'Amount', width: '120px', type: 'number', className: 'font-bold' },
+            { key: 'purpose', label: 'Purpose', width: '150px' },
+            { key: 'remarks', label: 'Remarks', width: '200px' }
+        ],
+        rows: [
+            { id: 1, date: '2024-01-22', party_name: 'Office Supplies Co.', mode: 'Unified Payment Interface', reference: 'UPI/123987', amount: 4500, purpose: 'Stationery', remarks: '' },
+            { id: 2, date: '2024-01-23', party_name: 'Tech Wholesalers', mode: 'Bank Transfer', reference: 'NEFT/998877', amount: 125000, purpose: 'Inventory Purchase', remarks: 'Invoice #882' }
+        ]
+    },
+    '/ledgers/payments-received': {
+        can_view: true,
+        can_edit: true,
+        columns: [
+            { key: 'date', label: 'Date', width: '120px', type: 'date' },
+            { key: 'party_name', label: 'Party Name', width: '200px', autoFocus: true },
+            { key: 'mode', label: 'Mode', width: '120px' },
+            { key: 'reference', label: 'Reference', width: '150px' },
+            { key: 'amount', label: 'Amount', width: '120px', type: 'number', className: 'text-green-600 font-bold' },
+            { key: 'invoice_no', label: 'Against Invoice', width: '150px' },
+            { key: 'remarks', label: 'Remarks', width: '200px' }
+        ],
+        rows: [
+            { id: 1, date: '2024-01-24', party_name: 'BigBank Intl', mode: 'Bank Transfer', reference: 'IMPS/445566', amount: 12500, invoice_no: 'INV-2024-001', remarks: 'Full settlement' }
+        ]
+    },
+    '/ledgers/daily-expenses': {
+        can_view: true,
+        can_edit: true,
+        columns: [
+            { key: 'date', label: 'Date', width: '120px', type: 'date' },
+            { key: 'expense_type', label: 'Expense Type', width: '150px' },
+            { key: 'paid_to', label: 'Paid To', width: '180px', autoFocus: true },
+            { key: 'mode', label: 'Mode', width: '120px' },
+            { key: 'amount', label: 'Amount', width: '120px', type: 'number' },
+            { key: 'remarks', label: 'Remarks', width: '200px' }
+        ],
+        rows: [
+            { id: 1, date: '2024-01-25', expense_type: 'Travel', paid_to: 'Uber', mode: 'Credit Card', amount: 450, remarks: 'Client visit' },
+            { id: 2, date: '2024-01-25', expense_type: 'Pantry', paid_to: 'Local Store', mode: 'Cash', amount: 120, remarks: 'Coffee/Tea' }
+        ]
+    },
+    '/ledgers/cash-bank-balance': {
+        can_view: true,
+        can_edit: false, // Usually calculated
+        columns: [
+            { key: 'date', label: 'Date', width: '120px', type: 'date' },
+            { key: 'opening_cash', label: 'Opening Cash', width: '120px', type: 'number', readOnly: true },
+            { key: 'cash_in', label: 'Cash In', width: '100px', type: 'number', className: 'text-green-600' },
+            { key: 'cash_out', label: 'Cash Out', width: '100px', type: 'number', className: 'text-red-500' },
+            { key: 'closing_cash', label: 'Closing Cash', width: '120px', type: 'number', className: 'font-bold bg-slate-50' },
+            { key: 'bank_opening', label: 'Bank Opening', width: '120px', type: 'number', readOnly: true },
+            { key: 'bank_in', label: 'Bank In', width: '100px', type: 'number', className: 'text-green-600' },
+            { key: 'bank_out', label: 'Bank Out', width: '100px', type: 'number', className: 'text-red-500' },
+            { key: 'bank_closing', label: 'Bank Closing', width: '120px', type: 'number', className: 'font-bold bg-slate-50' },
+            { key: 'remarks', label: 'Remarks', width: '200px' }
+        ],
+        rows: [
+            { id: 1, date: '2024-01-25', opening_cash: 5000, cash_in: 2000, cash_out: 1500, closing_cash: 5500, bank_opening: 150000, bank_in: 50000, bank_out: 12000, bank_closing: 188000, remarks: '' }
+        ]
+    },
+    '/ledgers/pdc-given': {
+        can_view: true,
+        can_edit: true,
+        columns: [
+            { key: 'cheque_date', label: 'Cheque Date', width: '120px', type: 'date' },
+            { key: 'cheque_no', label: 'Cheque No', width: '120px' },
+            { key: 'bank', label: 'Bank', width: '150px' },
+            { key: 'party_name', label: 'Party Name', width: '200px' },
+            { key: 'amount', label: 'Amount', width: '120px', type: 'number' },
+            { key: 'status', label: 'Status', width: '120px' }, // Uncleared, Cleared, Bounced
+            { key: 'clearing_date', label: 'Clearing Date', width: '120px', type: 'date' },
+            { key: 'remarks', label: 'Remarks', width: '200px' }
+        ],
+        rows: []
+    },
+    '/ledgers/pdc-received': {
+        can_view: true,
+        can_edit: true,
+        columns: [
+            { key: 'cheque_date', label: 'Cheque Date', width: '120px', type: 'date' },
+            { key: 'cheque_no', label: 'Cheque No', width: '120px' },
+            { key: 'bank', label: 'Bank', width: '150px' },
+            { key: 'party_name', label: 'Party Name', width: '200px' },
+            { key: 'amount', label: 'Amount', width: '120px', type: 'number' },
+            { key: 'status', label: 'Status', width: '120px' },
+            { key: 'clearing_date', label: 'Clearing Date', width: '120px', type: 'date' },
+            { key: 'remarks', label: 'Remarks', width: '200px' }
+        ],
+        rows: []
+    },
+    '/ledgers/transfer-purchase': {
+        can_view: true,
+        can_edit: true,
+        columns: [
+            { key: 'date', label: 'Date', width: '120px', type: 'date' },
+            { key: 'party', label: 'Party / Vendor', width: '200px' },
+            { key: 'product', label: 'Product', width: '180px' },
+            { key: 'invoice_no', label: 'Invoice No', width: '120px' },
+            { key: 'amount', label: 'Amount', width: '120px', type: 'number' },
+            { key: 'bank', label: 'Bank', width: '150px' },
+            { key: 'utr', label: 'UTR', width: '150px' },
+            { key: 'remarks', label: 'Remarks', width: '200px' }
+        ],
+        rows: []
+    },
+    '/ledgers/transfer-sales': {
+        can_view: true,
+        can_edit: true,
+        columns: [
+            { key: 'date', label: 'Date', width: '120px', type: 'date' },
+            { key: 'party', label: 'Customer', width: '200px' },
+            { key: 'product', label: 'Product', width: '180px' },
+            { key: 'invoice_no', label: 'Invoice No', width: '120px' },
+            { key: 'amount', label: 'Amount', width: '120px', type: 'number' },
+            { key: 'bank', label: 'Bank', width: '150px' },
+            { key: 'utr', label: 'UTR', width: '150px' },
+            { key: 'remarks', label: 'Remarks', width: '200px' }
+        ],
+        rows: []
+    }
 };

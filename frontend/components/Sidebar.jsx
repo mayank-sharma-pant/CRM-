@@ -119,32 +119,24 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     {/* Navigation */}
                     <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
                         {navigation.map((item) => {
-                            const isActive = pathname === item.href;
+                            const isActive = pathname === item.href || (item.children && item.children.some(child => pathname === child.href));
                             const Icon = ICON_MAP[item.icon] || Activity;
-                            return (
-                                <Link
-                                    key={item.name}
-                                    href={item.href}
-                                    className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive
-                                        ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
-                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
-                                        }`}
-                                >
-                                    {isActive && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-r-full" />
-                                    )}
+                            const hasChildren = item.children && item.children.length > 0;
+                            // Basic expanded state logic (toggle local state if needed, but for simplicity let's auto-expand if active or toggle on click)
 
-                                    <Icon
-                                        size={20}
-                                        strokeWidth={isActive ? 2 : 1.5}
-                                        className={`${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`}
-                                    />
-                                    {isOpen && (
-                                        <span className={`text-sm ${isActive ? 'font-semibold' : 'font-medium'}`}>
-                                            {item.name}
-                                        </span>
-                                    )}
-                                </Link>
+                            // We need local state for expansion if we want clickable toggles.
+                            // But inside map is cleaner if we extract a NavItem component.
+                            // For this single-file edit, let's create a functional rendering block.
+
+                            return (
+                                <NavItem
+                                    key={item.name}
+                                    item={item}
+                                    isActive={isActive}
+                                    Icon={Icon}
+                                    isOpen={isOpen}
+                                    pathname={pathname}
+                                />
                             );
                         })}
                     </nav>
@@ -162,5 +154,109 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 </div>
             </div>
         </>
+    );
+}
+
+// Sub-component for individual items to handle toggle state cleanly
+function NavItem({ item, isActive, Icon, isOpen, pathname }) {
+    const [expanded, setExpanded] = useState(isActive);
+    const hasChildren = item.children && item.children.length > 0;
+
+    // Auto-expand if a child is active
+    useEffect(() => {
+        if (isActive && hasChildren) {
+            setExpanded(true);
+        }
+    }, [isActive, hasChildren]);
+
+    const handleClick = (e) => {
+        if (hasChildren) {
+            e.preventDefault(); // Prevent navigation if it has children, just toggle
+            if (isOpen) setExpanded(!expanded);
+        }
+    };
+
+    if (hasChildren) {
+        return (
+            <div className="mb-1">
+                <button
+                    onClick={handleClick}
+                    className={`w-full relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive && !expanded
+                            ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+                        }`}
+                >
+                    {isActive && !expanded && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-r-full" />
+                    )}
+
+                    <Icon
+                        size={20}
+                        strokeWidth={isActive ? 2 : 1.5}
+                        className={`${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`}
+                    />
+                    {isOpen && (
+                        <>
+                            <span className={`text-sm flex-1 text-left ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                                {item.name}
+                            </span>
+                            {/* Chevron */}
+                            <svg
+                                className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </>
+                    )}
+                </button>
+
+                {/* Submenu */}
+                {isOpen && expanded && (
+                    <div className="mt-1 ml-4 pl-4 border-l-2 border-slate-100 dark:border-slate-800 space-y-1">
+                        {item.children.map(child => {
+                            const isChildActive = pathname === child.href;
+                            return (
+                                <Link
+                                    key={child.name}
+                                    href={child.href}
+                                    className={`block text-sm py-2 px-2 rounded-md transition-colors ${isChildActive
+                                            ? 'text-indigo-600 dark:text-indigo-400 font-medium bg-indigo-50/50 dark:bg-indigo-900/10'
+                                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                                        }`}
+                                >
+                                    {child.name}
+                                </Link>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <Link
+            href={item.href}
+            className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive
+                ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+        >
+            {isActive && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-r-full" />
+            )}
+
+            <Icon
+                size={20}
+                strokeWidth={isActive ? 2 : 1.5}
+                className={`${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`}
+            />
+            {isOpen && (
+                <span className={`text-sm ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                    {item.name}
+                </span>
+            )}
+        </Link>
     );
 }

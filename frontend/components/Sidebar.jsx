@@ -63,11 +63,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     useEffect(() => {
         const fetchNavigation = () => {
             const isManager = pathname?.startsWith('/manager');
+            const isTeamLead = pathname?.startsWith('/team-lead');
             const isMD = pathname?.startsWith('/md');
             const isPurchase = pathname?.startsWith('/purchase');
             const isAdmin = pathname?.startsWith('/admin');
             let role = 'sales';
             if (isManager) role = 'manager';
+            if (isTeamLead) role = 'team_lead';
             if (isMD) role = 'md';
             if (isPurchase) role = 'purchase';
             if (isAdmin) role = 'admin';

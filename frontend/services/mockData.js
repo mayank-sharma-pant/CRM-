@@ -262,6 +262,13 @@ export const MOCK_DATA = {
             { name: 'Teams & Hierarchy', href: '/admin/teams-hierarchy', icon: 'GitBranch' },
             { name: 'Settings', href: '/admin/settings', icon: 'Settings' },
             { name: 'Audit Logs', href: '/admin/audit', icon: 'FileText' }
+        ],
+        team_lead: [
+            { name: 'Team Dashboard', href: '/team-lead/dashboard', icon: 'LayoutDashboard' },
+            { name: 'My Tasks', href: '/team-lead/tasks', icon: 'CheckSquare' },
+            { name: 'Team Leads', href: '/team-lead/leads', icon: 'Users' },
+            { name: 'Leave Requests', href: '/team-lead/leaves', icon: 'Calendar' },
+            { name: 'Ledgers', href: '/ledgers', icon: 'FileText' }
         ]
     },
     // Managing Director Mock Data

@@ -4,23 +4,18 @@ import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import { useState, useRef } from 'react';
 import { motion, useScroll, useTransform, useMotionValueEvent } from 'framer-motion';
-import ThemeToggle from '../components/ThemeToggle';
-import { VARIANTS, TRANSITIONS } from '../lib/motion';
+import { VARIANTS, TRANSITIONS, VIEWPORT } from '../lib/motion';
 import {
   BarChart3,
   Zap,
-  ShieldCheck,
   ArrowRight,
   CheckCircle2,
   LayoutDashboard,
   Users,
   Clock,
   ChevronRight,
-  Terminal,
-  Activity
+  ArrowUpRight,
 } from 'lucide-react';
-
-const VIEWPORT = { once: true, margin: "-10%" };
 
 export default function Landing() {
   const { user } = useAuth();
@@ -31,594 +26,573 @@ export default function Landing() {
       animate="show"
       exit="exit"
       variants={VARIANTS.page}
-      className="min-h-screen bg-page text-primary font-sans selection:bg-indigo-500/30 selection:text-indigo-600 dark:selection:text-indigo-400 overflow-x-hidden flex flex-col md:flex-row"
+      className="min-h-screen bg-page font-sans"
     >
-      <Sidebar user={user} />
-      <MobileHeader user={user} />
-
-      <main className="flex-1 w-full relative md:pl-64">
+      <Navbar user={user} />
+      <main>
         <HeroSection />
-        <TransformationSection />
-        <ProductScrollyTelling />
-        <CoreCapabilities />
-        <IntegrationsSection />
-        <DifferentiationSection />
-        <TestimonialsSection />
-        <TrustSection />
-        <FinalCTA />
-        <Footer />
+        <LogoStrip />
+        <ProblemSolution />
+        <HowItWorks />
+        <Features />
+        <Testimonials />
+        <FinalCTA user={user} />
       </main>
+      <Footer />
     </motion.div>
   );
 }
 
 // ===============================================
-// SECTION COMPONENTS
+// NAVIGATION
 // ===============================================
 
-function Sidebar({ user }) {
-  return (
-    <motion.aside
-      initial={{ x: -20, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ ...TRANSITIONS.heavy, delay: 0.2 }}
-      className="fixed top-0 left-0 bottom-0 w-64 bg-white/80 dark:bg-[#0B1120]/90 backdrop-blur-xl border-r border-slate-200 dark:border-slate-800 hidden md:flex flex-col z-50 p-6"
-    >
-      <div className="flex items-center gap-3 font-bold text-slate-900 dark:text-white mb-12">
-        <div className="w-8 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-          <LayoutDashboard size={18} strokeWidth={3} />
-        </div>
-        <span className="tracking-tight text-lg">CRM.pro</span>
-      </div>
-
-      <nav className="flex-1 space-y-1">
-        <div className="flex items-center gap-3 px-3 py-2 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/10 rounded-lg font-medium text-sm">
-          <LayoutDashboard size={18} />
-          <span>Dashboard</span>
-        </div>
-        {[
-          { icon: <Users size={18} />, label: "Leads" },
-          { icon: <Clock size={18} />, label: "Follow-ups" },
-          { icon: <BarChart3 size={18} />, label: "Reports" },
-          { icon: <Terminal size={18} />, label: "Settings" }
-        ].map((item, i) => (
-          <div key={i} className="flex items-center gap-3 px-3 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-colors cursor-pointer group">
-            {item.icon}
-            <span className="font-medium text-sm">{item.label}</span>
-            <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-slate-400" />
-          </div>
-        ))}
-      </nav>
-
-      <div className="mt-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Theme</span>
-          <ThemeToggle />
-        </div>
-        {!user ? (
-          <>
-            <Link href="/login" className="flex items-center justify-center w-full border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-              Sign in
-            </Link>
-            <Link href="/signup" className="flex items-center justify-center w-full bg-slate-900 dark:bg-slate-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity">
-              Get Started
-            </Link>
-          </>
-        ) : (
-          <Link href="/login" className="flex items-center justify-center w-full bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all">
-            Dashboard
-          </Link>
-        )}
-      </div>
-    </motion.aside>
-  );
-}
-
-function MobileHeader({ user }) {
+function Navbar({ user }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <>
-      <div className="md:hidden flex items-center justify-between p-4 bg-white/80 dark:bg-[#0B1120]/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
-        <div className="flex items-center gap-3 font-bold text-slate-900 dark:text-white">
-          <div className="w-8 h-8 bg-slate-900 dark:bg-slate-700 rounded-lg flex items-center justify-center text-white">
-            <LayoutDashboard size={18} strokeWidth={3} />
+    <header className="fixed top-0 left-0 right-0 z-50 bg-page/90 backdrop-blur-sm border-b border-border">
+      <nav className="container-editorial flex items-center justify-between h-16">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2 text-stone-900 font-semibold text-lg tracking-tight">
+          <div className="w-8 h-8 bg-stone-900 rounded flex items-center justify-center">
+            <LayoutDashboard size={16} className="text-white" strokeWidth={2.5} />
           </div>
-          <span className="tracking-tight text-lg">CRM.pro</span>
+          <span>LocalCRM</span>
+        </Link>
+
+        {/* Desktop Nav */}
+        <div className="hidden md:flex items-center gap-8">
+          <Link href="#features" className="text-stone-600 hover:text-stone-900 text-sm font-medium transition-colors">
+            Features
+          </Link>
+          <Link href="#how-it-works" className="text-stone-600 hover:text-stone-900 text-sm font-medium transition-colors">
+            How it Works
+          </Link>
+          <Link href="#testimonials" className="text-stone-600 hover:text-stone-900 text-sm font-medium transition-colors">
+            Testimonials
+          </Link>
         </div>
-        <div className="flex items-center gap-3">
-          <ThemeToggle />
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {mobileMenuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
+
+        {/* Auth Buttons */}
+        <div className="hidden md:flex items-center gap-3">
+          {!user ? (
+            <>
+              <Link
+                href="/login"
+                className="text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors px-4 py-2"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/signup"
+                className="text-sm font-medium bg-stone-900 text-white px-4 py-2 rounded-md hover:bg-stone-800 transition-colors"
+              >
+                Get Started
+              </Link>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="text-sm font-medium bg-stone-900 text-white px-4 py-2 rounded-md hover:bg-stone-800 transition-colors"
+            >
+              Dashboard
+            </Link>
+          )}
         </div>
-      </div>
+
+        {/* Mobile menu button */}
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="md:hidden p-2 text-stone-600 hover:text-stone-900"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {mobileMenuOpen ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+            )}
+          </svg>
+        </button>
+      </nav>
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-[73px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl z-40 p-6">
-          <nav className="space-y-2">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="md:hidden bg-surface border-b border-border px-6 py-4 space-y-4"
+        >
+          <Link href="#features" className="block text-stone-600 hover:text-stone-900 text-sm font-medium">Features</Link>
+          <Link href="#how-it-works" className="block text-stone-600 hover:text-stone-900 text-sm font-medium">How it Works</Link>
+          <div className="pt-4 border-t border-border space-y-2">
             {!user ? (
               <>
-                <Link
-                  href="/login"
-                  className="block px-4 py-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg font-medium transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Sign in
-                </Link>
-                <Link
-                  href="/signup"
-                  className="block px-4 py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-lg font-medium text-center hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Get Started
-                </Link>
+                <Link href="/login" className="block text-sm font-medium text-stone-600 py-2">Sign in</Link>
+                <Link href="/signup" className="block text-sm font-medium bg-stone-900 text-white px-4 py-2 rounded-md text-center">Get Started</Link>
               </>
             ) : (
-              <Link
-                href="/sales/dashboard"
-                className="block px-4 py-3 bg-blue-600 text-white rounded-lg font-medium text-center hover:bg-blue-700 transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Dashboard
-              </Link>
+              <Link href="/login" className="block text-sm font-medium bg-stone-900 text-white px-4 py-2 rounded-md text-center">Dashboard</Link>
             )}
-          </nav>
-        </div>
+          </div>
+        </motion.div>
       )}
-    </>
+    </header>
   );
 }
+
+// ===============================================
+// HERO SECTION
+// ===============================================
 
 function HeroSection() {
-  const { scrollY } = useScroll();
-  const yParallax = useTransform(scrollY, [0, 1000], [0, 150]);
-
   return (
-    <section className="relative pt-40 pb-20 px-6 overflow-hidden">
-      <div className="absolute inset-0 bg-white dark:bg-[#020617] -z-20" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))] dark:bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(79,70,229,0.15),rgba(0,0,0,0))] -z-10" />
-
-      <div className="max-w-7xl mx-auto flex flex-col items-center text-center">
+    <section className="pt-32 pb-20 md:pt-40 md:pb-28">
+      <div className="container-editorial">
         <motion.div
-          variants={VARIANTS.header}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 backdrop-blur text-sm font-medium text-slate-600 dark:text-slate-400 mb-8"
-        >
-          <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-          v2.4 System Online
-        </motion.div>
-
-        <h1 className="text-6xl md:text-9xl font-bold tracking-tighter text-slate-900 dark:text-white leading-[0.9] mb-8">
-          <span className="block overflow-hidden">
-            <motion.span
-              initial={{ y: "100%" }}
-              animate={{ y: "0%" }}
-              transition={{ ...TRANSITIONS.heavy, delay: 0.1 }}
-              className="block"
-            >
-              SYSTEM
-            </motion.span>
-          </span>
-          <span className="block overflow-hidden text-indigo-600 dark:text-indigo-500">
-            <motion.span
-              initial={{ y: "100%" }}
-              animate={{ y: "0%" }}
-              transition={{ ...TRANSITIONS.heavy, delay: 0.25 }}
-              className="block"
-            >
-              ONLINE ALPHA.
-            </motion.span>
-          </span>
-        </h1>
-
-        <motion.p
-          variants={VARIANTS.card}
-          className="text-xl md:text-2xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed"
-        >
-          The operating system for modern service businesses. <br />
-          Stop managing. Start executing.
-        </motion.p>
-
-        <motion.div
-          style={{ y: yParallax }}
-          initial={{ opacity: 0, scale: 0.95, rotateX: 10 }}
-          animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-          transition={{ ...TRANSITIONS.heavy, delay: 0.5 }}
-          className="mt-16 w-full max-w-6xl perspective-2000"
-        >
-          <div className="relative rounded-2xl bg-slate-950 border border-slate-800 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] overflow-hidden aspect-[21/9] ring-1 ring-white/10 group">
-            {/* UI Mockup Content */}
-            <div className="absolute inset-0 bg-[#0B1120] flex p-1">
-              <div className="w-24 md:w-64 bg-[#020617] border-r border-slate-800 flex flex-col p-4 gap-2 shrink-0">
-                <div className="flex items-center gap-3 px-3 py-2 text-indigo-400 bg-indigo-500/10 rounded-lg mb-2">
-                  <LayoutDashboard size={16} />
-                  <span className="font-bold text-xs hidden md:block">Dashboard</span>
-                </div>
-                {[{ icon: <Users size={16} /> }, { icon: <Clock size={16} /> }, { icon: <BarChart3 size={16} /> }].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 px-3 py-2 text-slate-500 rounded-lg">
-                    {item.icon}
-                  </div>
-                ))}
-              </div>
-              <div className="flex-1 p-8 relative overflow-hidden">
-                <div className="grid grid-cols-3 gap-6 h-full">
-                  <div className="col-span-2 space-y-6">
-                    <div className="h-32 bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-6 relative">
-                      <div className="text-4xl font-bold text-white">$42,850.00</div>
-                    </div>
-                    <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-xl flex items-end px-6 gap-2 pb-0 pt-12">
-                      {[30, 50, 45, 75, 55, 90, 60, 95, 80].map((h, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ height: 0 }}
-                          whileInView={{ height: `${h}%` }}
-                          viewport={{ once: true }}
-                          transition={{ ...TRANSITIONS.fast, delay: 0.8 + (i * 0.05) }}
-                          className="flex-1 bg-indigo-600 opacity-80 rounded-t"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-function TransformationSection() {
-  return (
-    <section className="py-24 bg-slate-900 text-white relative border-y border-slate-800 overflow-hidden">
-      <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-20 items-center">
-        <motion.div
+          variants={VARIANTS.container}
           initial="hidden"
-          whileInView="show"
-          viewport={VIEWPORT}
-          variants={VARIANTS.card}
+          animate="show"
+          className="max-w-3xl"
         >
-          <h2 className="text-4xl md:text-6xl font-bold tracking-tighter mb-8 text-slate-500">
-            You are drowning in <span className="text-slate-400 line-through decoration-slate-600">chaos</span>.
-          </h2>
-          <div className="space-y-6 opacity-50">
-            <div className="flex gap-4 items-center">
-              <Clock className="text-slate-500" />
-              <div className="font-bold text-slate-300">Missed Follow-ups</div>
-            </div>
-            <div className="flex gap-4 items-center">
-              <Users className="text-slate-500" />
-              <div className="font-bold text-slate-300">Leads Slipping</div>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={VIEWPORT}
-          variants={VARIANTS.card}
-          className="relative"
-        >
-          <div className="absolute -left-10 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-purple-500" />
-          <h2 className="text-4xl md:text-6xl font-bold tracking-tighter mb-8 text-white">
-            We build <span className="text-indigo-500">clarity</span>.
-          </h2>
-          <p className="text-xl text-slate-300 leading-relaxed">
-            Turn your business into a machine. Every lead tracked. Every dollar accounted for. No guessing.
-          </p>
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-function ProductScrollyTelling() {
-  const containerRef = useRef(null);
-  const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] });
-  const [activeStep, setActiveStep] = useState(0);
-
-  useMotionValueEvent(scrollYProgress, "change", (latest) => {
-    if (latest < 0.25 && activeStep !== 0) setActiveStep(0);
-    else if (latest >= 0.25 && latest < 0.6 && activeStep !== 1) setActiveStep(1);
-    else if (latest >= 0.6 && activeStep !== 2) setActiveStep(2);
-  });
-
-  return (
-    <section ref={containerRef} className="h-[130vh] bg-slate-50 dark:bg-[#0B1120] relative">
-      <div className="sticky top-0 h-screen flex items-center overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 w-full grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-          <div className="space-y-12">
-            {[0, 1, 2].map((step) => (
-              <div key={step} className={`transition-all duration-500 ${activeStep === step ? 'opacity-100 scale-100' : 'opacity-30 scale-95'}`}>
-                <h3 className={`text-4xl font-bold mb-4 ${activeStep === step ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-300 dark:text-slate-700'}`}>
-                  {step === 0 ? "01. Capture" : step === 1 ? "02. Execute" : "03. Scale"}
-                </h3>
-                <p className="text-xl text-slate-600 dark:text-slate-400 leading-relaxed max-w-md">
-                  {step === 0 ? "Leads land instantly. Know their details before you pick up." :
-                    step === 1 ? "Click to quote. System moves the lead throughout pipeline." :
-                      "Watch the dashboard. Spot bottlenecks. Total control."}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div className="relative h-[500px] bg-white dark:bg-[#020617] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex">
-            {/* Scrollytelling Visuals Logic Preserved */}
-            <div className="flex-1 p-8 flex flex-col relative">
-              <div className="absolute top-0 right-0 p-8">
-                <div className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors duration-500 ${activeStep === 0 ? "bg-blue-100 text-blue-700" : activeStep === 1 ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
-                  {activeStep === 0 ? "NEW LEAD" : activeStep === 1 ? "IN PROGRESS" : "WON DEAL"}
-                </div>
-              </div>
-              <div className="mt-20 space-y-6">
-                <motion.div animate={{ opacity: 1, x: 0 }} className={`p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 transition-all duration-500 ${activeStep >= 0 ? 'opacity-100 translate-x-0' : 'opacity-50 translate-x-4'}`}>
-                  <div className="text-xs font-bold text-blue-500 mb-1">INQUIRY</div>
-                  <p className="text-sm dark:text-slate-300">"Looking for a quote on a master bath."</p>
-                </motion.div>
-                <motion.div animate={{ opacity: activeStep >= 1 ? 1 : 0.2, scale: activeStep >= 1 ? 1 : 0.95 }} className="p-4 rounded-xl border border-amber-200/20 bg-amber-50/10 dark:bg-amber-900/10 transition-all duration-500">
-                  <div className="text-xs font-bold text-amber-500 mb-1">ESTIMATE</div>
-                  <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded overflow-hidden">
-                    <motion.div className="h-full bg-amber-500" initial={{ width: 0 }} animate={{ width: activeStep >= 1 ? "60%" : "0%" }} />
-                  </div>
-                </motion.div>
-                <motion.div animate={{ opacity: activeStep >= 2 ? 1 : 0, y: activeStep >= 2 ? 0 : 20 }} className="bg-emerald-600 text-white p-6 rounded-xl shadow-lg text-center transition-all duration-500">
-                  <div className="text-3xl font-bold">$12,400</div>
-                  <div className="text-xs font-medium uppercase tracking-widest opacity-90">Revenue Collected</div>
-                </motion.div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function CoreCapabilities() {
-  const features = [
-    { title: "Pipeline", icon: <LayoutDashboard />, col: "col-span-2" },
-    { title: "Automations", icon: <Zap />, col: "col-span-1" },
-    { title: "Reports", icon: <BarChart3 />, col: "col-span-1" },
-    { title: "Team", icon: <Users />, col: "col-span-2" }
-  ];
-
-  return (
-    <section className="py-12 px-6 max-w-7xl mx-auto">
-      <motion.div
-        initial="hidden"
-        whileInView="show"
-        viewport={VIEWPORT}
-        variants={VARIANTS.container}
-        className="grid grid-cols-2 md:grid-cols-4 gap-6"
-      >
-        <motion.div variants={VARIANTS.header} className="col-span-2 md:col-span-4 mb-4">
-          <h2 className="text-sm font-bold tracking-widest text-indigo-500 uppercase mb-2">Command Center</h2>
-          <h3 className="text-4xl font-bold text-slate-900 dark:text-white">Full visibility. Total control.</h3>
-        </motion.div>
-
-        {features.map((f, i) => (
-          <motion.div
-            key={i}
-            variants={VARIANTS.card}
-            whileHover={{ y: -5, transition: TRANSITIONS.fast }}
-            className={`${f.col} p-8 rounded-2xl bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 hover:border-indigo-500 transition-colors group cursor-default shadow-sm hover:shadow-xl`}
+          {/* Eyebrow */}
+          <motion.p
+            variants={VARIANTS.fadeUp}
+            className="caption mb-6"
           >
-            <div className="w-12 h-12 rounded-lg bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500 group-hover:text-indigo-500 transition-colors mb-6">{f.icon}</div>
-            <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{f.title}</h4>
-            <div className="h-1 w-12 bg-slate-200 dark:bg-slate-700 group-hover:bg-indigo-500 transition-all rounded-full" />
-          </motion.div>
-        ))}
-      </motion.div>
-    </section>
-  );
-}
+            CRM for Local Service Businesses
+          </motion.p>
 
-function IntegrationsSection() {
-  return (
-    <section className="py-12 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B1120] overflow-hidden whitespace-nowrap">
-      <div className="flex gap-12 items-center">
-        <motion.div
-          animate={{ x: ["0%", "-50%"] }}
-          transition={{ duration: 30, ease: "linear", repeat: Infinity }}
-          className="flex gap-12 items-center"
-        >
-          {[...Array(2)].map((_, i) => (
-            <div key={i} className="flex gap-12 text-xl font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest select-none">
-              <span>Stripe</span><span>•</span><span>Slack</span><span>•</span><span>HubSpot</span><span>•</span><span>QuickBooks</span><span>•</span><span>Zapier</span><span>•</span><span>Gmail</span><span>•</span><span>Outlook</span><span>•</span><span>Salesforce</span><span>•</span>
-            </div>
-          ))}
+          {/* Main Headline */}
+          <motion.h1
+            variants={VARIANTS.fadeUp}
+            className="headline-xl mb-6"
+          >
+            Stop losing leads.
+            <br />
+            <span className="text-stone-400">Start closing deals.</span>
+          </motion.h1>
+
+          {/* Subheadline */}
+          <motion.p
+            variants={VARIANTS.fadeUp}
+            className="body-lg max-w-xl mb-10"
+          >
+            A simple, fast CRM that helps service businesses track every lead,
+            automate follow-ups, and collect payments—without the complexity.
+          </motion.p>
+
+          {/* CTA Buttons */}
+          <motion.div
+            variants={VARIANTS.fadeUp}
+            className="flex flex-col sm:flex-row gap-4"
+          >
+            <Link
+              href="/signup"
+              className="inline-flex items-center justify-center gap-2 bg-stone-900 text-white px-6 py-3 rounded-md text-sm font-medium hover:bg-stone-800 transition-colors"
+            >
+              Start Free Trial
+              <ArrowRight size={16} />
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center gap-2 border border-border text-stone-700 px-6 py-3 rounded-md text-sm font-medium hover:bg-surface-elevated transition-colors"
+            >
+              Sign in
+            </Link>
+          </motion.div>
+
+          {/* Trust line */}
+          <motion.p
+            variants={VARIANTS.fadeUp}
+            className="mt-8 text-sm text-stone-400"
+          >
+            No credit card required · Free 14-day trial · Cancel anytime
+          </motion.p>
         </motion.div>
       </div>
     </section>
   );
 }
 
-function DifferentiationSection() {
-  return (
-    <section className="py-12 bg-slate-950 text-white border-t border-slate-800">
-      <motion.div
-        initial="hidden"
-        whileInView="show"
-        viewport={VIEWPORT}
-        variants={VARIANTS.card}
-        className="max-w-4xl mx-auto px-6 text-center space-y-12"
-      >
-        <h2 className="text-5xl md:text-7xl font-bold tracking-tighter">
-          Stop paying for <br /> <span className="text-slate-600">bloatware</span>.
-        </h2>
-        <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-          Enterprise CRMs are slow, expensive, and require a PhD to configure.
-          We built this for speed. It opens instantly. It works immediately.
-        </p>
-      </motion.div>
-    </section>
-  );
-}
+// ===============================================
+// LOGO STRIP
+// ===============================================
 
-function TestimonialsSection() {
-  return (
-    <section className="py-24 px-6 max-w-7xl mx-auto">
-      <h2 className="text-4xl font-bold mb-12 text-slate-900 dark:text-white">Real results. <br /><span className="text-indigo-500">Real revenue.</span></h2>
-      <motion.div
-        initial="hidden"
-        whileInView="show"
-        viewport={VIEWPORT}
-        variants={VARIANTS.container}
-        className="grid md:grid-cols-3 gap-6"
-      >
-        {[
-          { q: "We fired our admin assistant. The software does it all now.", a: "Mike T.", r: "HVAC Owner", flow: "Saved $45k/yr" },
-          { q: "I finally know where my leads are coming from. Marketing ROI up 300%.", a: "Sarah J.", r: "Agency Director", flow: "3x ROI" },
-          { q: "Setup took 15 minutes. It just works. No fluff.", a: "David B.", r: "Plumber", flow: "Instant Setup" }
-        ].map((t, i) => (
-          <motion.div
-            key={i}
-            variants={VARIANTS.card}
-            whileHover={{ y: -5 }}
-            className="p-8 rounded-2xl bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="text-indigo-500 mb-4"><Zap size={24} /></div>
-            <p className="text-lg text-slate-700 dark:text-slate-300 mb-6">"{t.q}"</p>
-            <div>
-              <div className="font-bold text-slate-900 dark:text-white">{t.a}</div>
-              <div className="text-sm text-slate-500">{t.r}</div>
-            </div>
-            <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-500">
-              <Activity size={14} /> {t.flow}
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
-    </section>
-  );
-}
-
-function TrustSection() {
-  return (
-    <section className="py-12 bg-slate-50 dark:bg-[#020617] border-y border-slate-200 dark:border-slate-800">
-      <motion.div
-        initial="hidden"
-        whileInView="show"
-        viewport={VIEWPORT}
-        variants={VARIANTS.container}
-        className="max-w-7xl mx-auto px-6 grid md:grid-cols-3 gap-12 text-center md:text-left"
-      >
-        {[
-          { icon: <ShieldCheck />, title: "SOC-2 Ready", desc: "Bank-grade encryption standard." },
-          { icon: <Zap />, title: "100ms Latency", desc: "Built on edge infrastructure for speed." },
-          { icon: <Terminal />, title: "Developer API", desc: "Full access to your data programmatically." }
-        ].map((item, i) => (
-          <motion.div key={i} variants={VARIANTS.row} className="space-y-4">
-            <div className="text-indigo-600 dark:text-indigo-500 mx-auto md:mx-0">{item.icon}</div>
-            <h3 className="font-bold text-slate-900 dark:text-white">{item.title}</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{item.desc}</p>
-          </motion.div>
-        ))}
-      </motion.div>
-    </section>
-  );
-}
-
-function FinalCTA() {
-  return (
-    <section className="py-24 bg-white dark:bg-[#0B1120] text-center">
-      <motion.div
-        initial="hidden"
-        whileInView="show"
-        viewport={VIEWPORT}
-        variants={VARIANTS.card}
-        className="max-w-3xl mx-auto px-6 space-y-8"
-      >
-        <h2 className="text-4xl md:text-6xl font-bold text-slate-900 dark:text-white tracking-tighter">
-          Ready to professionalize?
-        </h2>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link href="/signup" className="h-14 sm:h-16 px-8 sm:px-10 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-base sm:text-lg font-bold flex items-center gap-2 shadow-xl hover:shadow-2xl hover:scale-105 transition-all">
-            Start Free Trial <ArrowRight size={20} />
-          </Link>
-          <Link href="/login" className="h-14 sm:h-16 px-8 sm:px-10 rounded-lg border-2 border-slate-900 dark:border-slate-700 text-slate-900 dark:text-white text-base sm:text-lg font-bold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
-            Sign in
-          </Link>
-        </div>
-        <p className="text-xs font-mono uppercase tracking-widest text-slate-500">No Credit Card • Cancel Anytime</p>
-      </motion.div>
-    </section>
-  );
-}
-
-function Footer() {
-  const footerLinks = {
-    Product: ['Features', 'Integrations', 'Pricing', 'Changelog'],
-    Company: ['About', 'Careers', 'Blog', 'Contact'],
-    Legal: ['Privacy', 'Terms', 'Security', 'Status']
-  };
+function LogoStrip() {
+  const integrations = ['Stripe', 'QuickBooks', 'Google Calendar', 'Slack', 'Zapier'];
 
   return (
-    <footer className="bg-slate-50 dark:bg-[#020617] border-t border-slate-200 dark:border-slate-800 pt-20 pb-12 text-sm">
-      <motion.div
-        initial="hidden"
-        whileInView="show"
-        viewport={VIEWPORT}
-        variants={VARIANTS.container}
-        className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-12 gap-12 mb-16"
-      >
-        <motion.div variants={VARIANTS.row} className="col-span-2 md:col-span-4 space-y-4">
-          <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-slate-900 dark:text-white">
-            <span className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
-              <Zap size={18} fill="currentColor" />
+    <section className="py-12 border-y border-border bg-surface-elevated">
+      <div className="container-editorial">
+        <p className="text-center text-sm text-stone-400 mb-6">Integrates with tools you already use</p>
+        <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12">
+          {integrations.map((name) => (
+            <span key={name} className="text-stone-400 font-medium text-sm tracking-wide">
+              {name}
             </span>
-            CRM<span className="text-slate-400">.pro</span>
-          </div>
-          <p className="text-slate-500 max-w-xs">
-            The only CRM engineered for speed. <br />
-            Stop waiting for your software.
-          </p>
-        </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
-        {Object.entries(footerLinks).map(([title, links], i) => (
-          <motion.div variants={VARIANTS.row} key={title} className="col-span-1 md:col-span-2 space-y-4">
-            <h4 className="font-bold text-slate-900 dark:text-white">{title}</h4>
-            <ul className="space-y-2">
-              {links.map(link => (
-                <li key={link}>
-                  <Link href="#" className="text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                    {link}
-                  </Link>
+// ===============================================
+// PROBLEM → SOLUTION
+// ===============================================
+
+function ProblemSolution() {
+  return (
+    <section className="section-spacing-lg">
+      <div className="container-editorial">
+        <div className="grid md:grid-cols-2 gap-16 md:gap-24 items-start">
+          {/* Problem */}
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={VIEWPORT}
+            variants={VARIANTS.fadeUp}
+          >
+            <p className="caption mb-4 text-stone-400">The Problem</p>
+            <h2 className="headline-lg mb-6 text-stone-300">
+              <span className="line-through decoration-stone-300">Spreadsheets, sticky notes, and missed calls.</span>
+            </h2>
+            <ul className="space-y-4">
+              {[
+                'Leads slip through the cracks',
+                'No idea which jobs are profitable',
+                'Hours wasted on manual follow-ups',
+                'Payments get delayed or forgotten'
+              ].map((item, i) => (
+                <li key={i} className="flex items-start gap-3 text-stone-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-stone-300 mt-2 shrink-0" />
+                  <span>{item}</span>
                 </li>
               ))}
             </ul>
           </motion.div>
-        ))}
 
-        <motion.div variants={VARIANTS.row} className="col-span-2 md:col-span-2 space-y-4">
-          <h4 className="font-bold text-slate-900 dark:text-white">Subscribe</h4>
-          <div className="flex gap-2">
-            <input
-              type="email"
-              placeholder="Email"
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-            />
+          {/* Solution */}
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={VIEWPORT}
+            variants={VARIANTS.fadeUp}
+          >
+            <p className="caption mb-4">The Solution</p>
+            <h2 className="headline-lg mb-6">
+              One system for your entire operation.
+            </h2>
+            <ul className="space-y-4">
+              {[
+                'Every lead captured and tracked automatically',
+                'Clear pipeline from inquiry to payment',
+                'Automated reminders—never miss a follow-up',
+                'Real-time reports on revenue and performance'
+              ].map((item, i) => (
+                <li key={i} className="flex items-start gap-3 text-stone-600">
+                  <CheckCircle2 size={18} className="text-green-600 mt-0.5 shrink-0" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ===============================================
+// HOW IT WORKS
+// ===============================================
+
+function HowItWorks() {
+  const steps = [
+    {
+      number: '01',
+      title: 'Capture',
+      description: 'Leads flow in from your website, phone, or email. Every inquiry is logged instantly with full details.'
+    },
+    {
+      number: '02',
+      title: 'Track',
+      description: 'See every lead in your pipeline. Know exactly where each job stands—from estimate to completion.'
+    },
+    {
+      number: '03',
+      title: 'Close',
+      description: 'Send quotes, schedule jobs, and collect payments. The system handles follow-ups automatically.'
+    }
+  ];
+
+  return (
+    <section id="how-it-works" className="section-spacing-lg bg-surface-elevated">
+      <div className="container-editorial">
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={VIEWPORT}
+          variants={VARIANTS.container}
+        >
+          <motion.p variants={VARIANTS.fadeUp} className="caption mb-4">How It Works</motion.p>
+          <motion.h2 variants={VARIANTS.fadeUp} className="headline-lg mb-16 max-w-xl">
+            From lead to payment in three steps.
+          </motion.h2>
+
+          <div className="grid md:grid-cols-3 gap-12">
+            {steps.map((step, i) => (
+              <motion.div
+                key={step.number}
+                variants={VARIANTS.fadeUp}
+                className="relative"
+              >
+                <span className="text-6xl font-bold text-stone-200 mb-4 block">{step.number}</span>
+                <h3 className="headline-md mb-3">{step.title}</h3>
+                <p className="body-md">{step.description}</p>
+              </motion.div>
+            ))}
           </div>
         </motion.div>
-      </motion.div>
+      </div>
+    </section>
+  );
+}
 
-      <div className="max-w-7xl mx-auto px-6 pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 text-slate-400">
-        <p>© 2024 CRM.pro. All rights reserved.</p>
-        <div className="flex gap-6">
-          <Link href="#" className="hover:text-slate-600 dark:hover:text-slate-200"><Activity size={16} /></Link>
-          <Link href="#" className="hover:text-slate-600 dark:hover:text-slate-200"><ShieldCheck size={16} /></Link>
+// ===============================================
+// FEATURES
+// ===============================================
+
+function Features() {
+  const features = [
+    {
+      title: 'Lead Pipeline',
+      description: 'Visual pipeline to track every lead from first contact to closed deal.',
+      icon: LayoutDashboard,
+    },
+    {
+      title: 'Automated Follow-ups',
+      description: 'Never forget to follow up. Set reminders and let the system do the work.',
+      icon: Zap,
+    },
+    {
+      title: 'Task Management',
+      description: 'Assign tasks, set deadlines, and keep your team accountable.',
+      icon: Clock,
+    },
+    {
+      title: 'Team Dashboard',
+      description: 'See who's doing what.Track performance and identify bottlenecks.',
+      icon: Users,
+    },
+    {
+      title: 'Revenue Reports',
+      description: 'Know your numbers. See revenue, margins, and trends at a glance.',
+      icon: BarChart3,
+    },
+    {
+      title: 'Client Database',
+      description: 'All your customers in one place with full history and notes.',
+      icon: Users,
+    },
+  ];
+
+  return (
+    <section id="features" className="section-spacing-lg">
+      <div className="container-editorial">
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={VIEWPORT}
+          variants={VARIANTS.container}
+        >
+          <motion.p variants={VARIANTS.fadeUp} className="caption mb-4">Features</motion.p>
+          <motion.h2 variants={VARIANTS.fadeUp} className="headline-lg mb-16 max-w-xl">
+            Everything you need. Nothing you don't.
+          </motion.h2>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature, i) => (
+              <motion.div
+                key={feature.title}
+                variants={VARIANTS.fadeUp}
+                className="p-6 border border-border rounded-lg bg-surface"
+              >
+                <feature.icon size={24} className="text-stone-400 mb-4" strokeWidth={1.5} />
+                <h3 className="font-semibold text-stone-900 mb-2">{feature.title}</h3>
+                <p className="body-sm">{feature.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+// ===============================================
+// TESTIMONIALS
+// ===============================================
+
+function Testimonials() {
+  const testimonials = [
+    {
+      quote: "We stopped losing leads the first week. Revenue is up 40% since we started using LocalCRM.",
+      author: "Mike Thompson",
+      role: "Owner, Thompson HVAC",
+    },
+    {
+      quote: "I finally know where my marketing dollars are going. The reporting alone pays for itself.",
+      author: "Sarah Chen",
+      role: "Director, Premier Plumbing",
+    },
+    {
+      quote: "Setup took 15 minutes. My team was using it the same day. No training required.",
+      author: "David Brooks",
+      role: "Founder, Brooks Electric",
+    },
+  ];
+
+  return (
+    <section id="testimonials" className="section-spacing-lg bg-surface-elevated">
+      <div className="container-editorial">
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={VIEWPORT}
+          variants={VARIANTS.container}
+        >
+          <motion.p variants={VARIANTS.fadeUp} className="caption mb-4">Testimonials</motion.p>
+          <motion.h2 variants={VARIANTS.fadeUp} className="headline-lg mb-16 max-w-xl">
+            Trusted by service businesses.
+          </motion.h2>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {testimonials.map((t, i) => (
+              <motion.blockquote
+                key={i}
+                variants={VARIANTS.fadeUp}
+                className="p-8 bg-surface border border-border rounded-lg"
+              >
+                <p className="body-md mb-6 text-stone-700">"{t.quote}"</p>
+                <footer>
+                  <p className="font-semibold text-stone-900">{t.author}</p>
+                  <p className="text-sm text-stone-500">{t.role}</p>
+                </footer>
+              </motion.blockquote>
+            ))}
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+// ===============================================
+// FINAL CTA
+// ===============================================
+
+function FinalCTA({ user }) {
+  return (
+    <section className="section-spacing-lg">
+      <div className="container-narrow text-center">
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={VIEWPORT}
+          variants={VARIANTS.container}
+        >
+          <motion.h2 variants={VARIANTS.fadeUp} className="headline-lg mb-6">
+            Ready to take control of your business?
+          </motion.h2>
+          <motion.p variants={VARIANTS.fadeUp} className="body-lg mb-10 max-w-lg mx-auto">
+            Join hundreds of service businesses that use LocalCRM to capture more leads,
+            close more deals, and grow their revenue.
+          </motion.p>
+          <motion.div variants={VARIANTS.fadeUp} className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/signup"
+              className="inline-flex items-center justify-center gap-2 bg-stone-900 text-white px-8 py-4 rounded-md font-medium hover:bg-stone-800 transition-colors"
+            >
+              Start Free Trial
+              <ArrowRight size={18} />
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center gap-2 border border-border text-stone-700 px-8 py-4 rounded-md font-medium hover:bg-surface-elevated transition-colors"
+            >
+              Sign in
+            </Link>
+          </motion.div>
+          <motion.p variants={VARIANTS.fadeUp} className="mt-6 text-sm text-stone-400">
+            No credit card required
+          </motion.p>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+// ===============================================
+// FOOTER
+// ===============================================
+
+function Footer() {
+  const links = {
+    Product: ['Features', 'Integrations', 'Pricing', 'Changelog'],
+    Company: ['About', 'Careers', 'Blog', 'Contact'],
+    Legal: ['Privacy', 'Terms', 'Security'],
+  };
+
+  return (
+    <footer className="border-t border-border py-16">
+      <div className="container-editorial">
+        <div className="grid grid-cols-2 md:grid-cols-12 gap-8 mb-12">
+          {/* Brand */}
+          <div className="col-span-2 md:col-span-4">
+            <Link href="/" className="flex items-center gap-2 text-stone-900 font-semibold text-lg tracking-tight mb-4">
+              <div className="w-8 h-8 bg-stone-900 rounded flex items-center justify-center">
+                <LayoutDashboard size={16} className="text-white" strokeWidth={2.5} />
+              </div>
+              <span>LocalCRM</span>
+            </Link>
+            <p className="text-sm text-stone-500 max-w-xs">
+              The simple CRM for local service businesses. Stop losing leads, start growing revenue.
+            </p>
+          </div>
+
+          {/* Links */}
+          {Object.entries(links).map(([title, items]) => (
+            <div key={title} className="col-span-1 md:col-span-2">
+              <h4 className="font-semibold text-stone-900 mb-4 text-sm">{title}</h4>
+              <ul className="space-y-2">
+                {items.map((item) => (
+                  <li key={item}>
+                    <Link href="#" className="text-sm text-stone-500 hover:text-stone-900 transition-colors">
+                      {item}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom */}
+        <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-stone-400">© 2024 LocalCRM. All rights reserved.</p>
+          <div className="flex items-center gap-6">
+            <Link href="#" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">
+              Twitter
+            </Link>
+            <Link href="#" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">
+              LinkedIn
+            </Link>
+            <Link href="#" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">
+              GitHub
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

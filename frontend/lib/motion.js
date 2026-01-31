@@ -1,84 +1,147 @@
+/**
+ * Motion Configuration - Editorial Style
+ * 
+ * Subtle, refined animations that support reading flow.
+ * No heavy springs, no flashy effects.
+ */
+
+// Gentle transitions for editorial feel
 export const TRANSITIONS = {
-    // Heavy, "Engineered" feel for main layout elements
-    heavy: {
-        type: "spring",
-        stiffness: 70,
-        damping: 20,
-        mass: 1.2
+    // Default smooth transition
+    gentle: {
+        duration: 0.5,
+        ease: [0.25, 0.1, 0.25, 1], // Smooth ease-out
     },
-    // Snappy, "Fast" feel for UI elements
+    // Slightly delayed for reveals
+    delayed: {
+        duration: 0.6,
+        delay: 0.1,
+        ease: [0.25, 0.1, 0.25, 1],
+    },
+    // Fast for UI interactions
     fast: {
-        type: "spring",
-        stiffness: 400,
-        damping: 30
+        duration: 0.2,
+        ease: [0.25, 0.1, 0.25, 1],
     },
-    // Smooth, "Cinematic" feel for landing page
-    smooth: {
-        duration: 0.8,
-        ease: [0.22, 1, 0.36, 1] // Custom refined cubic-bezier
-    }
+    // For page transitions
+    page: {
+        duration: 0.4,
+        ease: [0.25, 0.1, 0.25, 1],
+    },
 };
 
+// Animation variants - minimal, elegant
 export const VARIANTS = {
-    // Page Container (Mount)
+    // Page container
     page: {
         hidden: { opacity: 0 },
         show: {
             opacity: 1,
             transition: {
-                staggerChildren: 0.1,
-                when: "beforeChildren"
-            }
+                duration: 0.3,
+                staggerChildren: 0.08,
+                when: "beforeChildren",
+            },
         },
-        exit: { opacity: 0 }
+        exit: { opacity: 0, transition: { duration: 0.2 } },
     },
 
-    // Section / Card Entry (Slight upward drift)
-    card: {
-        hidden: { opacity: 0, y: 30 },
+    // Fade up - primary entrance animation
+    fadeUp: {
+        hidden: { opacity: 0, y: 12 },
         show: {
             opacity: 1,
             y: 0,
-            transition: TRANSITIONS.heavy
-        }
+            transition: TRANSITIONS.gentle,
+        },
     },
 
-    // List Items (Fast, tight stagger)
+    // Fade in - simple opacity
+    fadeIn: {
+        hidden: { opacity: 0 },
+        show: {
+            opacity: 1,
+            transition: TRANSITIONS.gentle,
+        },
+    },
+
+    // For cards and sections
+    card: {
+        hidden: { opacity: 0, y: 16 },
+        show: {
+            opacity: 1,
+            y: 0,
+            transition: TRANSITIONS.gentle,
+        },
+    },
+
+    // For list items - minimal slide
     row: {
-        hidden: { opacity: 0, x: -10 },
+        hidden: { opacity: 0, x: -8 },
         show: {
             opacity: 1,
             x: 0,
-            transition: TRANSITIONS.fast
-        }
+            transition: TRANSITIONS.fast,
+        },
     },
 
-    // Headers (Heavy, authoritative)
+    // Headers - subtle down motion
     header: {
-        hidden: { opacity: 0, y: -20 },
+        hidden: { opacity: 0, y: -8 },
         show: {
             opacity: 1,
             y: 0,
-            transition: TRANSITIONS.heavy
-        }
+            transition: TRANSITIONS.gentle,
+        },
     },
 
-    // Container Helper
+    // Container for staggered children
     container: {
         hidden: { opacity: 0 },
         show: {
             opacity: 1,
             transition: {
-                staggerChildren: 0.1,
-                delayChildren: 0.1
-            }
-        }
-    }
+                staggerChildren: 0.08,
+                delayChildren: 0.05,
+            },
+        },
+    },
+
+    // Stagger helper for custom use
+    stagger: {
+        hidden: { opacity: 0 },
+        show: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.06,
+            },
+        },
+    },
 };
 
-// Hook-compatible export for simpler imports if needed
+// Viewport options for scroll-triggered animations
+export const VIEWPORT = {
+    once: true,
+    margin: "-10%",
+    amount: 0.3,
+};
+
+// Simple config export for common patterns
 export const motionConfig = {
     initial: "hidden",
     animate: "show",
-    viewport: { once: true, margin: "-50px" }
+    exit: "exit",
+    viewport: VIEWPORT,
+};
+
+// Hover animations - minimal
+export const HOVER = {
+    lift: {
+        y: -2,
+        transition: TRANSITIONS.fast,
+    },
+    scale: {
+        scale: 1.02,
+        transition: TRANSITIONS.fast,
+    },
 };

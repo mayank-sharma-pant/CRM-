@@ -1,34 +1,23 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext } from 'react';
 
-const ThemeContext = createContext();
+/**
+ * Theme Context - Light-only mode
+ * 
+ * Editorial × Engineering design uses light theme exclusively.
+ * This context is kept for backwards compatibility but always returns 'light'.
+ */
+
+const ThemeContext = createContext({
+    theme: 'light',
+    toggleTheme: () => { },
+});
 
 export function ThemeProvider({ children }) {
-    const [theme, setTheme] = useState('dark'); // Default to dark for "Engineered" look initially
-
-    useEffect(() => {
-        // Check localStorage or system preference
-        const savedTheme = localStorage.getItem('crm-theme');
-        if (savedTheme) {
-            setTheme(savedTheme);
-            document.documentElement.classList.toggle('dark', savedTheme === 'dark');
-        } else {
-            // Default to Dark Mode for this specific product persona
-            setTheme('dark');
-            document.documentElement.classList.add('dark');
-        }
-    }, []);
-
-    const toggleTheme = () => {
-        const newTheme = theme === 'dark' ? 'light' : 'dark';
-        setTheme(newTheme);
-        localStorage.setItem('crm-theme', newTheme);
-        document.documentElement.classList.toggle('dark', newTheme === 'dark');
-    };
-
+    // Light-only mode - no toggling
     return (
-        <ThemeContext.Provider value={{ theme, toggleTheme }}>
+        <ThemeContext.Provider value={{ theme: 'light', toggleTheme: () => { } }}>
             {children}
         </ThemeContext.Provider>
     );

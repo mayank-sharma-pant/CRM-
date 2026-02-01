@@ -132,3 +132,104 @@ def get_me(current_user: User = Depends(get_current_user)):
 def logout():
     """Logout endpoint (client should clear token)"""
     return {"message": "Logged out successfully"}
+
+
+# ===============================
+# Invite Acceptance
+# ===============================
+
+from app.models.invite import Invite, InviteStatus
+from app.models.team import Team
+
+
+@router.post("/accept-invite/{token}")
+def accept_invite(
+    token: str,
+    password: str,
+    db: Session = Depends(get_db)
+):
+    """Accept an invite and create user account"""
+    # Find invite by token
+    invite = db.query(Invite).filter(Invite.token == token).first()
+    if not invite:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invalid invite token"
+        )
+    
+    # Check if already accepted
+    if invite.status == InviteStatus.ACCEPTED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invite has already been accepted"
+        )
+    
+    # Check if cancelled
+    if invite.status == InviteStatus.CANCELLED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invite has been cancelled"
+        )
+    
+    # Check if expired
+    if invite.expires_at and datetime.now() > invite.expires_at:
+        invite.status = InviteStatus.EXPIRED
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invite has expired. Please request a new invite."
+        )
+    
+    # Check if user with this email already exists
+    existing_user = db.query(User).filter(User.email == invite.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User with this email already exists"
+        )
+    
+    # Validate password strength
+    if len(password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters"
+        )
+    
+    # Create user from invite
+    hashed_password = get_password_hash(password)
+    new_user = User(
+        email=invite.email,
+        full_name=invite.full_name,
+        phone=invite.phone,
+        hashed_password=hashed_password,
+        role=invite.role,
+        team_id=invite.team_id,
+        manager_id=invite.manager_id,
+        status="active",  # Invited users are auto-activated
+        is_active=True
+    )
+    
+    db.add(new_user)
+    
+    # Mark invite as accepted
+    invite.status = InviteStatus.ACCEPTED
+    
+    db.commit()
+    db.refresh(new_user)
+    
+    # Create access token for immediate login
+    access_token = create_access_token(data={"sub": new_user.email, "role": new_user.role})
+    
+    return {
+        "message": "Account created successfully",
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": new_user.id,
+            "email": new_user.email,
+            "full_name": new_user.full_name,
+            "role": new_user.role,
+            "team_id": new_user.team_id
+        }
+    }
+

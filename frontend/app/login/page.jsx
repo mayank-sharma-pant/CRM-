@@ -6,12 +6,45 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function Login() {
+    const [loginMethod, setLoginMethod] = useState('password'); // 'password' or 'otp'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [otpCode, setOtpCode] = useState('');
+    const [otpSent, setOtpSent] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { login } = useAuth();
+    const { login, requestOTP, loginOTP } = useAuth();
     const router = useRouter();
+
+    const handleRedirect = (role) => {
+        const routes = {
+            sales: '/sales/dashboard',
+            manager: '/manager/dashboard',
+            md: '/md/dashboard',
+            purchase: '/purchase/dashboard',
+            admin: '/admin/dashboard'
+        };
+        router.push(routes[role] || '/sales/dashboard');
+    };
+
+    const handleRequestOTP = async (e) => {
+        e?.preventDefault();
+        if (!email) {
+            setError('Please enter your email address first');
+            return;
+        }
+        setError('');
+        setLoading(true);
+        try {
+            await requestOTP(email);
+            setOtpSent(true);
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Failed to send OTP. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -19,21 +52,19 @@ export default function Login() {
         setLoading(true);
 
         try {
-            const result = await login(email, password);
+            let result;
+            if (loginMethod === 'password') {
+                result = await login(email, password);
+            } else {
+                if (!otpCode) {
+                    setError('Please enter the verification code');
+                    setLoading(false);
+                    return;
+                }
+                result = await loginOTP(email, otpCode);
+            }
 
-            // Get user role from backend response
-            const role = result.user?.role || 'sales';
-
-            // Role-based redirect
-            const routes = {
-                sales: '/sales/dashboard',
-                manager: '/manager/dashboard',
-                md: '/md/dashboard',
-                purchase: '/purchase/dashboard',
-                admin: '/admin/dashboard'
-            };
-
-            router.push(routes[role] || '/sales/dashboard');
+            handleRedirect(result.user?.role || 'sales');
         } catch (err) {
             setError(err.response?.data?.detail || 'Login failed. Please check your credentials.');
         } finally {
@@ -42,24 +73,53 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animate-fade-in-up">
+        <div className="min-h-screen bg-page flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animate-fade-in-up">
             <div className="max-w-md w-full">
 
                 {/* Centered Premium Card */}
-                <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sm:p-10">
+                <div className="bg-surface rounded-2xl shadow-xl border border-border p-8 sm:p-10">
 
                     <div className="mb-8 text-center">
-                        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                        <Link href="/" className="inline-flex mb-6 hover:opacity-80 transition-opacity">
+                            <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-page shadow-lg shadow-accent/20">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                        </Link>
+                        <h2 className="text-2xl font-bold text-primary tracking-tight">
                             Welcome back
                         </h2>
-                        <p className="mt-2 text-sm text-slate-500">
+                        <p className="mt-2 text-sm text-secondary">
                             Sign in to access your dashboard
                         </p>
                     </div>
 
+                    {/* Method Toggle */}
+                    <div className="flex p-1 bg-surface-elevated rounded-lg mb-8 border border-border">
+                        <button
+                            onClick={() => { setLoginMethod('password'); setError(''); setOtpSent(false); }}
+                            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${loginMethod === 'password'
+                                ? 'bg-surface text-primary shadow-sm ring-1 ring-border'
+                                : 'text-muted hover:text-secondary'
+                                }`}
+                        >
+                            Password
+                        </button>
+                        <button
+                            onClick={() => { setLoginMethod('otp'); setError(''); }}
+                            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${loginMethod === 'otp'
+                                ? 'bg-surface text-primary shadow-sm ring-1 ring-border'
+                                : 'text-muted hover:text-secondary'
+                                }`}
+                        >
+                            OTP Login
+                        </button>
+                    </div>
+
                     <form className="space-y-6" onSubmit={handleSubmit}>
                         {error && (
-                            <div className="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
+                            <div className="bg-status-error/10 border border-status-error/20 text-status-error px-4 py-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
                                 <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
@@ -69,7 +129,7 @@ export default function Login() {
 
                         <div className="space-y-5">
                             <div>
-                                <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                                <label htmlFor="email" className="block text-sm font-semibold text-secondary mb-1.5">
                                     Email address
                                 </label>
                                 <input
@@ -78,58 +138,99 @@ export default function Login() {
                                     type="email"
                                     autoComplete="email"
                                     required
-                                    className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-600 transition-all shadow-sm"
+                                    className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all shadow-sm"
                                     placeholder="name@company.com"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                 />
                             </div>
-                            <div>
-                                <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                                    Password
-                                </label>
-                                <input
-                                    id="password"
-                                    name="password"
-                                    type="password"
-                                    autoComplete="current-password"
-                                    required
-                                    className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-600 transition-all shadow-sm"
-                                    placeholder="••••••••"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                />
-                            </div>
-                        </div>
 
-                        {/* Test credentials hint */}
-                        <div className="bg-blue-50 border border-blue-100 text-blue-700 px-4 py-3 rounded-lg text-xs">
-                            <p className="font-semibold mb-1">Test Credentials:</p>
-                            <p>Admin: admin@company.com / admin123</p>
-                            <p>Sales: alex.j@company.com / sales123</p>
+                            {loginMethod === 'password' ? (
+                                <div>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <label htmlFor="password" className="block text-sm font-semibold text-secondary">
+                                            Password
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="text-xs font-medium text-accent hover:text-accent-light transition-colors"
+                                        >
+                                            {showPassword ? 'Hide' : 'Show'}
+                                        </button>
+                                    </div>
+                                    <input
+                                        id="password"
+                                        name="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        autoComplete="current-password"
+                                        required
+                                        className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all shadow-sm"
+                                        placeholder="••••••••"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                    />
+                                </div>
+                            ) : (
+                                <div>
+                                    <label htmlFor="otp" className="block text-sm font-semibold text-secondary mb-1.5">
+                                        Verification Code
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            id="otp"
+                                            name="otp"
+                                            type="text"
+                                            maxLength={6}
+                                            required={loginMethod === 'otp' && otpSent}
+                                            disabled={!otpSent}
+                                            className="flex-1 px-4 py-3 bg-surface border border-border rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all shadow-sm disabled:opacity-50"
+                                            placeholder={otpSent ? "Check console for code" : "Click send code"}
+                                            value={otpCode}
+                                            onChange={(e) => setOtpCode(e.target.value)}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleRequestOTP}
+                                            disabled={loading || !email}
+                                            className="px-4 py-2 bg-surface-elevated border border-border rounded-lg text-xs font-bold text-accent hover:bg-surface transition-all disabled:opacity-50 shrink-0"
+                                        >
+                                            {otpSent ? 'Resend' : 'Send Code'}
+                                        </button>
+                                    </div>
+                                    {otpSent && (
+                                        <p className="mt-2 text-[10px] text-accent flex items-center gap-1">
+                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            Code printed to backend terminal
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div>
                             <button
                                 type="submit"
-                                disabled={loading}
-                                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-sm transition-all duration-200"
+                                disabled={loading || (loginMethod === 'otp' && !otpSent)}
+                                className="w-full py-3 px-4 bg-accent hover:opacity-90 text-page font-semibold rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-sm transition-all duration-200"
                             >
-                                {loading ? 'Signing in...' : 'Sign in'}
+                                {loading ? 'Processing...' : (loginMethod === 'otp' ? 'Verify & Sign in' : 'Sign in')}
                             </button>
                         </div>
                     </form>
 
                     <div className="mt-8 text-center text-sm">
-                        <span className="text-slate-500">Don't have an account? </span>
-                        <Link href="/signup" className="font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors">
+                        <span className="text-secondary">Don't have an account? </span>
+                        <Link href="/signup" className="font-semibold text-accent hover:text-accent-light hover:underline transition-colors">
                             Create an account
                         </Link>
                     </div>
                 </div>
 
                 {/* Footer Polish */}
-                <p className="text-center text-xs text-slate-400 mt-8">
+                <p className="text-center text-xs text-muted mt-8">
                     &copy; 2024 CRM Inc. Secure Access.
                 </p>
 

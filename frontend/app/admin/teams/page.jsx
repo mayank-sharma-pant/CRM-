@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import api from '@/services/api';
 import {
     UsersRound,
     User,
@@ -14,6 +15,7 @@ import {
 export default function AdminTeamsPage() {
     const [loading, setLoading] = useState(true);
     const [teams, setTeams] = useState([]);
+    const [allUsers, setAllUsers] = useState([]);
     const [selectedTeam, setSelectedTeam] = useState(null);
     const [showAddMemberModal, setShowAddMemberModal] = useState(false);
     const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
@@ -26,122 +28,99 @@ export default function AdminTeamsPage() {
     const [selectedNewMember, setSelectedNewMember] = useState('');
     const [selectedNewManager, setSelectedNewManager] = useState('');
 
-    useEffect(() => {
-        setTimeout(() => {
-            const data = [
-                {
-                    id: 1, name: 'Sales Alpha', manager: 'Mike Brown', managerId: 'EMP003',
-                    members: [
-                        { id: 'EMP001', name: 'Alex Johnson', role: 'Sales Executive' },
-                        { id: 'EMP002', name: 'Sarah Smith', role: 'Sales Executive' }
-                    ]
-                },
-                {
-                    id: 2, name: 'Sales Bravo', manager: 'James Wilson', managerId: 'EMP004',
-                    members: [
-                        { id: 'EMP005', name: 'Emily Davis', role: 'Sales Executive' },
-                        { id: 'EMP010', name: 'Chris Anderson', role: 'Sales Executive' }
-                    ]
-                },
-                {
-                    id: 3, name: 'Sales Charlie', manager: 'Sarah Thompson', managerId: 'EMP011',
-                    members: [
-                        { id: 'EMP008', name: 'David Martinez', role: 'Sales Executive' },
-                        { id: 'EMP012', name: 'Rachel Green', role: 'Sales Executive' },
-                        { id: 'EMP013', name: 'Tom Wilson', role: 'Sales Executive' }
-                    ]
-                },
-                {
-                    id: 4, name: 'Enterprise', manager: 'Lisa Chen', managerId: 'EMP014',
-                    members: [
-                        { id: 'EMP015', name: 'Mark Stevens', role: 'Sales Executive' }
-                    ]
-                }
-            ];
-            setTeams(data);
-            setSelectedTeam(data[0]);
+    const fetchTeams = async () => {
+        try {
+            setLoading(true);
+            const [teamsRes, usersRes] = await Promise.all([
+                api.get('/admin/teams'),
+                api.get('/admin/users')
+            ]);
+            const teamsData = teamsRes.data.teams || [];
+            setTeams(teamsData);
+            setAllUsers(usersRes.data.users || []);
+
+            if (teamsData.length > 0 && !selectedTeam) {
+                fetchTeamDetail(teamsData[0].id);
+            }
+        } catch (err) {
+            console.error('Failed to fetch teams', err);
+        } finally {
             setLoading(false);
-        }, 400);
+        }
+    };
+
+    const fetchTeamDetail = async (teamId) => {
+        try {
+            const res = await api.get(`/admin/teams/${teamId}`);
+            setSelectedTeam(res.data);
+        } catch (err) {
+            console.error('Failed to fetch team detail', err);
+        }
+    };
+
+    useEffect(() => {
+        fetchTeams();
     }, []);
 
-    const availableMembers = [
-        { id: 'EMP020', name: 'John Miller' },
-        { id: 'EMP021', name: 'Anna Brown' },
-        { id: 'EMP022', name: 'Peter Chen' }
-    ];
-
-    const availableManagers = [
-        { id: 'EMP003', name: 'Mike Brown' },
-        { id: 'EMP004', name: 'James Wilson' },
-        { id: 'EMP011', name: 'Sarah Thompson' },
-        { id: 'EMP014', name: 'Lisa Chen' }
-    ];
+    const availableMembers = allUsers.filter(u => !u.team_id || u.team_id === 0);
+    const availableManagers = allUsers.filter(u => u.role === 'Manager' || u.role === 'manager');
 
     const handleRemoveMember = (member) => {
         setMemberToRemove(member);
         setShowRemoveMemberModal(true);
     };
 
-    const confirmRemoveMember = () => {
-        if (selectedTeam && memberToRemove) {
-            const updatedTeam = {
-                ...selectedTeam,
-                members: selectedTeam.members.filter(m => m.id !== memberToRemove.id)
-            };
-            setTeams(teams.map(t => t.id === selectedTeam.id ? updatedTeam : t));
-            setSelectedTeam(updatedTeam);
+    const confirmRemoveMember = async () => {
+        try {
+            await api.delete(`/admin/teams/${selectedTeam.id}/members/${memberToRemove.user_id || memberToRemove.id}`);
+            fetchTeamDetail(selectedTeam.id);
+            fetchTeams();
+            setShowRemoveMemberModal(false);
+            setMemberToRemove(null);
+        } catch (err) {
+            console.error('Remove member failed', err);
+            alert(err.response?.data?.detail || 'Removal failed');
         }
-        setShowRemoveMemberModal(false);
-        setMemberToRemove(null);
     };
 
-    const confirmAddMember = () => {
-        if (selectedTeam && selectedNewMember) {
-            const memberToAdd = availableMembers.find(m => m.id === selectedNewMember);
-            if (memberToAdd) {
-                const updatedTeam = {
-                    ...selectedTeam,
-                    members: [...selectedTeam.members, { ...memberToAdd, role: 'Sales Executive' }]
-                };
-                setTeams(teams.map(t => t.id === selectedTeam.id ? updatedTeam : t));
-                setSelectedTeam(updatedTeam);
-            }
+    const confirmAddMember = async () => {
+        try {
+            await api.post(`/admin/teams/${selectedTeam.id}/members`, null, { params: { user_id: selectedNewMember } });
+            fetchTeamDetail(selectedTeam.id);
+            fetchTeams();
+            setShowAddMemberModal(false);
+            setSelectedNewMember('');
+        } catch (err) {
+            console.error('Add member failed', err);
+            alert(err.response?.data?.detail || 'Addition failed');
         }
-        setShowAddMemberModal(false);
-        setSelectedNewMember('');
     };
 
-    const confirmChangeManager = () => {
-        if (selectedTeam && selectedNewManager) {
-            const newManager = availableManagers.find(m => m.id === selectedNewManager);
-            if (newManager) {
-                const updatedTeam = {
-                    ...selectedTeam,
-                    manager: newManager.name,
-                    managerId: newManager.id
-                };
-                setTeams(teams.map(t => t.id === selectedTeam.id ? updatedTeam : t));
-                setSelectedTeam(updatedTeam);
-            }
+    const confirmChangeManager = async () => {
+        try {
+            // Changing manager usually means adding them to team or updating team record
+            // The backend admin.py uses PUT /admin/users/{user_id} to set team_id
+            await api.put(`/admin/users/${selectedNewManager}`, null, { params: { team_id: selectedTeam.id, role: 'manager' } });
+            fetchTeamDetail(selectedTeam.id);
+            fetchTeams();
+            setShowChangeManagerModal(false);
+            setSelectedNewManager('');
+        } catch (err) {
+            console.error('Change manager failed', err);
+            alert(err.response?.data?.detail || 'Update failed');
         }
-        setShowChangeManagerModal(false);
-        setSelectedNewManager('');
     };
 
-    const confirmCreateTeam = () => {
-        if (newTeamName.trim()) {
-            const newTeam = {
-                id: teams.length + 1,
-                name: newTeamName.trim(),
-                manager: null,
-                managerId: null,
-                members: []
-            };
-            setTeams([...teams, newTeam]);
-            setSelectedTeam(newTeam);
+    const confirmCreateTeam = async () => {
+        try {
+            await api.post('/admin/teams', null, { params: { name: newTeamName } });
+            fetchTeams();
+            setShowCreateTeamModal(false);
+            setNewTeamName('');
+        } catch (err) {
+            console.error('Create team failed', err);
+            alert(err.response?.data?.detail || 'Creation failed');
         }
-        setShowCreateTeamModal(false);
-        setNewTeamName('');
     };
 
     if (loading) return <TeamsSkeleton />;
@@ -176,7 +155,7 @@ export default function AdminTeamsPage() {
                         {teams.map((team) => (
                             <div
                                 key={team.id}
-                                onClick={() => setSelectedTeam(team)}
+                                onClick={() => fetchTeamDetail(team.id)}
                                 className={`flex items-center justify-between px-5 py-4 cursor-pointer transition-colors ${selectedTeam?.id === team.id
                                     ? 'bg-indigo-50 dark:bg-indigo-900/20 border-l-2 border-indigo-500'
                                     : 'hover:bg-slate-50 dark:hover:bg-slate-800/80'
@@ -188,7 +167,7 @@ export default function AdminTeamsPage() {
                                     </div>
                                     <div>
                                         <div className="text-[13px] font-semibold text-slate-800 dark:text-white">{team.name}</div>
-                                        <div className="text-[11px] text-slate-400">{team.members.length} members</div>
+                                        <div className="text-[11px] text-slate-400">{team.member_count} members</div>
                                     </div>
                                 </div>
                                 <ChevronRight size={16} className="text-slate-300" />
@@ -212,7 +191,7 @@ export default function AdminTeamsPage() {
                                     <div>
                                         <div className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Team Manager</div>
                                         <div className="text-[14px] font-semibold text-slate-800 dark:text-slate-200">
-                                            {selectedTeam.manager || 'No manager assigned'}
+                                            {selectedTeam.manager?.name || 'No manager assigned'}
                                         </div>
                                     </div>
                                 </div>
@@ -321,7 +300,7 @@ export default function AdminTeamsPage() {
                         >
                             <option value="">No manager</option>
                             {availableManagers.map(m => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
+                                <option key={m.user_id} value={m.user_id}>{m.name}</option>
                             ))}
                         </select>
                     </div>

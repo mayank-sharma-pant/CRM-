@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import api from '@/services/api';
 import {
     Building2,
     FileText,
@@ -31,24 +32,47 @@ export default function AdminSettingsPage() {
     const [remindersEnabled, setRemindersEnabled] = useState(true);
     const [followupAlertsEnabled, setFollowupAlertsEnabled] = useState(true);
 
-    useEffect(() => {
-        setTimeout(() => {
-            // Load settings from API (mock)
-            setCompanyName('Enterprise Corp');
-            setCompanyAddress('123 Business St, City, State 12345');
-            setCompanyGST('GST123456789');
+    const fetchSettings = async () => {
+        try {
+            setLoading(true);
+            const res = await api.get('/admin/settings');
+            const data = res.data;
+            setCompanyName(data.company_name || '');
+            setCompanyAddress(data.address || '');
+            setCompanyGST(data.gst_number || '');
+            setInvoicePrefix(data.invoice_prefix || '');
+            setTaxRate(String(data.tax_rate || ''));
+
+            // Still mock pipeline/notifications for now as backend doesn't have them
             setLeadStages(['New', 'Contacted', 'Qualified', 'Proposal', 'Won', 'Lost']);
             setLostReasons(['No budget', 'Timing not right', 'Competitor', 'No response']);
-            setInvoicePrefix('INV');
-            setTaxRate('18');
+        } catch (err) {
+            console.error('Failed to fetch settings', err);
+        } finally {
             setLoading(false);
-        }, 300);
+        }
+    };
+
+    useEffect(() => {
+        fetchSettings();
     }, []);
 
-    const handleSave = () => {
-        // Would call backend API here
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+    const handleSave = async () => {
+        try {
+            await api.put('/admin/settings', null, {
+                params: {
+                    company_name: companyName,
+                    address: companyAddress,
+                    invoice_prefix: invoicePrefix,
+                    tax_rate: parseFloat(taxRate) || 0
+                }
+            });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+        } catch (err) {
+            console.error('Failed to save settings', err);
+            alert(err.response?.data?.detail || 'Failed to save settings');
+        }
     };
 
     if (loading) return <SettingsSkeleton />;

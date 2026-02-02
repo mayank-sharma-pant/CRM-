@@ -10,22 +10,29 @@ export default {
     extend: {
       colors: {
         // Page & Surface
-        page: '#FAFAF9',
+        page: 'var(--color-page)',
         surface: {
-          DEFAULT: '#FFFFFF',
-          elevated: '#F5F5F4',
+          DEFAULT: 'var(--color-surface)',
+          elevated: 'var(--color-surface-elevated)',
         },
         // Borders
         border: {
-          DEFAULT: '#E7E5E4',
-          subtle: '#F5F5F4',
+          DEFAULT: 'var(--color-border)',
+          subtle: 'var(--color-border-subtle)',
         },
-        // Accent - Muted Slate Blue
+        // Accent
         accent: {
-          DEFAULT: '#475569',
-          light: '#64748B',
+          DEFAULT: 'var(--color-accent)',
+          light: 'var(--color-accent-light)',
         },
-        // Text - using stone palette for warmth
+        // Status colors linked to variables
+        status: {
+          success: 'var(--color-success)',
+          warning: 'var(--color-warning)',
+          error: 'var(--color-error)',
+          info: 'var(--color-info)',
+        },
+        // Stone palette kept for direct utility usage if needed
         stone: {
           50: '#FAFAF9',
           100: '#F5F5F4',
@@ -39,13 +46,6 @@ export default {
           900: '#1C1917',
           950: '#0C0A09',
         },
-        // Muted status colors
-        status: {
-          success: '#16A34A',
-          warning: '#CA8A04',
-          error: '#DC2626',
-          info: '#2563EB',
-        }
       },
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import api from '@/services/api';
 import {
     UserCheck,
     UserX,
@@ -24,19 +25,26 @@ export default function AdminApprovalsPage() {
     const [assignedManager, setAssignedManager] = useState('');
     const [rejectionReason, setRejectionReason] = useState('');
 
-    useEffect(() => {
-        setTimeout(() => {
-            const data = [
-                { id: 1, name: 'John Miller', email: 'john.miller@example.com', phone: '+1 555-0101', requestedRole: 'Sales Executive', requestedTeam: 'Sales Alpha', submittedAt: '2024-01-15 09:30', status: 'Pending' },
-                { id: 2, name: 'Sarah Chen', email: 'sarah.chen@example.com', phone: '+1 555-0102', requestedRole: 'Manager', requestedTeam: null, submittedAt: '2024-01-15 04:15', status: 'Pending' },
-                { id: 3, name: 'Mike Johnson', email: 'mike.j@example.com', phone: '+1 555-0103', requestedRole: 'Sales Executive', requestedTeam: 'Sales Bravo', submittedAt: '2024-01-14 14:00', status: 'Pending' },
-                { id: 4, name: 'Emily Davis', email: 'emily.d@example.com', phone: '+1 555-0104', requestedRole: 'Sales Executive', requestedTeam: null, submittedAt: '2024-01-14 11:30', status: 'Pending' },
-                { id: 5, name: 'Robert Wilson', email: 'r.wilson@example.com', phone: '+1 555-0105', requestedRole: 'Purchase', requestedTeam: null, submittedAt: '2024-01-13 16:45', status: 'Pending' },
-                { id: 6, name: 'Lisa Anderson', email: 'l.anderson@example.com', phone: '+1 555-0106', requestedRole: 'Sales Executive', requestedTeam: 'Sales Alpha', submittedAt: '2024-01-13 10:00', status: 'Pending' }
-            ];
-            setApprovals(data);
+    const [teams, setTeams] = useState([]);
+
+    const fetchApprovals = async () => {
+        try {
+            setLoading(true);
+            const [approvalsRes, teamsRes] = await Promise.all([
+                api.get('/admin/approvals'),
+                api.get('/admin/teams')
+            ]);
+            setApprovals(approvalsRes.data.approvals || []);
+            setTeams(teamsRes.data.teams || []);
+        } catch (err) {
+            console.error('Failed to fetch approvals', err);
+        } finally {
             setLoading(false);
-        }, 400);
+        }
+    };
+
+    useEffect(() => {
+        fetchApprovals();
     }, []);
 
     const filteredApprovals = approvals.filter(a =>
@@ -58,18 +66,46 @@ export default function AdminApprovalsPage() {
         setShowRejectModal(true);
     };
 
-    const confirmApproval = () => {
-        // Would call backend API here
-        setApprovals(approvals.filter(a => a.id !== selectedUser.id));
-        setShowApproveModal(false);
-        setSelectedUser(null);
+    const confirmApproval = async () => {
+        try {
+            const roleMap = {
+                'Sales Executive': 'sales',
+                'Manager': 'manager',
+                'MD': 'md',
+                'Purchase': 'purchase',
+                'Admin': 'admin'
+            };
+
+            await api.post(`/admin/approvals/${selectedUser.id}/approve`);
+            // Also update role and team since the approve endpoint just sets status to active
+            await api.put(`/admin/users/${selectedUser.id}`, null, {
+                params: {
+                    role: roleMap[assignedRole] || assignedRole.toLowerCase(),
+                    team_id: assignedTeam || undefined
+                }
+            });
+
+            fetchApprovals();
+            setShowApproveModal(false);
+            setSelectedUser(null);
+        } catch (err) {
+            console.error('Approval failed', err);
+            alert(err.response?.data?.detail || 'Failed to approve user');
+        }
     };
 
-    const confirmRejection = () => {
-        // Would call backend API here
-        setApprovals(approvals.filter(a => a.id !== selectedUser.id));
-        setShowRejectModal(false);
-        setSelectedUser(null);
+    const confirmRejection = async () => {
+        try {
+            await api.post(`/admin/approvals/${selectedUser.id}/reject`, null, {
+                params: { reason: rejectionReason }
+            });
+            fetchApprovals();
+            setShowRejectModal(false);
+            setSelectedUser(null);
+        } catch (err) {
+            console.error('Rejection failed', err);
+            alert(err.response?.data?.detail || 'Failed to reject user');
+        }
     };
 
     if (loading) return <ApprovalsSkeleton />;
@@ -108,7 +144,6 @@ export default function AdminApprovalsPage() {
                             <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Name</th>
                             <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Contact</th>
                             <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Requested Role</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Requested Team</th>
                             <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Submitted</th>
                             <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Status</th>
                             <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px] text-right">Actions</th>
@@ -120,20 +155,16 @@ export default function AdminApprovalsPage() {
                                 <td className="px-5 py-3.5 font-medium text-slate-800 dark:text-slate-200">{user.name}</td>
                                 <td className="px-5 py-3.5">
                                     <div className="text-slate-700 dark:text-slate-300">{user.email}</div>
-                                    <div className="text-[11px] text-slate-400">{user.phone}</div>
                                 </td>
                                 <td className="px-5 py-3.5">
                                     <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded text-[11px] font-medium">
-                                        {user.requestedRole}
+                                        {user.role}
                                     </span>
                                 </td>
-                                <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400">
-                                    {user.requestedTeam || <span className="text-slate-400">-</span>}
-                                </td>
-                                <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{user.submittedAt}</td>
+                                <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{user.requested_at}</td>
                                 <td className="px-5 py-3.5">
                                     <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded text-[11px] font-bold uppercase">
-                                        {user.status}
+                                        Pending
                                     </span>
                                 </td>
                                 <td className="px-5 py-3.5 text-right">
@@ -197,10 +228,9 @@ export default function AdminApprovalsPage() {
                                     className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-[14px] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 >
                                     <option value="">No team</option>
-                                    <option value="Sales Alpha">Sales Alpha</option>
-                                    <option value="Sales Bravo">Sales Bravo</option>
-                                    <option value="Sales Charlie">Sales Charlie</option>
-                                    <option value="Enterprise">Enterprise</option>
+                                    {teams.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
                                 </select>
                             </div>
                             {assignedRole === 'Sales Executive' && (

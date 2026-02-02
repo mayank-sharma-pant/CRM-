@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import api from '@/services/api';
 import {
     GitBranch,
     ChevronRight,
@@ -20,53 +21,26 @@ export default function AdminHierarchyPage() {
     const [targetTeam, setTargetTeam] = useState('');
     const [targetManager, setTargetManager] = useState('');
 
-    useEffect(() => {
-        setTimeout(() => {
-            const data = [
-                {
-                    id: 1,
-                    name: 'Sales Alpha',
-                    manager: { id: 'EMP003', name: 'Mike Brown' },
-                    members: [
-                        { id: 'EMP001', name: 'Alex Johnson' },
-                        { id: 'EMP002', name: 'Sarah Smith' }
-                    ]
-                },
-                {
-                    id: 2,
-                    name: 'Sales Bravo',
-                    manager: { id: 'EMP004', name: 'James Wilson' },
-                    members: [
-                        { id: 'EMP005', name: 'Emily Davis' },
-                        { id: 'EMP010', name: 'Chris Anderson' }
-                    ]
-                },
-                {
-                    id: 3,
-                    name: 'Sales Charlie',
-                    manager: { id: 'EMP011', name: 'Sarah Thompson' },
-                    members: [
-                        { id: 'EMP008', name: 'David Martinez' },
-                        { id: 'EMP012', name: 'Rachel Green' },
-                        { id: 'EMP013', name: 'Tom Wilson' }
-                    ]
-                },
-                {
-                    id: 4,
-                    name: 'Enterprise',
-                    manager: { id: 'EMP014', name: 'Lisa Chen' },
-                    members: [
-                        { id: 'EMP015', name: 'Mark Stevens' }
-                    ]
-                }
-            ];
+    const fetchHierarchy = async () => {
+        try {
+            setLoading(true);
+            const res = await api.get('/admin/hierarchy');
+            const data = res.data.hierarchy || [];
             setHierarchy(data);
+
             // Expand all by default
             const expanded = {};
             data.forEach(t => expanded[t.id] = true);
             setExpandedTeams(expanded);
+        } catch (err) {
+            console.error('Failed to fetch hierarchy', err);
+        } finally {
             setLoading(false);
-        }, 400);
+        }
+    };
+
+    useEffect(() => {
+        fetchHierarchy();
     }, []);
 
     const toggleTeam = (teamId) => {
@@ -80,10 +54,22 @@ export default function AdminHierarchyPage() {
         setShowReassignModal(true);
     };
 
-    const confirmReassign = () => {
-        // Would call backend API here
-        setShowReassignModal(false);
-        setSelectedMember(null);
+    const confirmReassign = async () => {
+        try {
+            const selectedTeamObj = hierarchy.find(t => t.id === Number(targetTeam));
+            await api.put(`/admin/users/${selectedMember.user_id || selectedMember.id}`, null, {
+                params: {
+                    team_id: targetTeam,
+                    manager_id: targetManager || undefined
+                }
+            });
+            fetchHierarchy();
+            setShowReassignModal(false);
+            setSelectedMember(null);
+        } catch (err) {
+            console.error('Reassignment failed', err);
+            alert(err.response?.data?.detail || 'Failed to reassign');
+        }
     };
 
     const teams = hierarchy.map(t => ({ id: t.id, name: t.name }));
@@ -165,8 +151,8 @@ export default function AdminHierarchyPage() {
                                                     <User size={14} className="text-blue-600 dark:text-blue-400" />
                                                 </div>
                                                 <div>
-                                                    <div className="text-[13px] font-medium text-slate-700 dark:text-slate-300">{member.name}</div>
-                                                    <div className="text-[10px] text-slate-400 font-mono">{member.id}</div>
+                                                    <div className="text-[13px] font-medium text-slate-700 dark:text-slate-300">{member.name || member.full_name}</div>
+                                                    <div className="text-[10px] text-slate-400 font-mono">EMP{String(member.user_id || member.id).padStart(3, '0')}</div>
                                                 </div>
                                             </div>
                                             <button
@@ -207,8 +193,8 @@ export default function AdminHierarchyPage() {
                                     className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-[14px] bg-white dark:bg-slate-800"
                                 >
                                     <option value="">Select team...</option>
-                                    {teams.filter(t => t.name !== selectedMember.currentTeam).map(t => (
-                                        <option key={t.id} value={t.name}>{t.name}</option>
+                                    {hierarchy.filter(t => t.name !== selectedMember.currentTeam).map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
                                     ))}
                                 </select>
                             </div>
@@ -220,8 +206,8 @@ export default function AdminHierarchyPage() {
                                     className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-[14px] bg-white dark:bg-slate-800"
                                 >
                                     <option value="">Select manager...</option>
-                                    {managers.map(m => (
-                                        <option key={m.id} value={m.id}>{m.name}</option>
+                                    {hierarchy.map(t => (
+                                        <option key={t.manager.id} value={t.manager.id}>{t.manager.name}</option>
                                     ))}
                                 </select>
                             </div>

@@ -39,23 +39,30 @@ export default function Signup() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animate-fade-in-up">
+        <div className="min-h-screen bg-page flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animate-fade-in-up">
             <div className="max-w-lg w-full">
 
-                <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sm:p-10">
+                <div className="bg-surface rounded-2xl shadow-xl border border-border p-8 sm:p-10">
 
                     <div className="mb-8 text-center">
-                        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                        <Link href="/" className="inline-flex mb-6 hover:opacity-80 transition-opacity">
+                            <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-page shadow-lg shadow-accent/20">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                        </Link>
+                        <h2 className="text-2xl font-bold text-primary tracking-tight">
                             Create your account
                         </h2>
-                        <p className="mt-2 text-sm text-slate-500">
+                        <p className="mt-2 text-sm text-secondary">
                             Get started with your free trial
                         </p>
                     </div>
 
                     <form className="space-y-5" onSubmit={handleSubmit}>
                         {error && (
-                            <div className="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
+                            <div className="bg-status-error/10 border border-status-error/20 text-status-error px-4 py-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
                                 <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
@@ -67,7 +74,7 @@ export default function Signup() {
                             {/* Personal Info Group */}
                             <div className="grid grid-cols-1 gap-4">
                                 <div>
-                                    <label htmlFor="fullName" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                                    <label htmlFor="fullName" className="block text-sm font-semibold text-secondary mb-1.5">
                                         Full Name
                                     </label>
                                     <input
@@ -75,14 +82,14 @@ export default function Signup() {
                                         name="fullName"
                                         type="text"
                                         required
-                                        className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-600 transition-all"
+                                        className="w-full px-4 py-2.5 bg-surface border border-border rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all"
                                         placeholder="John Doe"
                                         value={formData.fullName}
                                         onChange={handleChange}
                                     />
                                 </div>
                                 <div>
-                                    <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                                    <label htmlFor="email" className="block text-sm font-semibold text-secondary mb-1.5">
                                         Email address
                                     </label>
                                     <input
@@ -91,14 +98,14 @@ export default function Signup() {
                                         type="email"
                                         autoComplete="email"
                                         required
-                                        className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-600 transition-all"
+                                        className="w-full px-4 py-2.5 bg-surface border border-border rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all"
                                         placeholder="name@company.com"
                                         value={formData.email}
                                         onChange={handleChange}
                                     />
                                 </div>
                                 <div>
-                                    <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                                    <label htmlFor="password" className="block text-sm font-semibold text-secondary mb-1.5">
                                         Password
                                     </label>
                                     <input
@@ -108,7 +115,7 @@ export default function Signup() {
                                         autoComplete="new-password"
                                         required
                                         minLength={6}
-                                        className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-600 transition-all"
+                                        className="w-full px-4 py-2.5 bg-surface border border-border rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all"
                                         placeholder="Min. 6 characters"
                                         value={formData.password}
                                         onChange={handleChange}
@@ -116,12 +123,12 @@ export default function Signup() {
                                 </div>
                             </div>
 
-                            <div className="border-t border-slate-100 my-4"></div>
+                            <div className="border-t border-border my-4"></div>
 
                             {/* Business Info Group */}
                             <div className="grid grid-cols-1 gap-4">
                                 <div>
-                                    <label htmlFor="businessName" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                                    <label htmlFor="businessName" className="block text-sm font-semibold text-secondary mb-1.5">
                                         Business Name
                                     </label>
                                     <input
@@ -129,21 +136,21 @@ export default function Signup() {
                                         name="businessName"
                                         type="text"
                                         required
-                                        className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-600 transition-all"
+                                        className="w-full px-4 py-2.5 bg-surface border border-border rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all"
                                         placeholder="Acme Corp"
                                         value={formData.businessName}
                                         onChange={handleChange}
                                     />
                                 </div>
                                 <div>
-                                    <label htmlFor="phone" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                                        Phone <span className="text-slate-400 font-normal">(Optional)</span>
+                                    <label htmlFor="phone" className="block text-sm font-semibold text-secondary mb-1.5">
+                                        Phone <span className="text-muted font-normal">(Optional)</span>
                                     </label>
                                     <input
                                         id="phone"
                                         name="phone"
                                         type="tel"
-                                        className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-600 transition-all"
+                                        className="w-full px-4 py-2.5 bg-surface border border-border rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all"
                                         placeholder="+1 (555) 000-0000"
                                         value={formData.phone}
                                         onChange={handleChange}
@@ -156,7 +163,7 @@ export default function Signup() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-sm transition-all duration-200"
+                                className="w-full py-3 px-4 bg-accent hover:opacity-90 text-page font-semibold rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-sm transition-all duration-200"
                             >
                                 {loading ? 'Creating account...' : 'Create account'}
                             </button>
@@ -164,13 +171,17 @@ export default function Signup() {
                     </form>
 
                     <div className="mt-8 text-center text-sm">
-                        <span className="text-slate-500">Already have an account? </span>
-                        <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors">
+                        <span className="text-secondary">Already have an account? </span>
+                        <Link href="/login" className="font-semibold text-accent hover:text-accent-light hover:underline transition-colors">
                             Sign in
                         </Link>
                     </div>
 
                 </div>
+                {/* Footer Polish */}
+                <p className="text-center text-xs text-muted mt-8">
+                    &copy; 2024 CRM Inc. Secure Access.
+                </p>
             </div>
         </div>
     );

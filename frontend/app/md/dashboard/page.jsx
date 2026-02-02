@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MOCK_DATA } from '../../../services/mockData';
+import api from '../../../services/api';
 import { useRouter } from 'next/navigation';
 import {
     TrendingUp,
@@ -31,11 +31,62 @@ export default function MDDashboard() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        setTimeout(() => {
-            setData(MOCK_DATA['/md/dashboard']);
+    const fetchDashboard = async () => {
+        try {
+            setLoading(true);
+            const res = await api.get('/md/dashboard');
+
+            // Map backend data to frontend structure if necessary
+            // The backend returns kpis, pipelineSummary, financeSnapshot
+            // We'll augment with default values for missing pieces for now
+            const baseData = res.data;
+
+            // If backend doesn't provide everything yet, we bridge it
+            const fullData = {
+                ...baseData,
+                salesMomentum: baseData.salesMomentum || {
+                    trend: [
+                        { date: 'Mon', revenue: 4000, sales: 2400 },
+                        { date: 'Tue', revenue: 3000, sales: 1398 },
+                        { date: 'Wed', revenue: 2000, sales: 9800 },
+                        { date: 'Thu', revenue: 2780, sales: 3908 },
+                        { date: 'Fri', revenue: 1890, sales: 4800 },
+                        { date: 'Sat', revenue: 2390, sales: 3800 },
+                        { date: 'Sun', revenue: 3490, sales: 4300 },
+                    ],
+                    outcomes: [
+                        { stage: 'Converted', count: baseData.pipelineSummary?.stageDistribution?.find(s => s.stage === 'Converted')?.count || 12, color: '#10b981' },
+                        { stage: 'Qualified', count: baseData.pipelineSummary?.stageDistribution?.find(s => s.stage === 'Qualified')?.count || 34, color: '#6366f1' }
+                    ]
+                },
+                clientSnapshot: baseData.clientSnapshot || {
+                    growth: [
+                        { date: 'Jan', count: 100 },
+                        { date: 'Feb', count: 120 },
+                        { date: 'Mar', count: 150 }
+                    ],
+                    status: { active: baseData.kpis?.find(k => k.label.includes('Clients'))?.value || 0, risk: 2 }
+                },
+                trendWatchlist: baseData.trendWatchlist || [
+                    { name: 'Lead Velocity', delta: '+12%', trend: 'up' },
+                    { name: 'SLA Adherence', delta: '-3%', trend: 'down' }
+                ],
+                aiBrief: baseData.aiBrief || [
+                    { id: 1, title: 'Strategic Capacity', summary: 'Team Alpha is at 95% capacity. Recommend load balancing.', link: '/md/monitoring' },
+                    { id: 2, title: 'Revenue Risk', summary: '3 high-value invoices are overdue by 10+ days.', link: '/md/revenue' }
+                ]
+            };
+
+            setData(fullData);
+        } catch (err) {
+            console.error('Failed to fetch MD dashboard', err);
+        } finally {
             setLoading(false);
-        }, 400);
+        }
+    };
+
+    useEffect(() => {
+        fetchDashboard();
     }, []);
 
     if (loading) return <DashboardSkeleton />;
@@ -87,7 +138,7 @@ export default function MDDashboard() {
                 {data.kpis.map((kpi) => (
                     <div
                         key={kpi.id}
-                        onClick={() => router.push(kpi.route)}
+                        onClick={() => router.push(kpi.route || kpi.link || '#')}
                         className="relative bg-white dark:bg-slate-800 h-[110px] rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-md cursor-pointer transition-all overflow-hidden"
                     >
                         <div className="flex justify-between items-start mb-2">

@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { formatDistanceToNow, parseISO, differenceInDays } from 'date-fns';
 import api from '../../../services/api';
+import LeadModal from '../../../components/leads/LeadModal';
 import {
   Plus,
   ChevronRight,
@@ -43,12 +44,28 @@ export default function Leads() {
 
   useEffect(() => {
     fetchLeads();
-  }, []);
+  }, [activeTab]);
 
   const fetchLeads = async () => {
+    setLoading(true);
     try {
-      const response = await api.get('/leads');
-      setLeads(response.data || []);
+      let url = '/leads';
+      const params = {};
+
+      if (activeTab !== 'all' && activeTab !== 'active') {
+        params.status = activeTab;
+      }
+
+      const response = await api.get(url, { params });
+      let data = response.data || [];
+
+      // If 'active', we still want New, Contacted, Qualified
+      // The backend doesn't have an 'active' filter shortcut yet, so we can either add it to backend or filter here
+      if (activeTab === 'active') {
+        data = data.filter(l => ['New', 'Contacted', 'Qualified'].includes(l.status));
+      }
+
+      setLeads(data);
     } catch (error) {
       console.error("Failed to fetch leads", error);
     } finally {
@@ -56,16 +73,7 @@ export default function Leads() {
     }
   };
 
-  // Static Logic for filtering the API data
-  const getFilteredLeads = () => {
-    if (activeTab === 'all') return leads;
-    if (activeTab === 'active') {
-      return leads.filter(l => ['New', 'Contacted', 'Qualified'].includes(l.status));
-    }
-    return leads.filter(l => l.status === activeTab);
-  };
-
-  const filteredLeads = getFilteredLeads();
+  const filteredLeads = leads;
 
   /**
    * Helper to determine the single most important engagement signal
@@ -115,7 +123,10 @@ export default function Leads() {
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 py-5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <h1 className="text-xl font-bold text-slate-800 dark:text-white">Leads</h1>
-          <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-sm transition-all cursor-default">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-sm transition-all"
+          >
             <Plus size={16} /> Add Lead
           </button>
         </div>
@@ -191,6 +202,11 @@ export default function Leads() {
         </div>
       </div>
 
+      <LeadModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onRefresh={fetchLeads}
+      />
     </div>
   );
 }

@@ -69,8 +69,30 @@ export function AuthProvider({ children }) {
         return response.data;
     };
 
+    const requestOTP = async (email) => {
+        const response = await api.post('/auth/request-otp', { email });
+        return response.data;
+    };
+
+    const loginOTP = async (email, otp_code) => {
+        const response = await api.post('/auth/login-otp', { email, otp_code });
+        const { access_token, user: userData } = response.data;
+        localStorage.setItem('token', access_token);
+        api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+        setUser(userData);
+        return response.data;
+    };
+
     const signup = async (userData) => {
-        const response = await api.post('/auth/signup', userData);
+        // Map frontend fields (camelCase) to backend expectations (snake_case)
+        const payload = {
+            email: userData.email,
+            password: userData.password,
+            full_name: userData.fullName,
+            phone: userData.phone,
+            role: 'sales' // Default role for public signup
+        };
+        const response = await api.post('/auth/signup', payload);
         return response.data;
     };
 
@@ -82,7 +104,7 @@ export function AuthProvider({ children }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, signup, logout, fetchUser }}>
+        <AuthContext.Provider value={{ user, loading, login, requestOTP, loginOTP, signup, logout, fetchUser }}>
             {children}
         </AuthContext.Provider>
     );

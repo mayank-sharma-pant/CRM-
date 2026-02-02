@@ -12,7 +12,7 @@ export default function ThemeToggle({ className = "" }) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={toggleTheme}
-            className={`relative inline-flex items-center justify-center w-10 h-10 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${className}`}
+            className={`relative inline-flex items-center justify-center w-10 h-10 rounded-full border border-border bg-surface text-secondary hover:text-accent transition-colors ${className}`}
             aria-label="Toggle Theme"
         >
             <motion.div

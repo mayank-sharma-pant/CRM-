@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import ThemeToggle from '../components/ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
 import { useState, useRef } from 'react';
 import { motion, useScroll, useTransform, useMotionValueEvent } from 'framer-motion';
@@ -54,39 +55,41 @@ function Navbar({ user }) {
     <header className="fixed top-0 left-0 right-0 z-50 bg-page/90 backdrop-blur-sm border-b border-border">
       <nav className="container-editorial flex items-center justify-between h-16">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 text-stone-900 font-semibold text-lg tracking-tight">
-          <div className="w-8 h-8 bg-stone-900 rounded flex items-center justify-center">
-            <LayoutDashboard size={16} className="text-white" strokeWidth={2.5} />
+        <Link href="/" className="flex items-center gap-2 text-primary font-semibold text-lg tracking-tight">
+          <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
+            <LayoutDashboard size={16} className="text-page" strokeWidth={2.5} />
           </div>
           <span>LocalCRM</span>
         </Link>
 
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-8">
-          <Link href="#features" className="text-stone-600 hover:text-stone-900 text-sm font-medium transition-colors">
+          <Link href="#features" className="text-secondary hover:text-primary text-sm font-medium transition-colors">
             Features
           </Link>
-          <Link href="#how-it-works" className="text-stone-600 hover:text-stone-900 text-sm font-medium transition-colors">
+          <Link href="#how-it-works" className="text-secondary hover:text-primary text-sm font-medium transition-colors">
             How it Works
           </Link>
-          <Link href="#testimonials" className="text-stone-600 hover:text-stone-900 text-sm font-medium transition-colors">
+          <Link href="#testimonials" className="text-secondary hover:text-primary text-sm font-medium transition-colors">
             Testimonials
           </Link>
         </div>
 
-        {/* Auth Buttons */}
+        {/* Auth Buttons & Theme Toggle */}
         <div className="hidden md:flex items-center gap-3">
+          <ThemeToggle />
+          <div className="w-px h-6 bg-border mx-2" />
           {!user ? (
             <>
               <Link
                 href="/login"
-                className="text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors px-4 py-2"
+                className="text-sm font-medium text-secondary hover:text-primary transition-colors px-4 py-2"
               >
                 Sign in
               </Link>
               <Link
                 href="/signup"
-                className="text-sm font-medium bg-stone-900 text-white px-4 py-2 rounded-md hover:bg-stone-800 transition-colors"
+                className="text-sm font-medium bg-primary text-page px-4 py-2 rounded-md hover:opacity-90 transition-opacity"
               >
                 Get Started
               </Link>
@@ -94,7 +97,7 @@ function Navbar({ user }) {
           ) : (
             <Link
               href="/login"
-              className="text-sm font-medium bg-stone-900 text-white px-4 py-2 rounded-md hover:bg-stone-800 transition-colors"
+              className="text-sm font-medium bg-primary text-page px-4 py-2 rounded-md hover:opacity-90 transition-opacity"
             >
               Dashboard
             </Link>
@@ -166,17 +169,17 @@ function HeroSection() {
           {/* Main Headline */}
           <motion.h1
             variants={VARIANTS.fadeUp}
-            className="headline-xl mb-6"
+            className="headline-xl mb-6 text-primary"
           >
             Stop losing leads.
             <br />
-            <span className="text-stone-400">Start closing deals.</span>
+            <span className="text-muted">Start closing deals.</span>
           </motion.h1>
 
           {/* Subheadline */}
           <motion.p
             variants={VARIANTS.fadeUp}
-            className="body-lg max-w-xl mb-10"
+            className="body-lg max-w-xl mb-10 text-secondary"
           >
             A simple, fast CRM that helps service businesses track every lead,
             automate follow-ups, and collect payments—without the complexity.
@@ -189,14 +192,14 @@ function HeroSection() {
           >
             <Link
               href="/signup"
-              className="inline-flex items-center justify-center gap-2 bg-stone-900 text-white px-6 py-3 rounded-md text-sm font-medium hover:bg-stone-800 transition-colors"
+              className="inline-flex items-center justify-center gap-2 bg-primary text-page px-6 py-3 rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
             >
               Start Free Trial
               <ArrowRight size={16} />
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center justify-center gap-2 border border-border text-stone-700 px-6 py-3 rounded-md text-sm font-medium hover:bg-surface-elevated transition-colors"
+              className="inline-flex items-center justify-center gap-2 border border-border text-primary px-6 py-3 rounded-md text-sm font-medium hover:bg-surface-elevated transition-colors"
             >
               Sign in
             </Link>
@@ -205,7 +208,7 @@ function HeroSection() {
           {/* Trust line */}
           <motion.p
             variants={VARIANTS.fadeUp}
-            className="mt-8 text-sm text-stone-400"
+            className="mt-8 text-sm text-muted"
           >
             No credit card required · Free 14-day trial · Cancel anytime
           </motion.p>
@@ -225,10 +228,10 @@ function LogoStrip() {
   return (
     <section className="py-12 border-y border-border bg-surface-elevated">
       <div className="container-editorial">
-        <p className="text-center text-sm text-stone-400 mb-6">Integrates with tools you already use</p>
+        <p className="text-center text-sm text-muted mb-6">Integrates with tools you already use</p>
         <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12">
           {integrations.map((name) => (
-            <span key={name} className="text-stone-400 font-medium text-sm tracking-wide">
+            <span key={name} className="text-muted font-medium text-sm tracking-wide">
               {name}
             </span>
           ))}
@@ -254,9 +257,9 @@ function ProblemSolution() {
             viewport={VIEWPORT}
             variants={VARIANTS.fadeUp}
           >
-            <p className="caption mb-4 text-stone-400">The Problem</p>
-            <h2 className="headline-lg mb-6 text-stone-300">
-              <span className="line-through decoration-stone-300">Spreadsheets, sticky notes, and missed calls.</span>
+            <p className="caption mb-4 text-muted">The Problem</p>
+            <h2 className="headline-lg mb-6 text-muted">
+              <span className="line-through decoration-muted">Spreadsheets, sticky notes, and missed calls.</span>
             </h2>
             <ul className="space-y-4">
               {[
@@ -265,8 +268,8 @@ function ProblemSolution() {
                 'Hours wasted on manual follow-ups',
                 'Payments get delayed or forgotten'
               ].map((item, i) => (
-                <li key={i} className="flex items-start gap-3 text-stone-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-stone-300 mt-2 shrink-0" />
+                <li key={i} className="flex items-start gap-3 text-muted">
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted mt-2 shrink-0" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -348,9 +351,9 @@ function HowItWorks() {
                 variants={VARIANTS.fadeUp}
                 className="relative"
               >
-                <span className="text-6xl font-bold text-stone-200 mb-4 block">{step.number}</span>
-                <h3 className="headline-md mb-3">{step.title}</h3>
-                <p className="body-md">{step.description}</p>
+                <span className="text-6xl font-bold text-muted/20 mb-4 block">{step.number}</span>
+                <h3 className="headline-md mb-3 text-primary">{step.title}</h3>
+                <p className="body-md text-secondary">{step.description}</p>
               </motion.div>
             ))}
           </div>
@@ -475,10 +478,10 @@ function Testimonials() {
                 variants={VARIANTS.fadeUp}
                 className="p-8 bg-surface border border-border rounded-lg"
               >
-                <p className="body-md mb-6 text-stone-700">"{t.quote}"</p>
+                <p className="body-md mb-6 text-secondary">"{t.quote}"</p>
                 <footer>
-                  <p className="font-semibold text-stone-900">{t.author}</p>
-                  <p className="text-sm text-stone-500">{t.role}</p>
+                  <p className="font-semibold text-primary">{t.author}</p>
+                  <p className="text-sm text-muted">{t.role}</p>
                 </footer>
               </motion.blockquote>
             ))}
@@ -513,19 +516,19 @@ function FinalCTA({ user }) {
           <motion.div variants={VARIANTS.fadeUp} className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/signup"
-              className="inline-flex items-center justify-center gap-2 bg-stone-900 text-white px-8 py-4 rounded-md font-medium hover:bg-stone-800 transition-colors"
+              className="inline-flex items-center justify-center gap-2 bg-primary text-page px-8 py-4 rounded-md font-medium hover:opacity-90 transition-opacity"
             >
               Start Free Trial
               <ArrowRight size={18} />
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center justify-center gap-2 border border-border text-stone-700 px-8 py-4 rounded-md font-medium hover:bg-surface-elevated transition-colors"
+              className="inline-flex items-center justify-center gap-2 border border-border text-primary px-8 py-4 rounded-md font-medium hover:bg-surface-elevated transition-colors"
             >
               Sign in
             </Link>
           </motion.div>
-          <motion.p variants={VARIANTS.fadeUp} className="mt-6 text-sm text-stone-400">
+          <motion.p variants={VARIANTS.fadeUp} className="mt-6 text-sm text-muted">
             No credit card required
           </motion.p>
         </motion.div>

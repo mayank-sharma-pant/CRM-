@@ -44,17 +44,15 @@ export default function AdminUsersPage() {
             ]);
 
             const usersData = (usersRes.data.users || []).map(u => ({
-                id: `EMP${String(u.id).padStart(3, '0')}`,
-                rawId: u.id,
+                id: `EMP${String(u.user_id).padStart(3, '0')}`,
+                rawId: u.user_id,
                 name: u.name || u.full_name,
                 email: u.email,
                 phone: u.phone || '–',
                 role: u.role,
-                team: u.team_name || u.team || null,
-                status: u.status === 'active' ? 'Active' :
-                    u.status === 'disabled' ? 'Disabled' :
-                        u.status === 'pending' ? 'Pending Approval' : u.status,
-                joinedAt: u.created_at ? u.created_at.split('T')[0] : null,
+                team: u.team || null,
+                status: u.status,
+                joinedAt: u.joined_at,
                 lastActive: u.last_active
             }));
 
@@ -76,8 +74,8 @@ export default function AdminUsersPage() {
         const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
             user.id.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'All' || user.status === statusFilter;
-        const matchesRole = roleFilter === 'All' || user.role === roleFilter;
+        const matchesStatus = statusFilter === 'All' || user.status.toLowerCase() === statusFilter.toLowerCase();
+        const matchesRole = roleFilter === 'All' || user.role.toLowerCase() === roleFilter.toLowerCase();
         const matchesTeam = teamFilter === 'All' || user.team === teamFilter;
         return matchesSearch && matchesStatus && matchesRole && matchesTeam;
     });
@@ -85,32 +83,52 @@ export default function AdminUsersPage() {
     const handleInvite = async () => {
         try {
             setInviteLoading(true);
-            const params = new URLSearchParams({
+
+            // Map display role back to backend enum
+            const roleMap = {
+                'Sales Executive': 'sales',
+                'Manager': 'manager',
+                'MD': 'md',
+                'Purchase': 'purchase',
+                'Admin': 'admin'
+            };
+
+            const params = {
                 email: inviteEmail,
                 full_name: inviteName,
-                role: inviteRole
-            });
-            if (invitePhone) params.append('phone', invitePhone);
-            if (inviteTeam) params.append('team_id', inviteTeam);
-            if (inviteManager) params.append('manager_id', inviteManager);
+                role: roleMap[inviteRole] || inviteRole.toLowerCase()
+            };
 
-            await api.post(`/admin/invites?${params.toString()}`);
+            if (invitePhone) params.phone = invitePhone;
+            if (inviteTeam) params.team_id = inviteTeam;
+            if (inviteManager) params.manager_id = inviteManager;
+
+            await api.post('/admin/invites', null, { params });
 
             setShowInviteModal(false);
-            // Reset form
             setInviteEmail('');
             setInviteName('');
             setInvitePhone('');
             setInviteRole('');
             setInviteTeam('');
             setInviteManager('');
-            // Refresh users list
             fetchUsers();
+            alert('Invite sent successfully!');
         } catch (err) {
             console.error('Failed to create invite:', err);
             alert(err.response?.data?.detail || 'Failed to create invite');
         } finally {
             setInviteLoading(false);
+        }
+    };
+
+    const handleUpdateUser = async (userId, data) => {
+        try {
+            await api.put(`/admin/users/${userId}`, null, { params: data });
+            fetchUsers();
+        } catch (err) {
+            console.error('Update user failed', err);
+            alert(err.response?.data?.detail || 'Failed to update user');
         }
     };
 
@@ -203,9 +221,8 @@ export default function AdminUsersPage() {
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                         {filteredUsers.map((user) => (
                             <tr
-                                key={user.id}
-                                onClick={() => router.push(`/admin/users/${user.id}`)}
-                                className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                                key={user.rawId}
+                                className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
                             >
                                 <td className="px-4 py-2.5 font-mono text-xs text-slate-600 dark:text-slate-400">{user.id}</td>
                                 <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-200">{user.name}</td>
@@ -213,15 +230,51 @@ export default function AdminUsersPage() {
                                     <div className="text-slate-700 dark:text-slate-300 text-xs">{user.email}</div>
                                     <div className="text-[10px] text-slate-400">{user.phone}</div>
                                 </td>
-                                <td className="px-4 py-2.5"><RoleBadge role={user.role} /></td>
-                                <td className="px-4 py-2.5 text-slate-600 dark:text-slate-400 text-xs">
-                                    {user.team || <span className="text-slate-400">-</span>}
+                                <td className="px-4 py-2.5">
+                                    <select
+                                        value={user.role.toLowerCase()}
+                                        onChange={(e) => handleUpdateUser(user.rawId, { role: e.target.value })}
+                                        className="bg-transparent border-none text-[10px] font-medium focus:ring-0 p-0 cursor-pointer"
+                                    >
+                                        <option value="sales">Sales</option>
+                                        <option value="manager">Manager</option>
+                                        <option value="md">MD</option>
+                                        <option value="purchase">Purchase</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
                                 </td>
-                                <td className="px-4 py-2.5"><StatusBadge status={user.status} /></td>
+                                <td className="px-4 py-2.5">
+                                    <select
+                                        value={teams.find(t => t.name === user.team)?.id || ''}
+                                        onChange={(e) => handleUpdateUser(user.rawId, { team_id: e.target.value })}
+                                        className="bg-transparent border-none text-[10px] font-medium focus:ring-0 p-0 cursor-pointer max-w-[100px] truncate"
+                                    >
+                                        <option value="">No Team</option>
+                                        {teams.map(t => (
+                                            <option key={t.id} value={t.id}>{t.name}</option>
+                                        ))}
+                                    </select>
+                                </td>
+                                <td className="px-4 py-2.5">
+                                    <select
+                                        value={user.status.toLowerCase()}
+                                        onChange={(e) => handleUpdateUser(user.rawId, { status: e.target.value })}
+                                        className="bg-transparent border-none text-[10px] font-medium focus:ring-0 p-0 cursor-pointer"
+                                    >
+                                        <option value="active">Active</option>
+                                        <option value="disabled">Disabled</option>
+                                        <option value="pending">Pending</option>
+                                    </select>
+                                </td>
                                 <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 text-xs">{user.joinedAt}</td>
                                 <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 text-xs">{user.lastActive || '-'}</td>
                                 <td className="px-4 py-2.5 text-right">
-                                    <ChevronRight size={16} className="inline text-slate-300" />
+                                    <button
+                                        onClick={() => handleUpdateUser(user.rawId, { status: user.status === 'active' ? 'disabled' : 'active' })}
+                                        className={`text-[10px] px-2 py-1 rounded border min-w-[60px] ${user.status === 'active' ? 'text-red-500 border-red-100' : 'text-emerald-500 border-emerald-100'}`}
+                                    >
+                                        {user.status === 'active' ? 'Disable' : 'Enable'}
+                                    </button>
                                 </td>
                             </tr>
                         ))}
@@ -301,9 +354,9 @@ export default function AdminUsersPage() {
                                     className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
                                 >
                                     <option value="">No team</option>
-                                    <option value="Sales Alpha">Sales Alpha</option>
-                                    <option value="Sales Bravo">Sales Bravo</option>
-                                    <option value="Sales Charlie">Sales Charlie</option>
+                                    {teams.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
                                 </select>
                             </div>
                             {inviteRole === 'Sales Executive' && (

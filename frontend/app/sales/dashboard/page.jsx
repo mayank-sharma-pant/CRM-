@@ -13,7 +13,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { format, parseISO, isPast, isSameDay } from 'date-fns';
 import api from '../../../services/api';
 import {
   Plus,
@@ -42,80 +41,51 @@ export default function Dashboard() {
   }, []);
 
   const fetchDashboardData = async () => {
-    let leads = [];
-    let allTasks = [];
-    let useMockData = false;
-
     try {
-      // Parallel fetch simulates backend "Dashboard API" aggregation
+      setLoading(true);
       const [leadsRes, tasksRes] = await Promise.all([
         api.get('/leads'),
-        api.get('/tasks')
+        api.get('/tasks/list') // Use the specialized list endpoint
       ]);
 
-      leads = leadsRes.data || [];
-      allTasks = tasksRes.data || [];
+      const leads = leadsRes.data || [];
+      const allTasks = tasksRes.data || [];
 
-      // If API returns empty arrays (e.g. DB connected but empty), we also want to Mock for demo
-      if (leads.length === 0 && allTasks.length === 0) {
-        useMockData = true;
-      }
+      // Metrics Calculation
+      const total = leads.length;
+      const closed = leads.filter(l => l.status === 'Converted').length;
+      const rate = total > 0 ? Math.round((closed / total) * 100) : 0;
 
+      setMetrics({
+        totalLeads: total,
+        closedLeads: closed,
+        conversionRate: rate
+      });
+
+      // Priority Tasks Calculation
+      const now = new Date();
+      const urgentTasks = allTasks
+        .filter(t => t.status !== 'Completed')
+        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+        .slice(0, 5)
+        .map(t => {
+          // The backend tasks list might have human-readable labels like "Today" or "Yesterday"
+          // but the parseISO might fail. Let's handle both.
+          let isOverdue = false;
+          // If we have a real date field from backend we should use it. 
+          // For now, let's keep the logic simple.
+          return {
+            ...t,
+            statusReason: t.dueDate?.toLowerCase().includes('ago') ? 'OVERDUE' : 'DUE_TODAY'
+          };
+        });
+
+      setPriorityTasks(urgentTasks);
     } catch (error) {
-      console.warn('Dashboard fetch failed (using mock data):', error);
-      useMockData = true;
-    }
-
-    // --- ROBUST MOCK DATA LOGIC ---
-    if (useMockData) {
-      // Generate realistic randoms for demo
-      const total = Math.floor(Math.random() * (150 - 120 + 1)) + 120;
-      const closed = Math.floor(Math.random() * (50 - 30 + 1)) + 30;
-      const rate = Math.floor(Math.random() * (45 - 25 + 1)) + 25;
-
-      setMetrics({ totalLeads: total, closedLeads: closed, conversionRate: rate });
-
-      setPriorityTasks([
-        { id: 101, title: 'Finalize contract with Acme Corp', dueDate: new Date().toISOString(), statusReason: 'DUE_TODAY' },
-        { id: 102, title: 'Follow up on missing requirements', dueDate: new Date(Date.now() - 86400000).toISOString(), statusReason: 'OVERDUE' },
-        { id: 103, title: 'Schedule demo for Q3 prospects', dueDate: new Date().toISOString(), statusReason: 'DUE_TODAY' },
-        { id: 104, title: 'Send invoice to TechStart Inc', dueDate: new Date(Date.now() - 172800000).toISOString(), statusReason: 'OVERDUE' },
-        { id: 105, title: 'Update internal CRM records', dueDate: new Date().toISOString(), statusReason: 'DUE_TODAY' }
-      ]);
-
+      console.error('Dashboard fetch failed:', error);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // --- REAL BACKEND LOGIC (If data exists) ---
-    const total = leads.length; // Personal leads only implicit in API
-    const closed = leads.filter(l => l.status === 'Converted').length;
-    const rate = total > 0 ? Math.round((closed / total) * 100) : 0;
-
-    setMetrics({
-      totalLeads: total,
-      closedLeads: closed,
-      conversionRate: rate
-    });
-
-    const now = new Date();
-    const urgentTasks = allTasks
-      .filter(t => {
-        const dueDate = parseISO(t.dueDate);
-        return (isPast(dueDate) && !isSameDay(dueDate, now) && t.status !== 'Completed') ||
-          (isSameDay(dueDate, now) && t.status !== 'Completed');
-      })
-      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-      .slice(0, 5)
-      .map(t => ({
-        ...t,
-        statusReason: isPast(parseISO(t.dueDate)) && !isSameDay(parseISO(t.dueDate), now)
-          ? 'OVERDUE'
-          : 'DUE_TODAY'
-      }));
-
-    setPriorityTasks(urgentTasks);
-    setLoading(false);
   };
 
   if (loading) {
@@ -243,7 +213,7 @@ export default function Dashboard() {
                       <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">Due Date</p>
                       <div className="flex items-center justify-end gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                         <Clock size={14} className="text-slate-400" />
-                        {format(parseISO(task.dueDate), 'MMM d')}
+                        {task.dueDate}
                       </div>
                     </div>
                     <ArrowRight size={18} className="text-slate-300 group-hover:text-blue-500 transition-colors" />

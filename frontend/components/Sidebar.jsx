@@ -107,24 +107,24 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             {/* Mobile overlay */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 bg-stone-900/20 z-20 lg:hidden"
+                    className="fixed inset-0 bg-primary/20 z-20 lg:hidden"
                     onClick={() => setIsOpen(false)}
                 />
             )}
 
             {/* Sidebar */}
             <div
-                className={`fixed top-0 left-0 z-30 h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-200 ${isOpen ? 'w-64' : 'w-16'}`}
+                className={`fixed top-0 left-0 z-30 h-full bg-surface border-r border-border transition-all duration-200 ${isOpen ? 'w-64' : 'w-16'}`}
             >
                 <div className="flex flex-col h-full">
                     {/* Header */}
-                    <div className="flex items-center justify-between h-[72px] px-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
+                    <div className="flex items-center justify-between h-[72px] px-4 border-b border-border shrink-0">
                         {isOpen && (
                             <Link
                                 href="/"
-                                className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white tracking-tight hover:opacity-80 transition-opacity"
+                                className="flex items-center gap-2 text-lg font-bold text-primary tracking-tight hover:opacity-80 transition-opacity"
                             >
-                                <div className="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center text-white">
+                                <div className="w-8 h-8 rounded bg-accent flex items-center justify-center text-page">
                                     <LayoutDashboard size={18} fill="currentColor" className="text-white/20" />
                                 </div>
                                 <span>LocalCRM</span>
@@ -132,7 +132,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                         )}
                         <button
                             onClick={() => setIsOpen(!isOpen)}
-                            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                            className="p-2 rounded-lg hover:bg-surface-elevated text-secondary hover:text-primary transition-colors"
                         >
                             {isOpen ? <X size={20} /> : <Menu size={20} />}
                         </button>
@@ -164,12 +164,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     </nav>
 
                     {/* Footer */}
-                    <div className="p-4 border-t border-slate-200 dark:border-slate-800 shrink-0">
+                    <div className="p-4 border-t border-border shrink-0">
                         <Link
                             href="/settings"
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-secondary hover:bg-surface-elevated hover:text-primary transition-colors"
                         >
-                            <Settings size={20} strokeWidth={1.5} className="text-slate-400 dark:text-slate-500" />
+                            <Settings size={20} strokeWidth={1.5} className="text-muted" />
                             {isOpen && <span className="text-sm font-medium">Settings</span>}
                         </Link>
                     </div>
@@ -204,18 +204,18 @@ function NavItem({ item, isActive, Icon, isOpen, pathname }) {
                 <button
                     onClick={handleClick}
                     className={`w-full relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive && !expanded
-                        ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+                        ? 'bg-accent/10 text-accent'
+                        : 'text-secondary hover:bg-surface-elevated hover:text-primary'
                         }`}
                 >
                     {isActive && !expanded && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-r-full" />
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-accent rounded-r-full" />
                     )}
 
                     <Icon
                         size={20}
                         strokeWidth={isActive ? 2 : 1.5}
-                        className={`${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`}
+                        className={`${isActive ? 'text-accent' : 'text-muted group-hover:text-primary'}`}
                     />
                     {isOpen && (
                         <>
@@ -235,7 +235,7 @@ function NavItem({ item, isActive, Icon, isOpen, pathname }) {
 
                 {/* Submenu */}
                 {isOpen && expanded && (
-                    <div className="mt-1 ml-4 pl-4 border-l-2 border-slate-100 dark:border-slate-800 space-y-1">
+                    <div className="mt-1 ml-4 pl-4 border-l-2 border-border space-y-1">
                         {item.children.map(child => {
                             const isChildActive = pathname === child.href;
                             return (
@@ -243,8 +243,8 @@ function NavItem({ item, isActive, Icon, isOpen, pathname }) {
                                     key={child.name}
                                     href={child.href}
                                     className={`block text-sm py-2 px-2 rounded-md transition-colors ${isChildActive
-                                        ? 'text-indigo-600 dark:text-indigo-400 font-medium bg-indigo-50/50 dark:bg-indigo-900/10'
-                                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                                        ? 'text-accent font-medium bg-accent/10'
+                                        : 'text-muted hover:text-primary'
                                         }`}
                                 >
                                     {child.name}
@@ -261,18 +261,18 @@ function NavItem({ item, isActive, Icon, isOpen, pathname }) {
         <Link
             href={item.href}
             className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive
-                ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+                ? 'bg-accent/10 text-accent'
+                : 'text-secondary hover:bg-surface-elevated hover:text-primary'
                 }`}
         >
             {isActive && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 dark:bg-indigo-500 rounded-r-full" />
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-accent rounded-r-full" />
             )}
 
             <Icon
                 size={20}
                 strokeWidth={isActive ? 2 : 1.5}
-                className={`${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`}
+                className={`${isActive ? 'text-accent' : 'text-muted group-hover:text-primary'}`}
             />
             {isOpen && (
                 <span className={`text-sm ${isActive ? 'font-semibold' : 'font-medium'}`}>

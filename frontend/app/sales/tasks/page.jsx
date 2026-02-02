@@ -18,38 +18,42 @@ import {
     User
 } from 'lucide-react';
 import api from '../../../services/api';
+import TaskModal from '../../../components/leads/TaskModal';
 import { isPast, isSameDay, parseISO, isFuture } from 'date-fns';
 
 // --- MOCK DATA REMOVED (Replaced by API) ---
 
 export default function TasksPage() {
     const [activeTab, setActiveTab] = useState('Today');
-    const [completedTasks, setCompletedTasks] = useState(new Set());
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const fetchTasks = async () => {
+        setLoading(true);
+        try {
+            const res = await api.get('/tasks/list');
+            setTasks(res.data || []);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchTasks = async () => {
-            try {
-                const res = await api.get('/tasks/list');
-                setTasks(res.data || []);
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchTasks();
     }, []);
 
-    const toggleTask = (id) => {
-        const newCompleted = new Set(completedTasks);
-        if (newCompleted.has(id)) {
-            newCompleted.delete(id);
-        } else {
-            newCompleted.add(id);
+    const toggleTask = async (id, currentStatus) => {
+        try {
+            const newStatus = currentStatus === 'Completed' ? 'Pending' : 'Completed';
+            await api.put(`/tasks/${id}`, null, { params: { status: newStatus } });
+            fetchTasks();
+        } catch (err) {
+            console.error("Failed to toggle task", err);
+            alert(err.response?.data?.detail || "Action failed");
         }
-        setCompletedTasks(newCompleted);
     };
 
     // Filter Logic simulating the original tabs using string matching on 'dueDate'
@@ -93,7 +97,10 @@ export default function TasksPage() {
                         <h1 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">Tasks</h1>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage your daily work and priorities</p>
                     </div>
-                    <button className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm">
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                    >
                         <Plus size={16} /> Add Task
                     </button>
                 </div>
@@ -124,16 +131,16 @@ export default function TasksPage() {
                                 className={`
                   group flex items-center gap-4 px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors
                   ${task.isChild ? 'pl-16 bg-slate-50/50 dark:bg-slate-800/50' : ''}
-                  ${completedTasks.has(task.id) ? 'opacity-50 grayscale' : ''}
+                  ${task.status === 'Completed' ? 'opacity-50 grayscale' : ''}
                 `}
                             >
 
                                 {/* 1. Checkbox Action */}
                                 <button
-                                    onClick={() => toggleTask(task.id)}
+                                    onClick={() => toggleTask(task.id, task.status)}
                                     className={`
                     flex-shrink-0 w-5 h-5 rounded border transition-all flex items-center justify-center
-                    ${completedTasks.has(task.id)
+                    ${task.status === 'Completed'
                                             ? 'bg-blue-600 border-blue-600 text-white'
                                             : 'border-slate-300 dark:border-slate-600 hover:border-blue-500 text-transparent'}
                   `}
@@ -145,7 +152,7 @@ export default function TasksPage() {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
                                         {task.isChild && <CornerDownRight size={12} className="text-slate-400" />}
-                                        <span className={`text-sm font-semibold text-slate-800 dark:text-white ${completedTasks.has(task.id) ? 'line-through decoration-slate-400' : ''}`}>
+                                        <span className={`text-sm font-semibold text-slate-800 dark:text-white ${task.status === 'Completed' ? 'line-through decoration-slate-400' : ''}`}>
                                             {task.title}
                                         </span>
 
@@ -154,7 +161,7 @@ export default function TasksPage() {
                       inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border
                       ${task.entityType === 'Lead' ? 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' :
                                                 task.entityType === 'Client' ? 'bg-violet-50 text-violet-700 border-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-800' :
-                                                    'bg-slate-100 text-slate-600 border-slate-200Dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600'}
+                                                    'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600'}
                     `}>
                                             {task.entityType === 'Lead' ? <UserCircle size={10} /> : <Briefcase size={10} />}
                                             {task.entity}
@@ -203,6 +210,11 @@ export default function TasksPage() {
                 </div>
 
             </div>
+            <TaskModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onRefresh={fetchTasks}
+            />
         </div>
     );
 }

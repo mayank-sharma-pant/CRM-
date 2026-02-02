@@ -58,34 +58,130 @@ const LEAD_DATA = {
 
 export default function LeadDetailPage() {
   const router = useRouter();
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const { id } = useParams();
   const [lead, setLead] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // MOCK DATA FETCHING SIMULATION
-    // In a real app, this would be api.get('/leads/101') + role checks
-    const data = { ...LEAD_DATA };
-    const isManager = window.location.pathname.startsWith('/manager');
+    fetchLeadData();
+  }, [id]);
 
-    if (isManager) {
+  const fetchLeadData = async () => {
+    try {
+      const res = await api.get(`/leads/${id}`);
+      const data = res.data;
+
+      // Determine role from path (same as before)
+      const isManager = window.location.pathname.startsWith('/manager');
+
+      // Map permissions
       data.permissions = {
-        canEdit: false,
-        canConvert: false,
-        canAddTask: false,
-        canAddNote: false, // Read Only
-        canReassign: true // Manager specific
+        canEdit: !isManager,
+        canConvert: !isManager,
+        canAddTask: !isManager,
+        canAddNote: !isManager,
+        canReassign: isManager
       };
-    } else {
-      data.permissions = {
-        canEdit: true,
-        canConvert: true,
-        canAddTask: true,
-        canAddNote: true,
-        canReassign: false
-      };
+
+      // Construct a simple timeline from tasks and notes
+      const timeline = [
+        {
+          id: 'creation',
+          type: 'creation',
+          title: 'Lead Created',
+          description: `Lead added to the system`,
+          timestamp: data.created_at,
+          icon: PlusCircle,
+          color: 'text-violet-600 bg-violet-100'
+        }
+      ];
+
+      if (data.notes_list) {
+        data.notes_list.forEach(note => {
+          timeline.push({
+            id: `note-${note.id}`,
+            type: 'note',
+            title: 'Note Added',
+            description: note.content,
+            timestamp: note.created_at,
+            icon: FileText,
+            color: 'text-amber-600 bg-amber-100'
+          });
+        });
+      }
+
+      if (data.tasks) {
+        data.tasks.forEach(task => {
+          if (task.status === 'Completed') {
+            timeline.push({
+              id: `task-${task.id}`,
+              type: 'task',
+              title: 'Task Completed',
+              description: task.title,
+              timestamp: task.updated_at || new Date().toISOString(), // Fallback
+              icon: CheckSquare,
+              color: 'text-emerald-600 bg-emerald-100'
+            });
+          }
+        });
+      }
+
+      // Sort timeline by date desc
+      data.timeline = timeline.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      // Format timestamps for display
+      data.timeline = data.timeline.map(item => ({
+        ...item,
+        timestamp: formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })
+      }));
+
+      setLead(data);
+    } catch (err) {
+      console.error("Failed to fetch lead", err);
+    } finally {
+      setLoading(false);
     }
-    setLead(data);
-  }, []);
+  };
+
+  const handleUpdateStatus = async (newStatus) => {
+    try {
+      await api.put(`/leads/${id}`, { status: newStatus });
+      fetchLeadData();
+    } catch (err) {
+      console.error("Update status failed", err);
+    }
+  };
+
+  const handleConvert = async () => {
+    if (!window.confirm("Convert this lead to a formal client?")) return;
+    try {
+      // Assuming a generic create client from lead info since no specific convert endpoint
+      await api.post('/clients', null, {
+        params: {
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          company: lead.company
+        }
+      });
+      await api.put(`/leads/${id}`, { status: 'Converted' });
+      alert("Converted successfully!");
+      router.push('/sales/clients');
+    } catch (err) {
+      console.error("Conversion failed", err);
+    }
+  };
+
+  const handleAddNote = async () => {
+    const content = window.prompt("Enter note content:");
+    if (!content) return;
+    try {
+      await api.post(`/leads/${id}/notes`, null, { params: { content } });
+      fetchLeadData();
+    } catch (err) {
+      console.error("Add note failed", err);
+    }
+  };
 
   if (!lead) return <div className="p-6">Loading...</div>;
 
@@ -131,12 +227,28 @@ export default function LeadDetailPage() {
               </button>
             )}
             {lead.permissions?.canEdit && (
-              <button className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
-                Update Status
-              </button>
+              <div className="relative group">
+                <button className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors flex items-center gap-2">
+                  Update Status <ChevronDown size={14} />
+                </button>
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl hidden group-hover:block z-30 overflow-hidden">
+                  {['New', 'Contacted', 'Qualified', 'Proposal', 'Lost'].map(status => (
+                    <button
+                      key={status}
+                      onClick={() => handleUpdateStatus(status)}
+                      className="w-full text-left px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
             {lead.permissions?.canConvert && (
-              <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+              <button
+                onClick={handleConvert}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors"
+              >
                 Convert to Client
               </button>
             )}
@@ -231,14 +343,13 @@ export default function LeadDetailPage() {
                       <p className={`text-xs font-medium truncate ${task.status === 'Completed' ? 'text-slate-400 line-through' : 'text-slate-700 dark:text-slate-200'}`}>
                         {task.title}
                       </p>
-                      {task.status === 'Open' && (
+                      {task.status === 'Open' || task.status === 'Pending' ? (
                         <div className="flex items-center gap-2 mt-1">
-                          <span className={`text-[10px] ${task.due === 'Tomorrow' ? 'text-amber-600' : 'text-slate-400'} flex items-center gap-1`}>
-                            <Clock size={10} /> {task.due}
+                          <span className={`text-[10px] ${task.due_date ? 'text-amber-600' : 'text-slate-400'} flex items-center gap-1`}>
+                            <Clock size={10} /> {task.due_date ? formatDistanceToNow(parseISO(task.due_date), { addSuffix: true }) : 'No date'}
                           </span>
-                          <span className="text-[10px] text-slate-400">• {task.assignee}</span>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -256,21 +367,24 @@ export default function LeadDetailPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Recent Notes</h2>
               {lead.permissions?.canAddNote && (
-                <button className="text-xs text-blue-600 hover:underline">Add Note</button>
+                <button onClick={handleAddNote} className="text-xs text-blue-600 hover:underline">Add Note</button>
               )}
             </div>
             <div className="space-y-4">
-              {LEAD_DATA.notes.map((note) => (
+              {lead.notes_list?.map((note) => (
                 <div key={note.id} className="text-xs">
                   <p className="text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-700/30 p-3 rounded-lg border border-slate-100 dark:border-slate-700/50">
                     {note.content}
                   </p>
                   <div className="flex items-center justify-between mt-1 px-1">
-                    <span className="text-slate-400">{note.author}</span>
-                    <span className="text-slate-400">{note.date}</span>
+                    <span className="text-slate-400">{note.created_by_name || 'System'}</span>
+                    <span className="text-slate-400">{formatDistanceToNow(parseISO(note.created_at), { addSuffix: true })}</span>
                   </div>
                 </div>
               ))}
+              {(!lead.notes_list || lead.notes_list.length === 0) && (
+                <p className="text-xs text-slate-400 text-center py-4">No notes yet.</p>
+              )}
             </div>
           </div>
 
@@ -288,16 +402,16 @@ export default function LeadDetailPage() {
               <div className="px-5 pb-5 pt-0 border-t border-slate-100 dark:border-slate-700/50 animate-in slide-in-from-top-1">
                 <div className="space-y-3 pt-3">
                   <div>
-                    <span className="block text-[10px] text-slate-400 uppercase">Location</span>
-                    <span className="text-sm text-slate-700 dark:text-slate-300">{LEAD_DATA.location}</span>
+                    <span className="block text-[10px] text-slate-400 uppercase">Lead Source</span>
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{lead.source || 'Direct'}</span>
                   </div>
                   <div>
-                    <span className="block text-[10px] text-slate-400 uppercase">Industry</span>
-                    <span className="text-sm text-slate-700 dark:text-slate-300">{LEAD_DATA.industry}</span>
+                    <span className="block text-[10px] text-slate-400 uppercase">Service Interested In</span>
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{lead.service_type || 'General Inquiry'}</span>
                   </div>
                   <div>
-                    <span className="block text-[10px] text-slate-400 uppercase">Internal Ref</span>
-                    <span className="text-sm font-mono text-slate-600 dark:text-slate-400">{LEAD_DATA.internal_ref}</span>
+                    <span className="block text-[10px] text-slate-400 uppercase">Created On</span>
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{new Date(lead.created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
               </div>

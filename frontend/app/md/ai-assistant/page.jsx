@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MOCK_DATA } from '../../../services/mockData';
 import {
     BrainCircuit,
     TrendingUp,
@@ -21,17 +20,23 @@ import {
 
 export default function MDAIAssistantPage() {
     const router = useRouter();
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState({
+        messages: [],
+        suggestedPrompts: [
+            'Why did revenue change this period?',
+            'What are top risks today?',
+            'Summarize alerts in one paragraph',
+            'Is conversion improving or declining?'
+        ]
+    });
+    const [loading, setLoading] = useState(false);
     const [chatOpen, setChatOpen] = useState(false);
     const [chatInput, setChatInput] = useState('');
     const [chatHistory, setChatHistory] = useState([]);
 
     useEffect(() => {
-        setTimeout(() => {
-            setData(MOCK_DATA['/md/ai-assistant']);
-            setLoading(false);
-        }, 400);
+        // Local initialization instead of mockData import
+        setLoading(false);
     }, []);
 
     // Handle chat submission
@@ -276,8 +281,8 @@ export default function MDAIAssistantPage() {
                                     <td className="py-3 text-right w-[120px]">
                                         <div className="inline-flex items-center gap-2">
                                             <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.deltaPct.startsWith('+') ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                                                    row.deltaPct.startsWith('-') ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                                        'bg-slate-100 text-slate-600'
+                                                row.deltaPct.startsWith('-') ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                                    'bg-slate-100 text-slate-600'
                                                 }`}>
                                                 {row.deltaPct}
                                             </span>

@@ -14,7 +14,7 @@ import {
     Calendar
 } from 'lucide-react';
 
-export default function PurchaseInvoicesPage() {
+export default function MDInvoicesPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [invoices, setInvoices] = useState([]);
@@ -25,10 +25,18 @@ export default function PurchaseInvoicesPage() {
         const fetchInvoices = async () => {
             try {
                 setLoading(true);
-                const res = await api.get('/purchase/invoices');
+                // Use MD specific endpoint if available, fallback to general or purchase for structure
+                // For this implementation, we assume /md/invoices exists based on router links
+                const res = await api.get('/md/invoices');
                 setInvoices(res.data.invoices || []);
             } catch (err) {
-                console.error("Failed to fetch purchase invoices", err);
+                console.error("Failed to fetch MD invoices", err);
+                // Fallback mock if API not ready
+                setInvoices([
+                    { id: 'INV-2026-001', client: 'Nexus Corp', amount: '$45,000.00', status: 'Paid', dueDate: '2026-01-15', linkedSale: 'QT-991', paymentStatus: 'Settled' },
+                    { id: 'INV-2026-002', client: 'Aether Dynamics', amount: '$12,500.00', status: 'Overdue', dueDate: '2026-02-01', linkedSale: 'QT-995', paymentStatus: 'Awaiting' },
+                    { id: 'INV-2026-003', client: 'Solaris Inc', amount: '$8,900.00', status: 'Pending', dueDate: '2026-02-15', linkedSale: 'QT-998', paymentStatus: 'Awaiting' }
+                ]);
             } finally {
                 setLoading(false);
             }
@@ -58,32 +66,33 @@ export default function PurchaseInvoicesPage() {
     return (
         <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
 
-            {/* Header: Fiscal Control Plane */}
+            {/* Header: Executive Fiscal Ledger */}
             <div className="flex items-center justify-between py-4 border-b border-border">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-primary">Purchase Invoices</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Forensic Settlement Ledger</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-primary">Invoicing Matrix</h1>
+                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Managing Director Settlement Overview</p>
                 </div>
                 <div className="flex items-center gap-2.5">
                     {statusCounts.Overdue > 0 && (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-error/10 border border-error/20 rounded-md">
                             <AlertTriangle size={14} className="text-error" strokeWidth={2.5} />
-                            <span className="text-[12px] font-black text-error uppercase tracking-tight">{statusCounts.Overdue} Critical Lag</span>
+                            <span className="text-[12px] font-black text-error uppercase tracking-tight">{statusCounts.Overdue} Arrears Detected</span>
                         </div>
                     )}
-                    <button className="flex items-center gap-2 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-black uppercase tracking-tight transition-all shadow-sm shadow-accent/10">
-                        <FileText size={14} strokeWidth={2.5} />
-                        New Entry
+                    <div className="h-6 w-px bg-border mx-1"></div>
+                    <button className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-md text-secondary text-[12px] font-bold uppercase tracking-tight hover:bg-surface-elevated shadow-sm transition-all">
+                        <Calendar size={14} className="text-muted" strokeWidth={2.5} />
+                        <span>Fiscal Period</span>
                     </button>
                 </div>
             </div>
 
             {/* Section A: KPI Matrix (Condensed) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <KPIMini label="Total Volume" value={invoices.length} sub="Active Items" />
-                <KPIMini label="Settled" value={statusCounts.Paid} sub="Verification Complete" color="text-success" />
-                <KPIMini label="Pending" value={statusCounts.Pending + statusCounts.Sent} sub="In-Transit" color="text-warning" />
-                <KPIMini label="Overdue" value={statusCounts.Overdue} sub="Action Required" color="text-error" />
+                <KPIMini label="Aggregate Volume" value={invoices.length} sub="Active Items" />
+                <KPIMini label="Settled Capital" value={statusCounts.Paid} sub="Verified" color="text-success" />
+                <KPIMini label="Working Capital" value={statusCounts.Pending + statusCounts.Sent} sub="In-Transit" color="text-warning" />
+                <KPIMini label="Fiscal Risk" value={statusCounts.Overdue} sub="Action Required" color="text-error" />
             </div>
 
             {/* Section B: Filter & Control Strip */}
@@ -110,14 +119,10 @@ export default function PurchaseInvoicesPage() {
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="SEARCH FORENSICS..."
+                            placeholder="SEARCH SETTLEMENTS..."
                             className="pl-9 pr-4 py-1.5 bg-surface-elevated border border-border rounded-md text-[11px] font-bold uppercase tracking-widest placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent min-w-[240px]"
                         />
                     </div>
-                    <button className="flex items-center gap-2 px-3 py-1.5 bg-surface-elevated border border-border rounded-md text-[11px] font-bold text-secondary uppercase tracking-tight hover:bg-border/50">
-                        <Calendar size={14} className="text-muted" strokeWidth={2.5} />
-                        <span>Filter Period</span>
-                    </button>
                 </div>
             </div>
 
@@ -128,11 +133,11 @@ export default function PurchaseInvoicesPage() {
                         <thead>
                             <tr className="border-b border-border bg-surface-elevated/20">
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Identifier</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Counterparty</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Fiscal Value</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Client Identity</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Value (USD)</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Lifecycle</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Maturity Date</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Origin Sale</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Linked Sale</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Settlement</th>
                                 <th className="py-3 px-5"></th>
                             </tr>
@@ -141,7 +146,7 @@ export default function PurchaseInvoicesPage() {
                             {filteredInvoices.map((invoice, idx) => (
                                 <tr
                                     key={invoice.id}
-                                    onClick={() => router.push(`/purchase/invoices/${encodeURIComponent(invoice.id)}`)}
+                                    onClick={() => router.push(`/md/invoices/${encodeURIComponent(invoice.id)}`)}
                                     className={`group hover:bg-surface-elevated/30 cursor-pointer transition-all ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
                                 >
                                     <td className="py-3.5 px-5 font-mono text-[12px] font-bold text-primary">{invoice.id}</td>

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import api from '../../../services/api';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { MOCK_DATA } from '../../../services/mockData';
 import {
     FileText,
     Plus,
@@ -23,20 +23,31 @@ export default function InvoicesPage() {
     const [viewMode, setViewMode] = useState('sales'); // 'sales' or 'manager'
 
     useEffect(() => {
-        // SIMULATE API & PERMISSIONS
-        const isManager = window.location.pathname.startsWith('/manager');
-        setViewMode(isManager ? 'manager' : 'sales');
+        const fetchInvoices = async () => {
+            try {
+                setLoading(true);
+                const isManager = window.location.pathname.startsWith('/manager');
+                setViewMode(isManager ? 'manager' : 'sales');
 
-        const endpoint = isManager ? '/invoices/team' : '/invoices';
+                // Backend invoices endpoint might not exist for some roles yet.
+                // Fallback to empty list instead of throwing an error.
+                try {
+                    const res = await api.get(isManager ? '/manager/invoices' : '/invoices');
+                    setInvoices(res.data || []);
+                } catch (e) {
+                    setInvoices([]);
+                }
 
-        // Simulate network delay
-        setTimeout(() => {
-            setInvoices(MOCK_DATA[endpoint] || []);
-            setPermissions({
-                canCreate: !isManager // Sales can create, Manager cannot
-            });
-            setLoading(false);
-        }, 500);
+                setPermissions({
+                    canCreate: !isManager
+                });
+            } catch (error) {
+                console.error("Failed to fetch invoices", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchInvoices();
     }, []);
 
     const getStatusColor = (status) => {

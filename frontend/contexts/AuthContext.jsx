@@ -6,28 +6,12 @@ import api from '../services/api';
 
 const AuthContext = createContext();
 
-// --- AUTH BYPASS CONFIGURATION ---
-// Set to true to access dashboard without login (for development)
-const BYPASS_AUTH = false;  // Changed to false to use real auth
-// ---------------------------------
-
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
     useEffect(() => {
-        if (BYPASS_AUTH) {
-            setUser({
-                id: 999,
-                name: 'Demo User',
-                email: 'demo@example.com',
-                role: 'admin'
-            });
-            setLoading(false);
-            return;
-        }
-
         const token = localStorage.getItem('token');
         if (token) {
             api.defaults.headers.common['Authorization'] = `Bearer ${token}`;

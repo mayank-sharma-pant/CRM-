@@ -15,23 +15,30 @@ export default {
           DEFAULT: 'var(--color-surface)',
           elevated: 'var(--color-surface-elevated)',
         },
+        // Typography
+        primary: 'var(--color-text-primary)',
+        secondary: 'var(--color-text-secondary)',
+        muted: 'var(--color-text-muted)',
+        inverse: 'var(--color-text-inverse)',
+
         // Borders
         border: {
           DEFAULT: 'var(--color-border)',
           subtle: 'var(--color-border-subtle)',
+          strong: 'var(--color-border-strong)',
         },
         // Accent
         accent: {
           DEFAULT: 'var(--color-accent)',
-          light: 'var(--color-accent-light)',
+          hover: 'var(--color-accent-hover)',
+          subtle: 'var(--color-accent-subtle)',
         },
-        // Status colors linked to variables
-        status: {
-          success: 'var(--color-success)',
-          warning: 'var(--color-warning)',
-          error: 'var(--color-error)',
-          info: 'var(--color-info)',
-        },
+        // Status colors
+        success: 'var(--color-success)',
+        warning: 'var(--color-warning)',
+        error: 'var(--color-error)',
+        info: 'var(--color-info)',
+
         // Stone palette kept for direct utility usage if needed
         stone: {
           50: '#FAFAF9',

@@ -110,29 +110,32 @@ export default function ManagerLeads() {
     }
 
     return (
-        <div className="min-h-[calc(100vh-56px)] bg-slate-50 dark:bg-slate-900">
-
-            {/* Header */}
-            <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 py-5">
+        <div className="min-h-screen bg-page">
+            {/* Header: Precise & Integrated */}
+            <div className="bg-surface border-b border-border px-6 py-4">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <h1 className="text-xl font-bold text-slate-800 dark:text-white">Team Leads</h1>
-                    <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-sm transition-all cursor-default">
-                        <Plus size={16} /> Add Lead
-                    </button>
+                    <h1 className="text-xl font-bold text-primary tracking-tight">Team Leads</h1>
+                    <Link
+                        href="/manager/leads?action=new"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[13px] font-bold transition-all shadow-sm"
+                    >
+                        <Plus size={14} strokeWidth={3} />
+                        Create Lead
+                    </Link>
                 </div>
             </div>
 
-            {/* Tabs / Filter Bar */}
-            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 transition-all">
-                <div className="max-w-7xl mx-auto px-8 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                    <Filter size={14} className="text-slate-400 mr-2 flex-shrink-0" />
+            {/* Filter Bar: Solid Activity Feed style */}
+            <div className="bg-surface/80 backdrop-blur border-b border-border sticky top-0 z-10 transition-all">
+                <div className="max-w-7xl mx-auto px-6 py-2 flex items-center gap-1 overflow-x-auto no-scrollbar">
+                    <Filter size={12} className="text-muted mr-3 flex-shrink-0" />
                     {TABS.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`px-3 py-1 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${activeTab === tab.id
-                                ? 'bg-blue-600 text-white shadow-sm'
-                                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                            className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider rounded-md transition-all ${activeTab === tab.id
+                                ? 'bg-surface-elevated text-accent ring-1 ring-border'
+                                : 'text-muted hover:text-secondary hover:bg-surface-elevated'
                                 }`}
                         >
                             {tab.label}
@@ -141,11 +144,11 @@ export default function ManagerLeads() {
                 </div>
             </div>
 
-            {/* List */}
-            <div className="max-w-7xl mx-auto px-8 py-6">
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden divide-y divide-slate-100 dark:divide-slate-700/50">
+            {/* List: High Density Enterprise Rows */}
+            <div className="max-w-7xl mx-auto px-6 py-6 transition-all">
+                <div className="bg-surface border border-border rounded shadow-sm overflow-hidden divide-y divide-border/50">
                     {filteredLeads.length === 0 ? (
-                        <div className="p-12 text-center text-slate-500 text-sm">No leads found in this view.</div>
+                        <div className="p-12 text-center text-muted text-[13px] font-medium italic">No matching team leads found.</div>
                     ) : (
                         filteredLeads.map(lead => {
                             const signal = getEngagementSignal(lead);
@@ -155,43 +158,47 @@ export default function ManagerLeads() {
                                 <Link
                                     key={lead.id}
                                     href={`/manager/leads/${lead.id}`}
-                                    className={`flex items-center gap-4 px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group ${isMuted ? 'opacity-60 grayscale-[0.5]' : ''}`}
+                                    className={`flex items-center gap-4 px-5 py-2.5 hover:bg-surface-elevated/20 transition-colors group ${isMuted ? 'opacity-60 saturate-[0.8]' : ''}`}
                                 >
                                     {/* Left: Identity */}
-                                    <div className="w-[30%] min-w-[180px]">
-                                        <p className={`text-[15px] font-semibold truncate ${isMuted ? 'text-slate-500' : 'text-slate-900 dark:text-white'}`}>
+                                    <div className="w-[35%] min-w-[200px]">
+                                        <p className={`text-[13px] font-bold truncate tracking-tight ${isMuted ? 'text-muted' : 'text-primary group-hover:text-accent transition-colors'}`}>
                                             {lead.name}
                                         </p>
-                                        {lead.company && (
-                                            <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
-                                                <Briefcase size={10} /> {lead.company}
-                                            </p>
-                                        )}
+                                        <p className="text-[11px] text-muted font-medium truncate flex items-center gap-1.5 mt-0.5 opacity-80 uppercase tracking-wide">
+                                            <Briefcase size={10} /> {lead.company || lead.company_name || 'Individual'}
+                                        </p>
                                     </div>
 
                                     {/* Center: Context */}
-                                    <div className="flex-1 flex items-center gap-6">
-                                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide border ${STATUS_STYLES[lead.status] || STATUS_STYLES.New}`}>
+                                    <div className="flex-1 flex items-center gap-8 min-w-0">
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border tabular-nums ${STATUS_STYLES[lead.status] || STATUS_STYLES.New}`}>
                                             {lead.status === 'Qualified' ? 'Follow-up' : lead.status}
                                         </span>
                                         {signal.text && (
-                                            <span className={`text-sm ${isMuted ? 'text-slate-400' : signal.color} truncate`}>
+                                            <span className={`text-[13px] font-medium truncate ${isMuted ? 'text-muted' : signal.color}`}>
                                                 {signal.text}
                                             </span>
                                         )}
                                     </div>
 
                                     {/* Right: Action */}
-                                    <div className="text-slate-300 group-hover:text-blue-500 transition-colors">
-                                        <ChevronRight size={18} />
+                                    <div className="text-border-strong opacity-40 group-hover:opacity-100 group-hover:text-accent transition-all group-hover:translate-x-0.5">
+                                        <ChevronRight size={14} strokeWidth={2.5} />
                                     </div>
                                 </Link>
                             )
                         })
                     )}
                 </div>
-            </div>
 
+                {/* Status Strip */}
+                <div className="mt-4 flex items-center gap-4 text-[11px] font-bold text-muted uppercase tracking-tight opacity-70">
+                    <span>{filteredLeads.length} items listed</span>
+                    <div className="w-1 h-1 bg-border rounded-full" />
+                    <span>Real-time team scope sync</span>
+                </div>
+            </div>
         </div>
     );
 }

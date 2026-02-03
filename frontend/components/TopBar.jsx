@@ -36,7 +36,7 @@ export default function TopBar() {
                         Enterprise Corp
                     </h1>
                     <div className="h-5 w-px bg-border"></div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-status-success">
+                    <span className="text-xs font-bold uppercase tracking-wider text-success">
                         Purchase Department
                     </span>
                 </div>
@@ -60,7 +60,7 @@ export default function TopBar() {
                 {/* Notifications */}
                 <button className="relative p-2 text-secondary hover:text-primary hover:bg-surface-elevated rounded-md transition-colors">
                     <Bell size={18} />
-                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-status-error rounded-full" />
+                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-error rounded-full" />
                 </button>
 
                 {/* Settings */}
@@ -120,9 +120,9 @@ export default function TopBar() {
                                     </button>
                                     <button
                                         onClick={handleLogout}
-                                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-status-error hover:bg-surface-elevated transition-colors"
+                                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-error hover:bg-surface-elevated transition-colors"
                                     >
-                                        <LogOut size={16} className="text-status-error/70" />
+                                        <LogOut size={16} className="text-error/70" />
                                         Logout
                                     </button>
                                 </div>

@@ -6,35 +6,53 @@ import {
     Sparkles,
     X,
     Send,
-    Bot,
-    User,
-    AlertCircle,
-    MessageSquare
+    MessageSquare,
+    Shield
 } from 'lucide-react';
 
-// --- MOCK RESPONSES ---
-const MOCK_RESPONSES = {
-    default: "I can help summarize this page or suggest next steps. Try asking 'What should I focus on?'",
-    dashboard: "Based on your dashboard, you have 3 critical tasks overdue and lead conversion is up 5% this week. I recommend clearing the overdue tasks first.",
-    leads: "This list contains 5 active leads. 'Sarah Miller' has the highest engagement score. You might want to follow up with her.",
-    lead_detail: "This lead, Sarah, is interested in SSO features. Key action: Send the technical requirements doc. Last interaction was 2 days ago.",
-    clients: "You have 5 active clients. Robert Taylor's account is stable, but hasn't had a check-in for 2 months.",
-    performance: "Your conversion rate is solid at 14.5%, but task completion is lagging slightly behind schedule."
+const SUGGESTIONS = {
+    dashboard: [
+        "Analyze daily performance",
+        "Summarize urgent tasks",
+        "Review team activity"
+    ],
+    lead_detail: [
+        "Draft outreach email",
+        "Suggest next step",
+        "Analyze engagement risk"
+    ],
+    leads: [
+        "Identify stalled leads",
+        "Prioritize follow-ups",
+        "Show conversion tips"
+    ],
+    clients: [
+        "Retention check",
+        "Upsell opportunities",
+        "Draft review agenda"
+    ],
+    performance: [
+        "Analyze trend gaps",
+        "Compare with peers",
+        "Suggest improvements"
+    ],
+    default: [
+        "What can you do?",
+        "Explain CRM policies",
+        "Search for help"
+    ]
 };
 
-const SUGGESTIONS = {
-    default: ["What needs attention?", "Explain this page"],
-    dashboard: [" summarize my day", "Priority tasks?"],
-    leads: ["Who is most promising?", "Draft intro email"],
-    clients: ["Draft follow-up", "Review account health"],
-};
+// --- AI ASSISTANT CONFIGURATION ---
+// Internal mock logic has been removed to prepare for real-time API integration.
+const DEFAULT_AI_MESSAGE = "I'm your advisory assistant. Adaptive insights are being connected to the new backend telemetry. How can I help you today?";
 
 export default function AIAssistant() {
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
     const [input, setInput] = useState('');
     const [messages, setMessages] = useState([
-        { role: 'assistant', text: "Hello. I'm your advisory assistant. How can I help you with your sales workflow today?" }
+        { role: 'assistant', text: DEFAULT_AI_MESSAGE }
     ]);
     const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = useRef(null);
@@ -44,7 +62,7 @@ export default function AIAssistant() {
         if (pathname === '/dashboard') return { label: 'Dashboard Context', key: 'dashboard' };
         if (pathname.startsWith('/leads/') && pathname.length > 7) return { label: 'Lead Context', key: 'lead_detail' };
         if (pathname === '/leads') return { label: 'Leads List', key: 'leads' };
-        if (pathname.startsWith('/clients/') && pathname.length > 9) return { label: 'Client Context', key: 'clients' }; // Using generic client response for now
+        if (pathname.startsWith('/clients/') && pathname.length > 9) return { label: 'Client Context', key: 'clients' };
         if (pathname === '/clients') return { label: 'Clients List', key: 'clients' };
         if (pathname === '/performance') return { label: 'Performance Summary', key: 'performance' };
         return { label: 'System Context', key: 'default' };
@@ -67,9 +85,9 @@ export default function AIAssistant() {
         setInput('');
         setIsTyping(true);
 
-        // Simulate AI Delay
+        // Placeholder for future AI integration
         setTimeout(() => {
-            const responseText = MOCK_RESPONSES[context.key] || MOCK_RESPONSES.default;
+            const responseText = "I'm currently in read-only analysis mode. Live chat functionality is scheduled for the next deployment phase. Please refer to your dashboard for real-time metrics.";
             setMessages(prev => [...prev, { role: 'assistant', text: responseText }]);
             setIsTyping(false);
         }, 1000);
@@ -93,63 +111,62 @@ export default function AIAssistant() {
 
             {/* --- SIDE PANEL OVERLAY --- */}
             <div
-                className={`fixed inset-y-0 right-0 z-50 w-full sm:w-[400px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                className={`fixed inset-y-0 right-0 z-50 w-full sm:w-[380px] bg-surface border-l border-border shadow-2xl transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
             >
                 <div className="flex flex-col h-full">
 
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400">
-                                <Bot size={20} />
+                    {/* Header: Precise & Tool-like */}
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/30">
+                        <div className="flex items-center gap-2.5">
+                            <div className="p-1.5 bg-surface text-accent rounded-md border border-border shadow-sm">
+                                <MessageSquare size={16} strokeWidth={2.5} />
                             </div>
                             <div>
-                                <h2 className="text-sm font-bold text-slate-900 dark:text-white">AI Assistant</h2>
+                                <h2 className="text-[14px] font-bold text-primary tracking-tight">AI Advisory Engine</h2>
                                 <div className="flex items-center gap-1.5 mt-0.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                        {context.label}
+                                    <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                                    <span className="text-[10px] text-muted font-bold uppercase tracking-wider">
+                                        {context.label || 'System Wide'}
                                     </span>
                                 </div>
                             </div>
                         </div>
                         <button
                             onClick={() => setIsOpen(false)}
-                            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                            className="p-1.5 text-muted hover:text-primary hover:bg-surface-elevated rounded-md transition-colors"
                         >
-                            <X size={20} />
+                            <X size={16} strokeWidth={2.5} />
                         </button>
                     </div>
 
-                    {/* Chat Area */}
-                    <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/30 dark:bg-[#0B1120]">
+                    {/* Chat Area: Information Dense */}
+                    <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-page/20">
                         {messages.map((msg, idx) => (
                             <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                                 <div className={`
-                      w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1
-                      ${msg.role === 'assistant' ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}
-                   `}>
-                                    {msg.role === 'assistant' ? <Bot size={16} /> : <User size={16} />}
+                                    w-7 h-7 rounded bg-surface-elevated border border-border flex items-center justify-center flex-shrink-0 mt-0.5 text-muted text-[10px] font-bold uppercase
+                                `}>
+                                    {msg.role === 'assistant' ? 'AI' : 'Me'}
                                 </div>
                                 <div className={`
-                      max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm
-                      ${msg.role === 'assistant'
-                                        ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-100 dark:border-slate-700'
-                                        : 'bg-indigo-600 text-white'}
-                   `}>
+                                    max-w-[85%] rounded px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm border
+                                    ${msg.role === 'assistant'
+                                        ? 'bg-surface text-secondary border-border'
+                                        : 'bg-accent text-white border-accent'}
+                                `}>
                                     {msg.text}
                                 </div>
                             </div>
                         ))}
                         {isTyping && (
                             <div className="flex gap-3">
-                                <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0 mt-1">
-                                    <Bot size={16} />
+                                <div className="w-7 h-7 rounded bg-surface-elevated border border-border flex items-center justify-center flex-shrink-0 mt-0.5 text-muted text-[10px] font-bold uppercase">
+                                    AI
                                 </div>
-                                <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-4 py-3 flex gap-1 items-center">
-                                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce delay-100"></span>
-                                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce delay-200"></span>
+                                <div className="bg-surface border border-border rounded px-4 py-2 flex gap-1 items-center">
+                                    <span className="w-1 h-1 bg-muted rounded-full animate-bounce"></span>
+                                    <span className="w-1 h-1 bg-muted rounded-full animate-bounce delay-100"></span>
+                                    <span className="w-1 h-1 bg-muted rounded-full animate-bounce delay-200"></span>
                                 </div>
                             </div>
                         )}
@@ -157,44 +174,42 @@ export default function AIAssistant() {
                     </div>
 
                     {/* Suggestions & Input */}
-                    <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-
-                        {/* Disclaimer */}
-                        <div className="flex items-center justify-center gap-1.5 mb-4 text-[10px] text-slate-400 uppercase tracking-wide">
-                            <AlertCircle size={10} />
-                            <span>AI suggestions do not modify system data</span>
-                        </div>
-
-                        {/* Chip Suggestions */}
-                        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                    <div className="p-4 bg-surface border-t border-border">
+                        {/* Chip Suggestions: Dense */}
+                        <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1 no-scrollbar">
                             {(SUGGESTIONS[context.key] || SUGGESTIONS.default).map((sugg, i) => (
                                 <button
                                     key={i}
                                     onClick={() => handleSend(sugg)}
-                                    className="whitespace-nowrap px-3 py-1.5 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 text-xs font-medium rounded-full border border-slate-200 dark:border-slate-700 transition-colors"
+                                    className="whitespace-nowrap px-2.5 py-1 bg-surface-elevated border border-border text-muted hover:text-accent hover:border-accent text-[11px] font-bold uppercase tracking-tight rounded transition-all"
                                 >
                                     {sugg}
                                 </button>
                             ))}
                         </div>
 
-                        {/* Input Input */}
+                        {/* Precise Input */}
                         <div className="relative">
                             <input
                                 type="text"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                placeholder="Ask for advice..."
-                                className="w-full pl-4 pr-12 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400"
+                                placeholder="Query advisory engine..."
+                                className="w-full pl-4 pr-12 py-2.5 bg-surface-elevated border border-border rounded text-[13px] focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all text-primary placeholder:text-muted"
                             />
                             <button
                                 onClick={() => handleSend()}
                                 disabled={!input.trim()}
-                                className="absolute right-2 top-2 p-1.5 bg-indigo-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white rounded-lg transition-colors"
+                                className="absolute right-1.5 top-1.5 p-1.5 text-muted hover:text-accent disabled:opacity-30 transition-colors"
                             >
-                                <Send size={16} />
+                                <Send size={16} strokeWidth={2.5} />
                             </button>
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-center gap-1.5 text-[10px] text-muted font-bold uppercase tracking-widest opacity-60">
+                            <Shield size={10} />
+                            <span>Read-Only Advisory Mode</span>
                         </div>
                     </div>
 

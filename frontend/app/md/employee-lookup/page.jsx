@@ -12,7 +12,10 @@ import {
     X,
     ArrowRight,
     AlertTriangle,
-    Info
+    Info,
+    Calendar,
+    Target,
+    Zap
 } from 'lucide-react';
 import {
     LineChart, Line, ResponsiveContainer
@@ -25,16 +28,16 @@ const EMPLOYEE_DATABASE = {
         name: 'Alex Johnson',
         role: 'Sales Executive',
         team: 'Sales Alpha',
-        reportingTo: 'Sarah Miller (Manager)',
+        reportingTo: 'Sarah Miller',
         kpis: [
-            { label: 'Leads Handled', value: '48', change: '+12%', trend: 'up' },
-            { label: 'Conversion %', value: '24%', change: '+3%', trend: 'up' },
-            { label: 'Sales Count', value: '12', change: '+8%', trend: 'up' },
-            { label: 'Revenue', value: '$125k', change: '+15%', trend: 'up' },
-            { label: 'Follow-up Health', value: '92%', change: '-2%', trend: 'down' },
-            { label: 'SLA Breaches', value: '2', change: '-1', trend: 'down' },
-            { label: 'Overdue Ratio', value: '4%', change: '-2%', trend: 'down' },
-            { label: 'Alerts', value: '1', change: '0', trend: 'flat' }
+            { label: 'Leads Processed', value: '48', sub: '+12% Yield' },
+            { label: 'Conversion Yield', value: '24%', sub: 'Target 22%' },
+            { label: 'Aggregate Revenue', value: '$125k', sub: 'Fiscal Q1' },
+            { label: 'Follow-up Health', value: '92%', sub: 'SLA Compliant' },
+            { label: 'SLA Variance', value: '2', sub: 'Low Risk' },
+            { label: 'Overdue Ratio', value: '4%', sub: 'Decelerating' },
+            { label: 'System Alerts', value: '1', sub: 'Last 24h' },
+            { label: 'Velocity Rank', value: '#4', sub: 'Top 10%' }
         ],
         trends: {
             sales: [45, 52, 48, 55, 62, 58, 68],
@@ -50,16 +53,16 @@ const EMPLOYEE_DATABASE = {
         name: 'Sarah Miller',
         role: 'Manager',
         team: 'Sales Alpha',
-        reportingTo: 'James Chen (Director)',
+        reportingTo: 'James Chen',
         kpis: [
-            { label: 'Team Leads', value: '185', change: '+8%', trend: 'up' },
-            { label: 'Team Conv %', value: '22%', change: '-1%', trend: 'down' },
-            { label: 'Team Sales', value: '45', change: '+12%', trend: 'up' },
-            { label: 'Team Revenue', value: '$420k', change: '+18%', trend: 'up' },
-            { label: 'Avg Response', value: '2.4h', change: '-15m', trend: 'up' },
-            { label: 'SLA Health', value: '94%', change: '+2%', trend: 'up' },
-            { label: 'Escalations', value: '3', change: '+1', trend: 'up' },
-            { label: 'Alerts', value: '2', change: '+1', trend: 'up' }
+            { label: 'Team Leads', value: '185', sub: '+8% Flow' },
+            { label: 'Team Yield', value: '22%', sub: 'Benchmark' },
+            { label: 'Team Revenue', value: '$420k', sub: 'Aggregated' },
+            { label: 'Avg Latency', value: '2.4h', sub: '-15m Variance' },
+            { label: 'SLA Integrity', value: '94%', sub: 'Optimal' },
+            { label: 'Escalation Vol', value: '3', sub: 'Stable' },
+            { label: 'Team Alerts', value: '2', sub: 'Live' },
+            { label: 'Org Rank', value: '#12', sub: 'Regional' }
         ],
         trends: {
             sales: [380, 395, 405, 412, 418, 425, 420],
@@ -85,7 +88,7 @@ export default function MDEmployeeLookupPage() {
 
     const handleLookup = () => {
         if (!employeeId.trim()) {
-            setError('Please enter an Employee ID');
+            setError('VALID EMPLOYEE ID REQUIRED');
             return;
         }
 
@@ -99,158 +102,125 @@ export default function MDEmployeeLookupPage() {
             if (found) {
                 setEmployee(found);
             } else {
-                setError('Employee not found. Please verify the ID.');
+                setError('IDENTIFIER NOT FOUND IN CENTRAL REGISTRY');
             }
             setLoading(false);
         }, 600);
     };
 
     return (
-        <div className="mx-auto max-w-[1360px] space-y-5 pb-12 font-sans text-slate-900 dark:text-slate-100 p-8">
+        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
 
-            {/* ============================================================ */}
-            {/* SECTION 1: PAGE HEADER */}
-            {/* ============================================================ */}
-            <div>
-                <div className="flex items-center gap-2 text-[12px] text-slate-400 font-medium mb-2">
-                    <span>MD</span>
-                    <span>/</span>
-                    <span>Employee Lookup</span>
-                </div>
-                <h1 className="text-[28px] font-semibold tracking-tight text-slate-900 dark:text-white leading-tight">Employee Performance Lookup</h1>
-                <p className="text-[15px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Read-only snapshot by Employee ID (for escalation & incentive review).</p>
-            </div>
-
-            {/* Purpose Banner */}
-            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700">
-                <Info size={18} className="text-slate-400 mt-0.5 shrink-0" />
+            {/* Header: Forensic Identity Verification */}
+            <div className="flex items-center justify-between py-4 border-b border-border">
                 <div>
-                    <p className="text-[13px] text-slate-600 dark:text-slate-300 font-medium">Lookup-only performance snapshot</p>
-                    <p className="text-[12px] text-slate-400 mt-0.5">Intended for escalation / incentive review. No operational controls available.</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-primary">Identity Performance Audit</h1>
+                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Forensic Snapshot & Risk Isolation</p>
+                </div>
+                <div className="flex items-center gap-2.5">
+                    <div className="flex bg-surface-elevated p-1 rounded-md border border-border">
+                        <button
+                            onClick={() => setMode('escalation')}
+                            className={`px-3 py-1.5 rounded-[4px] text-[11px] font-black uppercase tracking-tight transition-all ${mode === 'escalation' ? 'bg-surface text-primary shadow-sm' : 'text-muted hover:text-secondary'
+                                }`}
+                        >
+                            Escalation
+                        </button>
+                        <button
+                            onClick={() => setMode('incentive')}
+                            className={`px-3 py-1.5 rounded-[4px] text-[11px] font-black uppercase tracking-tight transition-all ${mode === 'incentive' ? 'bg-surface text-primary shadow-sm' : 'text-muted hover:text-secondary'
+                                }`}
+                        >
+                            Incentive Review
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* ============================================================ */}
-            {/* SECTION 2: LOOKUP CONTROL */}
-            {/* ============================================================ */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white mb-4">Find Employee</h3>
+            {/* Search Control Strip */}
+            <div className="bg-surface rounded-md border border-border p-4 shadow-sm">
                 <div className="flex gap-3">
                     <div className="flex-1 relative">
-                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" strokeWidth={2.5} />
                         <input
                             type="text"
                             value={employeeId}
                             onChange={(e) => { setEmployeeId(e.target.value); setError(''); }}
                             onKeyPress={(e) => e.key === 'Enter' && handleLookup()}
-                            placeholder="Enter Employee ID (e.g., EMP001)"
-                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-[14px] text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
+                            placeholder="INPUT EMPLOYEE IDENTIFIER (E.G. EMP001)..."
+                            className="w-full pl-9 pr-4 py-2 bg-surface-elevated border border-border rounded-md text-[11px] font-bold uppercase tracking-widest placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all"
                         />
                     </div>
                     <button
                         onClick={handleLookup}
                         disabled={loading}
-                        className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium text-[14px] hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                        className="px-6 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight shadow-sm shadow-accent/10 disabled:opacity-50 transition-all"
                     >
-                        {loading ? 'Looking up...' : 'Lookup'}
+                        {loading ? 'VALIDATING...' : 'AUDIT IDENTITY'}
                     </button>
                 </div>
                 {error && (
-                    <div className="mt-3 flex items-center gap-2 text-red-600 dark:text-red-400">
-                        <AlertTriangle size={14} />
-                        <span className="text-[13px] font-medium">{error}</span>
+                    <div className="mt-3 flex items-center gap-2 text-error">
+                        <AlertTriangle size={14} strokeWidth={2.5} />
+                        <span className="text-[11px] font-black uppercase tracking-tight">{error}</span>
                     </div>
-                )}
-                {!employee && !loading && !error && (
-                    <p className="mt-3 text-[13px] text-slate-400">Enter Employee ID to view performance snapshot.</p>
                 )}
             </div>
 
-            {/* ============================================================ */}
-            {/* LOADING STATE */}
-            {/* ============================================================ */}
             {loading && <LookupSkeleton />}
 
-            {/* ============================================================ */}
-            {/* SECTION 3: EMPLOYEE SNAPSHOT (After successful lookup) */}
-            {/* ============================================================ */}
             {employee && !loading && (
-                <div className="space-y-5" style={{ animation: 'fadeIn 200ms ease-out' }}>
+                <div className="space-y-6" style={{ animation: 'fadeIn 200ms ease-out' }}>
 
-                    {/* Mode Toggle */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <span className="text-[12px] text-slate-500 font-medium">Mode:</span>
-                            <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
-                                <button
-                                    onClick={() => setMode('escalation')}
-                                    className={`px-3 py-1 text-[12px] font-medium rounded-md transition-colors ${mode === 'escalation' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}
-                                >
-                                    Escalation
-                                </button>
-                                <button
-                                    onClick={() => setMode('incentive')}
-                                    className={`px-3 py-1 text-[12px] font-medium rounded-md transition-colors ${mode === 'incentive' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}
-                                >
-                                    Incentive Review
-                                </button>
-                            </div>
-                        </div>
-                        {mode === 'incentive' && (
-                            <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">This snapshot supports incentive review. Final decisions occur outside this screen.</span>
-                        )}
-                    </div>
-
-                    {/* A) Identity Strip */}
-                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+                    {/* Identity Data Block */}
+                    <div className="bg-surface rounded-md border border-border p-5 flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
-                                <User size={28} className="text-indigo-600 dark:text-indigo-400" />
+                            <div className="w-12 h-12 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center">
+                                <User size={24} className="text-accent" strokeWidth={2.5} />
                             </div>
-                            <div className="flex-1">
-                                <h2 className="text-[20px] font-bold text-slate-900 dark:text-white">{employee.name}</h2>
-                                <div className="flex items-center gap-3 mt-1">
-                                    <span className="text-[13px] text-slate-500 font-mono">{employee.id}</span>
-                                    <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold rounded uppercase">{employee.role}</span>
+                            <div>
+                                <h2 className="text-[20px] font-black text-primary tracking-tight">{employee.name}</h2>
+                                <div className="flex items-center gap-3 mt-0.5">
+                                    <span className="text-[12px] font-mono font-bold text-muted uppercase">{employee.id}</span>
+                                    <span className="text-[11px] font-black text-accent uppercase tracking-widest px-2 py-0.5 bg-accent/5 rounded-[4px] border border-accent/20">{employee.role}</span>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <div className="text-[12px] text-slate-400">Team</div>
-                                <div className="text-[14px] font-medium text-slate-700 dark:text-slate-300">{employee.team}</div>
-                                <div className="text-[11px] text-slate-400 mt-1">Reports to: {employee.reportingTo}</div>
-                            </div>
+                        </div>
+                        <div className="text-right border-l border-border pl-8">
+                            <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-1">Structural Unit</div>
+                            <div className="text-[14px] font-bold text-primary">{employee.team}</div>
+                            <div className="text-[11px] font-bold text-muted mt-0.5 italic">Supervisor: {employee.reportingTo}</div>
                         </div>
                     </div>
 
-                    {/* B) Performance Summary (8 KPI Cards) */}
-                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                        <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white mb-4">Performance Summary</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {employee.kpis.map((kpi, i) => (
-                                <div key={i} className={`p-4 rounded-xl border ${mode === 'incentive' && (kpi.label.includes('Conv') || kpi.label.includes('Revenue') || kpi.label.includes('Sales')) ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/10' : 'border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30'}`}>
-                                    <div className="flex justify-between items-start mb-2">
-                                        <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">{kpi.label}</span>
-                                        <BadgeChange change={kpi.change} trend={kpi.trend} small />
-                                    </div>
-                                    <div className="text-[24px] font-bold text-slate-900 dark:text-white">{kpi.value}</div>
+                    {/* KPI High-Density Matrix */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {employee.kpis.map((kpi, i) => (
+                            <div key={i} className={`bg-surface p-4 rounded-md border border-border shadow-sm group hover:bg-surface-elevated transition-colors ${mode === 'incentive' && (kpi.label.includes('Yield') || kpi.label.includes('Revenue') || kpi.label.includes('Rank'))
+                                    ? 'border-accent/30 bg-accent/5'
+                                    : ''
+                                }`}>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-muted group-hover:text-secondary">{kpi.label}</span>
+                                <div className="mt-1 flex flex-col">
+                                    <span className="text-[24px] font-black tracking-tighter tabular-nums leading-none text-primary">{kpi.value}</span>
+                                    <span className="text-[11px] font-bold text-muted uppercase tracking-tight mt-1 opacity-70 italic">{kpi.sub}</span>
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        ))}
                     </div>
 
-                    {/* C) Trend & Signals (8 + 4 split) */}
+                    {/* Trends & Signals Split (8 + 4) */}
                     <div className="grid grid-cols-12 gap-5">
-
-                        {/* C1) Trend Panel */}
-                        <div className="col-span-12 lg:col-span-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white">Trends</h3>
-                                <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
+                        <div className="col-span-12 lg:col-span-8 bg-surface rounded-md border border-border shadow-sm p-5 space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Behavioral Latency Trends</h3>
+                                <div className="flex bg-surface-elevated p-1 rounded-md border border-border">
                                     {['sales', 'conversion', 'activity'].map((tab) => (
                                         <button
                                             key={tab}
                                             onClick={() => setTrendTab(tab)}
-                                            className={`px-3 py-1 text-[12px] font-medium rounded-md capitalize transition-colors ${trendTab === tab ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}
+                                            className={`px-3 py-1.5 rounded-[4px] text-[11px] font-black uppercase tracking-tight transition-all ${trendTab === tab ? 'bg-surface text-primary shadow-sm' : 'text-muted hover:text-secondary'
+                                                }`}
                                         >
                                             {tab}
                                         </button>
@@ -260,113 +230,104 @@ export default function MDEmployeeLookupPage() {
                             <div className="h-[220px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={employee.trends[trendTab].map((v, i) => ({ i, value: v }))}>
-                                        <Line type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={2.5} dot={false} />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.3} />
+                                        <XAxis dataKey="i" hide />
+                                        <Tooltip contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', fontSize: '11px', fontWeight: 'bold' }} />
+                                        <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={3} dot={false} />
                                     </LineChart>
                                 </ResponsiveContainer>
                             </div>
-                            <p className="text-[13px] text-slate-500 mt-3">
-                                {trendTab === 'sales' && 'Sales activity trend over the period.'}
-                                {trendTab === 'conversion' && 'Conversion rate trend over the period.'}
-                                {trendTab === 'activity' && 'Overall activity score trend over the period.'}
-                            </p>
                         </div>
 
-                        {/* C2) Signals Panel */}
-                        <div className="col-span-12 lg:col-span-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                            <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white mb-4">Signals</h3>
-                            {employee.signals.length > 0 ? (
-                                <div className="space-y-2">
-                                    {employee.signals.slice(0, 5).map((signal) => (
-                                        <div
-                                            key={signal.id}
-                                            onClick={() => setSelectedSignal(signal)}
-                                            className="group flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-2 h-2 rounded-full ${signal.severity === 'High' ? 'bg-red-500' : signal.severity === 'Medium' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
-                                                <span className="text-[13px] font-medium text-slate-700 dark:text-slate-200 truncate max-w-[120px]">{signal.title}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-[10px] font-bold rounded">{signal.evidence[0]}</span>
-                                                <ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-500" />
-                                            </div>
+                        <div className="col-span-12 lg:col-span-4 bg-surface rounded-md border border-border shadow-sm p-5">
+                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight mb-4">Risk Isolation</h3>
+                            <div className="space-y-3">
+                                {employee.signals.map((signal) => (
+                                    <div
+                                        key={signal.id}
+                                        onClick={() => setSelectedSignal(signal)}
+                                        className="group p-3 rounded-md border border-border bg-surface-elevated/20 hover:border-accent hover:bg-surface-elevated/40 cursor-pointer transition-all"
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-[4px] border ${signal.severity === 'High' ? 'bg-error/10 text-error border-error/20' :
+                                                    signal.severity === 'Medium' ? 'bg-warning/10 text-warning border-warning/20' :
+                                                        'bg-info/10 text-info border-info/20'
+                                                }`}>
+                                                {signal.severity} PRIORITY
+                                            </span>
+                                            <span className="text-[10px] font-bold text-muted uppercase">{signal.detected}</span>
                                         </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-[13px] text-slate-400">No signals detected for this employee.</p>
-                            )}
+                                        <p className="text-[13px] font-bold text-primary mb-2 group-hover:text-accent transition-colors">{signal.title}</p>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex gap-2">
+                                                {signal.evidence.map((ev, j) => (
+                                                    <span key={j} className="text-[10px] font-bold text-muted uppercase tracking-tight px-1.5 py-0.5 bg-surface border border-border rounded-[4px]">{ev}</span>
+                                                ))}
+                                            </div>
+                                            <ChevronRight size={14} className="text-muted group-hover:translate-x-0.5 transition-all" />
+                                        </div>
+                                    </div>
+                                ))}
+                                {employee.signals.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center py-12 text-muted/30">
+                                        <Zap size={32} />
+                                        <p className="mt-3 text-[11px] font-black uppercase tracking-widest">No signals isolated</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* ============================================================ */}
-            {/* SIGNAL DRAWER */}
-            {/* ============================================================ */}
+            {/* SIGNAL DRAWER (FORENSIC DETAIL) */}
             {selectedSignal && (
-                <div className="fixed inset-0 z-50 flex justify-end">
-                    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setSelectedSignal(null)}></div>
-                    <div className="relative w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-xl p-6 overflow-y-auto" style={{ animation: 'slideInRight 160ms ease-out forwards' }}>
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-[18px] font-semibold text-slate-900 dark:text-white">Signal Details</h2>
-                            <button onClick={() => setSelectedSignal(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors">
-                                <X size={20} />
+                <div className="fixed inset-0 z-[100] flex justify-end">
+                    <div className="absolute inset-0 bg-primary/20 backdrop-blur-sm" onClick={() => setSelectedSignal(null)}></div>
+                    <div className="relative w-full max-w-md bg-surface h-full shadow-2xl border-l border-border p-8 overflow-y-auto" style={{ animation: 'slideInRight 160ms ease-out forwards' }}>
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-[18px] font-black text-primary uppercase tracking-tight">Signal Analysis</h2>
+                            <button onClick={() => setSelectedSignal(null)} className="p-2 rounded-md hover:bg-surface-elevated text-muted transition-colors">
+                                <X size={20} strokeWidth={2.5} />
                             </button>
                         </div>
 
-                        {/* Severity + Title */}
-                        <div className="mb-5">
-                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wide mb-3 ${selectedSignal.severity === 'High' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' :
-                                    selectedSignal.severity === 'Medium' ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800' :
-                                        'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'
-                                }`}>
-                                <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
-                                {selectedSignal.severity}
-                            </div>
-                            <h3 className="text-[16px] font-semibold text-slate-800 dark:text-slate-100">{selectedSignal.title}</h3>
-                            <span className="text-[12px] text-slate-400 font-medium">Detected {selectedSignal.detected}</span>
-                        </div>
+                        <div className="space-y-8">
+                            <section>
+                                <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-[4px] border ${selectedSignal.severity === 'High' ? 'bg-error text-white border-error' :
+                                        'bg-surface-elevated text-primary border-border'
+                                    }`}>
+                                    {selectedSignal.severity} SEVERITY
+                                </span>
+                                <h3 className="text-[22px] font-black text-primary tracking-tight mt-4 leading-tight">{selectedSignal.title}</h3>
+                                <p className="text-[12px] font-bold text-muted uppercase tracking-wide mt-2 opacity-70 italic">Detected: {selectedSignal.detected}</p>
+                            </section>
 
-                        {/* Evidence */}
-                        <div className="mb-5">
-                            <h4 className="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-2">Evidence</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {selectedSignal.evidence.map((ev, i) => (
-                                    <span key={i} className="inline-flex px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-lg text-[13px] font-mono font-semibold text-indigo-700 dark:text-indigo-400">
-                                        {ev}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
+                            <section className="p-4 bg-surface-elevated/30 rounded-md border border-border">
+                                <h4 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Isolated Evidence</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedSignal.evidence.map((ev, i) => (
+                                        <div key={i} className="px-3 py-1.5 bg-surface border border-border rounded-md text-[13px] font-mono font-bold text-primary">
+                                            {ev}
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
 
-                        {/* Why This Matters */}
-                        <div className="mb-5">
-                            <h4 className="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-2">Why This Matters</h4>
-                            <p className="text-[14px] text-slate-600 dark:text-slate-300 line-clamp-2">{selectedSignal.description}</p>
-                        </div>
+                            <section>
+                                <h4 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Contextual Analysis</h4>
+                                <p className="text-[14px] font-bold text-secondary leading-relaxed opacity-80">{selectedSignal.description}</p>
+                            </section>
 
-                        {/* Mini Trend Chart */}
-                        <div className="mb-5">
-                            <h4 className="text-[11px] text-slate-400 uppercase tracking-wide font-bold mb-2">Trend</h4>
-                            <div className="h-[60px] w-full bg-slate-50 dark:bg-slate-800 rounded-lg p-2">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={[40, 45, 42, 48, 52, 50, 55].map((v, i) => ({ i, value: v }))}>
-                                        <Line type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={2} dot={false} />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-
-                        {/* Link to Monitoring */}
-                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                            <button
-                                onClick={() => router.push('/md/monitoring')}
-                                className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-[14px] font-medium text-slate-600 dark:text-slate-300 transition-colors"
-                            >
-                                Open Monitoring
-                                <ArrowRight size={16} className="text-slate-400" />
-                            </button>
+                            <section className="pt-8 border-t border-border mt-auto">
+                                <button
+                                    onClick={() => router.push('/md/monitoring')}
+                                    className="w-full flex items-center justify-between px-5 py-4 bg-accent text-white rounded-md text-[14px] font-black uppercase tracking-tight shadow-md shadow-accent/20 hover:bg-accent-hover transition-all"
+                                >
+                                    Proceed to System Monitoring
+                                    <ArrowRight size={18} strokeWidth={2.5} />
+                                </button>
+                            </section>
                         </div>
                     </div>
                 </div>
@@ -377,34 +338,16 @@ export default function MDEmployeeLookupPage() {
 
 // --- SUBCOMPONENTS ---
 
-function BadgeChange({ change, trend, small }) {
-    let colors = 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
-    let Icon = Minus;
-
-    if (trend === 'up') {
-        colors = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
-        Icon = TrendingUp;
-    } else if (trend === 'down') {
-        colors = 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-        Icon = TrendingDown;
-    }
-
-    return (
-        <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded font-bold ${colors} ${small ? 'text-[9px]' : 'text-[10px]'}`}>
-            <Icon size={small ? 10 : 11} strokeWidth={2.5} />
-            {change}
-        </div>
-    );
-}
-
 function LookupSkeleton() {
     return (
-        <div className="space-y-5 animate-pulse">
-            <div className="h-[100px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
-            <div className="h-[200px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+        <div className="space-y-6 animate-pulse">
+            <div className="h-20 bg-surface rounded-md border border-border"></div>
+            <div className="grid grid-cols-4 gap-4">
+                {[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-surface rounded-md border border-border"></div>)}
+            </div>
             <div className="grid grid-cols-12 gap-5">
-                <div className="col-span-8 h-[280px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
-                <div className="col-span-4 h-[280px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+                <div className="col-span-8 h-[220px] bg-surface rounded-md border border-border"></div>
+                <div className="col-span-4 h-[220px] bg-surface rounded-md border border-border"></div>
             </div>
         </div>
     );

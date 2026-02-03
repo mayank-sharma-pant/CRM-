@@ -87,112 +87,123 @@ export default function TasksPage() {
         }
     };
 
-    return (
-        <div className="min-h-[calc(100vh-56px)] bg-slate-50 dark:bg-slate-900 pb-12">
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
+                <div className="text-[13px] text-muted font-bold uppercase tracking-widest animate-pulse">Syncing Task Grid...</div>
+            </div>
+        );
+    }
 
-            {/* Header */}
-            <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 py-6">
-                <div className="max-w-4xl mx-auto flex items-center justify-between">
+    return (
+        <div className="min-h-[calc(100vh-56px)] bg-page pb-12">
+
+            {/* Header: Precise & Integrated */}
+            <div className="bg-surface border-b border-border px-6 py-4">
+                <div className="max-w-[1000px] mx-auto flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">Tasks</h1>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage your daily work and priorities</p>
+                        <h1 className="text-xl font-bold text-primary tracking-tight">Task Control Plane</h1>
+                        <p className="text-[12px] text-muted font-medium mt-0.5 opacity-80 uppercase tracking-wider">Execution & Priority Matrix</p>
                     </div>
                     <button
                         onClick={() => setIsModalOpen(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-bold uppercase tracking-tight transition-all shadow-sm shadow-accent/10"
                     >
-                        <Plus size={16} /> Add Task
+                        <Plus size={14} strokeWidth={2.5} /> New Task
                     </button>
                 </div>
             </div>
 
             {/* Main Content */}
-            <div className="max-w-4xl mx-auto px-8 mt-8">
+            <div className="max-w-[1000px] mx-auto px-6 mt-6">
 
-                {/* Tabs */}
-                <div className="flex items-center border-b border-slate-200 dark:border-slate-700 mb-6 bg-white dark:bg-slate-800 rounded-t-lg px-2 pt-2">
+                {/* Tabs: Compact Switchers */}
+                <div className="flex items-center gap-1 border-b border-border mb-4 bg-surface rounded-t-lg px-1.5 pt-1.5 shadow-sm">
                     {['Overdue', 'Today', 'Upcoming'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className={`px-6 py-3 text-sm font-bold transition-all rounded-t-md ${getTabColor(tab)}`}
+                            className={`px-4 py-2 text-[11px] font-bold uppercase tracking-tight transition-all rounded-t-md border-b-2 ${activeTab === tab
+                                ? tab === 'Overdue' ? 'text-error border-error bg-error/5' :
+                                    tab === 'Today' ? 'text-success border-success bg-success/5' :
+                                        'text-accent border-accent bg-accent/5'
+                                : 'text-muted border-transparent hover:text-primary hover:bg-surface-elevated'
+                                }`}
                         >
                             {tab}
                         </button>
                     ))}
                 </div>
 
-                {/* Task List */}
-                <div className="bg-white dark:bg-slate-800 rounded-b-lg rounded-tr-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden min-h-[400px]">
-                    <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                        {getTasksForTab().map((task) => (
+                {/* Task List: Dense Grid */}
+                <div className="bg-surface rounded border border-border overflow-hidden shadow-sm min-h-[400px]">
+                    <div className="divide-y divide-border/50">
+                        {getTasksForTab().map((task, idx) => (
                             <div
                                 key={task.id}
                                 className={`
-                  group flex items-center gap-4 px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors
-                  ${task.isChild ? 'pl-16 bg-slate-50/50 dark:bg-slate-800/50' : ''}
-                  ${task.status === 'Completed' ? 'opacity-50 grayscale' : ''}
+                  group flex items-center gap-4 px-5 py-2.5 hover:bg-surface-elevated/30 transition-all
+                  ${task.isChild ? 'pl-12 bg-surface-elevated/10' : ''}
+                  ${task.status === 'Completed' ? 'opacity-40 grayscale-[0.8]' : ''}
+                  ${!task.isChild && idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}
                 `}
                             >
 
-                                {/* 1. Checkbox Action */}
+                                {/* 1. Checkbox Action: Refined */}
                                 <button
                                     onClick={() => toggleTask(task.id, task.status)}
                                     className={`
-                    flex-shrink-0 w-5 h-5 rounded border transition-all flex items-center justify-center
+                    flex-shrink-0 w-4.5 h-4.5 rounded border transition-all flex items-center justify-center
                     ${task.status === 'Completed'
-                                            ? 'bg-blue-600 border-blue-600 text-white'
-                                            : 'border-slate-300 dark:border-slate-600 hover:border-blue-500 text-transparent'}
+                                            ? 'bg-accent border-accent text-white'
+                                            : 'bg-surface border-border hover:border-accent text-transparent shadow-inner'}
                   `}
                                 >
-                                    <Check size={12} strokeWidth={3} />
+                                    <Check size={10} strokeWidth={4} />
                                 </button>
 
                                 {/* 2. Task Content */}
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        {task.isChild && <CornerDownRight size={12} className="text-slate-400" />}
-                                        <span className={`text-sm font-semibold text-slate-800 dark:text-white ${task.status === 'Completed' ? 'line-through decoration-slate-400' : ''}`}>
+                                    <div className="flex items-center gap-2.5 mb-0.5">
+                                        {task.isChild && <CornerDownRight size={12} strokeWidth={2.5} className="text-muted opacity-50" />}
+                                        <span className={`text-[13px] font-bold text-primary ${task.status === 'Completed' ? 'line-through decoration-muted' : ''}`}>
                                             {task.title}
                                         </span>
 
-                                        {/* Entity Badge */}
+                                        {/* Entity Badge: Precise */}
                                         <span className={`
-                      inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border
-                      ${task.entityType === 'Lead' ? 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' :
-                                                task.entityType === 'Client' ? 'bg-violet-50 text-violet-700 border-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-800' :
-                                                    'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600'}
-                    `}>
-                                            {task.entityType === 'Lead' ? <UserCircle size={10} /> : <Briefcase size={10} />}
+                                            inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] text-[9px] font-black uppercase tracking-widest border shadow-sm
+                                            ${task.entityType === 'Lead' ? 'bg-info/10 text-info border-info/20' :
+                                                task.entityType === 'Client' ? 'bg-accent/10 text-accent border-accent/20' :
+                                                    'bg-muted/10 text-muted border-border'}
+                                        `}>
+                                            {task.entityType === 'Lead' ? <UserCircle size={10} strokeWidth={2.5} /> : <Briefcase size={10} strokeWidth={2.5} />}
                                             {task.entity}
                                         </span>
                                     </div>
 
-                                    {/* Metadata Row */}
-                                    <div className="flex items-center gap-4 text-xs">
-                                        {/* Manager Assignment */}
+                                    {/* Metadata Row: Minimal */}
+                                    <div className="flex items-center gap-3">
                                         {task.assignedBy === 'manager' && (
-                                            <span className="flex items-center gap-1 text-amber-600 dark:text-amber-500 font-medium bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded">
-                                                <User size={10} /> By Manager
+                                            <span className="flex items-center gap-1 text-[10px] text-warning font-black uppercase tracking-tight bg-warning/5 px-1 rounded-sm">
+                                                <ShieldAlert size={10} strokeWidth={2.5} /> Assigned By Manager
                                             </span>
                                         )}
-
-                                        {/* Self Assigned (Implicit or explicit) */}
                                         {task.assignedBy === 'self' && (
-                                            <span className="text-slate-400 flex items-center gap-1">
-                                                Self-created
+                                            <span className="text-[10px] text-muted font-bold uppercase tracking-tight opacity-50">
+                                                Self Assigned
                                             </span>
                                         )}
                                     </div>
                                 </div>
 
-                                {/* 3. Right: Due Time */}
+                                {/* 3. Right: Due Time: Tabular */}
                                 <div className="text-right flex-shrink-0">
                                     <div className={`
-                      flex items-center justify-end gap-1.5 text-xs font-bold uppercase tracking-wide
-                      ${activeTab === 'Overdue' ? 'text-red-600' : activeTab === 'Today' ? 'text-emerald-600' : 'text-slate-500'}
-                   `}>
-                                        <Clock size={12} />
+                                        flex items-center justify-end gap-1.5 text-[11px] font-black uppercase tracking-widest tabular-nums
+                                        ${activeTab === 'Overdue' ? 'text-error' : activeTab === 'Today' ? 'text-success' : 'text-muted'}
+                                    `}>
+                                        <Clock size={12} strokeWidth={2.5} />
                                         {task.dueDate}
                                     </div>
                                 </div>
@@ -200,13 +211,25 @@ export default function TasksPage() {
                             </div>
                         ))}
 
-                        {/* Empty State Mock */}
+                        {/* Empty State */}
                         {getTasksForTab().length === 0 && (
-                            <div className="p-12 text-center text-slate-400">
-                                No tasks in this view.
+                            <div className="p-16 text-center">
+                                <div className="w-12 h-12 bg-surface-elevated rounded-full flex items-center justify-center mx-auto mb-3 border border-border/50">
+                                    <Check className="text-muted/30" size={24} strokeWidth={1} />
+                                </div>
+                                <p className="text-muted text-[13px] font-bold uppercase tracking-widest opacity-40">Queue Purged</p>
                             </div>
                         )}
                     </div>
+                </div>
+
+                {/* Footer Strip */}
+                <div className="mt-3 flex items-center justify-between px-1">
+                    <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></div>
+                        <span className="text-[10px] font-black text-muted uppercase tracking-widest">Task Matrix Operational</span>
+                    </div>
+                    <span className="text-[10px] font-black text-muted uppercase tracking-widest tabular-nums">{getTasksForTab().length} Vectors ACTIVE</span>
                 </div>
 
             </div>

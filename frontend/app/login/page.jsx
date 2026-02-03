@@ -119,7 +119,7 @@ export default function Login() {
 
                     <form className="space-y-6" onSubmit={handleSubmit}>
                         {error && (
-                            <div className="bg-status-error/10 border border-status-error/20 text-status-error px-4 py-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
+                            <div className="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
                                 <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
@@ -154,7 +154,7 @@ export default function Login() {
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="text-xs font-medium text-accent hover:text-accent-light transition-colors"
+                                            className="text-xs font-medium text-accent hover:text-accent-hover transition-colors"
                                         >
                                             {showPassword ? 'Hide' : 'Show'}
                                         </button>
@@ -223,7 +223,7 @@ export default function Login() {
 
                     <div className="mt-8 text-center text-sm">
                         <span className="text-secondary">Don't have an account? </span>
-                        <Link href="/signup" className="font-semibold text-accent hover:text-accent-light hover:underline transition-colors">
+                        <Link href="/signup" className="font-semibold text-accent hover:text-accent-hover hover:underline transition-colors">
                             Create an account
                         </Link>
                     </div>

@@ -3,66 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
 import { Calendar, Clock, FileText, CheckCircle, XCircle, AlertCircle, ChevronRight } from 'lucide-react';
-
-// --- MOCK API ADAPTER ---
-const mockApi = {
-    getPermissions: async () => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                // MOCK: Simulating MANAGER role permissions
-                // In production, this comes from the user's role in the JWT/Session
-                resolve({
-                    canSubmit: true,  // Managers can apply for their own leave
-                    canApprove: true, // Managers can approve team leave
-                });
-            }, 300);
-        });
-    },
-
-    getLeaveHistory: async () => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve([
-                    { id: 101, type: 'Annual', start: '2025-12-20', end: '2025-12-28', status: 'Approved', days: 8, approver: 'Jane Doe' },
-                    { id: 102, type: 'Sick', start: '2025-11-10', end: '2025-11-12', status: 'Approved', days: 2, approver: 'Jane Doe' },
-                    { id: 103, type: 'Unpaid', start: '2025-10-05', end: '2025-10-06', status: 'Rejected', days: 1, approver: 'System' },
-                ]);
-            }, 400);
-        });
-    },
-
-    submitLeaveRequest: async (data) => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve({
-                    success: true,
-                    data: {
-                        id: Math.floor(Math.random() * 1000),
-                        type: data.type,
-                        start: data.start,
-                        end: data.end,
-                        status: 'Pending',
-                        days: '—',
-                        approver: '—'
-                    },
-                });
-            }, 600);
-        });
-    },
-
-    getTeamRequests: async () => {
-        // MOCK: Manager sees requests from their team
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve([
-                    { id: 201, employee: 'Sarah Miller', type: 'Annual', start: '2024-02-10', end: '2024-02-15', status: 'Pending' },
-                    { id: 202, employee: 'David Chen', type: 'Sick', start: '2024-01-20', end: '2024-01-21', status: 'Pending' },
-                    { id: 203, employee: 'Mike Ross', type: 'Compassionate', start: '2024-01-25', end: '2024-01-26', status: 'Pending' },
-                ]);
-            }, 400);
-        });
-    },
-};
+import api from '../../../services/api';
+import { useAuth } from '../../../contexts/AuthContext';
 
 // --- COMPONENTS ---
 
@@ -222,14 +164,14 @@ const LeaveRequestList = ({ requests }) => {
                             {requests.map((req) => (
                                 <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-none">
                                     <td className="px-6 py-4">
-                                        <span className="font-medium text-slate-800 dark:text-slate-200 block">{req.type}</span>
+                                        <span className="font-medium text-slate-800 dark:text-slate-200 block">{req.reason || req.type}</span>
                                         <span className="text-xs text-slate-400 block mt-0.5">ID: #{req.id}</span>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                                            <span>{req.start}</span>
+                                            <span>{req.from_date}</span>
                                             <span className="text-slate-300">→</span>
-                                            <span>{req.end}</span>
+                                            <span>{req.to_date}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
@@ -245,7 +187,7 @@ const LeaveRequestList = ({ requests }) => {
     );
 };
 
-const LeaveApprovalList = ({ requests }) => {
+const LeaveApprovalList = ({ requests, onAction }) => {
     return (
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden mb-8">
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/50 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800">
@@ -263,7 +205,7 @@ const LeaveApprovalList = ({ requests }) => {
                     <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
                         <tr>
                             <th className="px-6 py-3 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Employee</th>
-                            <th className="px-6 py-3 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Type</th>
+                            <th className="px-6 py-3 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Reason</th>
                             <th className="px-6 py-3 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Dates</th>
                             <th className="px-6 py-3 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Action</th>
                         </tr>
@@ -271,17 +213,23 @@ const LeaveApprovalList = ({ requests }) => {
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                         {requests.map((req) => (
                             <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-none">
-                                <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{req.employee}</td>
-                                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{req.type}</td>
+                                <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{req.user_name}</td>
+                                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{req.reason}</td>
                                 <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                                    {req.start} → {req.end}
+                                    {req.from_date} → {req.to_date}
                                 </td>
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-2">
-                                        <button className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded transition-colors">
+                                        <button
+                                            onClick={() => onAction(req.id, 'Approved')}
+                                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded transition-colors"
+                                        >
                                             Approve
                                         </button>
-                                        <button className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded transition-colors dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600">
+                                        <button
+                                            onClick={() => onAction(req.id, 'Rejected')}
+                                            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded transition-colors dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                                        >
                                             Reject
                                         </button>
                                     </div>
@@ -298,47 +246,62 @@ const LeaveApprovalList = ({ requests }) => {
 // --- MAIN PAGE ---
 
 export default function LeaveRequestsPage() {
-    const [permissions, setPermissions] = useState(null);
+    const { user } = useAuth();
     const [history, setHistory] = useState([]);
     const [pendingApprovals, setPendingApprovals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [perms, hist] = await Promise.all([
-                    mockApi.getPermissions(),
-                    mockApi.getLeaveHistory(),
-                ]);
-                setPermissions(perms);
-                setHistory(hist);
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get('/leaves');
+            const allLeaves = response.data || [];
 
-                if (perms.canApprove) {
-                    const approvals = await mockApi.getTeamRequests();
-                    setPendingApprovals(approvals);
-                }
-            } catch (error) {
-                console.error("Failed to load leave data", error);
-            } finally {
-                setLoading(false);
+            // If user is manager, they might see both their own and their team's
+            if (user?.role === 'manager') {
+                setPendingApprovals(allLeaves.filter(l => l.status === 'Pending' && l.user_id !== user.id));
+                setHistory(allLeaves.filter(l => l.user_id === user.id));
+            } else {
+                setHistory(allLeaves);
             }
-        };
-        fetchData();
-    }, []);
+        } catch (error) {
+            console.error("Failed to load leave data", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (user) {
+            fetchData();
+        }
+    }, [user]);
 
     const handleCreateRequest = async (formData) => {
         setSubmitting(true);
         try {
-            const result = await mockApi.submitLeaveRequest(formData);
-            if (result.success) {
-                setHistory((prev) => [result.data, ...prev]);
-                window.scrollTo(0, 0); // Visual feedback since we have no toasts
-            }
+            const payload = {
+                from_date: new Date(formData.start).toISOString(),
+                to_date: new Date(formData.end).toISOString(),
+                reason: formData.reason || formData.type
+            };
+            await api.post('/leaves', payload);
+            fetchData();
+            window.scrollTo(0, 0);
         } catch (error) {
             console.error('Failed to submit');
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleAction = async (leaveId, status) => {
+        try {
+            await api.post(`/leaves/${leaveId}/approve`, { status });
+            fetchData();
+        } catch (error) {
+            console.error('Failed to update status');
         }
     };
 
@@ -370,12 +333,12 @@ export default function LeaveRequestsPage() {
                             <>
                                 {/* Section 1: Form (Conditional) */}
 
-                                {permissions?.canSubmit && (
+                                {user?.role === 'sales' || user?.role === 'manager' && (
                                     <LeaveRequestForm onSubmit={handleCreateRequest} isLoading={submitting} />
                                 )}
 
-                                {permissions?.canApprove && pendingApprovals.length > 0 && (
-                                    <LeaveApprovalList requests={pendingApprovals} />
+                                {user?.role === 'manager' && pendingApprovals.length > 0 && (
+                                    <LeaveApprovalList requests={pendingApprovals} onAction={handleAction} />
                                 )}
 
                                 {/* Section 2: List (Always Visible) */}

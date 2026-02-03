@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, usePathname } from 'next/navigation';
 import { CLIENTS_DATA } from '../data';
 import {
     ArrowLeft,
@@ -22,12 +22,17 @@ import {
     ChevronRight
 } from 'lucide-react';
 
+
 export default function ClientDetailPage() {
     const params = useParams();
     const router = useRouter();
+    const pathname = usePathname();
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [client, setClient] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    const isManager = pathname?.startsWith('/manager');
+    const basePath = isManager ? '/manager/clients' : '/sales/clients';
 
     // MOCK DATA FETCHING SIMULATION
     // In a real app, the API endpoint would differ (/api/sales/clients vs /api/manager/clients)
@@ -39,7 +44,7 @@ export default function ClientDetailPage() {
             if (foundClient) {
                 // CLONE to avoid mutating shared reference
                 const clientData = { ...foundClient };
-                const isManager = window.location.pathname.startsWith('/manager');
+                // const isManager = window.location.pathname.startsWith('/manager'); // REPLACED with hook
 
                 // MOCK API LOGIC: Override permissions based on "Role Context"
                 // This simulates the Backend response difference.
@@ -50,7 +55,7 @@ export default function ClientDetailPage() {
                         canCreateTask: false // Structural changes only via dedicated tools, not here
                     };
                 } else {
-                    // Default Sales Permissions (if not present)
+                    // Default Sales Permission
                     clientData.permissions = clientData.permissions || {
                         canEdit: true,
                         canAddNote: true,
@@ -63,7 +68,7 @@ export default function ClientDetailPage() {
             }
             setLoading(false);
         }
-    }, [params]);
+    }, [params, isManager]); // Added isManager dependency
 
     if (loading) {
         return (
@@ -79,7 +84,7 @@ export default function ClientDetailPage() {
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Client Not Found</h2>
                 <p className="text-slate-500 mb-6">The client you are looking for does not exist.</p>
                 <Link
-                    href="/sales/clients"
+                    href={basePath}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                     Return to Clients
@@ -101,7 +106,7 @@ export default function ClientDetailPage() {
                 <div className="max-w-6xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link
-                            href="/sales/clients"
+                            href={basePath}
                             className="p-2 -ml-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
                         >
                             <ArrowLeft size={20} />

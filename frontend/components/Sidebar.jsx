@@ -57,27 +57,90 @@ const ICON_MAP = {
     BookOpen
 };
 
-import { MOCK_DATA } from '../services/mockData';
+const ROLE_NAVIGATION = {
+    sales: [
+        { name: 'Dashboard', href: '/sales/dashboard', icon: 'LayoutDashboard' },
+        { name: 'Leads', href: '/sales/leads', icon: 'Users' },
+        { name: 'Tasks', href: '/sales/tasks', icon: 'CheckSquare' },
+        { name: 'Follow-ups', href: '/sales/follow-ups', icon: 'Calendar' },
+        { name: 'Performance', href: '/sales/performance', icon: 'BarChart' },
+    ],
+    manager: [
+        { category: 'OVERVIEW' },
+        { name: 'Dashboard', href: '/manager/dashboard', icon: 'LayoutDashboard' },
+        { name: 'AI Assistant', href: '/manager/ai-assistant', icon: 'BrainCircuit' },
+
+        { category: 'TEAM' },
+        { name: 'Team Monitoring', href: '/manager/monitoring', icon: 'Activity' },
+        { name: 'Leads', href: '/manager/leads', icon: 'Users' },
+        { name: 'Clients', href: '/manager/clients', icon: 'Briefcase' },
+        { name: 'Tasks', href: '/manager/tasks', icon: 'CheckSquare' },
+        { name: 'Reports', href: '/manager/reports', icon: 'PieChart' },
+
+        { category: 'FINANCIALS' },
+        {
+            name: 'Financial Ledgers',
+            icon: 'BookOpen',
+            children: [
+                { name: 'Stock Register', href: '/manager/finance/stock_register' },
+                { name: 'Payments Made', href: '/manager/finance/payments_made' },
+                { name: 'Payments Received', href: '/manager/finance/payments_received' },
+                { name: 'Daily Expenses', href: '/manager/finance/daily_expenses' },
+                { name: 'Cash & Bank', href: '/manager/finance/cash_and_bank_balance' },
+                { name: 'PDC Given', href: '/manager/finance/pdc_cheque_given' },
+                { name: 'PDC Received', href: '/manager/finance/pdc_cheque_received' },
+                { name: 'Transfer (Purchase)', href: '/manager/finance/account_transfer_purchase' },
+                { name: 'Transfer (Sales)', href: '/manager/finance/account_transfer_sales' },
+            ]
+        },
+    ],
+    admin: [
+        { name: 'Dashboard', href: '/admin/dashboard', icon: 'LayoutDashboard' },
+        { name: 'User Management', href: '/admin/users', icon: 'UsersRound' },
+        { name: 'Team Management', href: '/admin/teams', icon: 'GitBranch' },
+        { name: 'Approvals', href: '/admin/approvals', icon: 'UserCheck' },
+        { name: 'Audit Logs', href: '/admin/audit', icon: 'FileText' },
+        { name: 'Settings', href: '/admin/settings', icon: 'Settings' },
+    ],
+    md: [
+        { name: 'Dashboard', href: '/md/dashboard', icon: 'LayoutDashboard' },
+        { name: 'Revenue', href: '/md/revenue', icon: 'DollarSign' },
+        { name: 'Monitoring', href: '/md/monitoring', icon: 'Activity' },
+        { name: 'Invoices', href: '/md/invoices', icon: 'Receipt' },
+        { name: 'Points', href: '/md/points', icon: 'Award' },
+        { name: 'AI Assistant', href: '/md/ai-assistant', icon: 'BrainCircuit' },
+    ],
+    purchase: [
+        { name: 'Dashboard', href: '/purchase/dashboard', icon: 'LayoutDashboard' },
+        { name: 'Sales Approvals', href: '/purchase/sales', icon: 'ShoppingCart' },
+        { name: 'Invoice Management', href: '/purchase/invoices', icon: 'Receipt' },
+        { name: 'Purchase Monitoring', href: '/purchase/monitoring', icon: 'BarChart3' },
+    ],
+};
 
 export default function Sidebar({ isOpen, setIsOpen }) {
     const pathname = usePathname();
     const { user, loading } = useAuth();
     const [navigation, setNavigation] = useState([]);
 
-    // Fetch navigation based on user role (PERSISTENT for session)
+    // Fetch navigation based on user role
     useEffect(() => {
         const fetchNavigation = async () => {
-            // Do not build navigation until user is loaded
             if (loading) return;
 
-            // Use authenticated role, default to 'sales' if undefined
-            // This ensures Managers viewing Finance pages still see Manager sidebar
-            const role = user?.role || 'sales';
+            // Determine role context from URL if possible (for smoother dev/demo experience)
+            let role = user?.role;
+            if (pathname.startsWith('/manager')) role = 'manager';
+            else if (pathname.startsWith('/admin')) role = 'admin';
+            else if (pathname.startsWith('/md')) role = 'md';
+            else if (pathname.startsWith('/purchase')) role = 'purchase';
+            else if (pathname.startsWith('/sales')) role = 'sales';
 
-            const navData = [...(MOCK_DATA['/navigation'][role] || [])];
+            role = role || 'sales'; // Fallback
+
+            const navData = [...(ROLE_NAVIGATION[role] || ROLE_NAVIGATION.sales)];
 
             // DYNAMICALLY BUILD FINANCE LEDGERS WITH SUB-ITEMS (API-DRIVEN)
-            // Only add if not Admin role (Admin has no ledger access)
             if (role !== 'admin') {
                 try {
                     const ledgers = await financeService.getAuthorizedLedgers();
@@ -93,7 +156,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                         });
                     }
                 } catch (e) {
-                    console.error("Sidebar finance check failed", e);
+                    console.warn("Sidebar finance check failed - backend likely unreachable", e);
                 }
             }
 
@@ -139,20 +202,26 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     </div>
 
                     {/* Navigation */}
-                    <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
-                        {navigation.map((item) => {
+                    <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-none">
+                        {navigation.map((item, idx) => {
+                            // Category Header
+                            if (item.category) {
+                                return isOpen && (
+                                    <div
+                                        key={`cat-${idx}`}
+                                        className="pt-4 pb-1 px-3 text-[10px] font-bold text-muted uppercase tracking-widest opacity-70"
+                                    >
+                                        {item.category}
+                                    </div>
+                                );
+                            }
+
                             const isActive = pathname === item.href || (item.children && item.children.some(child => pathname === child.href));
                             const Icon = ICON_MAP[item.icon] || Activity;
-                            const hasChildren = item.children && item.children.length > 0;
-                            // Basic expanded state logic (toggle local state if needed, but for simplicity let's auto-expand if active or toggle on click)
-
-                            // We need local state for expansion if we want clickable toggles.
-                            // But inside map is cleaner if we extract a NavItem component.
-                            // For this single-file edit, let's create a functional rendering block.
 
                             return (
                                 <NavItem
-                                    key={item.name}
+                                    key={item.name || `item-${idx}`}
                                     item={item}
                                     isActive={isActive}
                                     Icon={Icon}
@@ -200,31 +269,31 @@ function NavItem({ item, isActive, Icon, isOpen, pathname }) {
 
     if (hasChildren) {
         return (
-            <div className="mb-1">
+            <div className="mb-0.5">
                 <button
                     onClick={handleClick}
-                    className={`w-full relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive && !expanded
+                    className={`w-full relative flex items-center gap-2 px-3 py-1.5 rounded-md transition-all duration-150 group ${isActive && !expanded
                         ? 'bg-accent/10 text-accent'
                         : 'text-secondary hover:bg-surface-elevated hover:text-primary'
                         }`}
                 >
                     {isActive && !expanded && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-accent rounded-r-full" />
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-accent rounded-r-full" />
                     )}
 
                     <Icon
-                        size={20}
+                        size={16}
                         strokeWidth={isActive ? 2 : 1.5}
                         className={`${isActive ? 'text-accent' : 'text-muted group-hover:text-primary'}`}
                     />
                     {isOpen && (
                         <>
-                            <span className={`text-sm flex-1 text-left ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                            <span className={`text-[13px] flex-1 text-left ${isActive ? 'font-semibold' : 'font-medium'}`}>
                                 {item.name}
                             </span>
                             {/* Chevron */}
                             <svg
-                                className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+                                className={`w-3.5 h-3.5 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
                                 fill="none" viewBox="0 0 24 24" stroke="currentColor"
                             >
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -233,18 +302,18 @@ function NavItem({ item, isActive, Icon, isOpen, pathname }) {
                     )}
                 </button>
 
-                {/* Submenu */}
+                {/* Submenu (Refinement) */}
                 {isOpen && expanded && (
-                    <div className="mt-1 ml-4 pl-4 border-l-2 border-border space-y-1">
+                    <div className="mt-0.5 ml-4 pl-3 border-l border-border space-y-0.5">
                         {item.children.map(child => {
                             const isChildActive = pathname === child.href;
                             return (
                                 <Link
                                     key={child.name}
                                     href={child.href}
-                                    className={`block text-sm py-2 px-2 rounded-md transition-colors ${isChildActive
+                                    className={`block text-[13px] py-1.5 px-2 rounded-md transition-colors ${isChildActive
                                         ? 'text-accent font-medium bg-accent/10'
-                                        : 'text-muted hover:text-primary'
+                                        : 'text-muted hover:text-primary hover:bg-surface-elevated/50'
                                         }`}
                                 >
                                     {child.name}

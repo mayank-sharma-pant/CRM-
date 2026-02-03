@@ -25,6 +25,7 @@ import {
   Clock,
   User
 } from 'lucide-react';
+import KPICard from '../../../components/shared/KPICard';
 
 export default function Dashboard() {
   const [metrics, setMetrics] = useState({
@@ -34,7 +35,6 @@ export default function Dashboard() {
   });
   const [priorityTasks, setPriorityTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [canAddLead, setCanAddLead] = useState(true); // Mock permission
 
   useEffect(() => {
     fetchDashboardData();
@@ -90,164 +90,146 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-slate-50 dark:bg-slate-900">
-        <div className="text-sm text-slate-500 font-medium animate-pulse">Loading dashboard...</div>
+      <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
+        <div className="text-[13px] text-muted font-bold uppercase tracking-widest animate-pulse">Loading dashboard...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[calc(100vh-56px)] bg-slate-50 dark:bg-slate-900 pb-12">
+    <div className="min-h-[calc(100vh-56px)] bg-page pb-8">
 
-      {/* Top Bar */}
-      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 py-6 mb-8">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+      {/* Top Bar: Precise & Integrated */}
+      <div className="bg-surface border-b border-border px-6 py-4 mb-6">
+        <div className="max-w-[1200px] mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">
-              Dashboard
+            <h1 className="text-xl font-bold text-primary tracking-tight">
+              Sales Dashboard
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Your tasks and leads requiring action
+            <p className="text-[13px] text-muted font-medium mt-0.5 opacity-80">
+              Immediate actions and performance signals
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <Link
               href="/sales/leads"
-              className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm"
+              className="px-3 py-1.5 text-[12px] font-bold uppercase tracking-tight text-secondary bg-surface border border-border rounded-md hover:bg-surface-elevated transition-all shadow-sm"
             >
-              View All Leads
+              Leads Ledger
             </Link>
-            {canAddLead && (
-              <Link
-                href="/sales/leads?action=new"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
-              >
-                <Plus size={16} />
-                Add New Lead
-              </Link>
-            )}
+            <Link
+              href="/sales/leads?action=new"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-bold uppercase tracking-tight transition-all shadow-sm shadow-accent/10"
+            >
+              <Plus size={14} strokeWidth={2.5} />
+              New Lead
+            </Link>
           </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-8 space-y-8">
+      <div className="max-w-[1200px] mx-auto px-6 space-y-6">
 
-        {/* 1. Summary Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <CompactMetric
+        {/* 1. Summary Metrics: Dense Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <KPICard
             label="Total Leads"
-            sub="All time"
+            subValue="active pipeline"
             value={metrics.totalLeads}
             icon={Users}
           />
-          <CompactMetric
+          <KPICard
             label="Closed Leads"
-            sub="Converted"
+            subValue="converted"
             value={metrics.closedLeads}
             icon={CheckCircle}
-            color="text-emerald-600"
+            color="text-success"
           />
-          <CompactMetric
+          <KPICard
             label="Conversion Rate"
-            sub="Win rate"
+            subValue="win velocity"
             value={`${metrics.conversionRate}%`}
             icon={Percent}
           />
         </div>
 
-        {/* 2. Priority Tasks (Primary Focus) */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3 bg-red-50/30 dark:bg-red-900/10">
-            <ShieldAlert className="text-red-600 dark:text-red-400" size={20} />
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white">Priority Attention Needed</h2>
+        {/* 2. Priority Tasks: Integrated Tool List */}
+        <div className="bg-surface rounded border border-border overflow-hidden shadow-sm">
+          <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-surface-elevated/30">
+            <div className="flex items-center gap-2.5">
+              <ShieldAlert className="text-error opacity-80" size={16} strokeWidth={2.5} />
+              <h2 className="text-[14px] font-bold text-primary tracking-tight">Priority Attention Needed</h2>
+            </div>
+            <span className="text-[11px] font-bold text-muted uppercase bg-surface border border-border px-2 py-0.5 rounded tabular-nums">
+              {priorityTasks.length} Signals
+            </span>
           </div>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+          <div className="divide-y divide-border/50">
             {priorityTasks.length === 0 ? (
-              <div className="p-12 text-center">
-                <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="text-emerald-500" size={24} />
+              <div className="p-10 text-center">
+                <div className="w-10 h-10 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle className="text-success" size={20} />
                 </div>
-                <h3 className="text-slate-800 dark:text-white font-medium">All caught up!</h3>
-                <p className="text-slate-500 text-sm mt-1">No overdue or urgent tasks for today.</p>
+                <h3 className="text-primary font-bold text-[14px]">Pipeline Clear</h3>
+                <p className="text-muted text-[12px] mt-1 font-medium">No urgent tasks requiring your attention today.</p>
               </div>
             ) : (
               priorityTasks.map((task) => (
                 <Link
                   key={task.id}
                   href="/sales/tasks"
-                  className="group flex items-center justify-between px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                  className="group flex items-center justify-between px-5 py-3 hover:bg-surface-elevated/50 transition-all border-l-2 border-transparent hover:border-accent"
                 >
                   {/* Left: Identity & Info */}
                   <div className="flex-1 min-w-0 pr-6">
-                    <div className="flex items-center gap-3 mb-1">
+                    <div className="flex items-center gap-2 mb-1">
                       <span className={`
-                        px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide
+                        px-1.5 py-0.5 rounded-[4px] text-[9px] font-black uppercase tracking-widest
                         ${task.statusReason === 'OVERDUE'
-                          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                          : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}
+                          ? 'bg-error/10 text-error border border-error/20'
+                          : 'bg-warning/10 text-warning border border-warning/20'}
                       `}>
-                        {task.statusReason === 'OVERDUE' ? 'Overdue' : 'Due Today'}
+                        {task.statusReason}
                       </span>
-                      {/* Mock Manager Assigned Indicator */}
-                      {task.id % 2 === 0 && ( // Randomly assign for mock
-                        <span className="flex items-center gap-1 text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">
-                          <User size={10} /> Manager Assigned
-                        </span>
-                      )}
                     </div>
 
-                    <h3 className="text-sm font-semibold text-slate-800 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                    <h3 className="text-[13px] font-bold text-primary truncate group-hover:text-accent transition-colors">
                       {task.title}
                     </h3>
 
                     {/* Related Entity (Lead/Client) */}
-                    <p className="text-xs text-slate-500 mt-0.5 truncate">
-                      Related to <span className="font-medium text-slate-600 dark:text-slate-300">Potential Client</span>
+                    <p className="text-[11px] text-muted font-medium mt-0.5 truncate uppercase tracking-tight opacity-70">
+                      Entity: <span className="text-secondary">Lead ID #{task.id?.toString().slice(-4) || '----'}</span>
                     </p>
                   </div>
 
-                  {/* Right: Date & Chevron */}
-                  <div className="flex items-center gap-6 flex-shrink-0">
+                  {/* Right: Date & Status */}
+                  <div className="flex items-center gap-5 flex-shrink-0">
                     <div className="text-right">
-                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">Due Date</p>
-                      <div className="flex items-center justify-end gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
-                        <Clock size={14} className="text-slate-400" />
+                      <p className="text-[9px] uppercase font-black text-muted tracking-widest mb-0.5 opacity-50">Expiration</p>
+                      <div className="flex items-center justify-end gap-1.5 text-[12px] font-bold text-secondary tabular-nums">
+                        <Clock size={12} className="text-muted" />
                         {task.dueDate}
                       </div>
                     </div>
-                    <ArrowRight size={18} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
+                    <ArrowRight size={14} className="text-muted group-hover:text-accent transition-colors translate-x-0 group-hover:translate-x-1" />
                   </div>
                 </Link>
               ))
             )}
           </div>
 
-          {/* Footer Link */}
-          <div className="bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 px-6 py-3">
-            <Link href="/sales/tasks" className="text-sm font-medium text-slate-600 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 flex items-center gap-1 transition-colors">
-              View all tasks <ArrowRight size={14} />
+          {/* Footer: Scannable Action */}
+          <div className="bg-surface-elevated/30 border-t border-border px-5 py-2.5">
+            <Link href="/sales/tasks" className="text-[11px] font-bold text-muted hover:text-accent flex items-center gap-1.5 transition-all uppercase tracking-tight">
+              Open Task Control Plane <ArrowRight size={12} strokeWidth={3} />
             </Link>
           </div>
         </div>
 
-      </div>
-    </div>
+      </div >
+    </div >
   );
-}
-
-function CompactMetric({ label, value, sub, icon: Icon, color = "text-slate-800 dark:text-white" }) {
-  return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-      <div>
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
-        <div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div>
-        <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>
-      </div>
-      <div className="p-2 bg-slate-50 dark:bg-slate-700/50 rounded-md text-slate-400 dark:text-slate-500">
-        <Icon size={20} />
-      </div>
-    </div>
-  )
 }
 

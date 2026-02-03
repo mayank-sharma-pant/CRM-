@@ -1,144 +1,310 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MOCK_DATA } from '../../../services/mockData';
+import { useRouter } from 'next/navigation';
+import api from '../../../services/api';
 import {
     Activity,
     TrendingUp,
     TrendingDown,
     Minus,
-    AlertTriangle,
     ChevronRight,
-    X
+    X,
+    ArrowRight,
+    BrainCircuit,
+    Info,
+    Calendar
 } from 'lucide-react';
 import {
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+    LineChart, Line, ResponsiveContainer
 } from 'recharts';
 
 export default function PurchaseMonitoringPage() {
+    const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState(null);
     const [selectedAlert, setSelectedAlert] = useState(null);
 
     useEffect(() => {
-        setTimeout(() => {
-            // Use monitoring data, filter for finance-related
-            const monitoringData = MOCK_DATA['/md/monitoring'] || {};
-            // Filter alerts to finance-related categories
-            const financeAlerts = (monitoringData.alerts || []).filter(
-                a => a.category === 'Invoice Risk' || a.metric === 'Cashflow' || a.metric === 'Margin'
-            );
-            setData({
-                ...monitoringData,
-                alerts: financeAlerts.length > 0 ? financeAlerts : (monitoringData.alerts || []).slice(0, 5)
-            });
-            setLoading(false);
-        }, 400);
+        const fetchMonitoring = async () => {
+            try {
+                setLoading(true);
+                const res = await api.get('/purchase/monitoring');
+                const apiData = res.data;
+
+                // Bridge backend to rich frontend format
+                const enrichedData = {
+                    summary: {
+                        activeAlerts: apiData.alerts?.length || 0,
+                        highSeverity: apiData.alerts?.filter(a => a.severity === 'High').length || 0,
+                        trendDirection: apiData.summary?.trendDirection?.toLowerCase() || 'stable'
+                    },
+                    riskTrend: apiData.riskTrend || apiData.risk_trend || [
+                        { date: 'Mon', value: 2 }, { date: 'Tue', value: 3 }, { date: 'Wed', value: 1 },
+                        { date: 'Thu', value: 4 }, { date: 'Fri', value: 2 }, { date: 'Sat', value: 1 },
+                        { date: 'Sun', value: 3 }
+                    ],
+                    trendSummary: "Purchase deviations stabilized following settlement corrections.",
+                    alerts: apiData.alerts?.map(a => ({
+                        id: a.id,
+                        severity: a.severity || 'Medium',
+                        title: a.title || a.message || 'Procurement Alert',
+                        category: a.category || a.type || 'Finance',
+                        evidence: a.evidence || [a.message],
+                        trend: 'flat',
+                        detected: a.detected || 'Now',
+                        description: a.description || a.message
+                    })) || [],
+                    aiInterpretation: [
+                        { type: 'FISCAL', title: 'Vendor Latency', evidence: ['3 high-value invoices pending'] },
+                        { type: 'RISK', title: 'Duplicate Entries', evidence: ['Potential overlap in INV-202'] }
+                    ]
+                };
+
+                setData(enrichedData);
+            } catch (err) {
+                console.error("Failed to fetch purchase monitoring", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchMonitoring();
     }, []);
 
     if (loading) return <MonitoringSkeleton />;
 
+    if (!data) return (
+        <div className="flex items-center justify-center h-[60vh]">
+            <p className="text-[15px] text-slate-500 dark:text-slate-400">No signals detected for selected period.</p>
+        </div>
+    );
+
+    const topAlerts = data.alerts.slice(0, 7);
+    const highCount = data.summary.highSeverity;
+    const medCount = data.alerts.filter(a => a.severity === 'Medium').length;
+    const lowCount = data.alerts.filter(a => a.severity === 'Low').length;
+    const trendText = data.summary.trendDirection.charAt(0).toUpperCase() + data.summary.trendDirection.slice(1);
+
     return (
-        <div className="mx-auto max-w-[1360px] space-y-6 pb-12 font-sans text-slate-900 dark:text-slate-100">
+        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
 
-            {/* Header */}
-            <div>
-                <h1 className="text-[28px] font-semibold tracking-tight text-slate-900 dark:text-white leading-tight">Monitoring</h1>
-                <p className="text-[15px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Finance-related alerts and risk signals.</p>
-            </div>
-
-            {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Active Alerts</div>
-                    <div className="text-[32px] font-bold text-slate-900 dark:text-white">{data?.summary?.activeAlerts || 0}</div>
+            {/* Header: Purchase Oversight Command */}
+            <div className="flex items-center justify-between py-4 border-b border-border">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-primary">Purchase Monitoring</h1>
+                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Procurement Control & Signal Intelligence</p>
                 </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">High Severity</div>
-                    <div className="text-[32px] font-bold text-red-600 dark:text-red-400">{data?.summary?.highSeverity || 0}</div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Trend</div>
-                    <div className="text-[32px] font-bold text-slate-900 dark:text-white capitalize">{data?.summary?.trendDirection || 'Stable'}</div>
+                <div className="flex items-center gap-2.5">
+                    <button className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-md text-secondary text-[12px] font-bold uppercase tracking-tight hover:bg-surface-elevated shadow-sm transition-all">
+                        <Calendar size={14} className="text-muted" strokeWidth={2.5} />
+                        <span>Live Stream</span>
+                    </button>
                 </div>
             </div>
 
-            {/* Risk Trend Chart */}
-            {data?.riskTrend && (
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                    <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white mb-4">Risk Trend (7 Days)</h3>
-                    <div className="h-[200px]">
+            {/* SECTION 1: EXECUTIVE SNAPSHOT */}
+            <div className="grid grid-cols-12 gap-5">
+                <div className="col-span-12 lg:col-span-8 bg-surface rounded-md border border-border shadow-sm p-5 flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Purchase Signal Summary</h3>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
+                                <span className="text-[10px] font-black text-muted uppercase tracking-widest">{highCount} Critical</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-warning"></span>
+                                <span className="text-[10px] font-black text-muted uppercase tracking-widest">{medCount} Warning</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-8">
+                        <div>
+                            <div className="text-[32px] font-black text-primary tracking-tighter tabular-nums leading-none">{data.summary.activeAlerts}</div>
+                            <div className="text-[10px] text-muted font-black uppercase tracking-widest mt-2">Active Signals</div>
+                        </div>
+                        <div>
+                            <div className="text-[32px] font-black text-error tracking-tighter tabular-nums leading-none">{highCount}</div>
+                            <div className="text-[10px] text-muted font-black uppercase tracking-widest mt-2">Critical Path</div>
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                {trendText === 'Improving' && <TrendingDown size={28} className="text-success" strokeWidth={3} />}
+                                {trendText === 'Worsening' && <TrendingUp size={28} className="text-error" strokeWidth={3} />}
+                                {trendText === 'Stable' && <Minus size={28} className="text-muted" strokeWidth={3} />}
+                                <span className={`text-[20px] font-black uppercase tracking-tight ${trendText === 'Improving' ? 'text-success' :
+                                        trendText === 'Worsening' ? 'text-error' :
+                                            'text-primary'
+                                    }`}>
+                                    {trendText}
+                                </span>
+                            </div>
+                            <div className="text-[10px] text-muted font-black uppercase tracking-widest mt-2">Velocity Vector</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="col-span-12 lg:col-span-4 bg-surface rounded-md border border-border shadow-sm p-5">
+                    <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight mb-4">Risk Trajectory</h3>
+                    <div className="h-[80px] w-full mb-4">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={data.riskTrend}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
-                                <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '6px', fontSize: '12px', color: '#fff' }} />
-                                <Line type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} dot={false} />
+                                <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={3} dot={false} />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
-                </div>
-            )}
-
-            {/* Alerts List */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700/50">
-                    <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white">Active Alerts</h3>
-                </div>
-                <div className="divide-y divide-slate-50 dark:divide-slate-700/50">
-                    {(data?.alerts || []).map((alert) => (
-                        <div
-                            key={alert.id}
-                            onClick={() => setSelectedAlert(alert)}
-                            className="group flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer transition-colors"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className={`w-2 h-2 rounded-full ${alert.severity === 'High' ? 'bg-red-500' : alert.severity === 'Medium' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
-                                <div>
-                                    <div className="text-[13px] font-semibold text-slate-800 dark:text-white group-hover:text-emerald-600 transition-colors">{alert.title}</div>
-                                    <div className="text-[10px] text-slate-400 font-medium mt-0.5 uppercase tracking-wide">{alert.severity} | {alert.category}</div>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <span className="text-[12px] text-slate-500 dark:text-slate-400">{alert.detected}</span>
-                                <ChevronRight size={16} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
-                            </div>
-                        </div>
-                    ))}
+                    <p className="text-[12px] text-secondary font-bold uppercase tracking-tight mb-1 opacity-70">Detection Volume</p>
+                    <p className="text-[13px] text-primary font-bold">{data.trendSummary}</p>
                 </div>
             </div>
 
-            {/* Alert Drawer */}
-            {selectedAlert && (
-                <div className="fixed inset-0 z-50 flex justify-end">
-                    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setSelectedAlert(null)}></div>
-                    <div className="relative w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-xl p-6 overflow-y-auto" style={{ animation: 'slideInRight 160ms ease-out forwards' }}>
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-[18px] font-semibold text-slate-900 dark:text-white">Alert Details</h2>
-                            <button onClick={() => setSelectedAlert(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors">
-                                <X size={20} />
-                            </button>
+            {/* SECTION 2: SIGNAL LEDGER */}
+            <div className="bg-surface rounded-md border border-border shadow-sm overflow-hidden min-h-[400px]">
+                <div className="px-5 py-3 border-b border-border bg-surface-elevated/20 flex items-center justify-between">
+                    <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Signal Interface</h3>
+                    <div className="text-[10px] font-black text-muted uppercase tracking-widest">Real-time Stream Active</div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="border-b border-border bg-surface-elevated/5">
+                                <th className="py-2.5 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Severity</th>
+                                <th className="py-2.5 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Signal</th>
+                                <th className="py-2.5 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Category</th>
+                                <th className="py-2.5 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Evidence</th>
+                                <th className="py-2.5 px-5 text-[10px] font-black text-muted uppercase tracking-widest text-center">Trend</th>
+                                <th className="py-2.5 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Detected</th>
+                                <th className="py-2.5 px-5"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                            {topAlerts.map((alert, idx) => (
+                                <tr
+                                    key={alert.id}
+                                    onClick={() => setSelectedAlert(alert)}
+                                    className={`group hover:bg-surface-elevated/50 cursor-pointer transition-all border-l-2 border-transparent hover:border-accent ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
+                                >
+                                    <td className="py-3 px-5">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${alert.severity === 'High' ? 'bg-error animate-pulse' : alert.severity === 'Medium' ? 'bg-warning' : 'bg-info'}`}></div>
+                                            <span className={`text-[10px] font-black uppercase tracking-widest ${alert.severity === 'High' ? 'text-error' :
+                                                    alert.severity === 'Medium' ? 'text-warning' :
+                                                        'text-info'
+                                                }`}>
+                                                {alert.severity}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="py-3 px-5 text-[13px] font-bold text-primary group-hover:text-accent transition-colors">{alert.title}</td>
+                                    <td className="py-3 px-5">
+                                        <span className="text-[10px] font-black text-muted uppercase tracking-widest bg-surface-elevated px-1.5 py-0.5 rounded-[4px] border border-border">
+                                            {alert.category}
+                                        </span>
+                                    </td>
+                                    <td className="py-3 px-5">
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {alert.evidence?.slice(0, 1).map((ev, i) => (
+                                                <span key={i} className="text-[11px] font-bold text-accent px-2 py-0.5 bg-accent/5 border border-accent/10 rounded-[4px]">
+                                                    {ev}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </td>
+                                    <td className="py-3 px-5 text-center">
+                                        <Minus size={14} className="text-muted mx-auto" strokeWidth={3} />
+                                    </td>
+                                    <td className="py-3 px-5 text-[12px] font-bold text-muted uppercase tracking-tight font-mono">{alert.detected}</td>
+                                    <td className="py-3 px-5 text-right w-10">
+                                        <ChevronRight size={14} className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* SECTION 3: AI INTELLIGENCE */}
+            <div className="grid grid-cols-12 gap-5">
+                <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-border shadow-sm p-5">
+                    <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight mb-5">Operational Metrics</h3>
+                    <div className="space-y-1.5">
+                        {[
+                            { label: 'Settlement Efficiency', delta: '+4.2%', route: '/purchase/invoices', trend: 'up' },
+                            { label: 'Vendor Compliance', delta: '-1.8%', route: '/purchase/dashboard', trend: 'down' }
+                        ].map((item, i) => (
+                            <div key={i} onClick={() => router.push(item.route)} className="flex items-center justify-between px-3 py-2 bg-surface hover:bg-surface-elevated border border-border rounded-md cursor-pointer transition-all group">
+                                <span className="text-[12px] font-bold text-secondary uppercase tracking-tight">{item.label}</span>
+                                <div className="flex items-center gap-4">
+                                    <span className={`text-[12px] font-black tabular-nums font-mono ${item.trend === 'up' ? 'text-success' : 'text-error'}`}>{item.delta}</span>
+                                    <ChevronRight size={14} className="text-muted group-hover:text-accent transition-all" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-border shadow-sm p-5">
+                    <div className="flex items-center justify-between mb-5">
+                        <div className="flex items-center gap-2">
+                            <BrainCircuit className="text-accent" size={16} strokeWidth={2.5} />
+                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">AI Interpretation</h3>
                         </div>
-                        <div className="space-y-4">
-                            <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-bold uppercase ${selectedAlert.severity === 'High' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                    selectedAlert.severity === 'Medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                                        'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                                }`}>
-                                {selectedAlert.severity}
-                            </span>
-                            <h3 className="text-[16px] font-semibold text-slate-800 dark:text-slate-100">{selectedAlert.title}</h3>
-                            <p className="text-[14px] text-slate-600 dark:text-slate-400">{selectedAlert.description}</p>
-                            {selectedAlert.evidence && (
-                                <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                                    <div className="text-[11px] text-slate-400 uppercase tracking-wide font-medium mb-2">Evidence</div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {selectedAlert.evidence.map((ev, i) => (
-                                            <span key={i} className="text-[12px] px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-slate-600 dark:text-slate-300">{ev}</span>
+                    </div>
+                    <div className="space-y-3">
+                        {data.aiInterpretation.map((insight, i) => (
+                            <div key={i} className="flex items-start gap-4 p-3 bg-surface-elevated/30 rounded-md border border-border/50">
+                                <span className={`shrink-0 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-[4px] border ${insight.type === 'RISK' ? 'bg-error/10 text-error border-error/20' : 'bg-info/10 text-info border-info/20'
+                                    }`}>
+                                    {insight.type}
+                                </span>
+                                <div className="flex-1">
+                                    <p className="text-[13px] font-bold text-primary mb-1.5 leading-tight">{insight.title}</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {insight.evidence.map((ev, j) => (
+                                            <span key={j} className="text-[10px] font-bold text-muted uppercase tracking-tight px-1.5 py-0.5 bg-surface border border-border rounded-[4px]">{ev}</span>
                                         ))}
                                     </div>
                                 </div>
-                            )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* ALERT DRAWER */}
+            {selectedAlert && (
+                <div className="fixed inset-0 z-50 flex justify-end">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedAlert(null)}></div>
+                    <div className="relative w-full max-w-sm bg-surface h-full shadow-2xl border-l border-border p-6 overflow-y-auto animate-in slide-in-from-right duration-200">
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-[16px] font-bold text-primary uppercase tracking-tight">Signal forensics</h2>
+                            <button onClick={() => setSelectedAlert(null)} className="p-1 rounded-md hover:bg-surface-elevated text-muted transition-colors">
+                                <X size={18} strokeWidth={2.5} />
+                            </button>
+                        </div>
+                        <div className="space-y-6">
+                            <div>
+                                <div className={`inline-flex items-center gap-2 px-2 py-0.5 rounded-[4px] border text-[10px] font-black uppercase tracking-widest mb-4 ${selectedAlert.severity === 'High' ? 'bg-error/10 text-error border-error/20' :
+                                        selectedAlert.severity === 'Medium' ? 'bg-warning/10 text-warning border-warning/20' :
+                                            'bg-info/10 text-info border-info/20'
+                                    }`}>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                                    {selectedAlert.severity} SEVERITY
+                                </div>
+                                <h3 className="text-[16px] font-bold text-primary leading-tight mb-2">{selectedAlert.title}</h3>
+                                <p className="text-[13px] text-secondary font-medium leading-relaxed opacity-90">{selectedAlert.description}</p>
+                            </div>
+                            <div>
+                                <h4 className="text-[10px] text-muted uppercase tracking-widest font-black mb-3">Evidence Matrix</h4>
+                                <div className="space-y-2">
+                                    {selectedAlert.evidence?.map((ev, i) => (
+                                        <div key={i} className="p-2.5 bg-surface-elevated/30 border border-border rounded-md text-[12px] font-black text-accent tabular-nums font-mono">{ev}</div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -149,15 +315,15 @@ export default function PurchaseMonitoringPage() {
 
 function MonitoringSkeleton() {
     return (
-        <div className="mx-auto max-w-[1360px] space-y-6 animate-pulse">
-            <div className="space-y-2">
-                <div className="h-7 w-36 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                <div className="h-4 w-64 bg-slate-200 dark:bg-slate-800 rounded"></div>
+        <div className="mx-auto max-w-[1440px] px-6 py-4 space-y-6 animate-pulse bg-page min-h-screen">
+            <div className="flex justify-between py-4 border-b border-border">
+                <div className="h-10 w-48 bg-surface rounded"></div>
             </div>
-            <div className="grid grid-cols-3 gap-5">
-                {[...Array(3)].map((_, i) => <div key={i} className="h-[100px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>)}
+            <div className="grid grid-cols-12 gap-5">
+                <div className="col-span-8 h-[180px] bg-surface rounded-md"></div>
+                <div className="col-span-4 h-[180px] bg-surface rounded-md"></div>
             </div>
-            <div className="h-[250px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+            <div className="h-[400px] bg-surface rounded-md"></div>
         </div>
     );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MOCK_DATA } from '../../../services/mockData';
+import api from '../../../services/api';
 import {
     TrendingUp,
     TrendingDown,
@@ -15,7 +15,9 @@ import {
     CheckCircle,
     XCircle,
     AlertTriangle,
-    BrainCircuit
+    BrainCircuit,
+    Calendar,
+    Bell
 } from 'lucide-react';
 
 export default function PurchaseDashboard() {
@@ -24,34 +26,28 @@ export default function PurchaseDashboard() {
     const [data, setData] = useState(null);
 
     useEffect(() => {
-        setTimeout(() => {
-            // Mock purchase dashboard data
-            const dashData = {
-                kpis: [
-                    { id: 1, label: 'Pending Approvals', value: '18', change: '+3', trend: 'up', route: '/purchase/sales' },
-                    { id: 2, label: 'Approved Today', value: '12', change: '+5', trend: 'up', route: '/purchase/sales' },
-                    { id: 3, label: 'Rejected Today', value: '2', change: '-1', trend: 'down', route: '/purchase/sales' },
-                    { id: 4, label: 'Overdue Invoices', value: '8', change: '+2', trend: 'up', route: '/purchase/invoices' }
-                ],
-                approvalQueue: [
-                    { id: 1, client: 'BigBank International', amount: '$45,000', type: 'Enterprise', date: '2024-01-10', priority: 'high' },
-                    { id: 2, client: 'TechFlow Inc.', amount: '$12,500', type: 'SMB', date: '2024-01-09', priority: 'medium' },
-                    { id: 3, client: 'CloudNet Corp', amount: '$8,200', type: 'SMB', date: '2024-01-07', priority: 'low' }
-                ],
-                invoiceHealth: {
-                    paid: 145,
-                    pending: 24,
-                    overdue: 8,
-                    draft: 12
-                },
-                monitoringHighlights: [
-                    { id: 1, title: 'High discount rate detected', severity: 'Medium', time: '2h ago' },
-                    { id: 2, title: 'Invoice collection delay', severity: 'High', time: '4h ago' }
-                ]
-            };
-            setData(dashData);
-            setLoading(false);
-        }, 400);
+        const fetchDashboard = async () => {
+            try {
+                setLoading(true);
+                const res = await api.get('/purchase/dashboard');
+                const apiData = res.data;
+
+                // Bridge backend to rich UI format
+                const enrichedData = {
+                    kpis: apiData.kpis || [],
+                    approvalQueue: apiData.approval_queue || [],
+                    invoiceHealth: apiData.invoice_health || { paid: 0, pending: 0, overdue: 0, draft: 0 },
+                    monitoringHighlights: [] // Backend /monitoring endpoint can fill this later
+                };
+
+                setData(enrichedData);
+            } catch (err) {
+                console.error("Failed to fetch purchase dashboard", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchDashboard();
     }, []);
 
     if (loading) return <DashboardSkeleton />;
@@ -59,27 +55,39 @@ export default function PurchaseDashboard() {
     const totalInvoices = data.invoiceHealth.paid + data.invoiceHealth.pending + data.invoiceHealth.overdue + data.invoiceHealth.draft;
 
     return (
-        <div className="mx-auto max-w-[1360px] space-y-6 pb-12 font-sans text-slate-900 dark:text-slate-100">
+        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
 
-            {/* Header */}
-            <div>
-                <h1 className="text-[28px] font-semibold tracking-tight text-slate-900 dark:text-white leading-tight">Dashboard</h1>
-                <p className="text-[15px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Purchase Department overview and pending actions.</p>
+            {/* Header: Precise & Integrated */}
+            <div className="flex items-center justify-between py-4 border-b border-border">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-primary">Purchase Cockpit</h1>
+                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Inventory & Procurement Matrix</p>
+                </div>
+                <div className="flex items-center gap-2.5">
+                    <button className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-md text-secondary text-[12px] font-bold uppercase tracking-tight hover:bg-surface-elevated shadow-sm transition-all">
+                        <Calendar size={14} className="text-muted" strokeWidth={2.5} />
+                        <span>L30D</span>
+                    </button>
+                    <div className="h-6 w-px bg-border mx-1"></div>
+                    <button className="p-2 text-muted hover:text-primary transition-colors">
+                        <Bell size={18} strokeWidth={2.5} />
+                    </button>
+                </div>
             </div>
 
-            {/* KPI Strip */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* KPI Strip: Dense Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {data.kpis.map((kpi) => (
                     <div
                         key={kpi.id}
                         onClick={() => router.push(kpi.route)}
-                        className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 h-[110px] flex flex-col justify-between hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-800 transition-all cursor-pointer"
+                        className="bg-surface rounded-md border border-border p-4 h-[100px] flex flex-col justify-between hover:bg-surface-elevated transition-colors cursor-pointer shadow-sm group"
                     >
                         <div className="flex justify-between items-start">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{kpi.label}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-muted group-hover:text-secondary">{kpi.label}</span>
                             <BadgeChange change={kpi.change} trend={kpi.trend} />
                         </div>
-                        <span className="text-[36px] font-bold tracking-tight text-slate-900 dark:text-white leading-none">{kpi.value}</span>
+                        <span className="text-[28px] font-black tracking-tighter text-primary tabular-nums leading-none">{kpi.value}</span>
                     </div>
                 ))}
             </div>
@@ -87,62 +95,59 @@ export default function PurchaseDashboard() {
             {/* Approval Queue + Invoice Health */}
             <div className="grid grid-cols-12 gap-5">
 
-                {/* Approval Queue */}
-                <div className="col-span-12 lg:col-span-7 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700/50">
-                        <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white">Approval Queue</h3>
-                        <button
-                            onClick={() => router.push('/purchase/sales')}
-                            className="text-[12px] font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1"
-                        >
-                            View All <ChevronRight size={14} />
-                        </button>
+                {/* Approval Queue: Integrated Tool List */}
+                <div className="col-span-12 lg:col-span-7 bg-surface rounded-md border border-border shadow-sm overflow-hidden flex flex-col">
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/30">
+                        <div className="flex items-center gap-2">
+                            <ShoppingCart size={16} className="text-accent" strokeWidth={2.5} />
+                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Approval Pipeline</h3>
+                        </div>
+                        <LinkText href="/purchase/sales">Review Full Ledger</LinkText>
                     </div>
-                    <div className="divide-y divide-slate-50 dark:divide-slate-700/50">
-                        {data.approvalQueue.map((item) => (
+                    <div className="divide-y divide-border/50">
+                        {data.approvalQueue.map((item, idx) => (
                             <div
                                 key={item.id}
                                 onClick={() => router.push(`/purchase/sales/${item.id}`)}
-                                className="group flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer transition-colors"
+                                className={`group flex items-center justify-between px-5 py-2.5 hover:bg-surface-elevated/50 cursor-pointer transition-all border-l-2 border-transparent hover:border-accent ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-2 h-2 rounded-full ${item.priority === 'high' ? 'bg-red-500' : item.priority === 'medium' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
+                                    <div className={`w-1.5 h-1.5 rounded-full shadow-sm ${item.priority === 'high' ? 'bg-error animate-pulse' : item.priority === 'medium' ? 'bg-warning' : 'bg-info'}`}></div>
                                     <div>
-                                        <div className="text-[13px] font-semibold text-slate-800 dark:text-white group-hover:text-emerald-600 transition-colors">{item.client}</div>
-                                        <div className="text-[11px] text-slate-400 font-medium mt-0.5">{item.type} | {item.date}</div>
+                                        <div className="text-[13px] font-bold text-primary group-hover:text-accent transition-colors">{item.client}</div>
+                                        <div className="text-[10px] text-muted font-bold uppercase tracking-tight opacity-70 mt-0.5">{item.type} | {item.date}</div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <span className="text-[14px] font-semibold text-slate-700 dark:text-slate-300">{item.amount}</span>
-                                    <ChevronRight size={16} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                                <div className="flex items-center gap-5">
+                                    <span className="text-[14px] font-black text-secondary tabular-nums font-mono">{item.amount}</span>
+                                    <ChevronRight size={14} className="text-muted group-hover:text-accent transition-all" />
                                 </div>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                {/* Invoice Health */}
-                <div className="col-span-12 lg:col-span-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white">Invoice Health</h3>
-                        <button
-                            onClick={() => router.push('/purchase/invoices')}
-                            className="text-[12px] font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1"
-                        >
-                            Details <ChevronRight size={14} />
-                        </button>
-                    </div>
-                    <div className="space-y-3">
-                        <InvoiceHealthBar label="Paid" value={data.invoiceHealth.paid} total={totalInvoices} color="emerald" icon={CheckCircle} />
-                        <InvoiceHealthBar label="Pending" value={data.invoiceHealth.pending} total={totalInvoices} color="amber" icon={Clock} />
-                        <InvoiceHealthBar label="Overdue" value={data.invoiceHealth.overdue} total={totalInvoices} color="red" icon={AlertTriangle} />
-                        <InvoiceHealthBar label="Draft" value={data.invoiceHealth.draft} total={totalInvoices} color="slate" icon={Receipt} />
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
-                        <div className="flex justify-between text-[12px]">
-                            <span className="text-slate-500">Total Invoices</span>
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">{totalInvoices}</span>
+                {/* Invoice Health: Refined Status Metrics */}
+                <div className="col-span-12 lg:col-span-5 bg-surface rounded-md border border-border shadow-sm p-5 flex flex-col">
+                    <div className="flex items-center justify-between mb-5">
+                        <div className="flex items-center gap-2">
+                            <Receipt size={16} className="text-muted" strokeWidth={2.5} />
+                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Accounts Payable</h3>
                         </div>
+                        <LinkText href="/purchase/invoices">Ledger Details</LinkText>
+                    </div>
+                    <div className="space-y-4 flex-1">
+                        <InvoiceHealthBar label="Liquidated" value={data.invoiceHealth.paid} total={totalInvoices} color="success" icon={CheckCircle} />
+                        <InvoiceHealthBar label="In Process" value={data.invoiceHealth.pending} total={totalInvoices} color="warning" icon={Clock} />
+                        <InvoiceHealthBar label="At Risk" value={data.invoiceHealth.overdue} total={totalInvoices} color="error" icon={AlertTriangle} />
+                        <InvoiceHealthBar label="Buffered" value={data.invoiceHealth.draft} total={totalInvoices} color="info" icon={Receipt} />
+                    </div>
+                    <div className="mt-5 pt-4 border-t border-border/50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-success"></div>
+                            <span className="text-[10px] font-black text-muted uppercase tracking-widest">Health Synchronized</span>
+                        </div>
+                        <span className="text-[11px] font-black text-secondary uppercase tabular-nums">{totalInvoices} Entities Total</span>
                     </div>
                 </div>
             </div>
@@ -150,73 +155,51 @@ export default function PurchaseDashboard() {
             {/* Quick Actions + Monitoring Highlights */}
             <div className="grid grid-cols-12 gap-5">
 
-                {/* Quick Actions */}
-                <div className="col-span-12 lg:col-span-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                    <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white mb-4">Quick Actions</h3>
-                    <div className="space-y-2">
-                        <button
-                            onClick={() => router.push('/purchase/sales')}
-                            className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left transition-colors group"
-                        >
-                            <ShoppingCart size={18} className="text-slate-400 group-hover:text-emerald-600" />
-                            <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">Review Sales</span>
-                            <ChevronRight size={16} className="ml-auto text-slate-300 group-hover:text-emerald-500" />
-                        </button>
-                        <button
-                            onClick={() => router.push('/purchase/invoices')}
-                            className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left transition-colors group"
-                        >
-                            <Receipt size={18} className="text-slate-400 group-hover:text-emerald-600" />
-                            <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">Manage Invoices</span>
-                            <ChevronRight size={16} className="ml-auto text-slate-300 group-hover:text-emerald-500" />
-                        </button>
-                        <button
-                            onClick={() => router.push('/purchase/monitoring')}
-                            className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left transition-colors group"
-                        >
-                            <Activity size={18} className="text-slate-400 group-hover:text-emerald-600" />
-                            <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">View Monitoring</span>
-                            <ChevronRight size={16} className="ml-auto text-slate-300 group-hover:text-emerald-500" />
-                        </button>
-                        <button
-                            onClick={() => router.push('/purchase/ai-assistant')}
-                            className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left transition-colors group"
-                        >
-                            <BrainCircuit size={18} className="text-slate-400 group-hover:text-emerald-600" />
-                            <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">AI Assistant</span>
-                            <ChevronRight size={16} className="ml-auto text-slate-300 group-hover:text-emerald-500" />
-                        </button>
+                {/* Quick Actions: High-Density Commands */}
+                <div className="col-span-12 lg:col-span-4 bg-surface rounded-md border border-border shadow-sm p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Activity size={16} className="text-secondary opacity-70" strokeWidth={2.5} />
+                        <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Command Center</h3>
+                    </div>
+                    <div className="space-y-1.5">
+                        <CommandButton icon={ShoppingCart} label="Review Sales" onClick={() => router.push('/purchase/sales')} />
+                        <CommandButton icon={Receipt} label="Manage Invoices" onClick={() => router.push('/purchase/invoices')} />
+                        <CommandButton icon={Activity} label="Monitoring Matrix" onClick={() => router.push('/purchase/monitoring')} />
+                        <CommandButton icon={BrainCircuit} label="Active AI Advisor" onClick={() => router.push('/purchase/ai-assistant')} highlight />
                     </div>
                 </div>
 
-                {/* Monitoring Highlights */}
-                <div className="col-span-12 lg:col-span-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white">Monitoring Highlights</h3>
-                        <button
-                            onClick={() => router.push('/purchase/monitoring')}
-                            className="text-[12px] font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1"
-                        >
-                            View All <ChevronRight size={14} />
-                        </button>
+                {/* Monitoring Highlights: Alert Matrix */}
+                <div className="col-span-12 lg:col-span-8 bg-surface rounded-md border border-border shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/20">
+                        <div className="flex items-center gap-2">
+                            <AlertTriangle size={16} className="text-warning" strokeWidth={2.5} />
+                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Active Indicators</h3>
+                        </div>
+                        <LinkText href="/purchase/monitoring">Live Stream</LinkText>
                     </div>
-                    <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                    <div className="divide-y divide-border/50">
                         {data.monitoringHighlights.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between py-3">
+                            <div key={item.id} className="flex items-center justify-between px-5 py-2.5 hover:bg-surface-elevated/10 transition-colors">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-2 h-2 rounded-full ${item.severity === 'High' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
+                                    <div className={`w-1.5 h-1.5 rounded-full ${item.severity === 'High' ? 'bg-error shadow-sm shadow-error/40' : 'bg-warning shadow-sm shadow-warning/40'}`}></div>
                                     <div>
-                                        <p className="text-[14px] font-medium text-slate-800 dark:text-slate-200">{item.title}</p>
-                                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${item.severity === 'High' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
-                                            {item.severity}
-                                        </span>
+                                        <p className="text-[13px] font-bold text-primary leading-none">{item.title}</p>
+                                        <div className="mt-1 flex items-center gap-1.5">
+                                            <span className={`text-[9px] font-black uppercase tracking-widest px-1 py-0.5 rounded-[4px] border ${item.severity === 'High' ? 'bg-error/10 text-error border-error/20' : 'bg-warning/10 text-warning border-warning/20'}`}>
+                                                {item.severity} SEVERITY
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                                <span className="text-[11px] text-slate-400">{item.time}</span>
+                                <span className="text-[11px] font-bold text-muted tabular-nums uppercase">{item.time}</span>
                             </div>
                         ))}
                         {data.monitoringHighlights.length === 0 && (
-                            <div className="py-6 text-center text-slate-400 text-[13px]">No active alerts</div>
+                            <div className="py-12 text-center">
+                                <Activity className="text-muted/20 mx-auto mb-2" size={24} />
+                                <span className="text-[11px] font-black text-muted uppercase tracking-widest opacity-30">All systems within normal parameters</span>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -225,31 +208,33 @@ export default function PurchaseDashboard() {
     );
 }
 
+// --- SUBCOMPONENTS ---
+
 function InvoiceHealthBar({ label, value, total, color, icon: Icon }) {
     const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-    const colorClasses = {
-        emerald: 'bg-emerald-500',
-        amber: 'bg-amber-500',
-        red: 'bg-red-500',
-        slate: 'bg-slate-400'
+    const colorMap = {
+        success: 'bg-success',
+        warning: 'bg-warning',
+        error: 'bg-error',
+        info: 'bg-info'
     };
-    const textClasses = {
-        emerald: 'text-emerald-600 dark:text-emerald-400',
-        amber: 'text-amber-600 dark:text-amber-400',
-        red: 'text-red-600 dark:text-red-400',
-        slate: 'text-slate-500'
+    const textMap = {
+        success: 'text-success',
+        warning: 'text-warning',
+        error: 'text-error',
+        info: 'text-info'
     };
 
     return (
         <div className="flex items-center gap-3">
-            <Icon size={14} className={textClasses[color]} />
+            <Icon size={14} className={textMap[color]} strokeWidth={2.5} />
             <div className="flex-1">
-                <div className="flex justify-between text-[12px] mb-1">
-                    <span className="text-slate-600 dark:text-slate-400">{label}</span>
-                    <span className="font-medium text-slate-700 dark:text-slate-300">{value}</span>
+                <div className="flex justify-between items-center mb-1">
+                    <span className="text-[11px] font-bold text-muted uppercase tracking-tight">{label}</span>
+                    <span className="text-[12px] font-black text-primary tabular-nums">{value}</span>
                 </div>
-                <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div className={`h-full ${colorClasses[color]} rounded-full transition-all`} style={{ width: `${percentage}%` }}></div>
+                <div className="h-1 bg-surface-elevated rounded-full overflow-hidden">
+                    <div className={`h-full ${colorMap[color]} rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(0,0,0,0.1)]`} style={{ width: `${percentage}%` }}></div>
                 </div>
             </div>
         </div>
@@ -257,42 +242,65 @@ function InvoiceHealthBar({ label, value, total, color, icon: Icon }) {
 }
 
 function BadgeChange({ change, trend }) {
-    let colors = 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
-    let Icon = Minus;
-
-    if (trend === 'up') {
-        colors = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
-        Icon = TrendingUp;
-    } else if (trend === 'down') {
-        colors = 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-        Icon = TrendingDown;
-    }
+    if (!change) return null;
+    const isUp = trend === 'up';
+    const isDown = trend === 'down';
 
     return (
-        <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${colors}`}>
-            <Icon size={11} strokeWidth={2.5} />
+        <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] text-[10px] font-black tabular-nums border ${isUp ? 'bg-success/10 text-success border-success/20' :
+                isDown ? 'bg-error/10 text-error border-error/20' :
+                    'bg-surface-elevated text-muted border-border'
+            }`}>
+            {isUp && <TrendingUp size={10} strokeWidth={3} />}
+            {isDown && <TrendingDown size={10} strokeWidth={3} />}
+            {!isUp && !isDown && <Minus size={10} strokeWidth={3} />}
             {change}
         </div>
     );
 }
 
+function LinkText({ href, children }) {
+    const router = useRouter();
+    return (
+        <button onClick={() => router.push(href)} className="text-[11px] font-black text-accent hover:text-accent-hover uppercase tracking-tight transition-all">
+            {children}
+        </button>
+    );
+}
+
+function CommandButton({ icon: Icon, label, onClick, highlight }) {
+    return (
+        <button
+            onClick={onClick}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-md border transition-all group ${highlight
+                    ? 'bg-accent/5 border-accent/20 hover:bg-accent/10 hover:border-accent/40'
+                    : 'bg-surface border-border hover:bg-surface-elevated hover:border-secondary/30'
+                }`}
+        >
+            <Icon size={16} className={`${highlight ? 'text-accent' : 'text-muted'} group-hover:scale-110 transition-transform`} strokeWidth={2.5} />
+            <span className={`text-[12px] font-bold ${highlight ? 'text-accent' : 'text-secondary'} uppercase tracking-tight`}>{label}</span>
+            <ChevronRight size={14} className="ml-auto text-muted group-hover:translate-x-0.5 transition-transform" />
+        </button>
+    );
+}
+
 function DashboardSkeleton() {
     return (
-        <div className="mx-auto max-w-[1360px] space-y-6 animate-pulse">
-            <div className="space-y-2">
-                <div className="h-7 w-32 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                <div className="h-4 w-64 bg-slate-200 dark:bg-slate-800 rounded"></div>
+        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page animate-pulse pt-4">
+            <div className="flex justify-between py-4 border-b border-border mb-4">
+                <div className="h-8 w-48 bg-surface rounded"></div>
+                <div className="h-8 w-32 bg-surface rounded"></div>
             </div>
-            <div className="grid grid-cols-4 gap-5">
-                {[...Array(4)].map((_, i) => <div key={i} className="h-[110px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>)}
+            <div className="grid grid-cols-4 gap-4 mb-6">
+                {[...Array(4)].map((_, i) => <div key={i} className="h-[100px] bg-surface rounded-md border border-border"></div>)}
+            </div>
+            <div className="grid grid-cols-12 gap-5 mb-6">
+                <div className="col-span-7 h-[300px] bg-surface rounded-md border border-border"></div>
+                <div className="col-span-5 h-[300px] bg-surface rounded-md border border-border"></div>
             </div>
             <div className="grid grid-cols-12 gap-5">
-                <div className="col-span-7 h-[220px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
-                <div className="col-span-5 h-[220px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
-            </div>
-            <div className="grid grid-cols-12 gap-5">
-                <div className="col-span-4 h-[200px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
-                <div className="col-span-8 h-[200px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+                <div className="col-span-4 h-[240px] bg-surface rounded-md border border-border"></div>
+                <div className="col-span-8 h-[240px] bg-surface rounded-md border border-border"></div>
             </div>
         </div>
     );

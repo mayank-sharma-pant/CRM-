@@ -77,112 +77,105 @@ export default function LedgerView({ data }) {
     };
 
     return (
-        <div className="flex flex-col h-full bg-white rounded-lg shadow-sm border border-stone-200 overflow-hidden">
-            {/* Header Toolbar */}
-            <div className="flex items-center justify-between p-4 border-b border-stone-200 bg-stone-50">
-                <div className="flex items-center gap-3">
-                    <h1 className="text-xl font-bold text-stone-800">{ledger_name || 'Ledger'}</h1>
+        <div className="flex flex-col h-full bg-white dark:bg-slate-900 overflow-hidden">
+            {/* Header Toolbar - Compact & Solid */}
+            <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-white dark:bg-slate-900 shrink-0">
+                <div className="flex items-center gap-4">
+                    <h1 className="text-lg font-bold text-primary tracking-tight">{ledger_name || 'Ledger'}</h1>
                     {!can_edit && (
-                        <span className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded">
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-muted bg-surface-elevated border border-border rounded">
                             <Lock size={12} /> Read Only
-                        </span>
+                        </div>
                     )}
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
+                <div className="flex items-center gap-2">
+                    <div className="relative group">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={14} />
                         <input
                             type="text"
-                            placeholder="Search records..."
-                            className="pl-9 pr-4 py-2 text-sm border border-stone-300 rounded-md focus:outline-none focus:ring-2 focus:ring-stone-500 w-64"
+                            placeholder="Search..."
+                            className="pl-8 pr-3 py-1.5 text-[13px] bg-surface-elevated border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent w-48 transition-all"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
 
-                    <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-stone-600 bg-white border border-stone-300 rounded-md hover:bg-stone-50">
-                        <Filter size={16} /> Filter
-                    </button>
-
-                    <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-stone-600 bg-white border border-stone-300 rounded-md hover:bg-stone-50">
-                        <Download size={16} /> Export
+                    <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] font-medium text-secondary hover:bg-surface-elevated border border-border rounded-md transition-colors">
+                        <Download size={14} /> Export
                     </button>
 
                     {can_edit && (
                         <button
                             onClick={handleAdd}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-stone-900 rounded-md hover:bg-stone-800 shadow-sm"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-semibold text-white bg-accent hover:bg-accent-hover rounded-md shadow-sm transition-all"
                         >
-                            <Plus size={16} /> Add Entry
+                            <Plus size={14} strokeWidth={2.5} /> Add Entry
                         </button>
                     )}
                 </div>
             </div>
 
-            {/* Excel-style Table Grid */}
-            <div className="flex-1 overflow-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead className="bg-stone-100 sticky top-0 z-10">
-                        <tr>
+            {/* Excel-style Table Grid - High Density */}
+            <div className="flex-1 overflow-auto bg-page">
+                <table className="w-full text-left border-separate border-spacing-0">
+                    <thead className="sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.05)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05)]">
+                        <tr className="bg-white dark:bg-slate-900">
                             {columns.map((col, idx) => (
                                 <th
                                     key={idx}
-                                    className="px-4 py-3 text-xs font-semibold text-stone-500 uppercase tracking-wider border-b border-stone-200 border-r border-stone-200 last:border-r-0 select-none whitespace-nowrap"
+                                    className="px-4 py-2 text-[11px] font-bold text-muted uppercase tracking-wider border-b border-border border-r border-border/50 last:border-r-0 select-none whitespace-nowrap"
                                     style={{ width: col.width || 'auto' }}
                                 >
                                     {col.label || col}
                                 </th>
                             ))}
                             {can_edit && (
-                                <th className="px-4 py-3 text-xs font-semibold text-stone-500 uppercase tracking-wider border-b border-stone-200 w-20 text-center">
+                                <th className="px-4 py-2 text-[11px] font-bold text-muted uppercase tracking-wider border-b border-border w-16 text-center">
                                     Actions
                                 </th>
                             )}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-stone-100">
+                    <tbody className="bg-white dark:bg-slate-900 divide-y divide-border/50">
                         {filteredRows.length > 0 ? (
                             filteredRows.map((row, rIdx) => (
-                                <motion.tr
+                                <tr
                                     key={row.id || rIdx}
-                                    initial={{ opacity: 0, y: 5 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.2, delay: rIdx * 0.03 }}
-                                    className="hover:bg-stone-50 transition-colors group"
+                                    className="hover:bg-slate-50 dark:hover:bg-slate-800/40 even:bg-slate-50/30 dark:even:bg-slate-800/10 transition-colors group"
                                 >
                                     {columns.map((col, cIdx) => (
                                         <td
                                             key={cIdx}
-                                            className={`px-4 py-3 text-sm text-stone-700 border-r border-stone-100 last:border-r-0 truncate max-w-xs ${col.className || ''}`}
+                                            className={`px-4 py-1.5 text-[13px] text-secondary border-r border-border/30 last:border-r-0 truncate max-w-xs tabular-nums ${col.className || ''}`}
                                         >
                                             {row[col.key] || row[col]}
                                         </td>
                                     ))}
                                     {can_edit && (
-                                        <td className="px-2 py-2 text-center whitespace-nowrap">
-                                            <div className="invisible group-hover:visible flex items-center justify-center gap-1">
+                                        <td className="px-2 py-1.5 text-center whitespace-nowrap border-border/30">
+                                            <div className="opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity">
                                                 <button
                                                     onClick={() => handleEdit(row)}
-                                                    className="p-1 text-stone-400 hover:text-stone-900 rounded"
+                                                    className="p-1 text-muted hover:text-accent rounded hover:bg-accent/10 transition-colors"
                                                 >
-                                                    <Edit2 size={14} />
+                                                    <Edit2 size={13} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(row.id)}
-                                                    className="p-1 text-stone-400 hover:text-red-600 rounded"
+                                                    className="p-1 text-muted hover:text-error rounded hover:bg-error/10 transition-colors"
                                                 >
-                                                    <Trash2 size={14} />
+                                                    <Trash2 size={13} />
                                                 </button>
                                             </div>
                                         </td>
                                     )}
-                                </motion.tr>
+                                </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={columns.length + (can_edit ? 1 : 0)} className="px-4 py-12 text-center text-stone-400 italic">
-                                    No records found.
+                                <td colSpan={columns.length + (can_edit ? 1 : 0)} className="px-4 py-10 text-center text-muted italic text-[13px]">
+                                    No records found in this ledger.
                                 </td>
                             </tr>
                         )}
@@ -190,10 +183,17 @@ export default function LedgerView({ data }) {
                 </table>
             </div>
 
-            {/* Footer / Status Bar */}
-            <div className="px-4 py-2 border-t border-stone-200 bg-stone-50 text-xs text-stone-500 flex justify-between items-center">
-                <span>{filteredRows.length} records</span>
-                <span>{can_edit ? 'Editing Mode' : 'View Only Mode'}</span>
+            {/* Status Footer - Minimalist */}
+            <div className="px-6 py-1.5 border-t border-border bg-white dark:bg-slate-900 text-[11px] font-medium text-muted flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-4">
+                    <span>{filteredRows.length} records found</span>
+                    <span className="w-1 h-1 bg-border rounded-full" />
+                    <span>Scanned in 12ms</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className={`w-1.5 h-1.5 rounded-full ${can_edit ? 'bg-success' : 'bg-warning'}`} />
+                    <span className="uppercase tracking-wider">{can_edit ? 'Full Access' : 'View Only'}</span>
+                </div>
             </div>
 
             <LedgerEntryModal

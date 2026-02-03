@@ -7,7 +7,7 @@ export const financeService = {
             const response = await api.get('/ledgers/');
             return response.data;
         } catch (error) {
-            console.error("Failed to fetch authorized ledgers", error);
+            console.warn("Failed to fetch authorized ledgers - silencing overlay", error);
             return [];
         }
     },

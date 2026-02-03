@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import api from '../../../services/api';
 import {
     Users,
     GitBranch,
@@ -14,7 +15,6 @@ import {
     ChevronRight,
     ArrowUpRight
 } from 'lucide-react';
-import { MOCK_DATA } from '../../../services/mockData';
 
 export default function ManagerSettingsPage() {
     const [teamData, setTeamData] = useState(null);
@@ -27,12 +27,39 @@ export default function ManagerSettingsPage() {
     const [formData, setFormData] = useState({ type: 'ADD_MEMBER', target: '', notes: '' });
 
     useEffect(() => {
-        // SIMULATE API FETCH
-        setTimeout(() => {
-            setTeamData(MOCK_DATA['/teams/my-team']);
-            setRequests(MOCK_DATA['/team-requests/list'] || []);
-            setLoading(false);
-        }, 600);
+        const fetchTeamData = async () => {
+            try {
+                setLoading(true);
+                // Use the monitoring endpoint to get team members
+                const res = await api.get('/manager/monitoring');
+                const monitoringData = res.data;
+
+                // Map monitoring data to the structure expected by the page
+                const mappedTeamData = {
+                    name: monitoringData.team_name || 'My Sales Team',
+                    id: 'TEAM-001',
+                    tier: 'Tier 1 - Standard',
+                    manager: { name: 'Current Manager', role: 'Team Manager' },
+                    members: monitoringData.team_members?.map(m => ({
+                        id: m.id,
+                        name: m.name,
+                        role: m.role,
+                        performance: 'Consistent', // Backend doesn't provide this yet
+                        joined: '2024-01-01'
+                    })) || [],
+                    openRoles: 0
+                };
+
+                setTeamData(mappedTeamData);
+                // Requests endpoint doesn't exist yet, so we'll just keep it empty for now
+                setRequests([]);
+            } catch (error) {
+                console.error("Failed to fetch team settings", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchTeamData();
     }, []);
 
     const handleRequestSubmit = (e) => {
@@ -129,8 +156,8 @@ export default function ManagerSettingsPage() {
                     <button
                         onClick={() => setView('overview')}
                         className={`pb-3 text-sm font-medium transition-colors relative ${view === 'overview'
-                                ? 'text-blue-600 dark:text-blue-400'
-                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
                             }`}
                     >
                         Team Roster
@@ -139,8 +166,8 @@ export default function ManagerSettingsPage() {
                     <button
                         onClick={() => setView('requests')}
                         className={`pb-3 text-sm font-medium transition-colors relative ${view === 'requests'
-                                ? 'text-blue-600 dark:text-blue-400'
-                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
                             }`}
                     >
                         Change Requests
@@ -180,8 +207,8 @@ export default function ManagerSettingsPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex px-2 py-0.5 text-[11px] font-bold rounded ${member.performance.includes('Top')
-                                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
-                                                    : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+                                                : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
                                                 }`}>
                                                 {member.performance}
                                             </span>
@@ -293,8 +320,8 @@ export default function ManagerSettingsPage() {
                                         <div className="flex items-start justify-between mb-2">
                                             <div className="flex items-center gap-3">
                                                 <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${req.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' :
-                                                        req.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                                                            'bg-amber-100 text-amber-700'
+                                                    req.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                                        'bg-amber-100 text-amber-700'
                                                     }`}>
                                                     {req.status}
                                                 </span>

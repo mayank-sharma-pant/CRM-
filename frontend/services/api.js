@@ -1,10 +1,5 @@
 import axios from 'axios';
 
-// --- MOCK MODE CONFIGURATION ---
-// Set this to true to use mock data instead of real backend
-const USE_MOCK_BACKEND = false;
-// -------------------------------
-
 // Backend API base URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -27,6 +22,11 @@ if (typeof window !== 'undefined') {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Handle Network Errors (no response)
+    if (!error.response) {
+      console.warn('NETWORK_ERROR: Backend potentially unreachable at', API_BASE_URL);
+    }
+
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');

@@ -1,5 +1,7 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
+
 import Link from 'next/link';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { ChevronRight, Briefcase, FileText } from 'lucide-react';
@@ -7,6 +9,10 @@ import { ChevronRight, Briefcase, FileText } from 'lucide-react';
 import { CLIENTS_DATA as CLIENTS } from './data';
 
 export default function ClientsPage() {
+    const pathname = usePathname();
+    const isManager = pathname?.startsWith('/manager');
+    const basePath = isManager ? '/manager/clients' : '/sales/clients';
+
     return (
         <div className="bg-slate-50 dark:bg-slate-900 min-h-full">
 
@@ -17,7 +23,7 @@ export default function ClientsPage() {
                         Clients
                     </h1>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Converted leads and ongoing accounts
+                        {isManager ? 'Team managed accounts' : 'Converted leads and ongoing accounts'}
                     </p>
                 </div>
             </div>
@@ -31,7 +37,7 @@ export default function ClientsPage() {
                     {CLIENTS.map((client) => (
                         <Link
                             key={client.id}
-                            href={`/sales/clients/${client.id}`}
+                            href={`${basePath}/${client.id}`}
                             className="group block hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors duration-150"
                         >
                             <div className="px-6 py-5 flex items-center justify-between">

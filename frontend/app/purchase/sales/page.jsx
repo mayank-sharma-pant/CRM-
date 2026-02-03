@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MOCK_DATA } from '../../../services/mockData';
+import api from '../../../services/api';
 import {
+    Search,
     ChevronRight,
-    Filter,
+    CheckCircle,
+    XCircle,
+    Clock,
     Calendar,
-    Search
+    ShoppingCart,
+    Filter
 } from 'lucide-react';
 
 export default function PurchaseSalesPage() {
@@ -18,29 +22,26 @@ export default function PurchaseSalesPage() {
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
-        setTimeout(() => {
-            // Mock sales data for purchase review
-            const salesData = [
-                { id: 1, saleId: 'SAL-2024-001', client: 'BigBank International', amount: '$45,000', discount: '5%', status: 'Pending Review', createdDate: '2024-01-10', rep: 'Alex Johnson', reviewerStatus: 'Unreviewed' },
-                { id: 2, saleId: 'SAL-2024-002', client: 'TechFlow Inc.', amount: '$12,500', discount: '0%', status: 'Pending Review', createdDate: '2024-01-09', rep: 'Sarah Smith', reviewerStatus: 'Unreviewed' },
-                { id: 3, saleId: 'SAL-2024-003', client: 'Solaris Systems', amount: '$28,000', discount: '10%', status: 'Approved', createdDate: '2024-01-08', rep: 'Mike Brown', reviewerStatus: 'Reviewed' },
-                { id: 4, saleId: 'SAL-2024-004', client: 'CloudNet Corp', amount: '$8,200', discount: '2%', status: 'Pending Review', createdDate: '2024-01-07', rep: 'Alex Johnson', reviewerStatus: 'Unreviewed' },
-                { id: 5, saleId: 'SAL-2024-005', client: 'Global Dynamics', amount: '$67,500', discount: '15%', status: 'Rejected', createdDate: '2024-01-05', rep: 'Sarah Smith', reviewerStatus: 'Reviewed' },
-                { id: 6, saleId: 'SAL-2024-006', client: 'Horizon Tech', amount: '$23,400', discount: '8%', status: 'Approved', createdDate: '2024-01-04', rep: 'Mike Brown', reviewerStatus: 'Reviewed' },
-                { id: 7, saleId: 'SAL-2024-007', client: 'Pinnacle Inc.', amount: '$56,000', discount: '12%', status: 'Pending Review', createdDate: '2024-01-03', rep: 'Alex Johnson', reviewerStatus: 'In Progress' }
-            ];
-            setSales(salesData);
-            setLoading(false);
-        }, 400);
+        const fetchSales = async () => {
+            try {
+                setLoading(true);
+                const res = await api.get('/purchase/sales');
+                setSales(res.data.sales || []);
+            } catch (err) {
+                console.error("Failed to fetch purchase sales", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSales();
     }, []);
 
     if (loading) return <SalesSkeleton />;
 
-    // Filter sales
     const filteredSales = sales.filter(sale => {
         const matchesStatus = statusFilter === 'All' || sale.status === statusFilter;
-        const matchesSearch = sale.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            sale.saleId.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = (sale.client || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (sale.saleId || '').toLowerCase().includes(searchQuery.toLowerCase());
         return matchesStatus && matchesSearch;
     });
 
@@ -52,100 +53,114 @@ export default function PurchaseSalesPage() {
     };
 
     return (
-        <div className="mx-auto max-w-[1360px] space-y-6 pb-12 font-sans text-slate-900 dark:text-slate-100">
+        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
 
-            {/* Header */}
-            <div className="flex items-center justify-between">
+            {/* Header: Procurement Review Cockpit */}
+            <div className="flex items-center justify-between py-4 border-b border-border">
                 <div>
-                    <h1 className="text-[28px] font-semibold tracking-tight text-slate-900 dark:text-white leading-tight">Sales Review</h1>
-                    <p className="text-[15px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Review and approve sales transactions.</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-primary">Sales Review Matrix</h1>
+                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Transaction Approval & Fiscal Validation</p>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                    <span className="text-[13px] font-semibold text-amber-700 dark:text-amber-400">{statusCounts['Pending Review']} Pending</span>
+                <div className="flex items-center gap-2.5">
+                    {statusCounts['Pending Review'] > 0 && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-warning/10 border border-warning/20 rounded-md">
+                            <Clock size={14} className="text-warning" strokeWidth={2.5} />
+                            <span className="text-[12px] font-black text-warning uppercase tracking-tight">{statusCounts['Pending Review']} Awaiting Verification</span>
+                        </div>
+                    )}
+                    <button className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-md text-secondary text-[12px] font-bold uppercase tracking-tight hover:bg-surface-elevated shadow-sm transition-all">
+                        <Calendar size={14} className="text-muted" strokeWidth={2.5} />
+                        <span>Filter Period</span>
+                    </button>
                 </div>
             </div>
 
-            {/* Filters Row */}
-            <div className="flex flex-wrap items-center gap-4">
-                {/* Status Filter Tabs */}
-                <div className="flex gap-2">
+            {/* Section A: Filter & Control Strip */}
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-surface p-2 rounded-md border border-border">
+                <div className="flex bg-surface-elevated p-1 rounded-md border border-border">
                     {['All', 'Pending Review', 'Approved', 'Rejected'].map((status) => (
                         <button
                             key={status}
                             onClick={() => setStatusFilter(status)}
-                            className={`px-4 py-2 rounded-lg text-[13px] font-medium transition-colors ${statusFilter === status
-                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                                : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                            className={`px-3 py-1.5 rounded-[4px] text-[11px] font-black uppercase tracking-tight transition-all ${statusFilter === status
+                                    ? 'bg-surface text-primary shadow-sm'
+                                    : 'text-muted hover:text-secondary'
                                 }`}
                         >
-                            {status === 'Pending Review' ? 'Pending' : status} ({statusCounts[status]})
+                            {status === 'Pending Review' ? 'Pending' : status}
+                            <span className="ml-1.5 opacity-50">({statusCounts[status]})</span>
                         </button>
                     ))}
                 </div>
 
-                {/* Search */}
-                <div className="relative flex-1 max-w-xs">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search sales..."
-                        className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[13px] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
+                <div className="flex items-center gap-3">
+                    <div className="relative">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" strokeWidth={2.5} />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="SEARCH TRANSACTIONS..."
+                            className="pl-9 pr-4 py-1.5 bg-surface-elevated border border-border rounded-md text-[11px] font-bold uppercase tracking-widest placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent min-w-[240px]"
+                        />
+                    </div>
                 </div>
-
-                {/* Date Range (placeholder) */}
-                <button className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[13px] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                    <Calendar size={14} />
-                    <span>Date Range</span>
-                </button>
             </div>
 
-            {/* Sales Table */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <table className="w-full text-left text-[13px]">
-                    <thead>
-                        <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Sale ID</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Client</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Amount</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Discount</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Status</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Created</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Reviewer</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px] text-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                        {filteredSales.map((sale) => (
-                            <tr
-                                key={sale.id}
-                                onClick={() => router.push(`/purchase/sales/${sale.id}`)}
-                                className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
-                            >
-                                <td className="px-5 py-3.5 font-mono text-slate-700 dark:text-slate-300">{sale.saleId}</td>
-                                <td className="px-5 py-3.5 font-medium text-slate-800 dark:text-slate-200">{sale.client}</td>
-                                <td className="px-5 py-3.5 font-semibold text-slate-800 dark:text-slate-200">{sale.amount}</td>
-                                <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400">{sale.discount}</td>
-                                <td className="px-5 py-3.5">
-                                    <StatusBadge status={sale.status} />
-                                </td>
-                                <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{sale.createdDate}</td>
-                                <td className="px-5 py-3.5">
-                                    <ReviewerBadge status={sale.reviewerStatus} />
-                                </td>
-                                <td className="px-5 py-3.5 text-right">
-                                    <ChevronRight size={16} className="inline text-slate-300" />
-                                </td>
+            {/* Section B: Sales Ledger (Table) */}
+            <div className="bg-surface rounded-md border border-border shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="border-b border-border bg-surface-elevated/20">
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Sale ID</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Client Identity</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Value (USD)</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Variance</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Status</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Origin Date</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Audit State</th>
+                                <th className="py-3 px-5"></th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                            {filteredSales.map((sale, idx) => (
+                                <tr
+                                    key={sale.id}
+                                    onClick={() => router.push(`/purchase/sales/${sale.id}`)}
+                                    className={`group hover:bg-surface-elevated/30 cursor-pointer transition-all ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
+                                >
+                                    <td className="py-3.5 px-5 font-mono text-[12px] font-bold text-primary">{sale.saleId}</td>
+                                    <td className="py-3.5 px-5 text-[13px] font-bold text-secondary">{sale.client}</td>
+                                    <td className="py-3.5 px-5 text-[14px] font-black text-primary tabular-nums">{sale.amount}</td>
+                                    <td className="py-3.5 px-5">
+                                        <span className={`text-[11px] font-bold ${parseFloat(sale.discount?.replace('%', '') || 0) > 10 ? 'text-error' : 'text-muted'
+                                            }`}>
+                                            {sale.discount || '0%'}
+                                        </span>
+                                    </td>
+                                    <td className="py-3.5 px-5">
+                                        <StatusBadge status={sale.status} />
+                                    </td>
+                                    <td className="py-3.5 px-5 text-[12px] font-bold text-muted uppercase tracking-tight font-mono">{sale.createdDate}</td>
+                                    <td className="py-3.5 px-5">
+                                        <ReviewerBadge status={sale.reviewerStatus} />
+                                    </td>
+                                    <td className="py-3.5 px-5 text-right w-10">
+                                        <ChevronRight size={14} className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
                 {filteredSales.length === 0 && (
-                    <div className="flex items-center justify-center h-32 text-slate-500 dark:text-slate-400">
-                        No sales found matching your criteria.
+                    <div className="flex flex-col items-center justify-center py-24 bg-surface-elevated/5">
+                        <div className="w-12 h-12 rounded-full bg-surface-elevated border border-border flex items-center justify-center mb-4">
+                            <ShoppingCart size={20} className="text-muted/30" />
+                        </div>
+                        <p className="text-[13px] font-bold text-muted uppercase tracking-widest">No matching sales records</p>
                     </div>
                 )}
             </div>
@@ -153,51 +168,53 @@ export default function PurchaseSalesPage() {
     );
 }
 
+// --- SUBCOMPONENTS ---
+
 function StatusBadge({ status }) {
-    let colors = 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
-    if (status === 'Pending Review') {
-        colors = 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
-    } else if (status === 'Approved') {
-        colors = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
-    } else if (status === 'Rejected') {
-        colors = 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-    }
+    const maps = {
+        'Pending Review': { colors: 'bg-warning/10 text-warning border-warning/20', icon: Clock },
+        Approved: { colors: 'bg-success/10 text-success border-success/20', icon: CheckCircle },
+        Rejected: { colors: 'bg-error/10 text-error border-error/20', icon: XCircle }
+    };
+
+    const { colors, icon: Icon } = maps[status] || { colors: 'bg-surface-elevated text-muted border-border', icon: Filter };
 
     return (
-        <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-bold uppercase ${colors}`}>
+        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[4px] border text-[10px] font-black uppercase tracking-widest ${colors}`}>
+            <Icon size={12} strokeWidth={2.5} />
             {status === 'Pending Review' ? 'Pending' : status}
         </span>
     );
 }
 
 function ReviewerBadge({ status }) {
-    let colors = 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
-    if (status === 'Unreviewed') {
-        colors = 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-    } else if (status === 'In Progress') {
-        colors = 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
-    } else if (status === 'Reviewed') {
-        colors = 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
-    }
+    const maps = {
+        Unreviewed: 'text-info',
+        'In Progress': 'text-warning',
+        Reviewed: 'text-muted'
+    };
 
     return (
-        <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${colors}`}>
-            {status}
-        </span>
+        <div className="flex items-center gap-1.5">
+            <div className={`w-1 h-1 rounded-full bg-current ${maps[status] || 'text-muted'}`}></div>
+            <span className={`text-[11px] font-bold uppercase tracking-tight ${maps[status] || 'text-muted'}`}>
+                {status}
+            </span>
+        </div>
     );
 }
 
 function SalesSkeleton() {
     return (
-        <div className="mx-auto max-w-[1360px] space-y-6 animate-pulse">
-            <div className="space-y-2">
-                <div className="h-7 w-40 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                <div className="h-4 w-64 bg-slate-200 dark:bg-slate-800 rounded"></div>
+        <div className="mx-auto max-w-[1440px] px-6 py-4 space-y-6 animate-pulse bg-page min-h-screen">
+            <div className="flex justify-between py-4 border-b border-border">
+                <div className="space-y-2">
+                    <div className="h-6 w-48 bg-surface border border-border rounded"></div>
+                    <div className="h-4 w-64 bg-surface border border-border rounded"></div>
+                </div>
             </div>
-            <div className="flex gap-2">
-                {[...Array(4)].map((_, i) => <div key={i} className="h-9 w-28 bg-slate-200 dark:bg-slate-800 rounded-lg"></div>)}
-            </div>
-            <div className="h-[400px] bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+            <div className="h-12 bg-surface border border-border rounded-md"></div>
+            <div className="h-[400px] bg-surface border border-border rounded-md"></div>
         </div>
     );
 }

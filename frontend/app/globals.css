@@ -12,116 +12,131 @@
 ============================================ */
 
 @layer base {
+
+  /* 
+     PROFESSIONAL ENTERPRISE PALETTE 
+     Inspired by Linear, Stripe, and modern B2B SaaS.
+     Focus: Trust, Precision, and Information Density.
+  */
   :root {
-    /* Page & Surface */
-    --color-page: #FAFAF9;
-    --color-surface: #FFFFFF;
-    --color-surface-elevated: #F5F5F4;
+    /* Backgrounds */
+    --color-page: #f6f8fa;
+    /* Refined Gray-Blue (GitHub/Linear feel) */
+    --color-surface: #ffffff;
+    --color-surface-elevated: #f0f2f5;
 
     /* Text */
-    --color-text-primary: #171717;
-    --color-text-secondary: #525252;
-    --color-text-muted: #A3A3A3;
+    --color-text-primary: #111827;
+    /* Gray 900 */
+    --color-text-secondary: #4b5563;
+    /* Gray 600 */
+    --color-text-muted: #6b7280;
+    /* Gray 500 */
+    --color-text-inverse: #ffffff;
 
-    /* Borders */
-    --color-border: #E7E5E4;
-    --color-border-subtle: #F5F5F4;
+    /* Borders & Dividers (Tighter contrast) */
+    --color-border: #e1e4e8;
+    --color-border-subtle: #f0f2f5;
+    --color-border-strong: #d1d5db;
 
-    /* Accent - Muted Slate Blue */
-    --color-accent: #475569;
-    --color-accent-light: #64748B;
+    /* Brand / Accent (Deep Indigo - Stripe/Linear mix) */
+    --color-accent: #4338ca;
+    /* Indigo 700 */
+    --color-accent-hover: #3730a3;
+    /* Indigo 800 */
+    --color-accent-subtle: #eef2ff;
+    /* Indigo 50 */
+    --color-accent-foreground: #ffffff;
 
-    /* Status - Muted versions */
-    --color-success: #16A34A;
-    --color-warning: #CA8A04;
-    --color-error: #DC2626;
-    --color-info: #2563EB;
+    /* Status (Refined/Muted) */
+    --color-success: #15803d;
+    /* Green 700 */
+    --color-error: #b91c1c;
+    /* Red 700 */
+    --color-warning: #b45309;
+    /* Amber 700 */
+    --color-info: #1d4ed8;
+    /* Blue 700 */
+
+    /* Layout Reset */
+    --spacing-gutter: 1.25rem;
   }
 
   .dark {
-    /* Page & Surface */
-    --color-page: #0C0A09;
-    --color-surface: #1C1917;
-    --color-surface-elevated: #292524;
+    /* Backgrounds (Deep Charcoal, not pure black) */
+    --color-page: #0d1117;
+    --color-surface: #161b22;
+    --color-surface-elevated: #21262d;
 
     /* Text */
-    --color-text-primary: #FAFAF9;
-    --color-text-secondary: #D6D3D1;
-    --color-text-muted: #78716C;
+    --color-text-primary: #f0f6fc;
+    --color-text-secondary: #8b949e;
+    --color-text-muted: #6e7681;
+    --color-text-inverse: #0d1117;
 
     /* Borders */
-    --color-border: #44403C;
-    --color-border-subtle: #292524;
+    --color-border: #30363d;
+    --color-border-subtle: #21262d;
+    --color-border-strong: #484f58;
 
-    /* Accent - Slate blue, adjusted for dark mode contrast */
-    --color-accent: #94A3B8;
-    --color-accent-light: #CBD5E1;
-
-    /* Status - Slightly brighter for dark mode */
-    --color-success: #22C55E;
-    --color-warning: #EAB308;
-    --color-error: #EF4444;
-    --color-info: #3B82F6;
+    /* Brand / Accent */
+    --color-accent: #58a6ff;
+    /* GitHub Blue / Indigo mix */
+    --color-accent-hover: #1f6feb;
+    --color-accent-subtle: #0d1117;
+    --color-accent-foreground: #ffffff;
   }
 
   html {
     scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
     background-color: var(--color-page);
     color: var(--color-text-primary);
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 16px;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    /* PRO DENSITY: 14px default */
+    line-height: 1.5;
+    letter-spacing: -0.011em;
   }
 
-  /* Typography Scale - Editorial Hierarchy */
+  /* Enterprise Hierarchy */
   h1,
   h2,
   h3,
-  h4,
-  h5,
-  h6 {
+  h4 {
     font-weight: 600;
     line-height: 1.2;
+    letter-spacing: -0.022em;
     color: var(--color-text-primary);
-    letter-spacing: -0.02em;
   }
 
   h1 {
-    font-size: 3rem;
+    font-size: 1.5rem;
     font-weight: 700;
   }
 
+  /* 24px - Tighter for density */
   h2 {
-    font-size: 2.25rem;
-    font-weight: 600;
-  }
-
-  h3 {
-    font-size: 1.5rem;
-  }
-
-  h4 {
     font-size: 1.25rem;
   }
 
-  h5 {
-    font-size: 1rem;
+  /* 20px */
+  h3 {
+    font-size: 1.125rem;
   }
 
-  h6 {
-    font-size: 0.875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
+  /* 18px */
 
   p {
     color: var(--color-text-secondary);
-    line-height: 1.75;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 
   a {
@@ -140,7 +155,6 @@
     color: var(--color-text-primary);
   }
 
-  /* Monospace for code/terminal only */
   code,
   pre,
   .font-mono {
@@ -334,13 +348,13 @@
   }
 
   .section-spacing {
-    padding-top: 5rem;
-    padding-bottom: 5rem;
+    padding-top: 3.5rem;
+    padding-bottom: 3.5rem;
   }
 
   .section-spacing-lg {
-    padding-top: 7rem;
-    padding-bottom: 7rem;
+    padding-top: 5rem;
+    padding-bottom: 5rem;
   }
 
   /* ==================
@@ -362,8 +376,8 @@
   .dashboard-card {
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: 0.75rem;
-    padding: 1.5rem;
+    border-radius: 0.5rem;
+    padding: 1.25rem;
   }
 
   .dashboard-section-title {
@@ -372,15 +386,15 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--color-text-muted);
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
   }
 
   .metric-card {
-    @apply p-6 flex flex-col;
+    @apply p-5 flex flex-col;
   }
 
   .metric-value {
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 700;
     color: var(--color-text-primary);
     letter-spacing: -0.02em;

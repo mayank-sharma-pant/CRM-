@@ -8,6 +8,7 @@ class Task(Base):
     __tablename__ = "tasks"
     
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     
@@ -34,6 +35,7 @@ class Task(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     # Relationships
+    company = relationship("Company", backref="tasks")
     lead = relationship("Lead", back_populates="tasks")
     client = relationship("Client", back_populates="tasks")
     assigned_to = relationship("User", foreign_keys=[assigned_to_id], back_populates="tasks_assigned")

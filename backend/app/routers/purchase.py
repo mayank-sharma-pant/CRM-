@@ -5,7 +5,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
 from app.models.user import User
 from app.models.client import Client
 from app.models.invoice import Invoice, InvoiceItem
@@ -21,22 +21,25 @@ router = APIRouter()
 @router.get("/dashboard")
 def get_purchase_dashboard(
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get purchase department dashboard"""
+    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
     # Invoice stats
-    paid = db.query(Invoice).filter(Invoice.status == "Paid").count()
-    pending = db.query(Invoice).filter(Invoice.status == "Pending").count()
-    overdue = db.query(Invoice).filter(Invoice.status == "Overdue").count()
-    draft = db.query(Invoice).filter(Invoice.status == "Draft").count()
+    paid = inv_q.filter(Invoice.status == "Paid").count()
+    pending = inv_q.filter(Invoice.status == "Pending").count()
+    overdue = inv_q.filter(Invoice.status == "Overdue").count()
+    draft = inv_q.filter(Invoice.status == "Draft").count()
     
     # Get recent pending invoices
-    pending_invoices = db.query(Invoice).filter(Invoice.status == "Pending").order_by(Invoice.created_at.desc()).limit(5).all()
+    pending_invoices = inv_q.filter(Invoice.status == "Pending").order_by(Invoice.created_at.desc()).limit(5).all()
     
     approval_queue = []
+    client_q = apply_company_scope(db.query(Client), Client, current_user)
+    user_q = apply_company_scope(db.query(User), User, current_user)
     for inv in pending_invoices:
-        client = db.query(Client).filter(Client.id == inv.client_id).first()
-        creator = db.query(User).filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
+        client = client_q.filter(Client.id == inv.client_id).first()
+        creator = user_q.filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
         approval_queue.append({
             "id": inv.id,
             "client": client.name if client else "Unknown",
@@ -71,10 +74,10 @@ def list_sales_for_approval(
     status: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """List all sales/invoices pending approval"""
-    query = db.query(Invoice)
+    query = apply_company_scope(db.query(Invoice), Invoice, current_user)
     
     if status:
         query = query.filter(Invoice.status == status.title())
@@ -84,9 +87,11 @@ def list_sales_for_approval(
     invoices = query.order_by(Invoice.created_at.desc()).all()
     
     result = []
+    client_q = apply_company_scope(db.query(Client), Client, current_user)
+    user_q = apply_company_scope(db.query(User), User, current_user)
     for inv in invoices:
-        client = db.query(Client).filter(Client.id == inv.client_id).first()
-        creator = db.query(User).filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
+        client = client_q.filter(Client.id == inv.client_id).first()
+        creator = user_q.filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
         result.append({
             "id": inv.id,
             "client": client.name if client else "Unknown",
@@ -103,10 +108,11 @@ def list_sales_for_approval(
 def get_sale_detail(
     sale_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get detailed sale/invoice information for approval"""
     invoice = db.query(Invoice).filter(Invoice.id == sale_id).first()
+    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Sale not found")
     
@@ -138,10 +144,11 @@ def approve_sale(
     sale_id: int,
     notes: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Approve a sale/invoice"""
     invoice = db.query(Invoice).filter(Invoice.id == sale_id).first()
+    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Sale not found")
     
@@ -160,10 +167,11 @@ def reject_sale(
     sale_id: int,
     reason: str = Query(...),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Reject a sale/invoice"""
     invoice = db.query(Invoice).filter(Invoice.id == sale_id).first()
+    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Sale not found")
     
@@ -185,10 +193,10 @@ def reject_sale(
 def list_invoices(
     status: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """List all invoices"""
-    query = db.query(Invoice)
+    query = apply_company_scope(db.query(Invoice), Invoice, current_user)
     
     if status:
         query = query.filter(Invoice.status == status.title())
@@ -209,13 +217,13 @@ def list_invoices(
             "paid_at": inv.paid_date.strftime("%Y-%m-%d") if inv.paid_date else None
         })
     
-    # Summary
+    # Summary (use same company-scoped query)
     summary = {
-        "paid": db.query(Invoice).filter(Invoice.status == "Paid").count(),
-        "pending": db.query(Invoice).filter(Invoice.status == "Pending").count(),
-        "overdue": db.query(Invoice).filter(Invoice.status == "Overdue").count(),
-        "draft": db.query(Invoice).filter(Invoice.status == "Draft").count(),
-        "total_outstanding": db.query(func.sum(Invoice.total)).filter(Invoice.status.in_(["Pending", "Overdue"])).scalar() or 0
+        "paid": query.filter(Invoice.status == "Paid").count(),
+        "pending": query.filter(Invoice.status == "Pending").count(),
+        "overdue": query.filter(Invoice.status == "Overdue").count(),
+        "draft": query.filter(Invoice.status == "Draft").count(),
+        "total_outstanding": query.filter(Invoice.status.in_(["Pending", "Overdue"])).with_entities(func.sum(Invoice.total)).scalar() or 0
     }
     
     return {"invoices": result, "summary": summary}
@@ -225,10 +233,11 @@ def list_invoices(
 def get_invoice_detail(
     invoice_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get detailed invoice information"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     
@@ -260,10 +269,11 @@ def get_invoice_detail(
 def send_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Send invoice to client"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     
@@ -281,10 +291,11 @@ def mark_invoice_paid(
     payment_method: str = Query("bank_transfer"),
     reference: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Mark invoice as paid"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     
@@ -299,10 +310,11 @@ def mark_invoice_paid(
 def send_payment_reminder(
     invoice_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Send payment reminder for invoice"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     
@@ -316,14 +328,15 @@ def send_payment_reminder(
 @router.get("/monitoring")
 def get_purchase_monitoring(
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get purchase department monitoring and analytics"""
+    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
     # Invoice stats
-    overdue_count = db.query(Invoice).filter(Invoice.status == "Overdue").count()
-    overdue_amount = db.query(func.sum(Invoice.total)).filter(Invoice.status == "Overdue").scalar() or 0
+    overdue_count = inv_q.filter(Invoice.status == "Overdue").count()
+    overdue_amount = inv_q.filter(Invoice.status == "Overdue").with_entities(func.sum(Invoice.total)).scalar() or 0
     
-    pending_count = db.query(Invoice).filter(Invoice.status == "Pending").count()
+    pending_count = inv_q.filter(Invoice.status == "Pending").count()
     
     return {
         "alerts": [

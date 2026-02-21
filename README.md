@@ -64,14 +64,29 @@ npm run dev
 
 ### Database Setup
 
-```bash
-# Create database
-createdb local_service_crm
+The app uses **Alembic** for migrations (schema is defined in `backend/app/models/`). Do **not** run `database/schema.sql`—it is legacy and does not match the app.
 
-# Run migrations
-cd backend
-npm run migrate
-```
+1. **Create the database** (PostgreSQL only; skip if using SQLite):
+   ```bash
+   createdb local_service_crm
+   ```
+
+2. **Configure and run migrations**:
+   ```bash
+   cd backend
+   cp .env.example .env
+   # Set DATABASE_URL in .env (e.g. postgresql://user:pass@localhost:5432/local_service_crm
+   # or sqlite:///./crm.db for SQLite)
+   pip install -r requirements.txt
+   alembic upgrade head
+   ```
+
+3. **Start the backend** (same `DATABASE_URL` from .env is used):
+   ```bash
+   uvicorn app.main:app --reload --port 8000
+   ```
+
+See `database/README.md` for more detail.
 
 ## 📝 Environment Variables
 

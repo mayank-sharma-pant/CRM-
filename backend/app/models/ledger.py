@@ -7,6 +7,7 @@ class LedgerEntry(Base):
     __tablename__ = "ledger_entries"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
     ledger_slug = Column(String, index=True, nullable=False)
     
     # Store dynamic fields as JSON
@@ -16,4 +17,5 @@ class LedgerEntry(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(Integer, ForeignKey("users.id"))
 
+    company = relationship("Company", backref="ledger_entries")
     creator = relationship("User")

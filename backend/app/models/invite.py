@@ -16,6 +16,7 @@ class Invite(Base):
     __tablename__ = "invites"
     
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
     email = Column(String(255), nullable=False, index=True)
     full_name = Column(String(255), nullable=False)
     phone = Column(String(50), nullable=True)
@@ -29,6 +30,7 @@ class Invite(Base):
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     # Relationships
+    company = relationship("Company", backref="invites")
     team = relationship("Team", foreign_keys=[team_id])
     manager = relationship("User", foreign_keys=[manager_id])
     created_by = relationship("User", foreign_keys=[created_by_id])

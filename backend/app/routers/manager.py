@@ -5,7 +5,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
 from app.models.user import User
 from app.models.lead import Lead
 from app.models.task import Task
@@ -22,20 +22,23 @@ router = APIRouter()
 @router.get("/dashboard")
 def get_manager_dashboard(
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get manager dashboard with team metrics"""
-    # Get real counts
-    total_leads = db.query(Lead).count()
-    closed_leads = db.query(Lead).filter(Lead.status.in_(["Converted", "Lost"])).count()
+    # Get real counts (company-scoped)
+    lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
+    total_leads = lead_query.count()
+    closed_leads = lead_query.filter(Lead.status.in_(["Converted", "Lost"])).count()
     conversion_rate = int((closed_leads / total_leads * 100)) if total_leads > 0 else 0
     
-    # Get team members (sales users)
-    team_members = db.query(User).filter(User.role == "sales").all()
+    # Get team members (sales users, company-scoped)
+    user_query = apply_company_scope(db.query(User), User, current_user)
+    team_members = user_query.filter(User.role == "sales").all()
     team_stats = []
     for member in team_members:
-        active = db.query(Lead).filter(Lead.assigned_to_id == member.id, Lead.status.notin_(["Converted", "Lost"])).count()
-        converted = db.query(Lead).filter(Lead.assigned_to_id == member.id, Lead.status == "Converted").count()
+        m_lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
+        active = m_lead_query.filter(Lead.assigned_to_id == member.id, Lead.status.notin_(["Converted", "Lost"])).count()
+        converted = m_lead_query.filter(Lead.assigned_to_id == member.id, Lead.status == "Converted").count()
         team_stats.append({
             "id": member.id,
             "name": member.full_name,
@@ -47,7 +50,8 @@ def get_manager_dashboard(
     now = datetime.now()
     today_start = datetime(now.year, now.month, now.day)
     
-    overdue_tasks = db.query(Task).filter(
+    task_query = apply_company_scope(db.query(Task), Task, current_user)
+    overdue_tasks = task_query.filter(
         Task.due_date < today_start,
         Task.status != "Completed"
     ).limit(3).all()
@@ -79,10 +83,10 @@ def get_manager_dashboard(
 @router.get("/monitoring")
 def get_team_monitoring(
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get team activity monitoring data"""
-    team_members = db.query(User).filter(User.role == "sales").all()
+    team_members = apply_company_scope(db.query(User), User, current_user).filter(User.role == "sales").all()
     
     members_data = []
     online_count = 0
@@ -91,8 +95,9 @@ def get_team_monitoring(
         # Check if active in last 5 minutes
         is_online = member.last_active_at and (datetime.now() - member.last_active_at).seconds < 300 if member.last_active_at else False
         
-        pending = db.query(Task).filter(Task.assigned_to_id == member.id, Task.status == "Pending").count()
-        overdue = db.query(Task).filter(
+        task_q = apply_company_scope(db.query(Task), Task, current_user)
+        pending = task_q.filter(Task.assigned_to_id == member.id, Task.status == "Pending").count()
+        overdue = task_q.filter(
             Task.assigned_to_id == member.id,
             Task.due_date < datetime.now(),
             Task.status != "Completed"
@@ -133,19 +138,20 @@ def get_team_monitoring(
 def get_team_member_detail(
     user_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get detailed activity for a team member"""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Get lead counts
-    leads_contacted = db.query(Lead).filter(Lead.assigned_to_id == user_id, Lead.status == "Contacted").count()
-    leads_converted = db.query(Lead).filter(Lead.assigned_to_id == user_id, Lead.status == "Converted").count()
+    # Get lead counts (company-scoped)
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+    leads_contacted = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == "Contacted").count()
+    leads_converted = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == "Converted").count()
     
     # Get active leads
-    active_leads = db.query(Lead).filter(
+    active_leads = lead_q.filter(
         Lead.assigned_to_id == user_id,
         Lead.status.notin_(["Converted", "Lost"])
     ).limit(5).all()
@@ -178,10 +184,10 @@ def get_team_leads(
     status: Optional[str] = Query(None),
     member_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get all leads for the manager's team"""
-    query = db.query(Lead)
+    query = apply_company_scope(db.query(Lead), Lead, current_user)
     
     if status:
         query = query.filter(Lead.status == status)
@@ -191,8 +197,9 @@ def get_team_leads(
     leads = query.order_by(Lead.created_at.desc()).all()
     
     result = []
+    user_query = apply_company_scope(db.query(User), User, current_user)
     for lead in leads:
-        assignee = db.query(User).filter(User.id == lead.assigned_to_id).first() if lead.assigned_to_id else None
+        assignee = user_query.filter(User.id == lead.assigned_to_id).first() if lead.assigned_to_id else None
         result.append({
             "id": lead.id,
             "name": lead.name,
@@ -211,14 +218,15 @@ def reassign_lead(
     lead_id: int,
     new_assignee_id: int = Query(...),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Reassign a lead to a different team member"""
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    ensure_company_access(lead, current_user)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     
-    new_assignee = db.query(User).filter(User.id == new_assignee_id).first()
+    new_assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == new_assignee_id).first()
     if not new_assignee:
         raise HTTPException(status_code=404, detail="Assignee not found")
     
@@ -241,10 +249,10 @@ def get_team_tasks(
     status: Optional[str] = Query(None),
     member_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get all tasks for the team"""
-    query = db.query(Task)
+    query = apply_company_scope(db.query(Task), Task, current_user)
     
     if status:
         query = query.filter(Task.status == status)
@@ -254,8 +262,9 @@ def get_team_tasks(
     tasks = query.order_by(Task.due_date.asc()).all()
     
     result = []
+    user_query = apply_company_scope(db.query(User), User, current_user)
     for task in tasks:
-        assignee = db.query(User).filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
+        assignee = user_query.filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
         result.append({
             "id": task.id,
             "title": task.title,
@@ -276,14 +285,15 @@ def create_team_task(
     due_date: str = Query(...),
     priority: str = Query("medium"),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Create and assign a task to a team member"""
-    assignee = db.query(User).filter(User.id == assignee_id).first()
+    assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == assignee_id).first()
     if not assignee:
         raise HTTPException(status_code=404, detail="Assignee not found")
     
     new_task = Task(
+        company_id=current_user.company_id,
         title=title,
         assigned_to_id=assignee_id,
         due_date=datetime.strptime(due_date, "%Y-%m-%d"),
@@ -315,22 +325,25 @@ def create_team_task(
 def get_team_performance(
     period: str = Query("month"),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get team performance report"""
-    leads_total = db.query(Lead).count()
-    leads_converted = db.query(Lead).filter(Lead.status == "Converted").count()
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+    leads_total = lead_q.count()
+    leads_converted = lead_q.filter(Lead.status == "Converted").count()
     conversion_rate = round((leads_converted / leads_total * 100), 1) if leads_total > 0 else 0
     
-    # Get revenue from paid invoices
-    revenue = db.query(func.sum(Invoice.total)).filter(Invoice.status == "Paid").scalar() or 0
+    # Get revenue from paid invoices (company-scoped)
+    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
     
     # Member breakdown
-    team_members = db.query(User).filter(User.role == "sales").all()
+    team_members = apply_company_scope(db.query(User), User, current_user).filter(User.role == "sales").all()
     member_breakdown = []
     for member in team_members:
-        m_leads = db.query(Lead).filter(Lead.assigned_to_id == member.id).count()
-        m_converted = db.query(Lead).filter(Lead.assigned_to_id == member.id, Lead.status == "Converted").count()
+        m_lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+        m_leads = m_lead_q.filter(Lead.assigned_to_id == member.id).count()
+        m_converted = m_lead_q.filter(Lead.assigned_to_id == member.id, Lead.status == "Converted").count()
         member_breakdown.append({
             "id": member.id,
             "name": member.full_name,
@@ -358,10 +371,10 @@ def get_team_performance(
 def get_team_invoices(
     status: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get all invoices created by team members"""
-    query = db.query(Invoice)
+    query = apply_company_scope(db.query(Invoice), Invoice, current_user)
     
     if status:
         query = query.filter(Invoice.status == status)
@@ -369,9 +382,11 @@ def get_team_invoices(
     invoices = query.order_by(Invoice.created_at.desc()).all()
     
     result = []
+    client_q = apply_company_scope(db.query(Client), Client, current_user)
+    user_q = apply_company_scope(db.query(User), User, current_user)
     for inv in invoices:
-        client = db.query(Client).filter(Client.id == inv.client_id).first()
-        creator = db.query(User).filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
+        client = client_q.filter(Client.id == inv.client_id).first()
+        creator = user_q.filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
         result.append({
             "id": inv.id,
             "number": inv.invoice_number,
@@ -389,10 +404,11 @@ def get_team_invoices(
 def approve_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Approve an invoice"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     

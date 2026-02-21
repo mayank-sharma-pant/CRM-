@@ -4,7 +4,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
 from app.models.user import User
 from app.models.client import Client
 from app.models.invoice import Invoice
@@ -20,10 +20,10 @@ router = APIRouter()
 def list_clients(
     search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """List all clients"""
-    query = db.query(Client)
+    query = apply_company_scope(db.query(Client), Client, current_user)
     
     if search:
         search_pattern = f"%{search}%"
@@ -53,16 +53,17 @@ def list_clients(
 def get_client(
     client_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get client details by ID"""
     client = db.query(Client).filter(Client.id == client_id).first()
-    
+    ensure_company_access(client, current_user)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     
-    # Get client invoices
-    invoices = db.query(Invoice).filter(Invoice.client_id == client_id).all()
+    # Get client invoices (company-scoped)
+    inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    invoices = inv_query.filter(Invoice.client_id == client_id).all()
     
     return {
         "id": client.id,
@@ -93,10 +94,13 @@ def create_client(
     company: Optional[str] = Query(None),
     address: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Create a new client"""
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
     new_client = Client(
+        company_id=current_user.company_id,
         name=name,
         email=email,
         phone=phone,
@@ -124,11 +128,11 @@ def update_client(
     company: Optional[str] = Query(None),
     address: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Update client details"""
     client = db.query(Client).filter(Client.id == client_id).first()
-    
+    ensure_company_access(client, current_user)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     
@@ -153,11 +157,11 @@ def update_client(
 def delete_client(
     client_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Delete a client"""
     client = db.query(Client).filter(Client.id == client_id).first()
-    
+    ensure_company_access(client, current_user)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     
@@ -175,15 +179,16 @@ def delete_client(
 def get_client_invoices(
     client_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get all invoices for a client"""
     client = db.query(Client).filter(Client.id == client_id).first()
-    
+    ensure_company_access(client, current_user)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     
-    invoices = db.query(Invoice).filter(Invoice.client_id == client_id).all()
+    inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    invoices = inv_query.filter(Invoice.client_id == client_id).all()
     
     return [
         {

@@ -5,7 +5,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
 from app.models.user import User
 from app.models.lead import Lead
 from app.models.client import Client
@@ -24,23 +24,26 @@ router = APIRouter()
 def get_md_dashboard(
     period: str = Query("30d"),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get MD executive dashboard with company-wide KPIs"""
-    # Real counts
-    total_leads = db.query(Lead).count()
-    converted = db.query(Lead).filter(Lead.status == "Converted").count()
-    lost = db.query(Lead).filter(Lead.status == "Lost").count()
+    # Real counts (company-scoped)
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+    total_leads = lead_q.count()
+    converted = lead_q.filter(Lead.status == "Converted").count()
+    lost = lead_q.filter(Lead.status == "Lost").count()
     active = total_leads - converted - lost
     win_rate = int((converted / (converted + lost) * 100)) if (converted + lost) > 0 else 0
     
-    total_clients = db.query(Client).count()
-    total_revenue = db.query(func.sum(Invoice.total)).filter(Invoice.status == "Paid").scalar() or 0
+    client_q = apply_company_scope(db.query(Client), Client, current_user)
+    total_clients = client_q.count()
+    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    total_revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
     
     # Invoice stats
-    paid = db.query(Invoice).filter(Invoice.status == "Paid").count()
-    pending = db.query(Invoice).filter(Invoice.status == "Pending").count()
-    overdue = db.query(Invoice).filter(Invoice.status == "Overdue").count()
+    paid = inv_q.filter(Invoice.status == "Paid").count()
+    pending = inv_q.filter(Invoice.status == "Pending").count()
+    overdue = inv_q.filter(Invoice.status == "Overdue").count()
     
     return {
         "kpis": [
@@ -53,10 +56,10 @@ def get_md_dashboard(
         ],
         "pipelineSummary": {
             "stageDistribution": [
-                {"stage": "New", "count": db.query(Lead).filter(Lead.status == "New").count()},
-                {"stage": "Contacted", "count": db.query(Lead).filter(Lead.status == "Contacted").count()},
-                {"stage": "Qualified", "count": db.query(Lead).filter(Lead.status == "Qualified").count()},
-                {"stage": "Proposal", "count": db.query(Lead).filter(Lead.status == "Proposal").count()},
+                {"stage": "New", "count": lead_q.filter(Lead.status == "New").count()},
+                {"stage": "Contacted", "count": lead_q.filter(Lead.status == "Contacted").count()},
+                {"stage": "Qualified", "count": lead_q.filter(Lead.status == "Qualified").count()},
+                {"stage": "Proposal", "count": lead_q.filter(Lead.status == "Proposal").count()},
                 {"stage": "Converted", "count": converted}
             ]
         },
@@ -79,11 +82,12 @@ def get_md_dashboard(
 def get_revenue_analytics(
     period: str = Query("30d"),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get detailed revenue analytics"""
-    total_revenue = db.query(func.sum(Invoice.total)).filter(Invoice.status == "Paid").scalar() or 0
-    outstanding = db.query(func.sum(Invoice.total)).filter(Invoice.status == "Pending").scalar() or 0
+    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    total_revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
+    outstanding = inv_q.filter(Invoice.status == "Pending").with_entities(func.sum(Invoice.total)).scalar() or 0
     
     return {
         "kpis": [
@@ -103,21 +107,22 @@ def get_revenue_analytics(
 def get_company_sales(
     period: str = Query("30d"),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get company-wide sales analytics"""
-    total = db.query(Lead).count()
-    won = db.query(Lead).filter(Lead.status == "Converted").count()
-    lost = db.query(Lead).filter(Lead.status == "Lost").count()
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+    total = lead_q.count()
+    won = lead_q.filter(Lead.status == "Converted").count()
+    lost = lead_q.filter(Lead.status == "Lost").count()
     active = total - won - lost
     win_rate = int((won / (won + lost) * 100)) if (won + lost) > 0 else 0
     
-    # Team performance
-    teams = db.query(Team).all()
+    # Team performance (company-scoped)
+    teams = apply_company_scope(db.query(Team), Team, current_user).all()
     team_performance = []
     for team in teams:
-        team_leads = db.query(Lead).filter(Lead.team_id == team.id).count()
-        team_won = db.query(Lead).filter(Lead.team_id == team.id, Lead.status == "Converted").count()
+        team_leads = lead_q.filter(Lead.team_id == team.id).count()
+        team_won = lead_q.filter(Lead.team_id == team.id, Lead.status == "Converted").count()
         team_performance.append({
             "team": team.name,
             "leads": team_leads,
@@ -146,10 +151,10 @@ def get_company_leads(
     status: Optional[str] = Query(None),
     team: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get all company leads with filters"""
-    query = db.query(Lead)
+    query = apply_company_scope(db.query(Lead), Lead, current_user)
     
     if status:
         query = query.filter(Lead.status == status)
@@ -157,9 +162,11 @@ def get_company_leads(
     leads = query.order_by(Lead.created_at.desc()).all()
     
     result = []
+    team_q = apply_company_scope(db.query(Team), Team, current_user)
+    user_q = apply_company_scope(db.query(User), User, current_user)
     for lead in leads:
-        team_obj = db.query(Team).filter(Team.id == lead.team_id).first() if lead.team_id else None
-        owner = db.query(User).filter(User.id == lead.assigned_to_id).first() if lead.assigned_to_id else None
+        team_obj = team_q.filter(Team.id == lead.team_id).first() if lead.team_id else None
+        owner = user_q.filter(User.id == lead.assigned_to_id).first() if lead.assigned_to_id else None
         result.append({
             "id": lead.id,
             "name": lead.name,
@@ -180,12 +187,13 @@ def get_company_leads(
 def get_company_clients(
     status: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get all company clients"""
-    total = db.query(Client).count()
+    client_q = apply_company_scope(db.query(Client), Client, current_user)
+    total = client_q.count()
     
-    clients = db.query(Client).order_by(Client.created_at.desc()).limit(10).all()
+    clients = client_q.order_by(Client.created_at.desc()).limit(10).all()
     
     return {
         "summary": {
@@ -209,10 +217,10 @@ def employee_lookup(
     team: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Search and lookup employees"""
-    query = db.query(User)
+    query = apply_company_scope(db.query(User), User, current_user)
     
     if search:
         search_pattern = f"%{search}%"
@@ -226,8 +234,9 @@ def employee_lookup(
     users = query.all()
     
     result = []
+    team_q = apply_company_scope(db.query(Team), Team, current_user)
     for user in users:
-        team_obj = db.query(Team).filter(Team.id == user.team_id).first() if user.team_id else None
+        team_obj = team_q.filter(Team.id == user.team_id).first() if user.team_id else None
         result.append({
             "id": f"EMP{user.id:03d}",
             "user_id": user.id,
@@ -245,18 +254,19 @@ def employee_lookup(
 def get_employee_detail(
     user_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get detailed employee information"""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Employee not found")
     
-    team = db.query(Team).filter(Team.id == user.team_id).first() if user.team_id else None
+    team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == user.team_id).first() if user.team_id else None
     
-    # Performance metrics
-    leads = db.query(Lead).filter(Lead.assigned_to_id == user_id).count()
-    converted = db.query(Lead).filter(Lead.assigned_to_id == user_id, Lead.status == "Converted").count()
+    # Performance metrics (company-scoped)
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+    leads = lead_q.filter(Lead.assigned_to_id == user_id).count()
+    converted = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == "Converted").count()
     
     return {
         "employee": {
@@ -282,22 +292,23 @@ def get_employee_detail(
 @router.get("/monitoring")
 def get_company_monitoring(
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get company-wide monitoring and alerts"""
-    # Get team status
-    teams = db.query(Team).all()
+    # Get team status (company-scoped)
+    teams = apply_company_scope(db.query(Team), Team, current_user).all()
     team_status = []
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
     for team in teams:
-        team_leads = db.query(Lead).filter(Lead.team_id == team.id).count()
+        team_leads = lead_q.filter(Lead.team_id == team.id).count()
         team_status.append({
             "team": team.name,
             "status": "healthy",
             "leads": team_leads
         })
     
-    # Get overdue tasks
-    overdue_count = db.query(Task).filter(
+    # Get overdue tasks (company-scoped)
+    overdue_count = apply_company_scope(db.query(Task), Task, current_user).filter(
         Task.due_date < datetime.now(),
         Task.status != "Completed"
     ).count()

@@ -4,7 +4,7 @@ from typing import Optional, List
 from datetime import datetime, date, timedelta
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
 from app.models.user import User
 from app.models.follow_up import FollowUp
 from app.models.lead import Lead
@@ -21,10 +21,10 @@ def list_follow_ups(
     status: Optional[str] = Query(None, description="Pending, Completed, Cancelled"),
     lead_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """List all follow-ups for the current user"""
-    query = db.query(FollowUp)
+    query = apply_company_scope(db.query(FollowUp), FollowUp, current_user)
     
     if status:
         query = query.filter(FollowUp.status == status)
@@ -34,8 +34,9 @@ def list_follow_ups(
     follow_ups = query.order_by(FollowUp.scheduled_date.asc()).all()
     
     result = []
+    lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
     for fu in follow_ups:
-        lead = db.query(Lead).filter(Lead.id == fu.lead_id).first()
+        lead = lead_query.filter(Lead.id == fu.lead_id).first()
         lead_name = f"{lead.name} - {lead.company}" if lead else "Unknown Lead"
         result.append({
             "id": fu.id,
@@ -53,19 +54,20 @@ def list_follow_ups(
 @router.get("/today")
 def get_todays_follow_ups(
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get follow-ups scheduled for today"""
     today = date.today()
-    
-    follow_ups = db.query(FollowUp).filter(
+    fu_query = apply_company_scope(db.query(FollowUp), FollowUp, current_user)
+    follow_ups = fu_query.filter(
         FollowUp.scheduled_date == today,
         FollowUp.status == "Pending"
     ).all()
     
     result = []
+    lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
     for fu in follow_ups:
-        lead = db.query(Lead).filter(Lead.id == fu.lead_id).first()
+        lead = lead_query.filter(Lead.id == fu.lead_id).first()
         result.append({
             "id": fu.id,
             "lead_name": lead.name if lead else "Unknown",
@@ -85,19 +87,20 @@ def get_todays_follow_ups(
 @router.get("/overdue")
 def get_overdue_follow_ups(
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get overdue follow-ups"""
     today = date.today()
-    
-    follow_ups = db.query(FollowUp).filter(
+    fu_query = apply_company_scope(db.query(FollowUp), FollowUp, current_user)
+    follow_ups = fu_query.filter(
         FollowUp.scheduled_date < today,
         FollowUp.status == "Pending"
     ).all()
     
     result = []
+    lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
     for fu in follow_ups:
-        lead = db.query(Lead).filter(Lead.id == fu.lead_id).first()
+        lead = lead_query.filter(Lead.id == fu.lead_id).first()
         days_overdue = (today - fu.scheduled_date).days if fu.scheduled_date else 0
         result.append({
             "id": fu.id,
@@ -118,15 +121,15 @@ def get_overdue_follow_ups(
 def get_follow_up(
     follow_up_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get follow-up details by ID"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
-    
+    ensure_company_access(fu, current_user)
     if not fu:
         raise HTTPException(status_code=404, detail="Follow-up not found")
     
-    lead = db.query(Lead).filter(Lead.id == fu.lead_id).first()
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == fu.lead_id).first()
     
     return {
         "id": fu.id,
@@ -147,14 +150,15 @@ def create_follow_up(
     scheduled_time: Optional[str] = Query(None),
     notes: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Create a new follow-up"""
-    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     
     new_fu = FollowUp(
+        company_id=lead.company_id,
         lead_id=lead_id,
         scheduled_date=datetime.strptime(scheduled_date, "%Y-%m-%d").date(),
         scheduled_time=datetime.strptime(scheduled_time, "%H:%M").time() if scheduled_time else None,
@@ -182,11 +186,11 @@ def update_follow_up(
     scheduled_time: Optional[str] = Query(None),
     notes: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Update follow-up details"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
-    
+    ensure_company_access(fu, current_user)
     if not fu:
         raise HTTPException(status_code=404, detail="Follow-up not found")
     
@@ -207,11 +211,11 @@ def complete_follow_up(
     follow_up_id: int,
     outcome: str = Query(..., description="Outcome of the follow-up"),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Mark follow-up as completed"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
-    
+    ensure_company_access(fu, current_user)
     if not fu:
         raise HTTPException(status_code=404, detail="Follow-up not found")
     
@@ -235,11 +239,11 @@ def reschedule_follow_up(
     new_time: Optional[str] = Query(None),
     reason: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Reschedule a follow-up"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
-    
+    ensure_company_access(fu, current_user)
     if not fu:
         raise HTTPException(status_code=404, detail="Follow-up not found")
     
@@ -262,11 +266,11 @@ def reschedule_follow_up(
 def delete_follow_up(
     follow_up_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Delete a follow-up"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
-    
+    ensure_company_access(fu, current_user)
     if not fu:
         raise HTTPException(status_code=404, detail="Follow-up not found")
     

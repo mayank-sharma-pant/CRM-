@@ -7,7 +7,7 @@ import json
 import secrets
 
 from app.database import get_db
-from app.utils.dependencies import require_admin
+from app.utils.dependencies import require_admin, apply_company_scope, ensure_company_access
 from app.models.user import User
 from app.models.team import Team
 from app.models.lead import Lead
@@ -35,6 +35,7 @@ def create_audit_log(
 ):
     """Helper to create audit log entries"""
     log = AuditLog(
+        company_id=admin.company_id,
         admin_id=admin.id,
         admin_name=admin.full_name,
         action=action,
@@ -57,14 +58,18 @@ def get_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """Get admin dashboard with stats"""
-    active_users = db.query(User).filter(User.status == "active").count()
-    pending_users = db.query(User).filter(User.status == "pending").count()
-    disabled_users = db.query(User).filter(User.status == "disabled").count()
-    teams_count = db.query(Team).count()
+    """Get admin dashboard with stats (company-scoped for company admin)"""
+    user_q = apply_company_scope(db.query(User), User, current_user)
+    active_users = user_q.filter(User.status == "active").count()
+    pending_users = user_q.filter(User.status == "pending").count()
+    disabled_users = user_q.filter(User.status == "disabled").count()
+    teams_count = apply_company_scope(db.query(Team), Team, current_user).count()
     
-    # Get recent activity
-    recent_logs = db.query(AuditLog).order_by(AuditLog.timestamp.desc()).limit(10).all()
+    # Get recent activity (company-scoped if admin has company_id)
+    log_q = db.query(AuditLog)
+    if current_user.company_id is not None:
+        log_q = log_q.filter(AuditLog.company_id == current_user.company_id)
+    recent_logs = log_q.order_by(AuditLog.timestamp.desc()).limit(10).all()
     
     recent_activity = []
     for log in recent_logs:
@@ -99,8 +104,8 @@ def list_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """List all users with filters"""
-    query = db.query(User)
+    """List all users with filters (company-scoped for company admin)"""
+    query = apply_company_scope(db.query(User), User, current_user)
     
     if status and status.lower() != "all":
         query = query.filter(User.status == status.lower())
@@ -116,8 +121,9 @@ def list_users(
     users = query.order_by(User.created_at.desc()).all()
     
     result = []
+    team_q = apply_company_scope(db.query(Team), Team, current_user)
     for user in users:
-        team = db.query(Team).filter(Team.id == user.team_id).first() if user.team_id else None
+        team = team_q.filter(Team.id == user.team_id).first() if user.team_id else None
         result.append({
             "id": f"EMP{user.id:03d}",
             "user_id": user.id,
@@ -141,11 +147,11 @@ def get_user(
     current_user: User = Depends(require_admin)
 ):
     """Get user details by ID"""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    team = db.query(Team).filter(Team.id == user.team_id).first() if user.team_id else None
+    team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == user.team_id).first() if user.team_id else None
     
     return {
         "id": user.id,
@@ -170,7 +176,7 @@ def update_user(
     current_user: User = Depends(require_admin)
 ):
     """Update user role, team, or status"""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -204,7 +210,7 @@ def activate_user(
     current_user: User = Depends(require_admin)
 ):
     """Activate a user"""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -229,18 +235,20 @@ def disable_user(
     current_user: User = Depends(require_admin)
 ):
     """Disable a user"""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Check for open tasks that need reassignment
-    open_tasks = db.query(Task).filter(
+    # Check for open tasks that need reassignment (company-scoped)
+    task_q = apply_company_scope(db.query(Task), Task, current_user)
+    open_tasks = task_q.filter(
         Task.assigned_to_id == user_id,
         Task.status != "Completed"
     ).count()
     
-    # Check for assigned leads
-    assigned_leads = db.query(Lead).filter(
+    # Check for assigned leads (company-scoped)
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+    assigned_leads = lead_q.filter(
         Lead.assigned_to_id == user_id
     ).count()
     
@@ -271,17 +279,19 @@ def delete_user(
     current_user: User = Depends(require_admin)
 ):
     """Delete a user (requires reassignment of tasks/leads first)"""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Safety check: prevent deleting users with open tasks or leads
-    open_tasks = db.query(Task).filter(
+    # Safety check: prevent deleting users with open tasks or leads (company-scoped)
+    task_q = apply_company_scope(db.query(Task), Task, current_user)
+    open_tasks = task_q.filter(
         Task.assigned_to_id == user_id,
         Task.status != "Completed"
     ).count()
     
-    assigned_leads = db.query(Lead).filter(
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+    assigned_leads = lead_q.filter(
         Lead.assigned_to_id == user_id
     ).count()
     
@@ -315,13 +325,14 @@ def list_teams(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """List all teams"""
-    teams = db.query(Team).all()
+    """List all teams (company-scoped)"""
+    teams = apply_company_scope(db.query(Team), Team, current_user).all()
     
     result = []
+    user_q = apply_company_scope(db.query(User), User, current_user)
     for team in teams:
-        member_count = db.query(User).filter(User.team_id == team.id).count()
-        manager = db.query(User).filter(User.team_id == team.id, User.role == "manager").first()
+        member_count = user_q.filter(User.team_id == team.id).count()
+        manager = user_q.filter(User.team_id == team.id, User.role == "manager").first()
         result.append({
             "id": team.id,
             "name": team.name,
@@ -340,11 +351,13 @@ def create_team(
     current_user: User = Depends(require_admin)
 ):
     """Create a new team"""
-    existing = db.query(Team).filter(Team.name == name).first()
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="Platform Admin cannot create teams; use company admin")
+    existing = apply_company_scope(db.query(Team), Team, current_user).filter(Team.name == name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Team name already exists")
     
-    new_team = Team(name=name)
+    new_team = Team(company_id=current_user.company_id, name=name)
     db.add(new_team)
     db.flush()  # Get ID before commit
     
@@ -367,11 +380,11 @@ def get_team(
     current_user: User = Depends(require_admin)
 ):
     """Get team details with members"""
-    team = db.query(Team).filter(Team.id == team_id).first()
+    team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     
-    members = db.query(User).filter(User.team_id == team_id).all()
+    members = apply_company_scope(db.query(User), User, current_user).filter(User.team_id == team_id).all()
     manager = next((m for m in members if m.role == "manager"), None)
     
     return {
@@ -394,7 +407,7 @@ def update_team(
     current_user: User = Depends(require_admin)
 ):
     """Update team"""
-    team = db.query(Team).filter(Team.id == team_id).first()
+    team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     
@@ -419,12 +432,12 @@ def delete_team(
     current_user: User = Depends(require_admin)
 ):
     """Delete team"""
-    team = db.query(Team).filter(Team.id == team_id).first()
+    team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     
     team_name = team.name
-    member_count = db.query(User).filter(User.team_id == team_id).count()
+    member_count = apply_company_scope(db.query(User), User, current_user).filter(User.team_id == team_id).count()
     
     # Remove team from users
     db.query(User).filter(User.team_id == team_id).update({"team_id": None})
@@ -450,11 +463,11 @@ def add_team_member(
     current_user: User = Depends(require_admin)
 ):
     """Add member to team"""
-    team = db.query(Team).filter(Team.id == team_id).first()
+    team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     
-    user = db.query(User).filter(User.id == user_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -481,11 +494,11 @@ def remove_team_member(
     current_user: User = Depends(require_admin)
 ):
     """Remove member from team"""
-    team = db.query(Team).filter(Team.id == team_id).first()
+    team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     
-    user = db.query(User).filter(User.id == user_id, User.team_id == team_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id, User.team_id == team_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found in this team")
     
@@ -511,8 +524,8 @@ def get_pending_approvals(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """Get users pending approval"""
-    pending = db.query(User).filter(User.status == "pending").all()
+    """Get users pending approval (company-scoped)"""
+    pending = apply_company_scope(db.query(User), User, current_user).filter(User.status == "pending").all()
     
     return {
         "approvals": [
@@ -536,7 +549,7 @@ def approve_user(
     current_user: User = Depends(require_admin)
 ):
     """Approve a pending user"""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -564,7 +577,7 @@ def reject_user(
     current_user: User = Depends(require_admin)
 ):
     """Reject a pending user"""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -596,12 +609,13 @@ def get_hierarchy(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """Get organization hierarchy"""
-    teams = db.query(Team).all()
+    """Get organization hierarchy (company-scoped)"""
+    teams = apply_company_scope(db.query(Team), Team, current_user).all()
     
     hierarchy = []
+    user_q = apply_company_scope(db.query(User), User, current_user)
     for team in teams:
-        members = db.query(User).filter(User.team_id == team.id).all()
+        members = user_q.filter(User.team_id == team.id).all()
         manager = next((m for m in members if m.role == "manager"), None)
         
         hierarchy.append({
@@ -633,9 +647,11 @@ def get_audit_log(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """Get audit log entries"""
+    """Get audit log entries (company-scoped if admin has company_id)"""
     since = datetime.now() - timedelta(days=days)
     query = db.query(AuditLog).filter(AuditLog.timestamp >= since)
+    if current_user.company_id is not None:
+        query = query.filter(AuditLog.company_id == current_user.company_id)
     
     if action:
         query = query.filter(AuditLog.action == action)
@@ -673,8 +689,15 @@ def get_settings(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """Get company settings"""
-    settings = db.query(CompanySettings).first()
+    """Get company settings (company-scoped)"""
+    if current_user.company_id is None:
+        return {
+            "company_name": "Company Name",
+            "invoice_prefix": "INV",
+            "tax_rate": 18.0,
+            "payment_terms": "Net 30 days"
+        }
+    settings = db.query(CompanySettings).filter(CompanySettings.company_id == current_user.company_id).first()
     
     if not settings:
         return {
@@ -704,7 +727,9 @@ def update_settings(
     current_user: User = Depends(require_admin)
 ):
     """Update company settings"""
-    settings = db.query(CompanySettings).first()
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="Platform Admin cannot update company settings")
+    settings = db.query(CompanySettings).filter(CompanySettings.company_id == current_user.company_id).first()
     
     before_state = {}
     if settings:
@@ -716,7 +741,7 @@ def update_settings(
         }
     
     if not settings:
-        settings = CompanySettings()
+        settings = CompanySettings(company_id=current_user.company_id)
         db.add(settings)
     
     if company_name:
@@ -764,8 +789,8 @@ def list_invites(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """List all invites with optional status filter"""
-    query = db.query(Invite)
+    """List all invites with optional status filter (company-scoped)"""
+    query = apply_company_scope(db.query(Invite), Invite, current_user)
     
     if status and status.lower() != "all":
         query = query.filter(Invite.status == status.lower())
@@ -809,6 +834,8 @@ def create_invite(
     current_user: User = Depends(require_admin)
 ):
     """Create a new invite for a user"""
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="Platform Admin cannot create invites; use company admin")
     # Check if user with this email already exists
     existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
@@ -822,15 +849,15 @@ def create_invite(
     if existing_invite:
         raise HTTPException(status_code=400, detail="Pending invite already exists for this email")
     
-    # Validate team exists if provided
+    # Validate team exists if provided (company-scoped)
     if team_id:
-        team = db.query(Team).filter(Team.id == team_id).first()
+        team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == team_id).first()
         if not team:
             raise HTTPException(status_code=400, detail="Team not found")
     
-    # Validate manager exists if provided
+    # Validate manager exists if provided (company-scoped)
     if manager_id:
-        manager = db.query(User).filter(User.id == manager_id).first()
+        manager = apply_company_scope(db.query(User), User, current_user).filter(User.id == manager_id).first()
         if not manager:
             raise HTTPException(status_code=400, detail="Manager not found")
     
@@ -839,6 +866,7 @@ def create_invite(
     expires_at = datetime.now() + timedelta(days=INVITE_EXPIRY_DAYS)
     
     invite = Invite(
+        company_id=current_user.company_id,
         email=email,
         full_name=full_name,
         phone=phone,
@@ -880,7 +908,7 @@ def resend_invite(
     current_user: User = Depends(require_admin)
 ):
     """Resend an invite (generates new token and extends expiry)"""
-    invite = db.query(Invite).filter(Invite.id == invite_id).first()
+    invite = apply_company_scope(db.query(Invite), Invite, current_user).filter(Invite.id == invite_id).first()
     if not invite:
         raise HTTPException(status_code=404, detail="Invite not found")
     
@@ -918,7 +946,7 @@ def cancel_invite(
     current_user: User = Depends(require_admin)
 ):
     """Cancel a pending invite"""
-    invite = db.query(Invite).filter(Invite.id == invite_id).first()
+    invite = apply_company_scope(db.query(Invite), Invite, current_user).filter(Invite.id == invite_id).first()
     if not invite:
         raise HTTPException(status_code=404, detail="Invite not found")
     
@@ -947,7 +975,7 @@ def get_invite(
     current_user: User = Depends(require_admin)
 ):
     """Get invite details"""
-    invite = db.query(Invite).filter(Invite.id == invite_id).first()
+    invite = apply_company_scope(db.query(Invite), Invite, current_user).filter(Invite.id == invite_id).first()
     if not invite:
         raise HTTPException(status_code=404, detail="Invite not found")
     

@@ -9,14 +9,20 @@ from alembic import context
 # access to the values within the .ini file in use.
 config = context.config
 
+# Use DATABASE_URL from app config (.env) so one source of truth
+try:
+    from app.config import settings
+    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+except Exception:
+    pass  # fall back to alembic.ini sqlalchemy.url
+
 # Interpret the config file for Python logging.
-# This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 import sys
 import os
-sys.path.append(os.getcwd())
+sys.path.insert(0, os.getcwd())
 
 from app.database import Base
 from app.models import *  # Import all models to register them

@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text, Float
+from sqlalchemy import Column, Integer, String, Text, Float, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.database import Base
 
 
@@ -7,6 +8,7 @@ class CompanySettings(Base):
     __tablename__ = "company_settings"
     
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
     company_name = Column(String(255), nullable=False, default="Company Name")
     address = Column(Text, nullable=True)
     gst_number = Column(String(50), nullable=True)
@@ -24,3 +26,6 @@ class CompanySettings(Base):
     # Notification settings
     task_reminders_enabled = Column(Integer, default=1)  # 1=true, 0=false
     followup_alerts_enabled = Column(Integer, default=1)
+
+    # Relationships
+    company = relationship("Company", backref="settings")

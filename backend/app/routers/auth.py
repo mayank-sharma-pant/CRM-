@@ -51,13 +51,16 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
             detail="Email already registered"
         )
     
-    # Create new user
+    # Create new user (assign default company for non-admin; admin may have company_id=NULL)
     hashed_password = get_password_hash(user_data.password)
+    role = user_data.role or "sales"
+    company_id = None if role == "admin" else 1  # Default company for company users
     db_user = User(
         email=user_data.email,
         full_name=user_data.full_name,
         hashed_password=hashed_password,
-        role=user_data.role or "sales",
+        role=role,
+        company_id=company_id,
         phone=user_data.phone,
         status="pending"
     )
@@ -124,6 +127,7 @@ def get_me(current_user: User = Depends(get_current_user)):
         "status": current_user.status,
         "phone": current_user.phone,
         "team_id": current_user.team_id,
+        "company_id": current_user.company_id,
         "created_at": current_user.created_at.isoformat() if current_user.created_at else None
     }
 
@@ -195,7 +199,7 @@ def accept_invite(
             detail="Password must be at least 8 characters"
         )
     
-    # Create user from invite
+    # Create user from invite (use invite's company_id)
     hashed_password = get_password_hash(password)
     new_user = User(
         email=invite.email,
@@ -203,6 +207,7 @@ def accept_invite(
         phone=invite.phone,
         hashed_password=hashed_password,
         role=invite.role,
+        company_id=invite.company_id,
         team_id=invite.team_id,
         manager_id=invite.manager_id,
         status="active",  # Invited users are auto-activated

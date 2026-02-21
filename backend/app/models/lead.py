@@ -18,6 +18,7 @@ class Lead(Base):
     __tablename__ = "leads"
     
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     email = Column(String(255), nullable=True)
     phone = Column(String(50), nullable=True)
@@ -44,6 +45,7 @@ class Lead(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     # Relationships
+    tenant = relationship("Company", backref="leads", foreign_keys=[company_id])
     assigned_to = relationship("User", back_populates="leads")
     team = relationship("Team", back_populates="leads")
     tasks = relationship("Task", back_populates="lead", cascade="all, delete-orphan")

@@ -4,7 +4,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
 from app.models.user import User
 from app.models.task import Task
 from app.models.lead import Lead
@@ -21,10 +21,10 @@ router = APIRouter()
 def get_tasks_list(
     status: Optional[str] = Query(None, description="Filter by status"),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get full task list with grouping"""
-    query = db.query(Task)
+    query = apply_company_scope(db.query(Task), Task, current_user)
     
     if status:
         query = query.filter(Task.status == status)
@@ -47,10 +47,10 @@ def get_tasks_list(
     
     def get_entity_info(task):
         if task.lead_id:
-            lead = db.query(Lead).filter(Lead.id == task.lead_id).first()
+            lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == task.lead_id).first()
             return (lead.name if lead else "Unknown Lead", "Lead")
         elif task.client_id:
-            client = db.query(Client).filter(Client.id == task.client_id).first()
+            client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == task.client_id).first()
             return (client.name if client else "Unknown Client", "Client")
         return ("Internal", "System")
     
@@ -75,21 +75,22 @@ def get_tasks_list(
 @router.get("/")
 def get_priority_tasks(
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get priority tasks for dashboard (overdue and due today)"""
     now = datetime.now()
     today_start = datetime(now.year, now.month, now.day)
     today_end = today_start + timedelta(days=1)
     
+    task_query = apply_company_scope(db.query(Task), Task, current_user)
     # Overdue tasks
-    overdue = db.query(Task).filter(
+    overdue = task_query.filter(
         Task.due_date < today_start,
         Task.status != "Completed"
     ).all()
     
     # Due today
-    due_today = db.query(Task).filter(
+    due_today = task_query.filter(
         Task.due_date >= today_start,
         Task.due_date < today_end,
         Task.status != "Completed"
@@ -118,11 +119,11 @@ def get_priority_tasks(
 def get_task(
     task_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get task details by ID"""
     task = db.query(Task).filter(Task.id == task_id).first()
-    
+    ensure_company_access(task, current_user)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
@@ -149,10 +150,13 @@ def create_task(
     lead_id: Optional[int] = Query(None),
     client_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Create a new task"""
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
     new_task = Task(
+        company_id=current_user.company_id,
         title=title,
         description=description,
         priority=priority,
@@ -181,11 +185,11 @@ def update_task(
     status: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Update a task"""
     task = db.query(Task).filter(Task.id == task_id).first()
-    
+    ensure_company_access(task, current_user)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
@@ -208,11 +212,11 @@ def update_task(
 def complete_task(
     task_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Mark task as completed"""
     task = db.query(Task).filter(Task.id == task_id).first()
-    
+    ensure_company_access(task, current_user)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
@@ -228,11 +232,11 @@ def complete_task(
 def delete_task(
     task_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Delete a task"""
     task = db.query(Task).filter(Task.id == task_id).first()
-    
+    ensure_company_access(task, current_user)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     

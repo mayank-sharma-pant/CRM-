@@ -1,4 +1,8 @@
--- Local Service CRM Database Schema
+-- DEPRECATED: Do not run this file. It does not match the current application.
+-- The app uses SQLAlchemy models in backend/app/models and Alembic migrations.
+-- See database/README.md and run: cd backend && alembic upgrade head
+--
+-- Local Service CRM Database Schema (legacy)
 -- PostgreSQL
 
 -- Enable UUID extension

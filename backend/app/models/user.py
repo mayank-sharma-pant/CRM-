@@ -13,6 +13,7 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(50), nullable=False, default="sales")  # sales, manager, md, purchase, admin
     status = Column(String(20), nullable=False, default="pending")  # active, disabled, pending
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)  # NULL for Platform Admin
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     manager_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     phone = Column(String(50), nullable=True)
@@ -21,6 +22,9 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
+    # Company (Platform Admin may have company_id=NULL)
+    company = relationship("Company", backref="users")
+
     # Self-referential for manager hierarchy
     manager = relationship("User", remote_side=[id], backref="direct_reports")
     

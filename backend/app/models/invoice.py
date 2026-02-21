@@ -8,6 +8,7 @@ class Invoice(Base):
     __tablename__ = "invoices"
     
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
     invoice_number = Column(String(50), unique=True, nullable=False)
     
     # Client
@@ -41,6 +42,7 @@ class Invoice(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     # Relationships
+    company = relationship("Company", backref="invoices")
     client = relationship("Client", back_populates="invoices")
     created_by = relationship("User", foreign_keys=[created_by_id], back_populates="invoices_created")
     approved_by = relationship("User", foreign_keys=[approved_by_id], back_populates="invoices_approved")

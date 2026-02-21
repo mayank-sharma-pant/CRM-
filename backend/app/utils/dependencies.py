@@ -1,10 +1,38 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Any
 from app.database import get_db
 from app.models.user import User
 from app.utils.security import decode_access_token
+
+
+def is_platform_admin(user: User) -> bool:
+    """Platform Admin has role=admin and company_id=NULL. Bypasses company scoping."""
+    return user.role == "admin" and user.company_id is None
+
+
+def apply_company_scope(query, model_class: type, current_user: User, company_id_attr: str = "company_id"):
+    """
+    Apply company scoping to a query. Platform Admin (role=admin, company_id=NULL) bypasses.
+    Returns the filtered query.
+    """
+    if is_platform_admin(current_user):
+        return query
+    col = getattr(model_class, company_id_attr)
+    return query.filter(col == current_user.company_id)
+
+
+def ensure_company_access(entity: Any, current_user: User, company_id_attr: str = "company_id") -> None:
+    """
+    Raise 404 if entity exists but belongs to another company. Platform Admin bypasses.
+    """
+    if entity is None:
+        return
+    if is_platform_admin(current_user):
+        return
+    if getattr(entity, company_id_attr) != current_user.company_id:
+        raise HTTPException(status_code=404, detail="Not found")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -73,6 +101,23 @@ async def require_admin_or_md(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin or MD access required"
+        )
+    return current_user
+
+
+def require_company_user(
+    current_user: User = Depends(get_current_active_user)
+) -> User:
+    """Ensure user belongs to a company (not Platform Admin). Used when company_id is required."""
+    if current_user.role == "admin" and current_user.company_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Platform Admin cannot perform this company-scoped action"
+        )
+    if current_user.company_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User must be assigned to a company"
         )
     return current_user
 

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from app.utils.auth import get_current_user
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
 from app.models.user import User
 from app.models.ledger import LedgerEntry
 from app.database import get_db
@@ -170,6 +170,63 @@ def get_ledger_columns(ledger_slug: str) -> List[Dict[str, Any]]:
             {"key": "amount", "label": "Amount", "width": "120px", "type": "number"},
             {"key": "remarks", "label": "Remarks", "width": "200px"}
         ]
+    elif "cash_bank_balance" == ledger_slug:
+        return [
+            {"key": "date", "label": "Date", "width": "120px", "type": "date"},
+            {"key": "opening_cash", "label": "Opening Cash", "width": "120px", "type": "number", "format": "currency"},
+            {"key": "cash_in", "label": "Cash In", "width": "100px", "type": "number"},
+            {"key": "cash_out", "label": "Cash Out", "width": "100px", "type": "number"},
+            {"key": "closing_cash", "label": "Closing Cash", "width": "120px", "type": "number", "format": "currency"},
+            {"key": "opening_bank", "label": "Opening Bank", "width": "120px", "type": "number", "format": "currency"},
+            {"key": "bank_in", "label": "Bank In", "width": "100px", "type": "number"},
+            {"key": "bank_out", "label": "Bank Out", "width": "100px", "type": "number"},
+            {"key": "closing_bank", "label": "Closing Bank", "width": "120px", "type": "number", "format": "currency"},
+            {"key": "remarks", "label": "Remarks", "width": "200px"}
+        ]
+    elif "pdc_given" == ledger_slug:
+        return [
+            {"key": "cheque_date", "label": "Cheque Date", "width": "120px", "type": "date"},
+            {"key": "cheque_number", "label": "Cheque Number", "width": "120px"},
+            {"key": "bank_name", "label": "Bank Name", "width": "150px"},
+            {"key": "party_name", "label": "Party Name", "width": "200px", "autoFocus": True},
+            {"key": "amount", "label": "Amount", "width": "120px", "type": "number", "format": "currency"},
+            {"key": "status", "label": "Status", "width": "120px"},
+            {"key": "clearing_date", "label": "Clearing Date", "width": "120px", "type": "date"},
+            {"key": "remarks", "label": "Remarks", "width": "200px"}
+        ]
+    elif "pdc_received" == ledger_slug:
+        return [
+            {"key": "cheque_date", "label": "Cheque Date", "width": "120px", "type": "date"},
+            {"key": "cheque_number", "label": "Cheque Number", "width": "120px"},
+            {"key": "bank_name", "label": "Bank Name", "width": "150px"},
+            {"key": "party_name", "label": "Party Name", "width": "200px", "autoFocus": True},
+            {"key": "amount", "label": "Amount", "width": "120px", "type": "number", "format": "currency"},
+            {"key": "status", "label": "Status", "width": "120px"},
+            {"key": "clearing_date", "label": "Clearing Date", "width": "120px", "type": "date"},
+            {"key": "remarks", "label": "Remarks", "width": "200px"}
+        ]
+    elif "account_transfer_purchase" == ledger_slug:
+        return [
+            {"key": "date", "label": "Date", "width": "120px", "type": "date"},
+            {"key": "vendor", "label": "Vendor", "width": "200px", "autoFocus": True},
+            {"key": "product", "label": "Product", "width": "150px"},
+            {"key": "invoice_number", "label": "Invoice Number", "width": "130px"},
+            {"key": "amount", "label": "Amount", "width": "120px", "type": "number", "format": "currency"},
+            {"key": "bank", "label": "Bank", "width": "120px"},
+            {"key": "utr_reference", "label": "UTR / Reference", "width": "150px"},
+            {"key": "remarks", "label": "Remarks", "width": "200px"}
+        ]
+    elif "account_transfer_sales" == ledger_slug:
+        return [
+            {"key": "date", "label": "Date", "width": "120px", "type": "date"},
+            {"key": "client", "label": "Client", "width": "200px", "autoFocus": True},
+            {"key": "product", "label": "Product", "width": "150px"},
+            {"key": "invoice_number", "label": "Invoice Number", "width": "130px"},
+            {"key": "amount", "label": "Amount", "width": "120px", "type": "number", "format": "currency"},
+            {"key": "bank", "label": "Bank", "width": "120px"},
+            {"key": "utr_reference", "label": "UTR / Reference", "width": "150px"},
+            {"key": "remarks", "label": "Remarks", "width": "200px"}
+        ]
     # Default fallback
     return [
         {"key": "date", "label": "Date", "width": "120px", "type": "date"},
@@ -233,8 +290,9 @@ def get_ledger_data(
     
     can_edit = (access_level == "edit")
     
-    # 3. Fetch Data from Database
-    entries = db.query(LedgerEntry).filter(LedgerEntry.ledger_slug == ledger_slug).all()
+    # 3. Fetch Data from Database (company-scoped)
+    entry_query = apply_company_scope(db.query(LedgerEntry), LedgerEntry, current_user)
+    entries = entry_query.filter(LedgerEntry.ledger_slug == ledger_slug).all()
     
     # Format rows: extract data json and inject id
     rows = []
@@ -281,7 +339,10 @@ def create_ledger_entry(
         )
 
     # 3. Create Entry
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
     db_entry = LedgerEntry(
+        company_id=current_user.company_id,
         ledger_slug=ledger_slug,
         data=entry.data,
         created_by=current_user.id
@@ -324,7 +385,7 @@ def update_ledger_entry(
         LedgerEntry.id == entry_id,
         LedgerEntry.ledger_slug == ledger_slug
     ).first()
-    
+    ensure_company_access(db_entry, current_user)
     if not db_entry:
         raise HTTPException(status_code=404, detail="Entry not found")
         
@@ -361,7 +422,7 @@ def delete_ledger_entry(
         LedgerEntry.id == entry_id,
         LedgerEntry.ledger_slug == ledger_slug
     ).first()
-    
+    ensure_company_access(db_entry, current_user)
     if not db_entry:
         raise HTTPException(status_code=404, detail="Entry not found")
         

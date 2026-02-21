@@ -8,7 +8,8 @@ class FollowUp(Base):
     __tablename__ = "follow_ups"
     
     id = Column(Integer, primary_key=True, index=True)
-    
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+
     # Related lead
     lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False)
     
@@ -31,5 +32,6 @@ class FollowUp(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     # Relationships
+    company = relationship("Company", backref="follow_ups")
     lead = relationship("Lead", back_populates="follow_ups")
     created_by = relationship("User", back_populates="follow_ups")

@@ -1,4 +1,5 @@
 # Models package
+from app.models.company import Company
 from app.models.user import User
 from app.models.team import Team
 from app.models.audit import AuditLog

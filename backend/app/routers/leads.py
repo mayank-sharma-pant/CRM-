@@ -4,7 +4,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
 from app.models.user import User
 from app.models.lead import Lead
 from app.models.task import Task
@@ -24,12 +24,13 @@ router = APIRouter()
 @router.get("/dashboard")
 def get_sales_dashboard(
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get sales executive dashboard with metrics and priority tasks"""
-    # Get real counts from database
-    total_leads = db.query(Lead).count()
-    closed_leads = db.query(Lead).filter(Lead.status.in_(["Converted", "Lost"])).count()
+    # Get real counts from database (company-scoped)
+    lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
+    total_leads = lead_query.count()
+    closed_leads = lead_query.filter(Lead.status.in_(["Converted", "Lost"])).count()
     conversion_rate = int((closed_leads / total_leads * 100)) if total_leads > 0 else 0
     
     # Get priority tasks (overdue and due today)
@@ -37,12 +38,13 @@ def get_sales_dashboard(
     today_start = datetime(now.year, now.month, now.day)
     today_end = today_start + timedelta(days=1)
     
-    overdue_tasks = db.query(Task).filter(
+    task_query = apply_company_scope(db.query(Task), Task, current_user)
+    overdue_tasks = task_query.filter(
         Task.due_date < today_start,
         Task.status != "Completed"
     ).limit(3).all()
     
-    today_tasks = db.query(Task).filter(
+    today_tasks = task_query.filter(
         Task.due_date >= today_start,
         Task.due_date < today_end,
         Task.status != "Completed"
@@ -83,10 +85,10 @@ def list_leads(
     status: Optional[str] = Query(None, description="Filter by status"),
     search: Optional[str] = Query(None, description="Search by name, email, company"),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """List all leads for the current sales user"""
-    query = db.query(Lead)
+    query = apply_company_scope(db.query(Lead), Lead, current_user)
     
     # Apply filters
     if status:
@@ -124,11 +126,11 @@ def list_leads(
 def get_lead(
     lead_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get lead details by ID"""
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    
+    ensure_company_access(lead, current_user)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     
@@ -153,10 +155,13 @@ def get_lead(
 def create_lead(
     lead_data: LeadCreate,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Create a new lead"""
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
     new_lead = Lead(
+        company_id=current_user.company_id,
         name=lead_data.name,
         email=lead_data.email,
         phone=lead_data.phone,
@@ -187,11 +192,11 @@ def update_lead(
     lead_id: int,
     lead_data: LeadUpdate,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Update lead details"""
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    
+    ensure_company_access(lead, current_user)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     
@@ -227,11 +232,11 @@ def update_lead(
 def delete_lead(
     lead_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Delete a lead"""
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    
+    ensure_company_access(lead, current_user)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     
@@ -245,16 +250,17 @@ def delete_lead(
 def convert_lead(
     lead_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Convert a lead to a client"""
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    
+    ensure_company_access(lead, current_user)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     
     # Create client from lead
     new_client = Client(
+        company_id=lead.company_id,
         name=lead.name,
         email=lead.email,
         phone=lead.phone,

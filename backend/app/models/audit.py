@@ -8,6 +8,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
     
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     admin_name = Column(String(255), nullable=False, default="System")
@@ -19,4 +20,5 @@ class AuditLog(Base):
     after_value = Column(Text, nullable=True)
     
     # Relationships
+    company = relationship("Company", backref="audit_logs")
     admin = relationship("User", foreign_keys=[admin_id])

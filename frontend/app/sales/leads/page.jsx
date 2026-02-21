@@ -79,33 +79,43 @@ export default function Leads() {
   /**
    * Helper to determine the single most important engagement signal
    */
+  const safeParseISO = (s) => {
+    if (!s || typeof s !== 'string') return null;
+    try {
+      const d = parseISO(s);
+      return isNaN(d.getTime()) ? null : d;
+    } catch {
+      return null;
+    }
+  };
+
   const getEngagementSignal = (lead) => {
     const NOW = new Date();
 
     // 1. Critical Tasks (Highest Priority)
-    if (lead.next_task) {
-      const taskDate = parseISO(lead.next_task);
-      const daysDiff = differenceInDays(taskDate, NOW);
-
+    const nextTaskDate = safeParseISO(lead.next_task);
+    if (nextTaskDate) {
+      const daysDiff = differenceInDays(nextTaskDate, NOW);
       if (daysDiff < 0) return { text: 'Follow-up overdue', color: 'text-red-600 font-semibold' };
       if (daysDiff === 0) return { text: 'Follow-up today', color: 'text-emerald-600 font-semibold' };
     }
 
     // 2. Response Received (New Information)
-    if (lead.last_response_at) {
-      return { text: `Responded ${formatDistanceToNow(parseISO(lead.last_response_at), { addSuffix: true })}`, color: 'text-blue-600 font-medium' };
+    const lastResp = safeParseISO(lead.last_response_at);
+    if (lastResp) {
+      return { text: `Responded ${formatDistanceToNow(lastResp, { addSuffix: true })}`, color: 'text-blue-600 font-medium' };
     }
 
     // 3. Awaiting Response (Stalled)
-    if (lead.last_contacted_at) {
-      const daysSinceContact = differenceInDays(NOW, parseISO(lead.last_contacted_at));
+    const lastContact = safeParseISO(lead.last_contacted_at);
+    if (lastContact) {
+      const daysSinceContact = differenceInDays(NOW, lastContact);
       // If contacted > 2 days ago and no response yet
       if (daysSinceContact > 2) return { text: 'Awaiting response', color: 'text-amber-600 font-medium' };
       // Recently contacted
       return { text: `Contacted ${daysSinceContact === 0 ? 'today' : daysSinceContact + ' days ago'}`, color: 'text-slate-500' };
     }
 
-    // 4. Default -> Empty string (Silent)
     return { text: '', color: '' };
   };
 

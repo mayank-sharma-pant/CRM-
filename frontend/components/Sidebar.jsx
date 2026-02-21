@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
-import { financeService } from '../services/financeService';
 import {
     LayoutDashboard,
     Users,
@@ -76,23 +75,6 @@ const ROLE_NAVIGATION = {
         { name: 'Clients', href: '/manager/clients', icon: 'Briefcase' },
         { name: 'Tasks', href: '/manager/tasks', icon: 'CheckSquare' },
         { name: 'Reports', href: '/manager/reports', icon: 'PieChart' },
-
-        { category: 'FINANCIALS' },
-        {
-            name: 'Financial Ledgers',
-            icon: 'BookOpen',
-            children: [
-                { name: 'Stock Register', href: '/manager/finance/stock_register' },
-                { name: 'Payments Made', href: '/manager/finance/payments_made' },
-                { name: 'Payments Received', href: '/manager/finance/payments_received' },
-                { name: 'Daily Expenses', href: '/manager/finance/daily_expenses' },
-                { name: 'Cash & Bank', href: '/manager/finance/cash_and_bank_balance' },
-                { name: 'PDC Given', href: '/manager/finance/pdc_cheque_given' },
-                { name: 'PDC Received', href: '/manager/finance/pdc_cheque_received' },
-                { name: 'Transfer (Purchase)', href: '/manager/finance/account_transfer_purchase' },
-                { name: 'Transfer (Sales)', href: '/manager/finance/account_transfer_sales' },
-            ]
-        },
     ],
     admin: [
         { name: 'Dashboard', href: '/admin/dashboard', icon: 'LayoutDashboard' },
@@ -118,6 +100,19 @@ const ROLE_NAVIGATION = {
     ],
 };
 
+// All 9 financial ledgers – shown in every interface for now; backend enforces view/edit per ledger
+const FINANCIAL_LEDGERS = [
+    { slug: 'stock-register', name: 'Stock Register' },
+    { slug: 'payments-made', name: 'Payments Made' },
+    { slug: 'payments-received', name: 'Payments Received' },
+    { slug: 'daily-expenses', name: 'Daily Expenses' },
+    { slug: 'cash-bank-balance', name: 'Cash & Bank Balance' },
+    { slug: 'pdc-given', name: 'PDC Cheque Given' },
+    { slug: 'pdc-received', name: 'PDC Cheque Received' },
+    { slug: 'account-transfer-purchase', name: 'Account Transfer Purchase' },
+    { slug: 'account-transfer-sales', name: 'Account Transfer Sales' },
+];
+
 export default function Sidebar({ isOpen, setIsOpen }) {
     const pathname = usePathname();
     const { user, loading } = useAuth();
@@ -140,25 +135,16 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
             const navData = [...(ROLE_NAVIGATION[role] || ROLE_NAVIGATION.sales)];
 
-            // DYNAMICALLY BUILD FINANCE LEDGERS WITH SUB-ITEMS (API-DRIVEN)
-            if (role !== 'admin') {
-                try {
-                    const ledgers = await financeService.getAuthorizedLedgers();
-                    if (ledgers && ledgers.length > 0) {
-                        navData.push({
-                            name: 'Financial Ledgers',
-                            href: '/finance',
-                            icon: 'BookOpen',
-                            children: ledgers.map(l => ({
-                                name: l.name,
-                                href: `/finance/${l.slug}`
-                            }))
-                        });
-                    }
-                } catch (e) {
-                    console.warn("Sidebar finance check failed - backend likely unreachable", e);
-                }
-            }
+            // Financial Ledgers – shown in all interfaces for now; backend enforces view/edit per ledger
+            navData.push({
+                name: 'Financial Ledgers',
+                href: '/financial-ledgers',
+                icon: 'BookOpen',
+                children: FINANCIAL_LEDGERS.map(l => ({
+                    name: l.name,
+                    href: `/financial-ledgers/${l.slug}`
+                }))
+            });
 
             setNavigation(navData);
         };
@@ -235,7 +221,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     {/* Footer */}
                     <div className="p-4 border-t border-border shrink-0">
                         <Link
-                            href="/settings"
+                            href="/settings/leave"
                             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-secondary hover:bg-surface-elevated hover:text-primary transition-colors"
                         >
                             <Settings size={20} strokeWidth={1.5} className="text-muted" />

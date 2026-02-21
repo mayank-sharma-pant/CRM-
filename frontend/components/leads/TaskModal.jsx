@@ -26,8 +26,9 @@ export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = 
     const fetchUsers = async () => {
         try {
             // In a real app, fetching team members. For now, list users.
-            const res = await api.get('/users/list'); // Assuming this exists or using a simple list
-            setUsers(res.data || []);
+            const res = await api.get('/users/');
+            const data = res.data;
+            setUsers(Array.isArray(data) ? data : (data?.users || []));
         } catch (err) {
             console.error("Failed to fetch users", err);
         }

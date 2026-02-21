@@ -85,8 +85,8 @@ function MetricCard({ label, value, color, icon: Icon, suffix = '', prefix = '' 
 }
 
 export default function Reports({
-  dashboardEndpoint = '/reports/dashboard',
-  overviewEndpoint = '/reports/overview'
+  dashboardEndpoint = '/leads/dashboard',
+  overviewEndpoint = null
 }) {
   const [stats, setStats] = useState(null);
   const [overview, setOverview] = useState(null);
@@ -99,15 +99,31 @@ export default function Reports({
 
   const fetchReports = async () => {
     try {
-      const [statsRes, overviewRes] = await Promise.all([
-        api.get(dashboardEndpoint),
-        api.get(overviewEndpoint, { params: { period } }),
-      ]);
-
-      setStats(statsRes.data);
-      setOverview(overviewRes.data);
+      const statsRes = await api.get(dashboardEndpoint);
+      const raw = statsRes.data;
+      // Normalize /leads/dashboard shape (metrics.*) to report shape (totalLeads, etc.)
+      setStats(raw?.metrics ? {
+        totalLeads: raw.metrics.total_leads,
+        convertedLeads: raw.metrics.closed_leads,
+        lostLeads: raw.metrics.lost_leads ?? 0,
+        conversionRate: raw.metrics.conversion_rate,
+        leadsByStatus: raw.leadsByStatus || [],
+        leadsBySource: raw.leadsBySource || [],
+      } : raw);
+      if (overviewEndpoint) {
+        try {
+          const overviewRes = await api.get(overviewEndpoint, { params: { period } });
+          setOverview(overviewRes.data);
+        } catch {
+          setOverview(null);
+        }
+      } else {
+        setOverview(null);
+      }
     } catch (error) {
       console.error('Failed to fetch reports:', error);
+      setStats(null);
+      setOverview(null);
     } finally {
       setLoading(false);
     }

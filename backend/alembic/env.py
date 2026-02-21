@@ -12,7 +12,7 @@ config = context.config
 # Use DATABASE_URL from app config (.env) so one source of truth
 try:
     from app.config import settings
-    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+    config.set_main_option("sqlalchemy.url", settings.get_database_url())
 except Exception:
     pass  # fall back to alembic.ini sqlalchemy.url
 

@@ -15,12 +15,15 @@ from app.models import (
 from app.utils.security import get_password_hash
 
 
+DEFAULT_COMPANY_ID = 1
+
+
 def hash_password(password: str) -> str:
     return get_password_hash(password)
 
 
 def seed_database():
-    # Create tables
+    # Create tables (optional; use applied SQL schema for PostgreSQL)
     Base.metadata.create_all(bind=engine)
     
     db = SessionLocal()
@@ -39,10 +42,10 @@ def seed_database():
         # =====================
         print("Creating teams...")
         teams = [
-            Team(name="Sales Alpha"),
-            Team(name="Sales Bravo"),
-            Team(name="Sales Charlie"),
-            Team(name="Enterprise")
+            Team(name="Sales Alpha", company_id=DEFAULT_COMPANY_ID),
+            Team(name="Sales Bravo", company_id=DEFAULT_COMPANY_ID),
+            Team(name="Sales Charlie", company_id=DEFAULT_COMPANY_ID),
+            Team(name="Enterprise", company_id=DEFAULT_COMPANY_ID)
         ]
         db.add_all(teams)
         db.commit()
@@ -55,7 +58,7 @@ def seed_database():
         # =====================
         print("Creating users...")
         
-        # Admin user
+        # Admin user (company_id=None for Platform Admin)
         admin = User(
             email="admin@company.com",
             full_name="System Admin",
@@ -71,7 +74,8 @@ def seed_database():
             full_name="John Director",
             hashed_password=hash_password("md123"),
             role="md",
-            status="active"
+            status="active",
+            company_id=DEFAULT_COMPANY_ID
         )
         db.add(md)
         
@@ -81,7 +85,8 @@ def seed_database():
             full_name="Lisa Purchase",
             hashed_password=hash_password("purchase123"),
             role="purchase",
-            status="active"
+            status="active",
+            company_id=DEFAULT_COMPANY_ID
         )
         db.add(purchase)
         
@@ -92,7 +97,8 @@ def seed_database():
             hashed_password=hash_password("manager123"),
             role="manager",
             status="active",
-            team_id=teams[0].id
+            team_id=teams[0].id,
+            company_id=DEFAULT_COMPANY_ID
         )
         manager2 = User(
             email="james.w@company.com",
@@ -100,7 +106,8 @@ def seed_database():
             hashed_password=hash_password("manager123"),
             role="manager",
             status="active",
-            team_id=teams[1].id
+            team_id=teams[1].id,
+            company_id=DEFAULT_COMPANY_ID
         )
         db.add_all([manager1, manager2])
         db.commit()
@@ -114,7 +121,8 @@ def seed_database():
                 role="sales",
                 status="active",
                 team_id=teams[0].id,
-                manager_id=manager1.id
+                manager_id=manager1.id,
+                company_id=DEFAULT_COMPANY_ID
             ),
             User(
                 email="sarah.s@company.com",
@@ -123,7 +131,8 @@ def seed_database():
                 role="sales",
                 status="active",
                 team_id=teams[0].id,
-                manager_id=manager1.id
+                manager_id=manager1.id,
+                company_id=DEFAULT_COMPANY_ID
             ),
             User(
                 email="emily.b@company.com",
@@ -132,7 +141,8 @@ def seed_database():
                 role="sales",
                 status="active",
                 team_id=teams[1].id,
-                manager_id=manager2.id
+                manager_id=manager2.id,
+                company_id=DEFAULT_COMPANY_ID
             )
         ]
         db.add_all(sales_users)
@@ -155,7 +165,8 @@ def seed_database():
                 source="Website",
                 service_type="Consulting",
                 assigned_to_id=sales_users[0].id,
-                team_id=teams[0].id
+                team_id=teams[0].id,
+                company_id=DEFAULT_COMPANY_ID
             ),
             Lead(
                 name="Sarah Johnson",
@@ -166,7 +177,8 @@ def seed_database():
                 source="Referral",
                 last_contacted_at=datetime.now() - timedelta(days=2),
                 assigned_to_id=sales_users[0].id,
-                team_id=teams[0].id
+                team_id=teams[0].id,
+                company_id=DEFAULT_COMPANY_ID
             ),
             Lead(
                 name="Mike Williams",
@@ -177,7 +189,8 @@ def seed_database():
                 source="LinkedIn",
                 last_response_at=datetime.now() - timedelta(days=1),
                 assigned_to_id=sales_users[1].id,
-                team_id=teams[0].id
+                team_id=teams[0].id,
+                company_id=DEFAULT_COMPANY_ID
             ),
             Lead(
                 name="Emily Davis",
@@ -187,7 +200,8 @@ def seed_database():
                 status="New",
                 source="Cold Call",
                 assigned_to_id=sales_users[2].id,
-                team_id=teams[1].id
+                team_id=teams[1].id,
+                company_id=DEFAULT_COMPANY_ID
             ),
             Lead(
                 name="David Lee",
@@ -197,7 +211,8 @@ def seed_database():
                 status="Proposal",
                 source="Trade Show",
                 assigned_to_id=sales_users[0].id,
-                team_id=teams[0].id
+                team_id=teams[0].id,
+                company_id=DEFAULT_COMPANY_ID
             )
         ]
         db.add_all(leads)
@@ -218,7 +233,8 @@ def seed_database():
                 company="Global Tech Industries",
                 address="123 Tech Blvd, San Francisco, CA",
                 assigned_to_id=sales_users[0].id,
-                team_id=teams[0].id
+                team_id=teams[0].id,
+                company_id=DEFAULT_COMPANY_ID
             ),
             Client(
                 name="Retail Giants",
@@ -227,7 +243,8 @@ def seed_database():
                 company="Retail Giants Corp",
                 address="456 Commerce St, New York, NY",
                 assigned_to_id=sales_users[1].id,
-                team_id=teams[0].id
+                team_id=teams[0].id,
+                company_id=DEFAULT_COMPANY_ID
             )
         ]
         db.add_all(clients)
@@ -249,7 +266,8 @@ def seed_database():
                 due_date=datetime.now() - timedelta(days=1),  # Overdue
                 lead_id=leads[0].id,
                 assigned_to_id=sales_users[0].id,
-                is_manager_assigned=True
+                is_manager_assigned=True,
+                company_id=DEFAULT_COMPANY_ID
             ),
             Task(
                 title="Call TechStart about requirements",
@@ -257,7 +275,8 @@ def seed_database():
                 priority="medium",
                 due_date=datetime.now() + timedelta(hours=2),  # Today
                 lead_id=leads[1].id,
-                assigned_to_id=sales_users[0].id
+                assigned_to_id=sales_users[0].id,
+                company_id=DEFAULT_COMPANY_ID
             ),
             Task(
                 title="Prepare demo for Design Co",
@@ -265,7 +284,8 @@ def seed_database():
                 priority="medium",
                 due_date=datetime.now() + timedelta(days=1),  # Tomorrow
                 lead_id=leads[2].id,
-                assigned_to_id=sales_users[1].id
+                assigned_to_id=sales_users[1].id,
+                company_id=DEFAULT_COMPANY_ID
             ),
             Task(
                 title="Quarterly review with Global Tech",
@@ -273,7 +293,8 @@ def seed_database():
                 priority="high",
                 due_date=datetime.now() + timedelta(days=2),
                 client_id=clients[0].id,
-                assigned_to_id=sales_users[0].id
+                assigned_to_id=sales_users[0].id,
+                company_id=DEFAULT_COMPANY_ID
             )
         ]
         db.add_all(tasks)
@@ -288,14 +309,16 @@ def seed_database():
                 lead_id=leads[0].id,
                 scheduled_date=datetime.now().date(),
                 notes="Discuss pricing options",
-                created_by_id=sales_users[0].id
+                created_by_id=sales_users[0].id,
+                company_id=DEFAULT_COMPANY_ID
             ),
             FollowUp(
                 lead_id=leads[1].id,
                 scheduled_date=(datetime.now() - timedelta(days=1)).date(),
                 notes="Send updated proposal",
                 status="Pending",
-                created_by_id=sales_users[0].id
+                created_by_id=sales_users[0].id,
+                company_id=DEFAULT_COMPANY_ID
             )
         ]
         db.add_all(follow_ups)
@@ -315,7 +338,8 @@ def seed_database():
             issued_date=datetime.now().date() - timedelta(days=15),
             due_date=datetime.now().date() - timedelta(days=5),
             paid_date=datetime.now().date() - timedelta(days=3),
-            created_by_id=sales_users[0].id
+            created_by_id=sales_users[0].id,
+            company_id=DEFAULT_COMPANY_ID
         )
         invoice2 = Invoice(
             invoice_number="INV-2024-002",
@@ -326,7 +350,8 @@ def seed_database():
             status="Pending",
             issued_date=datetime.now().date() - timedelta(days=5),
             due_date=datetime.now().date() + timedelta(days=25),
-            created_by_id=sales_users[1].id
+            created_by_id=sales_users[1].id,
+            company_id=DEFAULT_COMPANY_ID
         )
         db.add_all([invoice1, invoice2])
         db.commit()
@@ -344,6 +369,7 @@ def seed_database():
         # =====================
         print("Creating company settings...")
         settings = CompanySettings(
+            company_id=DEFAULT_COMPANY_ID,
             company_name="Demo CRM Company",
             address="123 Business Ave, Suite 100",
             invoice_prefix="INV",

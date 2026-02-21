@@ -2,8 +2,14 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 
 class Settings(BaseSettings):
-    # Database
+    # Database (postgresql:// → postgresql+psycopg:// when using psycopg3)
     DATABASE_URL: str = "sqlite:///./crm.db"
+
+    def get_database_url(self) -> str:
+        url = self.DATABASE_URL
+        if url.startswith("postgresql://") and "+" not in url.split("//")[0]:
+            url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+        return url
     
     # Security
     SECRET_KEY: str = "your-secret-key-change-in-production-min-32-chars"

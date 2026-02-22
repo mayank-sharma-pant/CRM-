@@ -48,8 +48,8 @@ export default function Dashboard() {
         api.get('/tasks/list') // Use the specialized list endpoint
       ]);
 
-      const leads = leadsRes.data || [];
-      const allTasks = tasksRes.data || [];
+      const leads = leadsRes.data?.items ?? leadsRes.data ?? [];
+      const allTasks = tasksRes.data?.items ?? tasksRes.data ?? [];
 
       // Metrics Calculation
       const total = leads.length;

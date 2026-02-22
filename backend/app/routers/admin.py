@@ -216,6 +216,7 @@ def activate_user(
     
     old_status = user.status
     user.status = "active"
+    user.is_active = True
     
     create_audit_log(
         db, current_user, "user_activated", "user",
@@ -254,6 +255,7 @@ def disable_user(
     
     old_status = user.status
     user.status = "disabled"
+    user.is_active = False
     
     create_audit_log(
         db, current_user, "user_disabled", "user",
@@ -439,8 +441,10 @@ def delete_team(
     team_name = team.name
     member_count = apply_company_scope(db.query(User), User, current_user).filter(User.team_id == team_id).count()
     
-    # Remove team from users
-    db.query(User).filter(User.team_id == team_id).update({"team_id": None})
+    # Remove team from users (company-scoped to prevent cross-tenant corruption)
+    apply_company_scope(db.query(User), User, current_user).filter(
+        User.team_id == team_id
+    ).update({"team_id": None}, synchronize_session="fetch")
     
     create_audit_log(
         db, current_user, "team_deleted", "team",
@@ -557,6 +561,7 @@ def approve_user(
         raise HTTPException(status_code=400, detail="User is not pending approval")
     
     user.status = "active"
+    user.is_active = True
     
     create_audit_log(
         db, current_user, "user_approved", "user",

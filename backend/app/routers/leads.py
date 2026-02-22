@@ -81,17 +81,17 @@ def get_sales_dashboard(
 # Leads Endpoints
 # ===============================
 
-@router.get("/")
+@router.get("")
 def list_leads(
     status: Optional[str] = Query(None, description="Filter by status"),
     search: Optional[str] = Query(None, description="Search by name, email, company"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """List all leads for the current sales user"""
+    """List leads for the current sales user (paginated)."""
     query = apply_company_scope(db.query(Lead), Lead, current_user)
-    
-    # Apply filters
     if status:
         query = query.filter(Lead.status == status)
     if search:
@@ -101,26 +101,30 @@ def list_leads(
             (Lead.email.ilike(search_pattern)) |
             (Lead.company.ilike(search_pattern))
         )
-    
-    leads = query.order_by(Lead.created_at.desc()).all()
-    
-    return [
-        {
-            "id": lead.id,
-            "name": lead.name,
-            "email": lead.email,
-            "phone": lead.phone,
-            "company": lead.company,
-            "status": lead.status,
-            "source": lead.source,
-            "service_type": lead.service_type,
-            "created_at": lead.created_at.strftime("%Y-%m-%d") if lead.created_at else None,
-            "last_contacted_at": lead.last_contacted_at.isoformat() if lead.last_contacted_at else None,
-            "last_response_at": lead.last_response_at.isoformat() if lead.last_response_at else None,
-            "next_task": lead.next_follow_up.isoformat() if lead.next_follow_up else None
-        }
-        for lead in leads
-    ]
+    total = query.count()
+    leads = query.order_by(Lead.created_at.desc()).offset(skip).limit(limit).all()
+    return {
+        "items": [
+            {
+                "id": lead.id,
+                "name": lead.name,
+                "email": lead.email,
+                "phone": lead.phone,
+                "company": lead.company,
+                "status": lead.status,
+                "source": lead.source,
+                "service_type": lead.service_type,
+                "created_at": lead.created_at.strftime("%Y-%m-%d") if lead.created_at else None,
+                "last_contacted_at": lead.last_contacted_at.isoformat() if lead.last_contacted_at else None,
+                "last_response_at": lead.last_response_at.isoformat() if lead.last_response_at else None,
+                "next_task": lead.next_follow_up.isoformat() if lead.next_follow_up else None
+            }
+            for lead in leads
+        ],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
 
 
 @router.get("/{lead_id}")
@@ -152,7 +156,7 @@ def get_lead(
     }
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 def create_lead(
     lead_data: LeadCreate,
     db: Session = Depends(get_db),
@@ -286,6 +290,7 @@ def add_lead_note(
         raise HTTPException(status_code=404, detail="Lead not found")
 
     note = Note(
+        company_id=current_user.company_id,
         content=content.strip(),
         lead_id=lead.id,
         created_by_id=current_user.id,

@@ -37,7 +37,7 @@ The file `schema.sql` in this folder is **legacy**. It describes an old design (
    alembic upgrade head
    ```
 
-4. **Start the backend** (uses the same `DATABASE_URL`):
+4. **Start the backend** (development only; uses the same `DATABASE_URL`. For production use Gunicorn — see backend README):
    ```bash
    uvicorn app.main:app --reload --port 8000
    ```

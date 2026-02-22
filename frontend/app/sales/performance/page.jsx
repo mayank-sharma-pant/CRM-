@@ -18,8 +18,8 @@ export default function PerformancePage() {
                     api.get('/tasks/list')
                 ]);
 
-                const leads = leadsRes.data.leads || [];
-                const tasks = tasksRes.data || [];
+                const leads = leadsRes.data?.items ?? leadsRes.data?.leads ?? [];
+                const tasks = tasksRes.data?.items ?? tasksRes.data ?? [];
 
                 const performanceSnapshot = {
                     header: {

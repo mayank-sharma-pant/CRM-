@@ -3,6 +3,22 @@
 
 BEGIN;
 
+-- ========== Companies table (must exist before any FK references) ==========
+
+CREATE TABLE IF NOT EXISTS companies (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
+    plan VARCHAR(50),
+    created_at TIMESTAMPTZ DEFAULT (CURRENT_TIMESTAMP),
+    updated_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS ix_companies_id ON companies(id);
+CREATE INDEX IF NOT EXISTS ix_companies_status ON companies(status);
+
+INSERT INTO companies (id, name, status, plan) VALUES (1, 'Default Company', 'active', 'pro')
+ON CONFLICT DO NOTHING;
+
 -- ========== 001: Initial schema ==========
 
 CREATE TABLE IF NOT EXISTS teams (
@@ -119,6 +135,7 @@ CREATE INDEX IF NOT EXISTS ix_tasks_id ON tasks(id);
 
 CREATE TABLE IF NOT EXISTS notes (
     id SERIAL PRIMARY KEY,
+    company_id INTEGER NOT NULL REFERENCES companies(id),
     content TEXT NOT NULL,
     lead_id INTEGER REFERENCES leads(id),
     client_id INTEGER REFERENCES clients(id),
@@ -127,6 +144,9 @@ CREATE TABLE IF NOT EXISTS notes (
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP)
 );
 CREATE INDEX IF NOT EXISTS ix_notes_id ON notes(id);
+CREATE INDEX IF NOT EXISTS ix_notes_company_id ON notes(company_id);
+CREATE INDEX IF NOT EXISTS ix_notes_lead_id ON notes(lead_id);
+CREATE INDEX IF NOT EXISTS ix_notes_client_id ON notes(client_id);
 
 CREATE TABLE IF NOT EXISTS invoices (
     id SERIAL PRIMARY KEY,
@@ -149,10 +169,11 @@ CREATE TABLE IF NOT EXISTS invoices (
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP)
 );
 CREATE INDEX IF NOT EXISTS ix_invoices_id ON invoices(id);
-CREATE UNIQUE INDEX IF NOT EXISTS ix_invoices_invoice_number ON invoices(invoice_number);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_invoices_company_invoice_number ON invoices(company_id, invoice_number);
 
 CREATE TABLE IF NOT EXISTS invoice_items (
     id SERIAL PRIMARY KEY,
+    company_id INTEGER NOT NULL REFERENCES companies(id),
     invoice_id INTEGER NOT NULL REFERENCES invoices(id),
     description VARCHAR(255) NOT NULL,
     quantity INTEGER DEFAULT 1,
@@ -160,6 +181,7 @@ CREATE TABLE IF NOT EXISTS invoice_items (
     total FLOAT DEFAULT 0.0
 );
 CREATE INDEX IF NOT EXISTS ix_invoice_items_id ON invoice_items(id);
+CREATE INDEX IF NOT EXISTS ix_invoice_items_company_id ON invoice_items(company_id);
 
 CREATE TABLE IF NOT EXISTS ledger_entries (
     id SERIAL PRIMARY KEY,
@@ -206,21 +228,7 @@ CREATE INDEX IF NOT EXISTS ix_invites_email ON invites(email);
 CREATE INDEX IF NOT EXISTS ix_invites_status ON invites(status);
 CREATE UNIQUE INDEX IF NOT EXISTS ix_invites_token ON invites(token);
 
--- ========== 002: Multi-tenant (company) ==========
-
-CREATE TABLE IF NOT EXISTS companies (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'active',
-    plan VARCHAR(50),
-    created_at TIMESTAMPTZ DEFAULT (CURRENT_TIMESTAMP),
-    updated_at TIMESTAMPTZ
-);
-CREATE INDEX IF NOT EXISTS ix_companies_id ON companies(id);
-CREATE INDEX IF NOT EXISTS ix_companies_status ON companies(status);
-
-INSERT INTO companies (id, name, status, plan) VALUES (1, 'Default Company', 'active', 'pro')
-ON CONFLICT DO NOTHING;
+-- ========== 002: Multi-tenant (company_id columns) ==========
 
 -- Add company_id columns (ignore if already exist)
 DO $$
@@ -357,6 +365,6 @@ CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL PRIMARY KEY
 );
 DELETE FROM alembic_version;
-INSERT INTO alembic_version (version_num) VALUES ('003_leaves');
+INSERT INTO alembic_version (version_num) VALUES ('006_invoice_number_per_company');
 
 COMMIT;

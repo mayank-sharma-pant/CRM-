@@ -239,7 +239,7 @@ def get_ledger_columns(ledger_slug: str) -> List[Dict[str, Any]]:
 # ENDPOINTS
 # =================================================================
 
-@router.get("/", response_model=List[LedgerMetadata])
+@router.get("", response_model=List[LedgerMetadata])
 def get_authorized_ledgers(current_user: User = Depends(get_current_user)):
     """
     Returns the list of ledgers the current user is authorized to view.

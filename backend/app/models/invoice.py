@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Float, Date
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Numeric, Date, UniqueConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -6,19 +6,20 @@ from app.database import Base
 
 class Invoice(Base):
     __tablename__ = "invoices"
-    
+    __table_args__ = (UniqueConstraint("company_id", "invoice_number", name="uq_invoices_company_invoice_number"),)
+
     id = Column(Integer, primary_key=True, index=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
-    invoice_number = Column(String(50), unique=True, nullable=False)
+    invoice_number = Column(String(50), nullable=False)
     
     # Client
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
     
-    # Amounts
-    subtotal = Column(Float, default=0.0)
-    tax = Column(Float, default=0.0)
-    discount = Column(Float, default=0.0)
-    total = Column(Float, default=0.0)
+    # Amounts (Numeric to avoid float rounding errors)
+    subtotal = Column(Numeric(12, 2), default=0)
+    tax = Column(Numeric(12, 2), default=0)
+    discount = Column(Numeric(12, 2), default=0)
+    total = Column(Numeric(12, 2), default=0)
     
     status = Column(String(50), default="Draft")  # Draft, Pending, Paid, Overdue, Cancelled
     
@@ -53,12 +54,13 @@ class InvoiceItem(Base):
     __tablename__ = "invoice_items"
     
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
     invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=False)
     
     description = Column(String(255), nullable=False)
     quantity = Column(Integer, default=1)
-    unit_price = Column(Float, default=0.0)
-    total = Column(Float, default=0.0)
+    unit_price = Column(Numeric(12, 2), default=0)
+    total = Column(Numeric(12, 2), default=0)
     
-    # Relationships
+    company = relationship("Company")
     invoice = relationship("Invoice", back_populates="items")

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timedelta
 
@@ -13,6 +14,21 @@ from app.models.client import Client
 router = APIRouter()
 
 
+class TaskCreateBody(BaseModel):
+    title: str
+    description: Optional[str] = None
+    priority: str = "medium"
+    due_date: Optional[str] = None
+    lead_id: Optional[int] = None
+    client_id: Optional[int] = None
+
+
+class TaskUpdateBody(BaseModel):
+    title: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+
+
 # ===============================
 # Tasks List (for Tasks page)
 # ===============================
@@ -20,16 +36,17 @@ router = APIRouter()
 @router.get("/list")
 def get_tasks_list(
     status: Optional[str] = Query(None, description="Filter by status"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get full task list with grouping"""
+    """Get full task list with grouping (paginated)."""
     query = apply_company_scope(db.query(Task), Task, current_user)
-    
     if status:
         query = query.filter(Task.status == status)
-    
-    tasks = query.order_by(Task.due_date.asc()).all()
+    total = query.count()
+    tasks = query.order_by(Task.due_date.asc()).offset(skip).limit(limit).all()
     
     def get_due_label(task):
         if not task.due_date:
@@ -68,11 +85,10 @@ def get_tasks_list(
             "status": task.status,
             "priority": task.priority
         })
-    
-    return result
+    return {"items": result, "total": total, "skip": skip, "limit": limit}
 
 
-@router.get("/")
+@router.get("")
 def get_priority_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -141,14 +157,9 @@ def get_task(
     }
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 def create_task(
-    title: str = Query(...),
-    description: Optional[str] = Query(None),
-    priority: str = Query("medium"),
-    due_date: Optional[str] = Query(None),
-    lead_id: Optional[int] = Query(None),
-    client_id: Optional[int] = Query(None),
+    body: TaskCreateBody,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -157,12 +168,12 @@ def create_task(
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
     new_task = Task(
         company_id=current_user.company_id,
-        title=title,
-        description=description,
-        priority=priority,
-        due_date=datetime.fromisoformat(due_date) if due_date else None,
-        lead_id=lead_id,
-        client_id=client_id,
+        title=body.title,
+        description=body.description,
+        priority=body.priority,
+        due_date=datetime.fromisoformat(body.due_date) if body.due_date else None,
+        lead_id=body.lead_id,
+        client_id=body.client_id,
         status="Pending"
     )
     
@@ -181,9 +192,7 @@ def create_task(
 @router.put("/{task_id}")
 def update_task(
     task_id: int,
-    title: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
-    priority: Optional[str] = Query(None),
+    body: TaskUpdateBody,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -193,14 +202,14 @@ def update_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    if title:
-        task.title = title
-    if status:
-        task.status = status
-        if status == "Completed":
+    if body.title is not None:
+        task.title = body.title
+    if body.status is not None:
+        task.status = body.status
+        if body.status == "Completed":
             task.completed_at = datetime.now()
-    if priority:
-        task.priority = priority
+    if body.priority is not None:
+        task.priority = body.priority
     
     db.commit()
     db.refresh(task)

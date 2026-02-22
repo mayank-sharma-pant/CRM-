@@ -5,7 +5,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, is_platform_admin
 from app.models.user import User
 from app.models.lead import Lead
 from app.models.client import Client
@@ -14,6 +14,16 @@ from app.models.task import Task
 from app.models.team import Team
 
 router = APIRouter()
+
+MD_ROLES = {"md", "admin"}
+
+
+def require_md(current_user: User = Depends(get_current_user)) -> User:
+    if is_platform_admin(current_user):
+        return current_user
+    if current_user.role not in MD_ROLES:
+        raise HTTPException(status_code=403, detail="MD access required")
+    return current_user
 
 
 # ===============================
@@ -24,7 +34,7 @@ router = APIRouter()
 def get_md_dashboard(
     period: str = Query("30d"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_md)
 ):
     """Get MD executive dashboard with company-wide KPIs"""
     # Real counts (company-scoped)
@@ -82,7 +92,7 @@ def get_md_dashboard(
 def get_revenue_analytics(
     period: str = Query("30d"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_md)
 ):
     """Get detailed revenue analytics"""
     inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
@@ -107,7 +117,7 @@ def get_revenue_analytics(
 def get_company_sales(
     period: str = Query("30d"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_md)
 ):
     """Get company-wide sales analytics"""
     lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
@@ -151,7 +161,7 @@ def get_company_leads(
     status: Optional[str] = Query(None),
     team: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_md)
 ):
     """Get all company leads with filters"""
     query = apply_company_scope(db.query(Lead), Lead, current_user)
@@ -187,7 +197,7 @@ def get_company_leads(
 def get_company_clients(
     status: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_md)
 ):
     """Get all company clients"""
     client_q = apply_company_scope(db.query(Client), Client, current_user)
@@ -217,7 +227,7 @@ def employee_lookup(
     team: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_md)
 ):
     """Search and lookup employees"""
     query = apply_company_scope(db.query(User), User, current_user)
@@ -254,7 +264,7 @@ def employee_lookup(
 def get_employee_detail(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_md)
 ):
     """Get detailed employee information"""
     user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
@@ -292,7 +302,7 @@ def get_employee_detail(
 @router.get("/monitoring")
 def get_company_monitoring(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_md)
 ):
     """Get company-wide monitoring and alerts"""
     # Get team status (company-scoped)
@@ -329,7 +339,7 @@ def get_company_monitoring(
 def get_company_invoices(
     status: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_md)
 ):
     """Get all company invoices for MD view"""
     inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
@@ -363,7 +373,7 @@ def get_company_invoices(
 @router.get("/points")
 def get_performance_points(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_md)
 ):
     """Get employee performance points based on lead conversions"""
     lead_q = apply_company_scope(db.query(Lead), Lead, current_user)

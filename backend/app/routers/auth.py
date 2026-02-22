@@ -1,21 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-import random
+from datetime import datetime, timedelta, timezone
+import secrets
 
 from app.database import get_db
 from app.models.user import User
+from app.models.company import Company
+from app.models.otp import OTPCode
 from app.schemas.user import UserCreate, UserResponse, Token
 from app.utils.security import verify_password, get_password_hash, create_access_token, decode_access_token
+from app.utils.dependencies import get_current_user
 
 router = APIRouter()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
-
-# In-memory OTP cache for local/dev use.
-_otp_store: dict[str, dict[str, datetime | str]] = {}
 OTP_EXPIRY_MINUTES = 10
 
 
@@ -28,97 +27,89 @@ class OTPLoginRequest(BaseModel):
     otp_code: str
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
-    """Get current user from JWT token"""
-    payload = decode_access_token(token)
-    if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    email = payload.get("sub")
-    if email is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials"
-        )
-    
-    user = db.query(User).filter(User.email == email).first()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
-        )
-    
-    return user
+def _check_company_status(user: User, db: Session) -> None:
+    """Block login if the user's company is not active. Platform admins bypass."""
+    if user.company_id is None:
+        return
+    company = db.query(Company).filter(Company.id == user.company_id).first()
+    if not company:
+        raise HTTPException(status_code=403, detail="Company not found")
+    if company.status == "pending":
+        raise HTTPException(status_code=403, detail="Company account is pending approval")
+    if company.status == "suspended":
+        raise HTTPException(status_code=403, detail="Company account is suspended")
+    if company.status == "rejected":
+        raise HTTPException(status_code=403, detail="Company account has been rejected")
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
 def signup(user_data: UserCreate, db: Session = Depends(get_db)):
-    """Register a new user"""
-    # Check if user exists
+    """Register a new user and create a company (pending approval)."""
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
-    
-    # Create new user (assign default company for non-admin; admin may have company_id=NULL)
+
     hashed_password = get_password_hash(user_data.password)
-    role = user_data.role or "sales"
-    company_id = None if role == "admin" else 1  # Default company for company users
+
+    ALLOWED_SIGNUP_ROLES = {"sales", "manager", "md", "purchase"}
+    role = user_data.role if user_data.role in ALLOWED_SIGNUP_ROLES else "md"
+
+    new_company = Company(
+        name=f"{user_data.full_name}'s Company",
+        status="pending",
+    )
+    db.add(new_company)
+    db.flush()
+
     db_user = User(
         email=user_data.email,
         full_name=user_data.full_name,
         hashed_password=hashed_password,
         role=role,
-        company_id=company_id,
+        company_id=new_company.id,
         phone=user_data.phone,
-        status="pending"
+        status="active",
     )
-    
+
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    
+
     return {
         "id": db_user.id,
         "email": db_user.email,
         "full_name": db_user.full_name,
         "role": db_user.role,
-        "message": "User registered successfully"
+        "company_id": db_user.company_id,
+        "message": "User registered successfully. Company is pending approval."
     }
 
 
 @router.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     """Login and get access token"""
-    # Find user by email
     user = db.query(User).filter(User.email == form_data.username).first()
-    
+
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     if user.status == "disabled":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is disabled"
-        )
-    
-    # Update last active timestamp
-    user.last_active_at = datetime.now()
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled")
+
+    _check_company_status(user, db)
+
+    user.last_active_at = datetime.now(timezone.utc)
     db.commit()
-    
-    # Create access token
+
     access_token = create_access_token(data={"sub": user.email, "role": user.role})
-    
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -133,16 +124,20 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 @router.post("/request-otp")
 def request_otp(payload: OTPRequest, db: Session = Depends(get_db)):
-    """Generate OTP and print it in backend logs (dev mode)."""
+    """Generate OTP and store in DB (multi-worker safe). Logged in dev."""
     user = db.query(User).filter(User.email == payload.email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.status == "disabled":
         raise HTTPException(status_code=403, detail="User account is disabled")
+    _check_company_status(user, db)
 
-    otp_code = f"{random.randint(0, 999999):06d}"
-    expires_at = datetime.now() + timedelta(minutes=OTP_EXPIRY_MINUTES)
-    _otp_store[payload.email] = {"code": otp_code, "expires_at": expires_at}
+    otp_code = f"{secrets.randbelow(1000000):06d}"
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
+
+    db.query(OTPCode).filter(OTPCode.email == payload.email).delete()
+    db.add(OTPCode(email=payload.email, code=otp_code, expires_at=expires_at))
+    db.commit()
 
     print(f"[OTP] {payload.email} -> {otp_code} (expires in {OTP_EXPIRY_MINUTES} min)")
     return {"message": "OTP sent successfully"}
@@ -150,17 +145,17 @@ def request_otp(payload: OTPRequest, db: Session = Depends(get_db)):
 
 @router.post("/login-otp")
 def login_otp(payload: OTPLoginRequest, db: Session = Depends(get_db)):
-    record = _otp_store.get(payload.email)
+    record = db.query(OTPCode).filter(OTPCode.email == payload.email).first()
     if not record:
         raise HTTPException(status_code=400, detail="OTP not requested or expired")
 
-    expires_at = record["expires_at"]
-    code = str(record["code"])
-    if not isinstance(expires_at, datetime) or datetime.now() > expires_at:
-        _otp_store.pop(payload.email, None)
+    now = datetime.now(timezone.utc)
+    if now > record.expires_at:
+        db.query(OTPCode).filter(OTPCode.email == payload.email).delete()
+        db.commit()
         raise HTTPException(status_code=400, detail="OTP expired")
 
-    if payload.otp_code.strip() != code:
+    if payload.otp_code.strip() != record.code:
         raise HTTPException(status_code=401, detail="Invalid OTP code")
 
     user = db.query(User).filter(User.email == payload.email).first()
@@ -168,10 +163,11 @@ def login_otp(payload: OTPLoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     if user.status == "disabled":
         raise HTTPException(status_code=403, detail="User account is disabled")
+    _check_company_status(user, db)
 
-    user.last_active_at = datetime.now()
+    user.last_active_at = datetime.now(timezone.utc)
+    db.query(OTPCode).filter(OTPCode.email == payload.email).delete()
     db.commit()
-    _otp_store.pop(payload.email, None)
 
     access_token = create_access_token(data={"sub": user.email, "role": user.role})
     return {
@@ -216,10 +212,14 @@ from app.models.invite import Invite, InviteStatus
 from app.models.team import Team
 
 
+class AcceptInviteBody(BaseModel):
+    password: str
+
+
 @router.post("/accept-invite/{token}")
 def accept_invite(
     token: str,
-    password: str,
+    body: AcceptInviteBody,
     db: Session = Depends(get_db)
 ):
     """Accept an invite and create user account"""
@@ -262,15 +262,13 @@ def accept_invite(
             detail="User with this email already exists"
         )
     
-    # Validate password strength
-    if len(password) < 8:
+    if len(body.password) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password must be at least 8 characters"
         )
     
-    # Create user from invite (use invite's company_id)
-    hashed_password = get_password_hash(password)
+    hashed_password = get_password_hash(body.password)
     new_user = User(
         email=invite.email,
         full_name=invite.full_name,

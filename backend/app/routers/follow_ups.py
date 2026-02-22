@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, date, timedelta
 
@@ -8,31 +9,48 @@ from app.utils.dependencies import get_current_user, apply_company_scope, ensure
 from app.models.user import User
 from app.models.follow_up import FollowUp
 from app.models.lead import Lead
+from app.schemas.sales import FollowUpCreate
 
 router = APIRouter()
+
+
+class FollowUpUpdateBody(BaseModel):
+    scheduled_date: Optional[str] = None
+    scheduled_time: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class FollowUpCompleteBody(BaseModel):
+    outcome: str
+
+
+class FollowUpRescheduleBody(BaseModel):
+    new_date: str
+    new_time: Optional[str] = None
+    reason: Optional[str] = None
 
 
 # ===============================
 # Follow-ups Endpoints
 # ===============================
 
-@router.get("/")
+@router.get("")
 def list_follow_ups(
     status: Optional[str] = Query(None, description="Pending, Completed, Cancelled"),
     lead_id: Optional[int] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """List all follow-ups for the current user"""
+    """List follow-ups for the current user (paginated)."""
     query = apply_company_scope(db.query(FollowUp), FollowUp, current_user)
-    
     if status:
         query = query.filter(FollowUp.status == status)
     if lead_id:
         query = query.filter(FollowUp.lead_id == lead_id)
-    
-    follow_ups = query.order_by(FollowUp.scheduled_date.asc()).all()
-    
+    total = query.count()
+    follow_ups = query.order_by(FollowUp.scheduled_date.asc()).offset(skip).limit(limit).all()
     result = []
     lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
     for fu in follow_ups:
@@ -47,8 +65,7 @@ def list_follow_ups(
             "status": fu.status,
             "notes": fu.notes
         })
-    
-    return result
+    return {"items": result, "total": total, "skip": skip, "limit": limit}
 
 
 @router.get("/today")
@@ -143,26 +160,23 @@ def get_follow_up(
     }
 
 
-@router.post("/")
+@router.post("", status_code=201)
 def create_follow_up(
-    lead_id: int = Query(...),
-    scheduled_date: str = Query(...),
-    scheduled_time: Optional[str] = Query(None),
-    notes: Optional[str] = Query(None),
+    body: FollowUpCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Create a new follow-up"""
-    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == body.lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     
     new_fu = FollowUp(
         company_id=lead.company_id,
-        lead_id=lead_id,
-        scheduled_date=datetime.strptime(scheduled_date, "%Y-%m-%d").date(),
-        scheduled_time=datetime.strptime(scheduled_time, "%H:%M").time() if scheduled_time else None,
-        notes=notes,
+        lead_id=body.lead_id,
+        scheduled_date=datetime.strptime(body.scheduled_date, "%Y-%m-%d").date(),
+        scheduled_time=datetime.strptime(body.scheduled_time, "%H:%M").time() if body.scheduled_time else None,
+        notes=body.notes,
         status="Pending"
     )
     
@@ -182,9 +196,7 @@ def create_follow_up(
 @router.put("/{follow_up_id}")
 def update_follow_up(
     follow_up_id: int,
-    scheduled_date: Optional[str] = Query(None),
-    scheduled_time: Optional[str] = Query(None),
-    notes: Optional[str] = Query(None),
+    body: FollowUpUpdateBody,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -194,12 +206,12 @@ def update_follow_up(
     if not fu:
         raise HTTPException(status_code=404, detail="Follow-up not found")
     
-    if scheduled_date:
-        fu.scheduled_date = datetime.strptime(scheduled_date, "%Y-%m-%d").date()
-    if scheduled_time:
-        fu.scheduled_time = datetime.strptime(scheduled_time, "%H:%M").time()
-    if notes:
-        fu.notes = notes
+    if body.scheduled_date is not None:
+        fu.scheduled_date = datetime.strptime(body.scheduled_date, "%Y-%m-%d").date()
+    if body.scheduled_time is not None:
+        fu.scheduled_time = datetime.strptime(body.scheduled_time, "%H:%M").time()
+    if body.notes is not None:
+        fu.notes = body.notes
     
     db.commit()
     
@@ -209,7 +221,7 @@ def update_follow_up(
 @router.post("/{follow_up_id}/complete")
 def complete_follow_up(
     follow_up_id: int,
-    outcome: str = Query(..., description="Outcome of the follow-up"),
+    body: FollowUpCompleteBody,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -220,14 +232,14 @@ def complete_follow_up(
         raise HTTPException(status_code=404, detail="Follow-up not found")
     
     fu.status = "Completed"
-    fu.outcome = outcome
+    fu.outcome = body.outcome
     fu.completed_at = datetime.now()
     
     db.commit()
     
     return {
         "message": f"Follow-up {follow_up_id} marked as completed",
-        "outcome": outcome,
+        "outcome": body.outcome,
         "completed_at": fu.completed_at.isoformat()
     }
 
@@ -235,9 +247,7 @@ def complete_follow_up(
 @router.post("/{follow_up_id}/reschedule")
 def reschedule_follow_up(
     follow_up_id: int,
-    new_date: str = Query(...),
-    new_time: Optional[str] = Query(None),
-    reason: Optional[str] = Query(None),
+    body: FollowUpRescheduleBody,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -247,18 +257,18 @@ def reschedule_follow_up(
     if not fu:
         raise HTTPException(status_code=404, detail="Follow-up not found")
     
-    fu.scheduled_date = datetime.strptime(new_date, "%Y-%m-%d").date()
-    if new_time:
-        fu.scheduled_time = datetime.strptime(new_time, "%H:%M").time()
-    if reason:
-        fu.notes = f"{fu.notes or ''}\n[Rescheduled: {reason}]"
+    fu.scheduled_date = datetime.strptime(body.new_date, "%Y-%m-%d").date()
+    if body.new_time:
+        fu.scheduled_time = datetime.strptime(body.new_time, "%H:%M").time()
+    if body.reason:
+        fu.notes = f"{fu.notes or ''}\n[Rescheduled: {body.reason}]"
     
     db.commit()
     
     return {
         "message": f"Follow-up {follow_up_id} rescheduled",
-        "new_date": new_date,
-        "new_time": new_time
+        "new_date": body.new_date,
+        "new_time": body.new_time
     }
 
 

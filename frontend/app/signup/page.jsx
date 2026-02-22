@@ -30,9 +30,9 @@ export default function Signup() {
 
         try {
             await signup(formData);
-            router.push('/dashboard');
+            router.push('/login?registered=true');
         } catch (err) {
-            setError(err.response?.data?.error || 'Registration failed. Please try again.');
+            setError(err.response?.data?.detail || err.response?.data?.error || 'Registration failed. Please try again.');
         } finally {
             setLoading(false);
         }

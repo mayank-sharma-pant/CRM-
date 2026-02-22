@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -23,13 +23,14 @@ class LeaveApproveRequest(BaseModel):
 
 @router.get("")
 def list_leaves(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     query = apply_company_scope(db.query(LeaveRequest), LeaveRequest, current_user)
 
     if current_user.role == "manager":
-        # Manager sees own requests + direct reports' requests.
         query = query.filter(
             (LeaveRequest.user_id == current_user.id)
             | (LeaveRequest.user.has(User.manager_id == current_user.id))
@@ -37,8 +38,9 @@ def list_leaves(
     elif current_user.role not in ["admin", "md", "purchase"]:
         query = query.filter(LeaveRequest.user_id == current_user.id)
 
-    leaves = query.order_by(LeaveRequest.created_at.desc()).all()
-    return [
+    total = query.count()
+    leaves = query.order_by(LeaveRequest.created_at.desc()).offset(skip).limit(limit).all()
+    items = [
         {
             "id": l.id,
             "user_id": l.user_id,
@@ -50,6 +52,7 @@ def list_leaves(
         }
         for l in leaves
     ]
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
 @router.post("")

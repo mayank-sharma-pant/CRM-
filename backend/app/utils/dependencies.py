@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, Any
 from app.database import get_db
 from app.models.user import User
+from app.models.company import Company
 from app.utils.security import decode_access_token
 
 
@@ -41,31 +42,36 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ) -> User:
-    """Extract and validate the current user from JWT token"""
+    """Extract and validate the current user from JWT token, enforce company status."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     payload = decode_access_token(token)
     if payload is None:
         raise credentials_exception
-    
+
     email: str = payload.get("sub")
     if email is None:
         raise credentials_exception
-    
+
     user = db.query(User).filter(User.email == email).first()
     if user is None:
         raise credentials_exception
-    
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is disabled"
-        )
-    
+
+    if not user.is_active or user.status == "disabled":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled")
+
+    if user.company_id is not None:
+        company = db.query(Company).filter(Company.id == user.company_id).first()
+        if company and company.status not in ("active",):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Company account is {company.status}"
+            )
+
     return user
 
 

@@ -23,7 +23,14 @@ export default function PlatformLayout({ children }) {
     const [loading, setLoading] = useState(true);
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
+    const isLoginPage = pathname === '/platform/login';
+
     useEffect(() => {
+        if (isLoginPage) {
+            setLoading(false);
+            return;
+        }
+
         const token = localStorage.getItem('platform_token');
         if (!token) {
             router.push('/platform/login');
@@ -47,12 +54,16 @@ export default function PlatformLayout({ children }) {
                 localStorage.removeItem('platform_token');
                 router.push('/platform/login');
             });
-    }, [router]);
+    }, [router, isLoginPage]);
 
     const handleLogout = () => {
         localStorage.removeItem('platform_token');
         router.push('/platform/login');
     };
+
+    if (isLoginPage) {
+        return children;
+    }
 
     if (loading) {
         return (

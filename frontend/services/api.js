@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-// Backend API base URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 const api = axios.create({
@@ -10,19 +9,21 @@ const api = axios.create({
   },
 });
 
-// Add token to requests if available (only in browser)
-if (typeof window !== 'undefined') {
-  const token = localStorage.getItem('token');
-  if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+// Request interceptor: attach token fresh on every request
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
-}
+  return config;
+});
 
-// Response interceptor for error handling
+// Response interceptor: handle 401 globally
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handle Network Errors (no response)
     if (!error.response) {
       console.warn('NETWORK_ERROR: Backend potentially unreachable at', API_BASE_URL);
     }
@@ -30,7 +31,6 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
-        delete api.defaults.headers.common['Authorization'];
         window.location.href = '/login';
       }
     }

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, users, leads, tasks, clients, admin, manager, follow_ups, md, purchase, ledgers, leaves, platform
+from app.routers import auth, users, leads, tasks, clients, admin, manager, follow_ups, md, purchase, ledgers, leaves, platform, invoices
 from app.config import settings
 
 app = FastAPI(
@@ -12,7 +12,7 @@ app = FastAPI(
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,6 +28,7 @@ app.include_router(follow_ups.router, prefix="/api/follow-ups", tags=["Follow-up
 app.include_router(manager.router, prefix="/api/manager", tags=["Manager"])
 app.include_router(md.router, prefix="/api/md", tags=["Managing Director"])
 app.include_router(purchase.router, prefix="/api/purchase", tags=["Purchase"])
+app.include_router(invoices.router, prefix="/api/invoices", tags=["Invoices"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(ledgers.router) # Prefix is defined in the router itself
 app.include_router(leaves.router, prefix="/api/leaves", tags=["Leaves"])

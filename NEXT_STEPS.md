@@ -8,9 +8,9 @@
 - **Frontend**: Next.js build succeeds.
 - **Tests**: `backend/tests/test_api.py` — health, root, 401 on protected, login + `/api/auth/me`.
 
-## Run the stack daily
+## Run the stack daily (development)
 
-1. **Backend** (from project root):
+1. **Backend** (from project root; development only — do not use in production):
    ```bash
    cd backend && source .venv/bin/activate && uvicorn app.main:app --reload --port 8000
    ```
@@ -34,7 +34,7 @@
 2. **Environment** – Replace `SECRET_KEY` and DB password in `.env` for non-local use; never commit `.env`.
 3. **Platform admin** – Use `admin@company.com` (no `company_id`) to test cross-company visibility if you add a second company.
 4. **Optional** – Add more pytest tests (e.g. create lead, update task), or E2E with Playwright/Cypress for critical flows.
-5. **Deploy** – When ready: build frontend (`npm run build`), run backend with a production ASGI server (e.g. gunicorn + uvicorn workers) and set `CORS_ORIGINS` to your frontend origin.
+5. **Deploy** – When ready: build frontend (`npm run build`), run backend with Gunicorn + Uvicorn workers (see backend README **Production (AWS EC2)**). Set `CORS_ORIGINS` to your frontend origin. Do not use `uvicorn --reload` in production.
 
 ## Seed credentials (after `python -m scripts.seed`)
 

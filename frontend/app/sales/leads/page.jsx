@@ -58,7 +58,8 @@ export default function Leads() {
       }
 
       const response = await api.get(url, { params });
-      let data = response.data || [];
+      const raw = response.data?.items ?? response.data;
+      let data = Array.isArray(raw) ? raw : [];
 
       // If 'active', we still want New, Contacted, Qualified
       // The backend doesn't have an 'active' filter shortcut yet, so we can either add it to backend or filter here

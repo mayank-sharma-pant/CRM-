@@ -5,7 +5,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, is_platform_admin
 from app.models.user import User
 from app.models.lead import Lead
 from app.models.task import Task
@@ -13,6 +13,16 @@ from app.models.client import Client
 from app.models.invoice import Invoice
 
 router = APIRouter()
+
+MANAGER_ROLES = {"manager", "md", "admin"}
+
+
+def require_manager(current_user: User = Depends(get_current_user)) -> User:
+    if is_platform_admin(current_user):
+        return current_user
+    if current_user.role not in MANAGER_ROLES:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    return current_user
 
 
 # ===============================
@@ -22,7 +32,7 @@ router = APIRouter()
 @router.get("/dashboard")
 def get_manager_dashboard(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_manager)
 ):
     """Get manager dashboard with team metrics"""
     # Get real counts (company-scoped)
@@ -83,7 +93,7 @@ def get_manager_dashboard(
 @router.get("/monitoring")
 def get_team_monitoring(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_manager)
 ):
     """Get team activity monitoring data"""
     team_members = apply_company_scope(db.query(User), User, current_user).filter(User.role == "sales").all()
@@ -93,7 +103,7 @@ def get_team_monitoring(
     
     for member in team_members:
         # Check if active in last 5 minutes
-        is_online = member.last_active_at and (datetime.now() - member.last_active_at).seconds < 300 if member.last_active_at else False
+        is_online = member.last_active_at and (datetime.now() - member.last_active_at).total_seconds() < 300 if member.last_active_at else False
         
         task_q = apply_company_scope(db.query(Task), Task, current_user)
         pending = task_q.filter(Task.assigned_to_id == member.id, Task.status == "Pending").count()
@@ -108,7 +118,7 @@ def get_team_monitoring(
             status = "online"
             last_active = "Just now"
         elif member.last_active_at:
-            status = "away" if (datetime.now() - member.last_active_at).seconds < 3600 else "offline"
+            status = "away" if (datetime.now() - member.last_active_at).total_seconds() < 3600 else "offline"
             last_active = member.last_active_at.strftime("%I:%M %p")
         else:
             status = "offline"
@@ -138,7 +148,7 @@ def get_team_monitoring(
 def get_team_member_detail(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_manager)
 ):
     """Get detailed activity for a team member"""
     user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
@@ -183,19 +193,19 @@ def get_team_member_detail(
 def get_team_leads(
     status: Optional[str] = Query(None),
     member_id: Optional[int] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_manager)
 ):
-    """Get all leads for the manager's team"""
+    """Get leads for the manager's team (paginated)."""
     query = apply_company_scope(db.query(Lead), Lead, current_user)
-    
     if status:
         query = query.filter(Lead.status == status)
     if member_id:
         query = query.filter(Lead.assigned_to_id == member_id)
-    
-    leads = query.order_by(Lead.created_at.desc()).all()
-    
+    total = query.count()
+    leads = query.order_by(Lead.created_at.desc()).offset(skip).limit(limit).all()
     result = []
     user_query = apply_company_scope(db.query(User), User, current_user)
     for lead in leads:
@@ -209,8 +219,7 @@ def get_team_leads(
             "assigned_to_id": lead.assigned_to_id,
             "created_at": lead.created_at.strftime("%Y-%m-%d") if lead.created_at else None
         })
-    
-    return {"leads": result, "total": len(result)}
+    return {"leads": result, "total": total, "skip": skip, "limit": limit}
 
 
 @router.post("/leads/{lead_id}/reassign")
@@ -218,7 +227,7 @@ def reassign_lead(
     lead_id: int,
     new_assignee_id: int = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_manager)
 ):
     """Reassign a lead to a different team member"""
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
@@ -248,19 +257,19 @@ def reassign_lead(
 def get_team_tasks(
     status: Optional[str] = Query(None),
     member_id: Optional[int] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_manager)
 ):
-    """Get all tasks for the team"""
+    """Get tasks for the team (paginated)."""
     query = apply_company_scope(db.query(Task), Task, current_user)
-    
     if status:
         query = query.filter(Task.status == status)
     if member_id:
         query = query.filter(Task.assigned_to_id == member_id)
-    
-    tasks = query.order_by(Task.due_date.asc()).all()
-    
+    total = query.count()
+    tasks = query.order_by(Task.due_date.asc()).offset(skip).limit(limit).all()
     result = []
     user_query = apply_company_scope(db.query(User), User, current_user)
     for task in tasks:
@@ -274,8 +283,7 @@ def get_team_tasks(
             "assigned_to_id": task.assigned_to_id,
             "priority": task.priority
         })
-    
-    return {"tasks": result, "total": len(result)}
+    return {"tasks": result, "total": total, "skip": skip, "limit": limit}
 
 
 @router.post("/tasks")
@@ -285,7 +293,7 @@ def create_team_task(
     due_date: str = Query(...),
     priority: str = Query("medium"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_manager)
 ):
     """Create and assign a task to a team member"""
     assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == assignee_id).first()
@@ -325,7 +333,7 @@ def create_team_task(
 def get_team_performance(
     period: str = Query("month"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_manager)
 ):
     """Get team performance report"""
     lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
@@ -370,17 +378,17 @@ def get_team_performance(
 @router.get("/invoices")
 def get_team_invoices(
     status: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_manager)
 ):
-    """Get all invoices created by team members"""
+    """Get invoices created by team members (paginated)."""
     query = apply_company_scope(db.query(Invoice), Invoice, current_user)
-    
     if status:
         query = query.filter(Invoice.status == status)
-    
-    invoices = query.order_by(Invoice.created_at.desc()).all()
-    
+    total = query.count()
+    invoices = query.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()
     result = []
     client_q = apply_company_scope(db.query(Client), Client, current_user)
     user_q = apply_company_scope(db.query(User), User, current_user)
@@ -396,15 +404,14 @@ def get_team_invoices(
             "created_by": creator.full_name if creator else "Unknown",
             "date": inv.issued_date.strftime("%Y-%m-%d") if inv.issued_date else None
         })
-    
-    return {"invoices": result, "total": len(result)}
+    return {"invoices": result, "total": total, "skip": skip, "limit": limit}
 
 
 @router.post("/invoices/{invoice_id}/approve")
 def approve_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_manager)
 ):
     """Approve an invoice"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()

@@ -33,7 +33,8 @@ export default function TasksPage() {
         setLoading(true);
         try {
             const res = await api.get('/tasks/list');
-            setTasks(res.data || []);
+            const raw = res.data?.items ?? res.data;
+            setTasks(Array.isArray(raw) ? raw : []);
         } catch (err) {
             console.error(err);
         } finally {
@@ -62,7 +63,7 @@ export default function TasksPage() {
         if (!tasks.length) return [];
 
         return tasks.filter(t => {
-            const d = t.dueDate.toLowerCase();
+            const d = (t.dueDate || '').toLowerCase();
             if (activeTab === 'Overdue') {
                 return d.includes('yesterday') || d.includes('ago');
             }

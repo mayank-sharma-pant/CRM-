@@ -49,6 +49,5 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Alembic
-alembic/versions/*.py
-!alembic/versions/.gitkeep
+# Alembic (keep migration files tracked)
+!alembic/versions/*.py

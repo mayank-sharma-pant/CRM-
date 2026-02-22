@@ -130,10 +130,18 @@ export default function LeadDetailPage() {
       // Sort timeline by date desc
       data.timeline = timeline.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-      // Format timestamps for display
+      const safeFormatAgo = (isoStr) => {
+        if (!isoStr) return '—';
+        try {
+          const d = parseISO(isoStr);
+          return isNaN(d.getTime()) ? isoStr : formatDistanceToNow(d, { addSuffix: true });
+        } catch {
+          return isoStr;
+        }
+      };
       data.timeline = data.timeline.map(item => ({
         ...item,
-        timestamp: formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })
+        timestamp: safeFormatAgo(item.timestamp)
       }));
 
       setLead(data);
@@ -157,13 +165,12 @@ export default function LeadDetailPage() {
     if (!window.confirm("Convert this lead to a formal client?")) return;
     try {
       // Assuming a generic create client from lead info since no specific convert endpoint
-      await api.post('/clients', null, {
-        params: {
-          name: lead.name,
-          email: lead.email,
-          phone: lead.phone,
-          company: lead.company
-        }
+      await api.post('/clients', {
+        name: lead.name,
+        email: lead.email || null,
+        phone: lead.phone || null,
+        company: lead.company || null,
+        address: null
       });
       await api.put(`/leads/${id}`, { status: 'Converted' });
       alert("Converted successfully!");
@@ -347,7 +354,7 @@ export default function LeadDetailPage() {
                       {task.status === 'Open' || task.status === 'Pending' ? (
                         <div className="flex items-center gap-2 mt-1">
                           <span className={`text-[10px] ${task.due_date ? 'text-amber-600' : 'text-slate-400'} flex items-center gap-1`}>
-                            <Clock size={10} /> {task.due_date ? formatDistanceToNow(parseISO(task.due_date), { addSuffix: true }) : 'No date'}
+                            <Clock size={10} /> {task.due_date ? (() => { try { return formatDistanceToNow(parseISO(task.due_date), { addSuffix: true }); } catch { return task.due_date; } })() : 'No date'}
                           </span>
                         </div>
                       ) : null}
@@ -379,7 +386,7 @@ export default function LeadDetailPage() {
                   </p>
                   <div className="flex items-center justify-between mt-1 px-1">
                     <span className="text-slate-400">{note.created_by_name || 'System'}</span>
-                    <span className="text-slate-400">{formatDistanceToNow(parseISO(note.created_at), { addSuffix: true })}</span>
+                    <span className="text-slate-400">{note.created_at ? (() => { try { return formatDistanceToNow(parseISO(note.created_at), { addSuffix: true }); } catch { return note.created_at; } })() : '—'}</span>
                   </div>
                 </div>
               ))}

@@ -28,7 +28,7 @@ export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = 
             // In a real app, fetching team members. For now, list users.
             const res = await api.get('/users/');
             const data = res.data;
-            setUsers(Array.isArray(data) ? data : (data?.users || []));
+            setUsers(data?.items ?? (Array.isArray(data) ? data : (data?.users || [])));
         } catch (err) {
             console.error("Failed to fetch users", err);
         }
@@ -46,16 +46,13 @@ export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = 
         setLoading(true);
         setError(null);
         try {
-            // The backend uses Query parameters for POST /tasks
-            await api.post('/tasks/', null, {
-                params: {
-                    title: formData.title,
-                    description: formData.description,
-                    priority: formData.priority,
-                    due_date: formData.due_date,
-                    lead_id: formData.lead_id || undefined,
-                    assigned_to: formData.assigned_to || undefined
-                }
+            await api.post('/tasks', {
+                title: formData.title,
+                description: formData.description || null,
+                priority: formData.priority,
+                due_date: formData.due_date || null,
+                lead_id: formData.lead_id ? parseInt(formData.lead_id, 10) : null,
+                client_id: null
             });
             onRefresh();
             onClose();

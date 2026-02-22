@@ -71,26 +71,37 @@ export default function ManagerLeads() {
     /**
      * Helper to determine the single most important engagement signal
      */
+    const safeParseISO = (s) => {
+        if (!s || typeof s !== 'string') return null;
+        try {
+            const d = parseISO(s);
+            return isNaN(d.getTime()) ? null : d;
+        } catch {
+            return null;
+        }
+    };
+
     const getEngagementSignal = (lead) => {
         const NOW = new Date();
 
-        // 1. Critical Tasks (Highest Priority)
         if (lead.next_task) {
-            const taskDate = parseISO(lead.next_task);
-            const daysDiff = differenceInDays(taskDate, NOW);
-
-            if (daysDiff < 0) return { text: 'Follow-up overdue', color: 'text-red-600 font-semibold' };
-            if (daysDiff === 0) return { text: 'Follow-up today', color: 'text-emerald-600 font-semibold' };
+            const taskDate = safeParseISO(lead.next_task);
+            if (taskDate) {
+                const daysDiff = differenceInDays(taskDate, NOW);
+                if (daysDiff < 0) return { text: 'Follow-up overdue', color: 'text-red-600 font-semibold' };
+                if (daysDiff === 0) return { text: 'Follow-up today', color: 'text-emerald-600 font-semibold' };
+            }
         }
 
-        // 2. Response Received (New Information)
         if (lead.last_response_at) {
-            return { text: `Responded ${formatDistanceToNow(parseISO(lead.last_response_at), { addSuffix: true })}`, color: 'text-blue-600 font-medium' };
+            const d = safeParseISO(lead.last_response_at);
+            if (d) return { text: `Responded ${formatDistanceToNow(d, { addSuffix: true })}`, color: 'text-blue-600 font-medium' };
         }
 
-        // 3. Awaiting Response (Stalled)
         if (lead.last_contacted_at) {
-            const daysSinceContact = differenceInDays(NOW, parseISO(lead.last_contacted_at));
+            const d = safeParseISO(lead.last_contacted_at);
+            if (!d) return { text: '', color: '' };
+            const daysSinceContact = differenceInDays(NOW, d);
             // If contacted > 2 days ago and no response yet
             if (daysSinceContact > 2) return { text: 'Awaiting response', color: 'text-amber-600 font-medium' };
             // Recently contacted

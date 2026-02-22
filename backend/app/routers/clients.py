@@ -8,6 +8,7 @@ from app.utils.dependencies import get_current_user, apply_company_scope, ensure
 from app.models.user import User
 from app.models.client import Client
 from app.models.invoice import Invoice
+from app.schemas.sales import ClientCreate, ClientUpdate
 
 router = APIRouter()
 
@@ -16,15 +17,16 @@ router = APIRouter()
 # Clients Endpoints
 # ===============================
 
-@router.get("/")
+@router.get("")
 def list_clients(
     search: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """List all clients"""
+    """List clients (paginated)."""
     query = apply_company_scope(db.query(Client), Client, current_user)
-    
     if search:
         search_pattern = f"%{search}%"
         query = query.filter(
@@ -32,21 +34,25 @@ def list_clients(
             (Client.email.ilike(search_pattern)) |
             (Client.company.ilike(search_pattern))
         )
-    
-    clients = query.order_by(Client.created_at.desc()).all()
-    
-    return [
-        {
-            "id": client.id,
-            "name": client.name,
-            "email": client.email,
-            "phone": client.phone,
-            "company": client.company,
-            "address": client.address,
-            "created_at": client.created_at.strftime("%Y-%m-%d") if client.created_at else None
-        }
-        for client in clients
-    ]
+    total = query.count()
+    clients = query.order_by(Client.created_at.desc()).offset(skip).limit(limit).all()
+    return {
+        "items": [
+            {
+                "id": client.id,
+                "name": client.name,
+                "email": client.email,
+                "phone": client.phone,
+                "company": client.company,
+                "address": client.address,
+                "created_at": client.created_at.strftime("%Y-%m-%d") if client.created_at else None
+            }
+            for client in clients
+        ],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
 
 
 @router.get("/{client_id}")
@@ -86,13 +92,9 @@ def get_client(
     }
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 def create_client(
-    name: str = Query(...),
-    email: Optional[str] = Query(None),
-    phone: Optional[str] = Query(None),
-    company: Optional[str] = Query(None),
-    address: Optional[str] = Query(None),
+    body: ClientCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -101,11 +103,11 @@ def create_client(
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
     new_client = Client(
         company_id=current_user.company_id,
-        name=name,
-        email=email,
-        phone=phone,
-        company=company,
-        address=address
+        name=body.name,
+        email=body.email,
+        phone=body.phone,
+        company=body.company,
+        address=body.address
     )
     
     db.add(new_client)
@@ -122,11 +124,7 @@ def create_client(
 @router.put("/{client_id}")
 def update_client(
     client_id: int,
-    name: Optional[str] = Query(None),
-    email: Optional[str] = Query(None),
-    phone: Optional[str] = Query(None),
-    company: Optional[str] = Query(None),
-    address: Optional[str] = Query(None),
+    body: ClientUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -136,16 +134,16 @@ def update_client(
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     
-    if name:
-        client.name = name
-    if email:
-        client.email = email
-    if phone:
-        client.phone = phone
-    if company:
-        client.company = company
-    if address:
-        client.address = address
+    if body.name is not None:
+        client.name = body.name
+    if body.email is not None:
+        client.email = body.email
+    if body.phone is not None:
+        client.phone = body.phone
+    if body.company is not None:
+        client.company = body.company
+    if body.address is not None:
+        client.address = body.address
     
     db.commit()
     db.refresh(client)

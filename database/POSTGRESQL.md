@@ -185,7 +185,7 @@ The app’s tables (users, leads, clients, etc.) are created by **Alembic migrat
    ```
    You should see something like: `INFO  [alembic.runtime.migration] Running upgrade  -> 001_initial, Initial schema from SQLAlchemy models`
 
-3. Start the backend:
+3. Start the backend (development only; for production use Gunicorn — see backend README):
    ```bash
    uvicorn app.main:app --reload --port 8000
    ```

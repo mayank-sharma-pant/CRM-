@@ -36,7 +36,8 @@ export default function FollowUps() {
         const params = filter === 'pending' ? { status: 'Pending' } : {};
         response = await api.get('/follow-ups', { params });
       }
-      setFollowUps(response.data);
+      const data = response.data?.items ?? response.data?.follow_ups ?? (Array.isArray(response.data) ? response.data : []);
+      setFollowUps(data);
     } catch (error) {
       console.error('Failed to fetch follow-ups:', error);
     } finally {
@@ -67,23 +68,40 @@ export default function FollowUps() {
       completed: []
     };
 
+    const safeParse = (s) => {
+      if (!s) return null;
+      try {
+        const d = parseISO(s);
+        return isNaN(d.getTime()) ? null : d;
+      } catch {
+        return null;
+      }
+    };
+
     followUps.forEach(item => {
-      const date = parseISO(item.scheduled_date);
+      const date = safeParse(item.scheduled_date);
       if (item.status === 'Completed' || item.status === 'Missed') {
         groups.completed.push(item);
-      } else if (isPast(date) && !isToday(date)) {
+      } else if (date && isPast(date) && !isToday(date)) {
         groups.overdue.push(item);
-      } else if (isToday(date)) {
+      } else if (date && isToday(date)) {
         groups.today.push(item);
+      } else if (date) {
+        groups.upcoming.push(item);
       } else {
         groups.upcoming.push(item);
       }
     });
 
-    groups.overdue.sort((a, b) => compareAsc(parseISO(a.scheduled_date), parseISO(b.scheduled_date)));
+    const sortByDate = (a, b) => {
+      const da = safeParse(a.scheduled_date)?.getTime() ?? 0;
+      const db = safeParse(b.scheduled_date)?.getTime() ?? 0;
+      return da - db;
+    };
+    groups.overdue.sort(sortByDate);
     groups.today.sort((a, b) => (a.scheduled_time || '').localeCompare(b.scheduled_time || ''));
-    groups.upcoming.sort((a, b) => compareAsc(parseISO(a.scheduled_date), parseISO(b.scheduled_date)));
-    groups.completed.sort((a, b) => compareAsc(parseISO(b.scheduled_date), parseISO(a.scheduled_date)));
+    groups.upcoming.sort(sortByDate);
+    groups.completed.sort((a, b) => sortByDate(b, a));
 
     return { ...groups };
   }, [followUps]);
@@ -237,8 +255,8 @@ function FollowUpCard({ item, type, onStatusChange }) {
   const isOverdue = type === 'overdue';
   const isTodayDate = type === 'today';
 
-  const date = parseISO(item.scheduled_date);
-  const overdueDays = isOverdue ? differenceInDays(new Date(), date) : 0;
+  const date = item.scheduled_date ? (() => { try { const d = parseISO(item.scheduled_date); return isNaN(d.getTime()) ? null : d; } catch { return null; } })() : null;
+  const overdueDays = isOverdue && date ? differenceInDays(new Date(), date) : 0;
   const overdueLabel = overdueDays > 0 ? `+${overdueDays}d` : '!';
 
   const styles = {
@@ -287,7 +305,7 @@ function FollowUpCard({ item, type, onStatusChange }) {
           </span>
           <span>•</span>
           <span className={`flex items-center gap-1 ${isOverdue ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}`}>
-            {isTodayDate ? 'Today' : format(date, 'MMM d')}
+            {isTodayDate ? 'Today' : (date ? format(date, 'MMM d') : (item.scheduled_date || '—'))}
             {item.scheduled_time && ` @ ${item.scheduled_time}`}
           </span>
         </div>

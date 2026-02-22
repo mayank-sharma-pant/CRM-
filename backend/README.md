@@ -44,10 +44,59 @@ alembic revision --autogenerate -m "Initial migration"
 alembic upgrade head
 ```
 
-6. Run development server:
+6. Run development server (local only; do not use in production):
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
+
+---
+
+## Production (AWS EC2)
+
+For production deployment, use **Gunicorn** with Uvicorn workers. Do **not** run raw `uvicorn` or use `--reload` in production.
+
+Example production command:
+
+```bash
+gunicorn app.main:app \
+    -w 3 \
+    -k uvicorn.workers.UvicornWorker \
+    -b 0.0.0.0:8000
+```
+
+- **`-w 3`** — Number of worker processes (adjust based on CPU cores).
+- **`uvicorn.workers.UvicornWorker`** — Provides async ASGI support.
+- **`-b 0.0.0.0:8000`** — Bind on all interfaces (required when behind Nginx or a load balancer).
+- **Do not use `--reload`** in production.
+
+Ensure `DATABASE_URL`, `SECRET_KEY`, and `CORS_ORIGINS` are set in the environment (e.g. via `.env` in `WorkingDirectory` or systemd `Environment`/`EnvironmentFile`). The app loads these from `app.config`; no hardcoded DB or secrets.
+
+Use **systemd** or another process manager to keep the service running and restart on failure.
+
+### Optional: systemd example
+
+Example unit file: `/etc/systemd/system/crm.service`
+
+```ini
+[Unit]
+Description=CRM Backend
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/backend
+ExecStart=/home/ubuntu/venv/bin/gunicorn app.main:app -w 3 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+- This is an example only; paths must match your EC2 deployment.
+- Adjust `User`, `WorkingDirectory`, and the virtualenv path (e.g. `/home/ubuntu/venv/bin/gunicorn`) to your setup.
+- Enable and start: `sudo systemctl enable crm && sudo systemctl start crm`
+
+---
 
 ## API Documentation
 

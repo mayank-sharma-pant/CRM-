@@ -170,7 +170,7 @@ export default function ManagerDashboard() {
                                         <div className="text-right">
                                             <p className="text-[10px] uppercase font-bold text-muted tracking-widest mb-0.5 opacity-60">Due Date</p>
                                             <div className="flex items-center justify-end gap-1.5 text-[13px] font-bold text-secondary">
-                                                {format(parseISO(task.dueDate), 'MMM d')}
+                                                {task.dueDate ? (() => { try { return format(parseISO(task.dueDate), 'MMM d'); } catch { return task.dueDate; } })() : '—'}
                                             </div>
                                         </div>
                                         <ArrowRight size={14} className="text-border-strong group-hover:text-accent transition-all group-hover:translate-x-0.5" />

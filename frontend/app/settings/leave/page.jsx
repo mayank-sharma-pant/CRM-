@@ -256,7 +256,8 @@ export default function LeaveRequestsPage() {
         try {
             setLoading(true);
             const response = await api.get('/leaves');
-            const allLeaves = response.data || [];
+            const raw = response.data?.items ?? response.data;
+            const allLeaves = Array.isArray(raw) ? raw : [];
 
             // If user is manager, they might see both their own and their team's
             if (user?.role === 'manager') {
@@ -333,7 +334,7 @@ export default function LeaveRequestsPage() {
                             <>
                                 {/* Section 1: Form (Conditional) */}
 
-                                {user?.role === 'sales' || user?.role === 'manager' && (
+                                {(user?.role === 'sales' || user?.role === 'manager') && (
                                     <LeaveRequestForm onSubmit={handleCreateRequest} isLoading={submitting} />
                                 )}
 

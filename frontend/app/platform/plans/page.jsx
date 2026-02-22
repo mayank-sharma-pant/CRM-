@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { CreditCard, Plus } from 'lucide-react';
 
+const PLATFORM_API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/platform';
+
 export default function PlansPage() {
     const [plans, setPlans] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -14,7 +16,7 @@ export default function PlansPage() {
     const fetchPlans = async () => {
         try {
             const token = localStorage.getItem('platform_token');
-            const response = await fetch('http://localhost:8000/platform/plans', {
+            const response = await fetch(`${PLATFORM_API}/plans`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 

@@ -12,3 +12,4 @@ from app.models.follow_up import FollowUp
 from app.models.invoice import Invoice, InvoiceItem
 from app.models.note import Note
 from app.models.ledger import LedgerEntry
+from app.models.leave_request import LeaveRequest

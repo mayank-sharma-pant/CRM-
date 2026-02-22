@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
+import random
 
 from app.database import get_db
 from app.models.user import User
@@ -11,6 +13,19 @@ from app.utils.security import verify_password, get_password_hash, create_access
 router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+# In-memory OTP cache for local/dev use.
+_otp_store: dict[str, dict[str, datetime | str]] = {}
+OTP_EXPIRY_MINUTES = 10
+
+
+class OTPRequest(BaseModel):
+    email: EmailStr
+
+
+class OTPLoginRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
@@ -113,6 +128,61 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             "full_name": user.full_name,
             "role": user.role
         }
+    }
+
+
+@router.post("/request-otp")
+def request_otp(payload: OTPRequest, db: Session = Depends(get_db)):
+    """Generate OTP and print it in backend logs (dev mode)."""
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.status == "disabled":
+        raise HTTPException(status_code=403, detail="User account is disabled")
+
+    otp_code = f"{random.randint(0, 999999):06d}"
+    expires_at = datetime.now() + timedelta(minutes=OTP_EXPIRY_MINUTES)
+    _otp_store[payload.email] = {"code": otp_code, "expires_at": expires_at}
+
+    print(f"[OTP] {payload.email} -> {otp_code} (expires in {OTP_EXPIRY_MINUTES} min)")
+    return {"message": "OTP sent successfully"}
+
+
+@router.post("/login-otp")
+def login_otp(payload: OTPLoginRequest, db: Session = Depends(get_db)):
+    record = _otp_store.get(payload.email)
+    if not record:
+        raise HTTPException(status_code=400, detail="OTP not requested or expired")
+
+    expires_at = record["expires_at"]
+    code = str(record["code"])
+    if not isinstance(expires_at, datetime) or datetime.now() > expires_at:
+        _otp_store.pop(payload.email, None)
+        raise HTTPException(status_code=400, detail="OTP expired")
+
+    if payload.otp_code.strip() != code:
+        raise HTTPException(status_code=401, detail="Invalid OTP code")
+
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.status == "disabled":
+        raise HTTPException(status_code=403, detail="User account is disabled")
+
+    user.last_active_at = datetime.now()
+    db.commit()
+    _otp_store.pop(payload.email, None)
+
+    access_token = create_access_token(data={"sub": user.email, "role": user.role})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+        },
     }
 
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import api from '../../../../services/api';
 import {
     ArrowLeft,
     CheckCircle,
@@ -26,48 +27,84 @@ export default function SalesReviewDetailPage() {
     const [rejectionReason, setRejectionReason] = useState('');
     const [showApproveModal, setShowApproveModal] = useState(false);
     const [showRejectModal, setShowRejectModal] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
 
     useEffect(() => {
-        setTimeout(() => {
-            // Mock sale detail data
-            const saleData = {
-                id: params.saleId,
-                saleId: `SAL-2024-00${params.saleId}`,
-                status: 'Pending Review',
-                client: {
-                    name: 'BigBank International',
-                    contact: 'John Smith',
-                    email: 'john.smith@bigbank.com',
-                    phone: '+1 (555) 123-4567',
-                    type: 'Enterprise'
-                },
-                pricing: {
-                    subtotal: '$47,368.42',
-                    discount: '5%',
-                    discountAmount: '$2,368.42',
-                    total: '$45,000.00'
-                },
-                invoiceLinkage: {
-                    hasInvoice: true,
-                    invoiceId: 'INV-2024-001',
-                    invoiceStatus: 'Draft'
-                },
-                rep: 'Alex Johnson',
-                createdAt: '2024-01-10 09:30 AM',
-                createdBy: 'Alex Johnson',
-                reviewedBy: null,
-                reviewedAt: null,
-                notes: 'Enterprise license for 500 seats. Client requested expedited onboarding.',
-                items: [
-                    { description: 'Enterprise License (500 seats)', qty: 1, unitPrice: '$40,000.00', total: '$40,000.00' },
-                    { description: 'Priority Support Package', qty: 1, unitPrice: '$5,000.00', total: '$5,000.00' },
-                    { description: 'Onboarding Services', qty: 1, unitPrice: '$2,368.42', total: '$2,368.42' }
-                ]
-            };
-            setSale(saleData);
-            setLoading(false);
-        }, 400);
+        const fetchSale = async () => {
+            try {
+                const res = await api.get(`/purchase/sales/${params.saleId}`);
+                const d = res.data;
+                const total = d.deal?.amount || 0;
+                const subtotal = d.deal?.subtotal || total;
+                const tax = d.deal?.tax || 0;
+                setSale({
+                    id: d.id,
+                    saleId: `SAL-${d.id}`,
+                    status: d.status === 'Draft' ? 'Pending Review' : d.status,
+                    client: {
+                        name: d.client?.name || 'Unknown',
+                        contact: d.client?.name || '',
+                        email: d.client?.email || '',
+                        phone: '',
+                        type: 'Client'
+                    },
+                    pricing: {
+                        subtotal: `$${Number(subtotal).toLocaleString('en-US', {minimumFractionDigits: 2})}`,
+                        discount: '0%',
+                        discountAmount: '$0.00',
+                        total: `$${Number(total).toLocaleString('en-US', {minimumFractionDigits: 2})}`
+                    },
+                    invoiceLinkage: { hasInvoice: true, invoiceId: `INV-${d.id}`, invoiceStatus: d.status },
+                    rep: d.salesperson?.name || 'Unknown',
+                    createdAt: '',
+                    createdBy: d.salesperson?.name || 'Unknown',
+                    reviewedBy: null,
+                    reviewedAt: null,
+                    notes: '',
+                    items: (d.deal?.items || []).map(i => ({
+                        description: i.description,
+                        qty: i.quantity || 1,
+                        unitPrice: `$${Number(i.total / (i.quantity || 1)).toLocaleString('en-US', {minimumFractionDigits: 2})}`,
+                        total: `$${Number(i.total).toLocaleString('en-US', {minimumFractionDigits: 2})}`
+                    }))
+                });
+            } catch (err) {
+                console.error('Failed to fetch sale detail:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSale();
     }, [params.saleId]);
+
+    const handleApprove = async () => {
+        setActionLoading(true);
+        try {
+            await api.post(`/purchase/sales/${params.saleId}/approve`);
+            alert('Sale approved successfully');
+            router.push('/purchase/sales');
+        } catch (err) {
+            alert('Failed to approve sale');
+        } finally {
+            setActionLoading(false);
+            setShowApproveModal(false);
+        }
+    };
+
+    const handleReject = async () => {
+        if (!rejectionReason.trim()) { alert('Please enter a reason'); return; }
+        setActionLoading(true);
+        try {
+            await api.post(`/purchase/sales/${params.saleId}/reject?reason=${encodeURIComponent(rejectionReason)}`);
+            alert('Sale rejected');
+            router.push('/purchase/sales');
+        } catch (err) {
+            alert('Failed to reject sale');
+        } finally {
+            setActionLoading(false);
+            setShowRejectModal(false);
+        }
+    };
 
     if (loading) return <DetailSkeleton />;
 
@@ -182,23 +219,20 @@ export default function SalesReviewDetailPage() {
                             <div className="space-y-3">
                                 <button
                                     onClick={() => setShowApproveModal(true)}
-                                    disabled
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 text-white rounded-lg font-medium opacity-50 cursor-not-allowed"
-                                    title="Backend integration required"
+                                    disabled={actionLoading}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                                 >
                                     <CheckCircle size={18} />
                                     Approve Sale
                                 </button>
                                 <button
                                     onClick={() => setShowRejectModal(true)}
-                                    disabled
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500 text-white rounded-lg font-medium opacity-50 cursor-not-allowed"
-                                    title="Backend integration required"
+                                    disabled={actionLoading}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                                 >
                                     <XCircle size={18} />
                                     Reject Sale
                                 </button>
-                                <p className="text-[11px] text-slate-400 text-center mt-2">Backend integration required</p>
                             </div>
                         </div>
                     )}
@@ -280,7 +314,7 @@ export default function SalesReviewDetailPage() {
                     message={`Are you sure you want to approve sale ${sale.saleId} for ${sale.pricing.total}?`}
                     confirmLabel="Approve"
                     confirmColor="emerald"
-                    onConfirm={() => setShowApproveModal(false)}
+                    onConfirm={handleApprove}
                     onCancel={() => setShowApproveModal(false)}
                 />
             )}
@@ -295,7 +329,7 @@ export default function SalesReviewDetailPage() {
                     showReason
                     reason={rejectionReason}
                     onReasonChange={setRejectionReason}
-                    onConfirm={() => setShowRejectModal(false)}
+                    onConfirm={handleReject}
                     onCancel={() => setShowRejectModal(false)}
                 />
             )}

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Activity, Filter } from 'lucide-react';
 
+const PLATFORM_API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/platform';
+
 export default function SystemLogsPage() {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -15,7 +17,7 @@ export default function SystemLogsPage() {
     const fetchLogs = async () => {
         try {
             const token = localStorage.getItem('platform_token');
-            const response = await fetch(`http://localhost:8000/platform/logs?days=${days}&limit=100`, {
+            const response = await fetch(`${PLATFORM_API}/logs?days=${days}&limit=100`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 

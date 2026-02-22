@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, usePathname } from 'next/navigation';
-import { CLIENTS_DATA } from '../data';
+import api from '../../../../services/api';
 import {
     ArrowLeft,
     MoreHorizontal,
@@ -34,41 +34,44 @@ export default function ClientDetailPage() {
     const isManager = pathname?.startsWith('/manager');
     const basePath = isManager ? '/manager/clients' : '/sales/clients';
 
-    // MOCK DATA FETCHING SIMULATION
-    // In a real app, the API endpoint would differ (/api/sales/clients vs /api/manager/clients)
-    // and the backend would return the correct permissions.
     useEffect(() => {
-        if (params?.id) {
-            let foundClient = CLIENTS_DATA.find(c => c.id === parseInt(params.id));
+        if (!params?.id) return;
 
-            if (foundClient) {
-                // CLONE to avoid mutating shared reference
-                const clientData = { ...foundClient };
-                // const isManager = window.location.pathname.startsWith('/manager'); // REPLACED with hook
-
-                // MOCK API LOGIC: Override permissions based on "Role Context"
-                // This simulates the Backend response difference.
-                if (isManager) {
-                    clientData.permissions = {
-                        canEdit: false,
-                        canAddNote: false, // Read Only
-                        canCreateTask: false // Structural changes only via dedicated tools, not here
-                    };
-                } else {
-                    // Default Sales Permission
-                    clientData.permissions = clientData.permissions || {
-                        canEdit: true,
-                        canAddNote: true,
-                        canCreateTask: true
-                    };
-                }
+        const fetchClient = async () => {
+            try {
+                const res = await api.get(`/clients/${params.id}`);
+                const data = res.data;
+                const clientData = {
+                    id: data.id,
+                    name: data.name,
+                    title: '',
+                    company: data.company || '',
+                    status: 'Active',
+                    email: data.email || '',
+                    phone: data.phone || '',
+                    address: data.address || '',
+                    industry: '',
+                    source: '',
+                    internal_id: `CLI-${data.id}`,
+                    since: data.created_at || '',
+                    owner: '',
+                    timeline: [],
+                    tasks: [],
+                    notes: [],
+                    invoices: data.invoices || [],
+                    permissions: isManager
+                        ? { canEdit: false, canAddNote: false, canCreateTask: false }
+                        : { canEdit: true, canAddNote: true, canCreateTask: true }
+                };
                 setClient(clientData);
-            } else {
-                console.error(`Client ${params.id} not found`);
+            } catch (err) {
+                console.error(`Failed to fetch client ${params.id}:`, err);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
-        }
-    }, [params, isManager]); // Added isManager dependency
+        };
+        fetchClient();
+    }, [params, isManager]);
 
     if (loading) {
         return (

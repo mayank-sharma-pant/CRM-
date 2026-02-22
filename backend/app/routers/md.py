@@ -9,7 +9,7 @@ from app.utils.dependencies import get_current_user, apply_company_scope, ensure
 from app.models.user import User
 from app.models.lead import Lead
 from app.models.client import Client
-from app.models.invoice import Invoice
+from app.models.invoice import Invoice, InvoiceItem
 from app.models.task import Task
 from app.models.team import Team
 
@@ -319,3 +319,88 @@ def get_company_monitoring(
         ] if overdue_count > 0 else [],
         "team_status": team_status
     }
+
+
+# ===============================
+# Company-wide Invoices
+# ===============================
+
+@router.get("/invoices")
+def get_company_invoices(
+    status: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get all company invoices for MD view"""
+    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    if status and status != "All":
+        inv_q = inv_q.filter(Invoice.status == status)
+
+    invoices = inv_q.order_by(Invoice.created_at.desc()).all()
+
+    client_q = apply_company_scope(db.query(Client), Client, current_user)
+    result = []
+    for inv in invoices:
+        client = client_q.filter(Client.id == inv.client_id).first() if inv.client_id else None
+        result.append({
+            "id": f"INV-{inv.id:04d}",
+            "db_id": inv.id,
+            "client": client.name if client else "Unknown",
+            "amount": f"${inv.total:,.2f}" if inv.total else "$0.00",
+            "status": inv.status or "Draft",
+            "dueDate": inv.due_date.strftime("%Y-%m-%d") if inv.due_date else None,
+            "linkedSale": None,
+            "paymentStatus": "Settled" if inv.status == "Paid" else "Awaiting"
+        })
+
+    return {"invoices": result, "total": len(result)}
+
+
+# ===============================
+# Performance Points / Incentives
+# ===============================
+
+@router.get("/points")
+def get_performance_points(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get employee performance points based on lead conversions"""
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+    user_q = apply_company_scope(db.query(User), User, current_user)
+
+    sales_users = user_q.filter(User.role.in_(["sales", "manager"])).all()
+
+    performance = []
+    for user in sales_users:
+        total_leads = lead_q.filter(Lead.assigned_to_id == user.id).count()
+        converted = lead_q.filter(Lead.assigned_to_id == user.id, Lead.status == "Converted").count()
+        points = converted * 500 + (total_leads - converted) * 50
+        target = 2000
+
+        if points >= 2000:
+            tier = "Titanium"
+        elif points >= 1500:
+            tier = "Platinum"
+        elif points >= 800:
+            tier = "Gold"
+        else:
+            tier = "Silver"
+
+        bonus_amount = points * 5
+        trend = "up" if converted > 0 else ("flat" if total_leads > 0 else "down")
+
+        performance.append({
+            "id": f"EMP{user.id:03d}",
+            "user_id": user.id,
+            "name": user.full_name,
+            "role": user.role.title(),
+            "points": points,
+            "tier": tier,
+            "target": target,
+            "trend": trend,
+            "bonus": f"${bonus_amount:,}"
+        })
+
+    performance.sort(key=lambda x: x["points"], reverse=True)
+    return {"performance": performance, "total": len(performance)}

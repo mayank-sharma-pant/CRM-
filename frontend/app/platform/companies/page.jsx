@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Building2, Search, Filter, Users, Eye } from 'lucide-react';
 import Link from 'next/link';
 
+const PLATFORM_API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/platform';
+
 export default function CompaniesListPage() {
     const [companies, setCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -20,7 +22,7 @@ export default function CompaniesListPage() {
             const params = new URLSearchParams();
             if (statusFilter) params.append('status', statusFilter);
 
-            const response = await fetch(`http://localhost:8000/platform/companies?${params}`, {
+            const response = await fetch(`${PLATFORM_API}/companies?${params}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 

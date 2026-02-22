@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Building2, Users, AlertCircle, TrendingUp, CheckCircle, Clock } from 'lucide-react';
 
+const PLATFORM_API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/platform';
+
 export default function PlatformDashboardPage() {
     const [metrics, setMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -14,7 +16,7 @@ export default function PlatformDashboardPage() {
     const fetchMetrics = async () => {
         try {
             const token = localStorage.getItem('platform_token');
-            const response = await fetch('http://localhost:8000/platform/metrics/dashboard', {
+            const response = await fetch(`${PLATFORM_API}/metrics/dashboard`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

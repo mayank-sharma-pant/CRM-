@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import api from '../../../../services/api';
 import {
     ArrowLeft,
     CheckCircle,
@@ -23,51 +24,81 @@ export default function InvoiceDetailPage() {
     const params = useParams();
     const [loading, setLoading] = useState(true);
     const [invoice, setInvoice] = useState(null);
+    const [actionLoading, setActionLoading] = useState(false);
 
     useEffect(() => {
-        setTimeout(() => {
-            // Mock invoice detail data
-            const invoiceData = {
-                id: decodeURIComponent(params.invoiceId),
-                status: 'Pending',
-                client: {
-                    name: 'BigBank International',
-                    contact: 'John Smith',
-                    email: 'john.smith@bigbank.com',
-                    phone: '+1 (555) 123-4567',
-                    address: '123 Finance Street, New York, NY 10001'
-                },
-                linkedSale: {
-                    saleId: 'SAL-2024-003',
-                    amount: '$45,000.00',
-                    rep: 'Alex Johnson'
-                },
-                amount: '$12,500.00',
-                subtotal: '$11,904.76',
-                tax: '$595.24',
-                dueDate: '2024-01-25',
-                issueDate: '2024-01-05',
-                paymentTerms: 'Net 20',
-                paymentTimeline: [
-                    { date: '2024-01-05', event: 'Invoice Created', status: 'complete' },
-                    { date: '2024-01-06', event: 'Invoice Sent', status: 'complete' },
-                    { date: '2024-01-25', event: 'Payment Due', status: 'pending' },
-                    { date: null, event: 'Payment Received', status: 'upcoming' }
-                ],
-                items: [
-                    { description: 'Consulting Services - Phase 1', qty: 1, unitPrice: '$8,000.00', total: '$8,000.00' },
-                    { description: 'Implementation Support', qty: 10, unitPrice: '$390.48', total: '$3,904.76' }
-                ],
-                auditLog: [
-                    { timestamp: '2024-01-05 09:30', action: 'Invoice Created', user: 'System' },
-                    { timestamp: '2024-01-05 09:35', action: 'Approved by Finance', user: 'Sarah Wilson' },
-                    { timestamp: '2024-01-06 10:00', action: 'Sent to Client', user: 'Alex Johnson' }
-                ]
-            };
-            setInvoice(invoiceData);
-            setLoading(false);
-        }, 400);
+        const fetchInvoice = async () => {
+            try {
+                const res = await api.get(`/purchase/invoices/${params.invoiceId}`);
+                const d = res.data;
+                const fmt = (v) => `$${Number(v || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                const statusMap = { paid: 'Paid', pending: 'Pending', overdue: 'Overdue', draft: 'Draft', sent: 'Sent' };
+                const st = statusMap[(d.status || '').toLowerCase()] || d.status || 'Draft';
+
+                const timeline = [];
+                if (d.issued) timeline.push({ date: d.issued, event: 'Invoice Created', status: 'complete' });
+                if (st === 'Pending' || st === 'Overdue' || st === 'Paid')
+                    timeline.push({ date: d.issued, event: 'Invoice Sent', status: 'complete' });
+                if (d.due) timeline.push({ date: d.due, event: 'Payment Due', status: st === 'Paid' ? 'complete' : 'pending' });
+                if (st === 'Paid') timeline.push({ date: d.due, event: 'Payment Received', status: 'complete' });
+                else timeline.push({ date: null, event: 'Payment Received', status: 'upcoming' });
+
+                setInvoice({
+                    id: d.number || `INV-${d.id}`,
+                    db_id: d.id,
+                    status: st,
+                    client: {
+                        name: d.client?.name || 'Unknown',
+                        contact: d.client?.name || '',
+                        email: d.client?.email || '',
+                        phone: '',
+                        address: d.client?.address || ''
+                    },
+                    linkedSale: null,
+                    amount: fmt(d.total),
+                    subtotal: fmt(d.subtotal),
+                    tax: fmt(d.tax),
+                    dueDate: d.due || '',
+                    issueDate: d.issued || '',
+                    paymentTerms: 'Net 30',
+                    paymentTimeline: timeline,
+                    items: (d.items || []).map(i => ({
+                        description: i.description,
+                        qty: i.quantity || 1,
+                        unitPrice: fmt(i.unit_price),
+                        total: fmt(i.total)
+                    })),
+                    auditLog: []
+                });
+            } catch (err) {
+                console.error('Failed to fetch invoice:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchInvoice();
     }, [params.invoiceId]);
+
+    const handleSend = async () => {
+        setActionLoading(true);
+        try {
+            await api.post(`/purchase/invoices/${invoice.db_id}/send`);
+            alert('Invoice sent');
+            router.refresh();
+        } catch { alert('Failed'); }
+        finally { setActionLoading(false); }
+    };
+
+    const handleMarkPaid = async () => {
+        setActionLoading(true);
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            await api.post(`/purchase/invoices/${invoice.db_id}/mark-paid?payment_date=${today}`);
+            alert('Marked as paid');
+            router.refresh();
+        } catch { alert('Failed'); }
+        finally { setActionLoading(false); }
+    };
 
     if (loading) return <DetailSkeleton />;
 
@@ -195,35 +226,24 @@ export default function InvoiceDetailPage() {
                             <div className="space-y-3">
                                 {isDraft && (
                                     <button
-                                        disabled
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 text-white rounded-lg font-medium opacity-50 cursor-not-allowed"
-                                        title="Backend integration required"
-                                    >
-                                        <CheckCircle size={18} />
-                                        Approve Invoice
-                                    </button>
-                                )}
-                                {isDraft && (
-                                    <button
-                                        disabled
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-lg font-medium opacity-50 cursor-not-allowed"
-                                        title="Backend integration required"
+                                        onClick={handleSend}
+                                        disabled={actionLoading}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                                     >
                                         <Send size={18} />
-                                        Mark as Sent
+                                        Send Invoice
                                     </button>
                                 )}
                                 {isPending && (
                                     <button
-                                        disabled
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 text-white rounded-lg font-medium opacity-50 cursor-not-allowed"
-                                        title="Backend integration required"
+                                        onClick={handleMarkPaid}
+                                        disabled={actionLoading}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                                     >
                                         <CreditCard size={18} />
                                         Mark as Paid
                                     </button>
                                 )}
-                                <p className="text-[11px] text-slate-400 text-center mt-2">Backend integration required</p>
                             </div>
                         </div>
                     )}

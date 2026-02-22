@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, Mail } from 'lucide-react';
 
+const PLATFORM_API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/platform';
+
 export default function PlatformLoginPage() {
     const router = useRouter();
     const [email, setEmail] = useState('');
@@ -21,7 +23,7 @@ export default function PlatformLoginPage() {
             formData.append('username', email);
             formData.append('password', password);
 
-            const response = await fetch('http://localhost:8000/platform/auth/login', {
+            const response = await fetch(`${PLATFORM_API}/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',

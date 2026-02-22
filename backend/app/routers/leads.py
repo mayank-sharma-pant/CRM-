@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.lead import Lead
 from app.models.task import Task
 from app.models.client import Client
+from app.models.note import Note
 from app.schemas.sales import (
     LeadResponse, LeadListResponse, LeadCreate, LeadUpdate,
     SalesDashboardResponse, SalesDashboardMetrics, SalesDashboardTask
@@ -244,6 +245,62 @@ def delete_lead(
     db.commit()
     
     return {"message": f"Lead {lead_id} deleted successfully"}
+
+
+@router.get("/{lead_id}/notes")
+def list_lead_notes(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List notes attached to a lead."""
+    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    ensure_company_access(lead, current_user)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
+    notes = db.query(Note).filter(Note.lead_id == lead_id).order_by(Note.created_at.desc()).all()
+    return [
+        {
+            "id": n.id,
+            "content": n.content,
+            "created_by_id": n.created_by_id,
+            "created_by_name": n.created_by.full_name if n.created_by else None,
+            "created_at": n.created_at.isoformat() if n.created_at else None,
+        }
+        for n in notes
+    ]
+
+
+@router.post("/{lead_id}/notes", status_code=status.HTTP_201_CREATED)
+def add_lead_note(
+    lead_id: int,
+    content: str = Query(..., min_length=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Create a note for a lead."""
+    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    ensure_company_access(lead, current_user)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
+    note = Note(
+        content=content.strip(),
+        lead_id=lead.id,
+        created_by_id=current_user.id,
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+
+    return {
+        "id": note.id,
+        "content": note.content,
+        "lead_id": note.lead_id,
+        "created_by_id": note.created_by_id,
+        "created_at": note.created_at.isoformat() if note.created_at else None,
+    }
 
 
 @router.post("/{lead_id}/convert")

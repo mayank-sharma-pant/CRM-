@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Clock, Building2 } from 'lucide-react';
 
+const PLATFORM_API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/platform';
+
 export default function CompanyRequestsPage() {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -14,7 +16,7 @@ export default function CompanyRequestsPage() {
     const fetchPendingRequests = async () => {
         try {
             const token = localStorage.getItem('platform_token');
-            const response = await fetch('http://localhost:8000/platform/companies/pending', {
+            const response = await fetch(`${PLATFORM_API}/companies/pending`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -34,7 +36,7 @@ export default function CompanyRequestsPage() {
 
         try {
             const token = localStorage.getItem('platform_token');
-            const response = await fetch(`http://localhost:8000/platform/companies/${companyId}/approve`, {
+            const response = await fetch(`${PLATFORM_API}/companies/${companyId}/approve`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -55,7 +57,7 @@ export default function CompanyRequestsPage() {
         try {
             const token = localStorage.getItem('platform_token');
             const response = await fetch(
-                `http://localhost:8000/platform/companies/${companyId}/reject?reason=${encodeURIComponent(reason)}`,
+                `${PLATFORM_API}/companies/${companyId}/reject?reason=${encodeURIComponent(reason)}`,
                 {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` }

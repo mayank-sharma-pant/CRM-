@@ -333,11 +333,30 @@ BEGIN
     END IF;
 END $$;
 
+-- ========== 003: leave requests ==========
+CREATE TABLE IF NOT EXISTS leave_requests (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER NOT NULL REFERENCES companies(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    from_date TIMESTAMPTZ NOT NULL,
+    to_date TIMESTAMPTZ NOT NULL,
+    reason VARCHAR(500),
+    status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+    approved_by_id INTEGER REFERENCES users(id),
+    approved_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT (CURRENT_TIMESTAMP),
+    updated_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS ix_leave_requests_id ON leave_requests(id);
+CREATE INDEX IF NOT EXISTS ix_leave_requests_company_id ON leave_requests(company_id);
+CREATE INDEX IF NOT EXISTS ix_leave_requests_user_id ON leave_requests(user_id);
+CREATE INDEX IF NOT EXISTS ix_leave_requests_status ON leave_requests(status);
+
 -- Alembic version table (so "alembic upgrade head" is a no-op if you run Python later)
 CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL PRIMARY KEY
 );
 DELETE FROM alembic_version;
-INSERT INTO alembic_version (version_num) VALUES ('002_company');
+INSERT INTO alembic_version (version_num) VALUES ('003_leaves');
 
 COMMIT;

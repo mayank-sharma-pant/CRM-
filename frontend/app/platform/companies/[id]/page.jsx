@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Building2, Users, TrendingUp, FileText, CheckCircle2, Ban, ArrowLeft } from 'lucide-react';
 
+const PLATFORM_API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/platform';
+
 export default function CompanyDetailPage() {
     const params = useParams();
     const router = useRouter();
@@ -19,7 +21,7 @@ export default function CompanyDetailPage() {
     const fetchCompanyDetail = async () => {
         try {
             const token = localStorage.getItem('platform_token');
-            const response = await fetch(`http://localhost:8000/platform/companies/${params.id}`, {
+            const response = await fetch(`${PLATFORM_API}/companies/${params.id}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -40,7 +42,7 @@ export default function CompanyDetailPage() {
         try {
             const token = localStorage.getItem('platform_token');
             const response = await fetch(
-                `http://localhost:8000/platform/companies/${params.id}/status?new_status=${newStatus}`,
+                `${PLATFORM_API}/companies/${params.id}/status?new_status=${newStatus}`,
                 {
                     method: 'PATCH',
                     headers: { 'Authorization': `Bearer ${token}` }

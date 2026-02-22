@@ -14,6 +14,8 @@ import {
     X
 } from 'lucide-react';
 
+const PLATFORM_API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/platform';
+
 export default function PlatformLayout({ children }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -22,15 +24,13 @@ export default function PlatformLayout({ children }) {
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
     useEffect(() => {
-        // Check if platform admin is authenticated
         const token = localStorage.getItem('platform_token');
         if (!token) {
             router.push('/platform/login');
             return;
         }
 
-        // Verify token and get admin info
-        fetch('http://localhost:8000/platform/auth/me', {
+        fetch(`${PLATFORM_API}/auth/me`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }

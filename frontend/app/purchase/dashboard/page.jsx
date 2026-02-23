@@ -15,7 +15,6 @@ import {
     CheckCircle,
     XCircle,
     AlertTriangle,
-    BrainCircuit,
     Calendar,
     Bell
 } from 'lucide-react';
@@ -165,7 +164,6 @@ export default function PurchaseDashboard() {
                         <CommandButton icon={ShoppingCart} label="Review Sales" onClick={() => router.push('/purchase/sales')} />
                         <CommandButton icon={Receipt} label="Manage Invoices" onClick={() => router.push('/purchase/invoices')} />
                         <CommandButton icon={Activity} label="Monitoring Matrix" onClick={() => router.push('/purchase/monitoring')} />
-                        <CommandButton icon={BrainCircuit} label="Active AI Advisor" onClick={() => router.push('/purchase/ai-assistant')} highlight />
                     </div>
                 </div>
 

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { financeService } from '../services/financeService';
 import {
     LayoutDashboard,
     Users,
@@ -20,7 +21,6 @@ import {
     ShoppingCart,
     DollarSign,
     Award,
-    BrainCircuit,
     UserSearch,
     UserCheck,
     UsersRound,
@@ -47,7 +47,6 @@ const ICON_MAP = {
     ShoppingCart,
     DollarSign,
     Award,
-    BrainCircuit,
     UserSearch,
     UserCheck,
     UsersRound,
@@ -67,7 +66,6 @@ const ROLE_NAVIGATION = {
     manager: [
         { category: 'OVERVIEW' },
         { name: 'Dashboard', href: '/manager/dashboard', icon: 'LayoutDashboard' },
-        { name: 'AI Assistant', href: '/manager/ai-assistant', icon: 'BrainCircuit' },
 
         { category: 'TEAM' },
         { name: 'Team Monitoring', href: '/manager/monitoring', icon: 'Activity' },
@@ -90,7 +88,6 @@ const ROLE_NAVIGATION = {
         { name: 'Monitoring', href: '/md/monitoring', icon: 'Activity' },
         { name: 'Invoices', href: '/md/invoices', icon: 'Receipt' },
         { name: 'Points', href: '/md/points', icon: 'Award' },
-        { name: 'AI Assistant', href: '/md/ai-assistant', icon: 'BrainCircuit' },
     ],
     purchase: [
         { name: 'Dashboard', href: '/purchase/dashboard', icon: 'LayoutDashboard' },
@@ -100,56 +97,60 @@ const ROLE_NAVIGATION = {
     ],
 };
 
-// All 9 financial ledgers – shown in every interface for now; backend enforces view/edit per ledger
-const FINANCIAL_LEDGERS = [
-    { slug: 'stock-register', name: 'Stock Register' },
-    { slug: 'payments-made', name: 'Payments Made' },
-    { slug: 'payments-received', name: 'Payments Received' },
-    { slug: 'daily-expenses', name: 'Daily Expenses' },
-    { slug: 'cash-bank-balance', name: 'Cash & Bank Balance' },
-    { slug: 'pdc-given', name: 'PDC Cheque Given' },
-    { slug: 'pdc-received', name: 'PDC Cheque Received' },
-    { slug: 'account-transfer-purchase', name: 'Account Transfer Purchase' },
-    { slug: 'account-transfer-sales', name: 'Account Transfer Sales' },
-];
-
 export default function Sidebar({ isOpen, setIsOpen }) {
     const pathname = usePathname();
     const { user, loading } = useAuth();
     const [navigation, setNavigation] = useState([]);
+    const [authorizedLedgers, setAuthorizedLedgers] = useState([]);
+    const [ledgerError, setLedgerError] = useState(null);
+    const [ledgerLoading, setLedgerLoading] = useState(true);
 
-    // Fetch navigation based on user role
+    const fetchLedgers = useCallback(async () => {
+        setLedgerError(null);
+        setLedgerLoading(true);
+        try {
+            const data = await financeService.getAuthorizedLedgers();
+            setAuthorizedLedgers(Array.isArray(data) ? data : []);
+        } catch (err) {
+            setAuthorizedLedgers([]);
+            setLedgerError(err?.response?.data?.detail || err?.message || 'Failed to load ledgers');
+        } finally {
+            setLedgerLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
-        const fetchNavigation = async () => {
-            if (loading) return;
+        fetchLedgers();
+    }, [fetchLedgers]);
 
-            // Determine role context from URL if possible (for smoother dev/demo experience)
-            let role = user?.role;
-            if (pathname.startsWith('/manager')) role = 'manager';
-            else if (pathname.startsWith('/admin')) role = 'admin';
-            else if (pathname.startsWith('/md')) role = 'md';
-            else if (pathname.startsWith('/purchase')) role = 'purchase';
-            else if (pathname.startsWith('/sales')) role = 'sales';
+    // Build navigation: role-based nav (dashboard, leads, etc.) + Financial Ledgers from API only
+    useEffect(() => {
+        if (loading) return;
 
-            role = role || 'sales'; // Fallback
+        let role = user?.role;
+        if (pathname.startsWith('/manager')) role = 'manager';
+        else if (pathname.startsWith('/admin')) role = 'admin';
+        else if (pathname.startsWith('/md')) role = 'md';
+        else if (pathname.startsWith('/purchase')) role = 'purchase';
+        else if (pathname.startsWith('/sales')) role = 'sales';
+        role = role || 'sales';
 
-            const navData = [...(ROLE_NAVIGATION[role] || ROLE_NAVIGATION.sales)];
+        const navData = [...(ROLE_NAVIGATION[role] || ROLE_NAVIGATION.sales)];
 
-            // Financial Ledgers – shown in all interfaces for now; backend enforces view/edit per ledger
+        if (!ledgerLoading && authorizedLedgers.length > 0) {
             navData.push({
                 name: 'Financial Ledgers',
                 href: '/financial-ledgers',
                 icon: 'BookOpen',
-                children: FINANCIAL_LEDGERS.map(l => ({
+                children: authorizedLedgers.map((l) => ({
                     name: l.name,
-                    href: `/financial-ledgers/${l.slug}`
+                    href: `/financial-ledgers/${(l.slug || '').replace(/_/g, '-')}`
                 }))
             });
+        }
 
-            setNavigation(navData);
-        };
-        fetchNavigation();
-    }, [user?.role, loading]);
+        setNavigation(navData);
+    }, [user?.role, loading, pathname, ledgerLoading, authorizedLedgers]);
 
     return (
         <>
@@ -189,6 +190,18 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
                     {/* Navigation */}
                     <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-none">
+                        {ledgerError && (
+                            <div className="mb-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                                <p className="text-xs text-red-600 dark:text-red-400 mb-2">{ledgerError}</p>
+                                <button
+                                    type="button"
+                                    onClick={fetchLedgers}
+                                    className="text-xs font-medium text-red-600 dark:text-red-400 hover:underline"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        )}
                         {navigation.map((item, idx) => {
                             // Category Header
                             if (item.category) {

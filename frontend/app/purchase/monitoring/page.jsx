@@ -11,7 +11,6 @@ import {
     ChevronRight,
     X,
     ArrowRight,
-    BrainCircuit,
     Info,
     Calendar
 } from 'lucide-react';
@@ -226,7 +225,7 @@ export default function PurchaseMonitoringPage() {
                 </div>
             </div>
 
-            {/* SECTION 3: AI INTELLIGENCE */}
+            {/* SECTION 3: OPERATIONAL METRICS */}
             <div className="grid grid-cols-12 gap-5">
                 <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-border shadow-sm p-5">
                     <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight mb-5">Operational Metrics</h3>
@@ -240,33 +239,6 @@ export default function PurchaseMonitoringPage() {
                                 <div className="flex items-center gap-4">
                                     <span className={`text-[12px] font-black tabular-nums font-mono ${item.trend === 'up' ? 'text-success' : 'text-error'}`}>{item.delta}</span>
                                     <ChevronRight size={14} className="text-muted group-hover:text-accent transition-all" />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-border shadow-sm p-5">
-                    <div className="flex items-center justify-between mb-5">
-                        <div className="flex items-center gap-2">
-                            <BrainCircuit className="text-accent" size={16} strokeWidth={2.5} />
-                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">AI Interpretation</h3>
-                        </div>
-                    </div>
-                    <div className="space-y-3">
-                        {data.aiInterpretation.map((insight, i) => (
-                            <div key={i} className="flex items-start gap-4 p-3 bg-surface-elevated/30 rounded-md border border-border/50">
-                                <span className={`shrink-0 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-[4px] border ${insight.type === 'RISK' ? 'bg-error/10 text-error border-error/20' : 'bg-info/10 text-info border-info/20'
-                                    }`}>
-                                    {insight.type}
-                                </span>
-                                <div className="flex-1">
-                                    <p className="text-[13px] font-bold text-primary mb-1.5 leading-tight">{insight.title}</p>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {insight.evidence.map((ev, j) => (
-                                            <span key={j} className="text-[10px] font-bold text-muted uppercase tracking-tight px-1.5 py-0.5 bg-surface border border-border rounded-[4px]">{ev}</span>
-                                        ))}
-                                    </div>
                                 </div>
                             </div>
                         ))}

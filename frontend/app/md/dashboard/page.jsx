@@ -9,7 +9,6 @@ import {
     Minus,
     ArrowUpRight,
     AlertTriangle,
-    BrainCircuit,
     DollarSign,
     Activity,
     Award,
@@ -135,7 +134,7 @@ export default function MDDashboard() {
                     { name: 'Market Sentiment', delta: '+3%', trend: 'up' }
                 ],
                 aiBrief: [
-                    { id: 1, title: 'Strategic Growth', summary: 'Regional expansion in Segment B shows 22% higher yield.', link: '/md/ai-assistant' },
+                    { id: 1, title: 'Strategic Growth', summary: 'Regional expansion in Segment B shows 22% higher yield.', link: '/md/monitoring' },
                     { id: 2, title: 'Efficiency Signal', summary: 'Automation in Team Alpha reduced latency by 18%.', link: '/md/monitoring' }
                 ]
             });
@@ -335,7 +334,7 @@ export default function MDDashboard() {
                     </div>
                 </div>
 
-                {/* ROW 3: TREND WATCHLIST (6) + AI ASSISTANT (6) */}
+                {/* ROW 3: TREND WATCHLIST (6) + EXECUTIVE BRIEF (6) */}
                 <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-border shadow-sm">
                     <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/20">
                         <div className="flex items-center gap-2">
@@ -358,18 +357,11 @@ export default function MDDashboard() {
                 </div>
 
                 <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-accent/20 shadow-sm relative overflow-hidden">
-                    {/* Subtle AI background glow */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full blur-3xl -mr-16 -mt-16 animate-pulse"></div>
-
                     <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/30 relative z-10">
-                        <div className="flex items-center gap-2">
-                            <BrainCircuit className="text-accent" size={16} strokeWidth={2.5} />
-                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Executive Advisory</h3>
-                        </div>
-                        <span className="px-1.5 py-0.5 rounded-[4px] bg-accent/10 border border-accent/20 text-accent text-[9px] font-black uppercase tracking-widest">Active Intelligence</span>
+                        <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Executive Brief</h3>
                     </div>
                     <div className="p-5 relative z-10">
-                        <div className="space-y-2.5 mb-4">
+                        <div className="space-y-2.5">
                             {data.aiBrief.slice(0, 2).map((insight) => (
                                 <div key={insight.id} onClick={() => router.push(insight.link)} className="p-2.5 rounded border border-border bg-surface-elevated/20 hover:border-accent/40 cursor-pointer transition-all group">
                                     <div className="flex justify-between items-start">
@@ -380,9 +372,6 @@ export default function MDDashboard() {
                                 </div>
                             ))}
                         </div>
-                        <button onClick={() => router.push('/md/ai-assistant')} className="w-full py-2 flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-bold uppercase tracking-tight transition-all shadow-sm shadow-accent/10">
-                            <BrainCircuit size={14} strokeWidth={2.5} /> Establish Strategic Session
-                        </button>
                     </div>
                 </div>
 

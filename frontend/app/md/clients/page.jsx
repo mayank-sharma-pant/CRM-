@@ -6,7 +6,7 @@ import {
     ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, Legend
 } from 'recharts';
 import {
-    Briefcase, TrendingUp, ChevronRight, Calendar, Download, BrainCircuit, ShieldAlert
+    Briefcase, TrendingUp, ChevronRight, Calendar, Download, ShieldAlert
 } from 'lucide-react';
 
 export default function MDClientsPage() {
@@ -130,33 +130,6 @@ export default function MDClientsPage() {
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
-                </div>
-            </div>
-
-            {/* SECTION 3: AI ADVISORY */}
-            <div className="bg-surface rounded-md border border-border shadow-sm p-5">
-                <div className="flex items-center gap-2 mb-6">
-                    <BrainCircuit className="text-accent" size={16} strokeWidth={2.5} />
-                    <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">AI Retention Advisory</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {data.aiInsights.map((insight, i) => (
-                        <div key={i} className="flex items-start gap-4 p-4 bg-surface-elevated/30 rounded-md border border-border/50 group hover:border-accent transition-all cursor-pointer">
-                            <ShieldAlert className="text-accent mt-0.5" size={16} strokeWidth={2.5} />
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-[9px] font-black text-accent uppercase tracking-widest bg-accent/5 px-2 py-0.5 rounded-[4px] border border-accent/20">{insight.type}</span>
-                                </div>
-                                <p className="text-[13px] font-bold text-primary mb-2 leading-tight group-hover:text-accent transition-colors">{insight.title}</p>
-                                <div className="flex gap-2">
-                                    {insight.evidence.map((ev, j) => (
-                                        <span key={j} className="text-[10px] font-bold text-muted uppercase tracking-tight px-1.5 py-0.5 bg-surface border border-border rounded-[4px]">{ev}</span>
-                                    ))}
-                                </div>
-                            </div>
-                            <ChevronRight size={14} className="text-muted group-hover:translate-x-0.5 transition-all mt-1" />
-                        </div>
-                    ))}
                 </div>
             </div>
 

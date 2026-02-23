@@ -1,15 +1,10 @@
 import api from './api';
 
 export const financeService = {
-    // Get list of authorized ledgers for navigation
+    // Get list of authorized ledgers for navigation (sidebar). Throws on error so UI can show error + retry.
     getAuthorizedLedgers: async () => {
-        try {
-            const response = await api.get('/ledgers/');
-            return response.data;
-        } catch (error) {
-            console.warn("Failed to fetch authorized ledgers - silencing overlay", error);
-            return [];
-        }
+        const response = await api.get('/ledgers/');
+        return response.data;
     },
 
     // Get specific ledger data with permissions

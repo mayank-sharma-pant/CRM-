@@ -12,7 +12,6 @@ import {
     Filter,
     ArrowUpRight,
     ArrowRight,
-    BrainCircuit,
     BarChart3,
     Search,
     ChevronRight
@@ -245,31 +244,6 @@ export default function MDSalesPage() {
                     </div>
                 </div>
 
-                {/* AI & Continuations */}
-                <div className="col-span-12 lg:col-span-5 space-y-5">
-                    <div className="bg-surface rounded-md border border-border shadow-sm p-5 h-full">
-                        <div className="flex items-center gap-2 mb-6">
-                            <BrainCircuit className="text-accent" size={16} strokeWidth={2.5} />
-                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Yield Insights</h3>
-                        </div>
-                        <div className="space-y-4">
-                            {data.aiInsights.map((insight, i) => (
-                                <div key={i} className="p-4 bg-surface-elevated/30 rounded-md border border-border/50 group hover:border-accent transition-all cursor-pointer" onClick={() => router.push(insight.link)}>
-                                    <span className="text-[9px] font-black text-accent uppercase tracking-widest bg-accent/5 px-2 py-0.5 rounded-[4px] border border-accent/20 mb-3 inline-block">{insight.tag}</span>
-                                    <p className="text-[14px] font-bold text-primary mb-3 leading-tight group-hover:text-accent transition-colors">{insight.title}</p>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex gap-2">
-                                            {insight.evidence.map((ev, j) => (
-                                                <span key={j} className="text-[10px] font-bold text-muted uppercase tracking-tight px-1.5 py-0.5 bg-surface border border-border rounded-[4px]">{ev}</span>
-                                            ))}
-                                        </div>
-                                        <ChevronRight size={14} className="text-muted group-hover:translate-x-0.5 transition-all" />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     );

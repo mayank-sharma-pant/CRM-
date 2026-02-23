@@ -62,13 +62,22 @@ export default function FinancialLedgerPage() {
                     <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-4">
                         {error || 'Ledger not found.'}
                     </p>
-                    <button
-                        type="button"
-                        onClick={() => router.back()}
-                        className="px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:hover:bg-slate-700"
-                    >
-                        Go back
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => { setError(null); fetchData(); }}
+                            className="px-3 py-1.5 text-sm font-medium text-white bg-slate-700 hover:bg-slate-600 rounded"
+                        >
+                            Retry
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => router.back()}
+                            className="px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:hover:bg-slate-700"
+                        >
+                            Go back
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -79,7 +88,7 @@ export default function FinancialLedgerPage() {
             <div className="p-6 max-w-md mx-auto">
                 <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 text-center">
                     <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-4">
-                        You do not have permission to view this ledger.
+                        Access Denied. You do not have permission to view this ledger.
                     </p>
                     <button
                         type="button"

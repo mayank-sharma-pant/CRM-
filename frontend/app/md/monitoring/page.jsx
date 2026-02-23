@@ -10,7 +10,6 @@ import {
     ChevronRight,
     X,
     ArrowRight,
-    BrainCircuit,
     Info
 } from 'lucide-react';
 import {
@@ -250,7 +249,7 @@ export default function MDMonitoringPage() {
                 </div>
             </div>
 
-            {/* SECTION 3: ANALYTICS & AI Interpretation (6 + 6 split) */}
+            {/* SECTION 3: ANALYTICS */}
             <div className="grid grid-cols-12 gap-5">
 
                 {/* What to Review Next */}
@@ -278,19 +277,10 @@ export default function MDMonitoringPage() {
                     </div>
                 </div>
 
-                {/* AI Interpretation */}
                 <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-border shadow-sm p-5 flex flex-col">
-                    <div className="flex items-center justify-between mb-5">
-                        <div className="flex items-center gap-2">
-                            <BrainCircuit className="text-accent" size={16} strokeWidth={2.5} />
-                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">AI Interpretation</h3>
-                        </div>
-                        <span className="text-[9px] font-black text-accent uppercase tracking-widest px-1.5 py-0.5 bg-accent/5 border border-accent/20 rounded-[4px]">
-                            Executive Advisory Panel
-                        </span>
-                    </div>
+                    <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight mb-5">Executive Brief</h3>
                     <div className="space-y-3 flex-1">
-                        {data.aiInterpretation.slice(0, 3).map((insight, i) => (
+                        {data.aiInterpretation && data.aiInterpretation.slice(0, 3).map((insight, i) => (
                             <div key={i} className="flex items-start gap-4 p-3 bg-surface-elevated/30 rounded-md border border-border/50">
                                 <span className={`shrink-0 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-[4px] border ${insight.type === 'RISK' ? 'bg-error/10 text-error border-error/20' :
                                         insight.type === 'FINANCE' ? 'bg-success/10 text-success border-success/20' :

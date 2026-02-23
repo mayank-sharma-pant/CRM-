@@ -4,9 +4,23 @@
 
 ---
 
+## Partially working
+
+These areas work but are incomplete or have known gaps.
+
+| Area | Status | What's missing |
+|------|--------|----------------|
+| **Pagination** | Partial | Core lists (leads, clients, tasks, follow-ups, users, leaves, manager leads/tasks/invoices) have `skip`/`limit` and frontend uses `.items`. Admin, Purchase, and MD list endpoints still return all rows with no pagination. |
+| **Financial ledgers** | Partial | Sidebar and ledger pages are API-driven (no role checks in frontend); backend enforces view/edit per role; error + retry on failure. `LedgerEntry` model has no `updated_at`/`updated_by` for audit. |
+| **Ledger error handling** | Partial | `/financial-ledgers/[ledgerName]` and `SharedLedgerPage` show error + retry (no mock fallback). Many other pages still only `console.log` on error. |
+| **MD employee-lookup** | Partial | Backend endpoint is real and company-scoped. Frontend page still uses hardcoded mock and does not call the API. |
+| **Admin settings** | Partial | Pipeline and notification settings are UI-only (mock); backend has no support. |
+
+---
+
 ## Phase 1 — Must-have (Core)
 
-High-impact items: correctness, security, and main user flows.
+High-impact: correctness, security, and main user flows.
 
 ### Backend
 
@@ -26,7 +40,7 @@ High-impact items: correctness, security, and main user flows.
 ### Frontend
 
 - [ ] **Connect md/employee-lookup to real API**  
-  Replace hardcoded `EMPLOYEE_DATABASE` and `setTimeout` with calls to `GET /api/md/employee-lookup` and `GET /api/md/employee-lookup/{user_id}`.
+  Replace hardcoded mock and `setTimeout` with `GET /api/md/employee-lookup` and `GET /api/md/employee-lookup/{user_id}`.
 
 - [ ] **Remove dead / mock-only code**  
   - Remove unused `LEAD_DATA` constant from `frontend/app/sales/leads/[id]/page.jsx`.  
@@ -52,8 +66,6 @@ User experience and data integrity.
 - [ ] **User-visible error handling**  
   In ~45+ places that only `console.log`/`console.error` on failure, add a visible error state (e.g. banner or toast) and optional retry. Priority: sales, manager, admin, purchase, MD, platform, settings/leave, finance/ledgers, TaskModal, LeadModal.
 
-- [ ] **Finance ledger:** On fetch error, show error state + retry instead of falling back to local mock in `SharedLedgerPage`.
-
 ### Cross-cutting
 
 - [ ] **Admin settings:** Pipeline/notifications are mock; either add backend support or remove/hide that UI.
@@ -67,7 +79,7 @@ Nice-to-have and cleanup.
 ### Backend
 
 - [ ] **Wire Pydantic schemas to endpoints**  
-  Use existing schemas in `app/schemas/` as `response_model` and request bodies on routers instead of ad-hoc dicts (consistent API contracts and validation).
+  Use existing schemas in `app/schemas/` as `response_model` and request bodies on routers instead of ad-hoc dicts.
 
 - [ ] **JWT scope/audience (optional)**  
   If platform and CRM share the same backend, add `aud` or scope claims so tokens are not reused across contexts.
@@ -82,7 +94,7 @@ Nice-to-have and cleanup.
 ### Other
 
 - [ ] **Migration 007 (SQLite):** Current 007 uses `postgresql_using`; only relevant if you need to run migrations on SQLite (add a SQLite-friendly path if so).
-- [ ] **Production:** Set `NEXT_PUBLIC_API_URL` so the frontend can reach the backend in production.
+- [ ] **Production (frontend):** Set `NEXT_PUBLIC_API_URL` so the frontend can reach the backend in production.
 
 ---
 
@@ -91,12 +103,15 @@ Nice-to-have and cleanup.
 | Phase | Focus | Main items |
 |-------|--------|------------|
 | **1** | Must-have | Pagination (admin/purchase/md), rate limiting, password change, md/employee-lookup → real API, remove dead code & mock fallbacks |
-| **2** | Important | Ledger updated_at/updated_by, optional GET /api/invoices, user-visible errors, finance ledger & admin settings |
+| **2** | Important | Ledger updated_at/updated_by, optional GET /api/invoices, user-visible errors, admin settings |
 | **3** | Polish | Pydantic schemas on endpoints, JWT scope, dependency cleanup, Lucide/Recharts, migration/production notes |
 
 ---
 
 ## Completed (reference)
 
-- Earlier Phase 2 & 3 (invoice endpoint, body params, invoice_number unique, OTP secrets, null-safe dates, leave precedence, Numeric money, pagination on core lists, deprecation fixes, OTP in DB).
+- Earlier: invoice endpoint, body params, invoice_number unique, OTP secrets, null-safe dates, leave precedence, Numeric money, pagination on core lists (leads, clients, tasks, follow-ups, users, leaves, manager), deprecation fixes, OTP in DB.
 - Security/tenant/disabled-user fixes; README and env example cleanup.
+- **Production backend:** Gunicorn in requirements; production command and optional systemd example in backend README; dev vs prod clearly separated.
+- **Financial ledgers:** Strict role-based access from API only (no frontend role checks); sidebar built from `GET /api/ledgers/`; can_view/can_edit drive UI; backend enforces on POST/PUT/DELETE; error + retry (no mock fallback) on ledger and SharedLedgerPage.
+- **AI removed:** All AI nav items, global AI assistant component, and dashboard AI links/buttons removed. AI pages deleted: `app/manager/ai-assistant/page.jsx`, `app/md/ai-assistant/page.jsx`, `app/purchase/ai-assistant/page.jsx`, `components/AIAssistant.jsx`.

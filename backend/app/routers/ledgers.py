@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, is_platform_admin
 from app.models.user import User
 from app.models.ledger import LedgerEntry
 from app.database import get_db
@@ -14,11 +14,10 @@ router = APIRouter(
 )
 
 # =================================================================
-# LEDGER PERMISSION CONFIGURATION
-# Sources of Truth for Role Access
+# LEDGER PERMISSION CONFIGURATION (STRICT – API is source of truth)
+# Role: sales_executive → "sales", company_admin → admin with company_id, platform_admin → admin with company_id NULL
 # =================================================================
 
-# Define all available ledgers
 ALL_LEDGERS = {
     "stock_register": "Stock Register",
     "payments_made": "Payments Made",
@@ -31,37 +30,27 @@ ALL_LEDGERS = {
     "account_transfer_sales": "Account Transfer Sales"
 }
 
-# Role Access Matrix
-# Format: "role": { "ledger_key": "edit" | "view" | None }
+# Strict access matrix: "role" -> ledger_slug -> "edit" | "view". Omitted = not visible.
+# sales_executive = sales, team_lead, manager (view only), purchase, md (view only), company_admin = full edit (handled by user)
 ROLE_PERMISSIONS = {
     "sales": {
-        "payments_received": "edit",
-        "daily_expenses": "edit",
-        "pdc_given": "view",
-        "pdc_received": "view",
-        # Others are implicitly None (Hidden)
+        "stock_register": "view",
     },
     "team_lead": {
         "stock_register": "view",
-        "payments_received": "edit",
-        "daily_expenses": "edit",
-        "pdc_given": "edit",
-        "pdc_received": "edit",
-        # Others are implicitly None (Hidden)
     },
     "manager": {
         "stock_register": "view",
-        "payments_made": "edit",
-        "payments_received": "edit",
-        "daily_expenses": "edit",
+        "payments_made": "view",
+        "payments_received": "view",
+        "daily_expenses": "view",
         "cash_bank_balance": "view",
-        "pdc_given": "edit",
-        "pdc_received": "edit",
-        "account_transfer_purchase": "edit",
-        "account_transfer_sales": "edit",
+        "pdc_given": "view",
+        "pdc_received": "view",
+        "account_transfer_purchase": "view",
+        "account_transfer_sales": "view",
     },
     "md": {
-        # MD has view access to EVERYTHING
         "stock_register": "view",
         "payments_made": "view",
         "payments_received": "view",
@@ -75,15 +64,19 @@ ROLE_PERMISSIONS = {
     "purchase": {
         "stock_register": "edit",
         "payments_made": "edit",
+        "account_transfer_purchase": "edit",
+        "pdc_given": "edit",
+        "cash_bank_balance": "edit",
         "payments_received": "view",
         "daily_expenses": "view",
-        "pdc_given": "edit",
         "pdc_received": "view",
-        "account_transfer_purchase": "edit",
+        "account_transfer_sales": "view",
     },
-    # Admin is not part of frontend ledger access usually, but if they need it, define here.
-    "admin": {} 
+    "admin": {},  # platform_admin: no access. company_admin handled below.
 }
+
+# Company admin (admin with company_id set) gets full edit on all ledgers
+COMPANY_ADMIN_LEDGERS = {slug: "edit" for slug in ALL_LEDGERS}
 
 # =================================================================
 # SCHEMAS
@@ -117,12 +110,16 @@ class LedgerEntryResponse(BaseModel):
         from_attributes = True
 
 # =================================================================
-# HELPERS
+# HELPERS (permissions from user only – no frontend role checks)
 # =================================================================
 
-def get_user_ledger_permissions(role: str) -> Dict[str, str]:
-    """Returns a dict of ledger_slug -> permission_level ('view' or 'edit')"""
-    return ROLE_PERMISSIONS.get(role, {})
+def get_user_ledger_permissions(user: User) -> Dict[str, str]:
+    """Returns ledger_slug -> 'view' | 'edit'. Platform admin gets no ledgers."""
+    if is_platform_admin(user):
+        return {}
+    if user.role == "admin" and user.company_id is not None:
+        return COMPANY_ADMIN_LEDGERS.copy()
+    return ROLE_PERMISSIONS.get(user.role, {}).copy()
 
 def get_ledger_columns(ledger_slug: str) -> List[Dict[str, Any]]:
     """Returns column definitions for specific ledgers"""
@@ -243,17 +240,13 @@ def get_ledger_columns(ledger_slug: str) -> List[Dict[str, Any]]:
 def get_authorized_ledgers(current_user: User = Depends(get_current_user)):
     """
     Returns the list of ledgers the current user is authorized to view.
-    This drives the frontend navigation.
+    Sidebar must be built only from this response. Platform admin gets [].
     """
-    role = current_user.role
-    permissions = get_user_ledger_permissions(role)
-    
+    permissions = get_user_ledger_permissions(current_user)
+
     authorized_ledgers = []
-    
-    # Iterate through strict order of ledgers
     for slug, name in ALL_LEDGERS.items():
         access_level = permissions.get(slug)
-        
         if access_level:
             authorized_ledgers.append(LedgerMetadata(
                 slug=slug,
@@ -261,7 +254,6 @@ def get_authorized_ledgers(current_user: User = Depends(get_current_user)):
                 can_view=True,
                 can_edit=(access_level == "edit")
             ))
-            
     return authorized_ledgers
 
 @router.get("/{ledger_slug}", response_model=LedgerDataResponse)
@@ -277,9 +269,8 @@ def get_ledger_data(
     if ledger_slug not in ALL_LEDGERS:
         raise HTTPException(status_code=404, detail="Ledger not found")
         
-    # 2. Check Permissions
-    role = current_user.role
-    permissions = get_user_ledger_permissions(role)
+    # 2. Check Permissions (backend enforces – frontend is not trusted)
+    permissions = get_user_ledger_permissions(current_user)
     access_level = permissions.get(ledger_slug)
     
     if not access_level:
@@ -327,14 +318,11 @@ def create_ledger_entry(
     if ledger_slug not in ALL_LEDGERS:
         raise HTTPException(status_code=404, detail="Ledger not found")
         
-    # 2. Check Edit Permissions
-    role = current_user.role
-    permissions = get_user_ledger_permissions(role)
-    access_level = permissions.get(ledger_slug)
-    
-    if access_level != "edit":
+    # 2. Check Edit Permissions (backend enforces on every write)
+    permissions = get_user_ledger_permissions(current_user)
+    if permissions.get(ledger_slug) != "edit":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to edit this ledger."
         )
 
@@ -370,16 +358,13 @@ def update_ledger_entry(
         raise HTTPException(status_code=404, detail="Ledger not found")
 
     # 2. Check Edit Permissions
-    role = current_user.role
-    permissions = get_user_ledger_permissions(role)
-    access_level = permissions.get(ledger_slug)
-    
-    if access_level != "edit":
+    permissions = get_user_ledger_permissions(current_user)
+    if permissions.get(ledger_slug) != "edit":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to edit this ledger."
         )
-        
+
     # 3. Find Entry
     db_entry = db.query(LedgerEntry).filter(
         LedgerEntry.id == entry_id,
@@ -409,14 +394,13 @@ def delete_ledger_entry(
     """
     Deletes a ledger entry.
     """
-    # 1. Check Edit Permissions
-    role = current_user.role
-    permissions = get_user_ledger_permissions(role)
-    access_level = permissions.get(ledger_slug)
-    
-    if access_level != "edit":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized")
-        
+    # 1. Validate ledger exists and check edit permission
+    if ledger_slug not in ALL_LEDGERS:
+        raise HTTPException(status_code=404, detail="Ledger not found")
+    permissions = get_user_ledger_permissions(current_user)
+    if permissions.get(ledger_slug) != "edit":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have permission to edit this ledger.")
+
     # 2. Find and Delete
     db_entry = db.query(LedgerEntry).filter(
         LedgerEntry.id == entry_id,

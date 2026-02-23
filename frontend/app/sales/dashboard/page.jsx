@@ -35,6 +35,7 @@ export default function Dashboard() {
   });
   const [priorityTasks, setPriorityTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -43,6 +44,7 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [leadsRes, tasksRes] = await Promise.all([
         api.get('/leads'),
         api.get('/tasks/list') // Use the specialized list endpoint
@@ -83,6 +85,7 @@ export default function Dashboard() {
       setPriorityTasks(urgentTasks);
     } catch (error) {
       console.error('Dashboard fetch failed:', error);
+      setError('Unable to load sales dashboard. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -92,6 +95,22 @@ export default function Dashboard() {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
         <div className="text-[13px] text-muted font-bold uppercase tracking-widest animate-pulse">Loading dashboard...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
+        <div className="flex flex-col items-center gap-3">
+          <div className="text-[13px] text-error font-bold uppercase tracking-widest">{error}</div>
+          <button
+            onClick={fetchDashboardData}
+            className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

@@ -32,6 +32,7 @@ export default function ManagerDashboard() {
     });
     const [priorityTasks, setPriorityTasks] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [canAddLead, setCanAddLead] = useState(true);
 
     useEffect(() => {
@@ -40,6 +41,7 @@ export default function ManagerDashboard() {
 
     const fetchDashboardData = async () => {
         try {
+            setError(null);
             const response = await api.get('/manager/dashboard');
             const data = response.data;
 
@@ -51,11 +53,10 @@ export default function ManagerDashboard() {
 
             // The backend returns pre-filtered priority tasks
             setPriorityTasks(data.priority_tasks || []);
-            setLoading(false);
-
         } catch (error) {
             console.error('Dashboard fetch failed:', error);
-            // Fallback to empty state or error handling
+            setError('Unable to load manager dashboard. Please try again.');
+        } finally {
             setLoading(false);
         }
     };
@@ -64,6 +65,22 @@ export default function ManagerDashboard() {
         return (
             <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-slate-50 dark:bg-slate-900">
                 <div className="text-sm text-slate-500 font-medium animate-pulse">Loading dashboard...</div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-slate-50 dark:bg-slate-900">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="text-xs font-bold text-red-600 uppercase tracking-widest">{error}</div>
+                    <button
+                        onClick={fetchDashboardData}
+                        className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight"
+                    >
+                        Retry
+                    </button>
+                </div>
             </div>
         );
     }

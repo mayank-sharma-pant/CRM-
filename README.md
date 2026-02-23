@@ -128,7 +128,7 @@ alembic upgrade head
 alembic revision --autogenerate -m "description"
 ```
 
-Migration chain: `001_initial` → `002_company` → `003_leaves` → `004_notes_company` → `005_invoice_items_company`
+Migration chain: `001_initial` → … → `009_ledger_updated_fields`. Run `alembic upgrade head` to apply all.
 
 ## License
 

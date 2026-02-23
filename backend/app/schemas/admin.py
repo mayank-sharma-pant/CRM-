@@ -56,6 +56,8 @@ class UserListItem(BaseModel):
 class UserListResponse(BaseModel):
     users: List[UserListItem]
     total: int
+    skip: int = 0
+    limit: int = 100
 
 
 class UserUpdateRequest(BaseModel):
@@ -109,6 +111,9 @@ class TeamResponse(BaseModel):
 
 class TeamListResponse(BaseModel):
     teams: List[TeamResponse]
+    total: int = 0
+    skip: int = 0
+    limit: int = 100
 
 
 class TeamCreate(BaseModel):
@@ -143,6 +148,8 @@ class ApprovalItem(BaseModel):
 class ApprovalListResponse(BaseModel):
     approvals: List[ApprovalItem]
     total: int
+    skip: int = 0
+    limit: int = 100
 
 
 class ApproveRequest(BaseModel):
@@ -206,6 +213,8 @@ class AuditLogItem(BaseModel):
 class AuditLogResponse(BaseModel):
     logs: List[AuditLogItem]
     total: int
+    skip: int = 0
+    limit: int = 100
 
 
 # ===============================

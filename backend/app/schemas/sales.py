@@ -47,8 +47,10 @@ class LeadResponse(LeadBase):
 
 
 class LeadListResponse(BaseModel):
-    leads: List[LeadResponse]
+    items: List[LeadResponse]
     total: int
+    skip: int = 0
+    limit: int = 100
 
 
 # ===============================
@@ -78,12 +80,13 @@ class TaskUpdate(BaseModel):
 class TaskResponse(BaseModel):
     id: int
     title: str
-    dueDate: str  # Formatted for frontend display
+    description: Optional[str] = None
+    dueDate: str
     status: str = "Pending"
+    priority: Optional[str] = None
     entity: Optional[str] = None
-    entityType: Optional[str] = None  # Lead, Client
-    isChild: bool = False
-    assignedBy: Optional[str] = None  # 'self', 'manager'
+    entityType: Optional[str] = None
+    assignedBy: Optional[str] = None
     assigned_to_id: Optional[int] = None
 
     class Config:
@@ -91,8 +94,10 @@ class TaskResponse(BaseModel):
 
 
 class TaskListResponse(BaseModel):
-    tasks: List[TaskResponse]
+    items: List[TaskResponse]
     total: int
+    skip: int = 0
+    limit: int = 100
 
 
 # ===============================
@@ -132,8 +137,10 @@ class ClientResponse(ClientBase):
 
 
 class ClientListResponse(BaseModel):
-    clients: List[ClientResponse]
+    items: List[ClientResponse]
     total: int
+    skip: int = 0
+    limit: int = 100
 
 
 # ===============================
@@ -161,8 +168,10 @@ class FollowUpResponse(BaseModel):
 
 
 class FollowUpListResponse(BaseModel):
-    follow_ups: List[FollowUpResponse]
+    items: List[FollowUpResponse]
     total: int
+    skip: int = 0
+    limit: int = 100
 
 
 # ===============================

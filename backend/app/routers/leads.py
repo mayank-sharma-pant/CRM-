@@ -12,8 +12,9 @@ from app.models.client import Client
 from app.models.note import Note
 from app.schemas.sales import (
     LeadResponse, LeadListResponse, LeadCreate, LeadUpdate,
-    SalesDashboardResponse, SalesDashboardMetrics, SalesDashboardTask
+    SalesDashboardResponse, SalesDashboardMetrics, SalesDashboardTask,
 )
+from app.schemas.user import MessageResponse
 
 router = APIRouter()
 
@@ -22,7 +23,7 @@ router = APIRouter()
 # Dashboard Endpoint
 # ===============================
 
-@router.get("/dashboard")
+@router.get("/dashboard", response_model=SalesDashboardResponse)
 def get_sales_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -81,7 +82,7 @@ def get_sales_dashboard(
 # Leads Endpoints
 # ===============================
 
-@router.get("")
+@router.get("", response_model=LeadListResponse)
 def list_leads(
     status: Optional[str] = Query(None, description="Filter by status"),
     search: Optional[str] = Query(None, description="Search by name, email, company"),
@@ -233,7 +234,7 @@ def update_lead(
     }
 
 
-@router.delete("/{lead_id}")
+@router.delete("/{lead_id}", response_model=MessageResponse)
 def delete_lead(
     lead_id: int,
     db: Session = Depends(get_db),

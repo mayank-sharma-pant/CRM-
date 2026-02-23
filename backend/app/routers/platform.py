@@ -23,7 +23,7 @@ def _plan_to_id(plan: str | None) -> int:
 
 
 def _require_platform_admin(token: str, db: Session) -> User:
-    payload = decode_access_token(token)
+    payload = decode_access_token(token, audience="platform")
     if payload is None:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     email = payload.get("sub")
@@ -62,7 +62,7 @@ def platform_login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session
     if not (user.role == "admin" and user.company_id is None):
         raise HTTPException(status_code=403, detail="Platform admin access required")
 
-    token = create_access_token(data={"sub": user.email, "role": user.role})
+    token = create_access_token(data={"sub": user.email, "role": user.role}, audience="platform")
     return {
         "access_token": token,
         "token_type": "bearer",

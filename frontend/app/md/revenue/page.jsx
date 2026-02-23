@@ -11,7 +11,9 @@ import {
     Minus,
     ChevronRight,
     ArrowRight,
-    X
+    X,
+    AlertTriangle,
+    Activity
 } from 'lucide-react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,

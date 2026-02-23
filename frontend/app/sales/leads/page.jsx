@@ -42,6 +42,7 @@ export default function Leads() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchLeads();
@@ -49,6 +50,7 @@ export default function Leads() {
 
   const fetchLeads = async () => {
     setLoading(true);
+    setError(null);
     try {
       let url = '/leads';
       const params = {};
@@ -70,6 +72,7 @@ export default function Leads() {
       setLeads(data);
     } catch (error) {
       console.error("Failed to fetch leads", error);
+      setError('Unable to load leads. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -124,6 +127,22 @@ export default function Leads() {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
         <div className="text-[13px] text-muted font-bold uppercase tracking-widest animate-pulse">Synchronizing leads...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
+        <div className="flex flex-col items-center gap-3">
+          <div className="text-[13px] text-error font-bold uppercase tracking-widest">{error}</div>
+          <button
+            onClick={fetchLeads}
+            className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

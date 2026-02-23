@@ -16,6 +16,16 @@ from app.models.audit import AuditLog
 from app.models.invite import Invite, InviteStatus
 from app.models.company_settings import CompanySettings
 from app.utils.security import get_password_hash
+from app.schemas.admin import (
+    DashboardResponse,
+    UserListResponse, UserUpdateRequest,
+    TeamListResponse, TeamCreate, TeamUpdate, TeamMemberAdd,
+    ApprovalListResponse, RejectRequest,
+    AuditLogResponse,
+    CompanySettingsResponse, CompanySettingsUpdate,
+    InviteRequest,
+)
+from app.schemas.user import MessageResponse
 
 router = APIRouter()
 
@@ -53,7 +63,7 @@ def create_audit_log(
 # Dashboard
 # ===============================
 
-@router.get("/dashboard/stats")
+@router.get("/dashboard/stats", response_model=DashboardResponse)
 def get_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
@@ -96,15 +106,17 @@ def get_dashboard(
 # Users Management
 # ===============================
 
-@router.get("/users")
+@router.get("/users", response_model=UserListResponse)
 def list_users(
     status: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """List all users with filters (company-scoped for company admin)"""
+    """List all users with filters (company-scoped for company admin, paginated)."""
     query = apply_company_scope(db.query(User), User, current_user)
     
     if status and status.lower() != "all":
@@ -118,7 +130,8 @@ def list_users(
             (User.email.ilike(search_pattern))
         )
     
-    users = query.order_by(User.created_at.desc()).all()
+    total = query.count()
+    users = query.order_by(User.created_at.desc()).offset(skip).limit(limit).all()
     
     result = []
     team_q = apply_company_scope(db.query(Team), Team, current_user)
@@ -137,7 +150,7 @@ def list_users(
             "last_active": user.last_active_at.strftime("%Y-%m-%d %H:%M") if user.last_active_at else None
         })
     
-    return {"users": result, "total": len(result)}
+    return {"users": result, "total": total, "skip": skip, "limit": limit}
 
 
 @router.get("/users/{user_id}")
@@ -166,12 +179,10 @@ def get_user(
     }
 
 
-@router.put("/users/{user_id}")
+@router.put("/users/{user_id}", response_model=MessageResponse)
 def update_user(
     user_id: int,
-    role: Optional[str] = Query(None),
-    team_id: Optional[int] = Query(None),
-    status: Optional[str] = Query(None),
+    body: UserUpdateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
@@ -182,16 +193,15 @@ def update_user(
     
     before_state = {"role": user.role, "team_id": user.team_id, "status": user.status}
     
-    if role:
-        user.role = role
-    if team_id is not None:
-        user.team_id = team_id if team_id > 0 else None
-    if status:
-        user.status = status
+    if body.role is not None:
+        user.role = body.role
+    if body.team_id is not None:
+        user.team_id = body.team_id if body.team_id > 0 else None
+    if body.status is not None:
+        user.status = body.status
     
     after_state = {"role": user.role, "team_id": user.team_id, "status": user.status}
     
-    # Audit log
     create_audit_log(
         db, current_user, "user_updated", "user",
         entity_id=str(user.id), entity_name=user.full_name,
@@ -322,13 +332,17 @@ def delete_user(
 # Teams Management
 # ===============================
 
-@router.get("/teams")
+@router.get("/teams", response_model=TeamListResponse)
 def list_teams(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """List all teams (company-scoped)"""
-    teams = apply_company_scope(db.query(Team), Team, current_user).all()
+    """List all teams (company-scoped, paginated)."""
+    query = apply_company_scope(db.query(Team), Team, current_user)
+    total = query.count()
+    teams = query.offset(skip).limit(limit).all()
     
     result = []
     user_q = apply_company_scope(db.query(User), User, current_user)
@@ -343,30 +357,30 @@ def list_teams(
             "created_at": team.created_at.strftime("%Y-%m-%d") if team.created_at else None
         })
     
-    return {"teams": result, "total": len(result)}
+    return {"teams": result, "total": total, "skip": skip, "limit": limit}
 
 
 @router.post("/teams")
 def create_team(
-    name: str = Query(...),
+    body: TeamCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
     """Create a new team"""
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="Platform Admin cannot create teams; use company admin")
-    existing = apply_company_scope(db.query(Team), Team, current_user).filter(Team.name == name).first()
+    existing = apply_company_scope(db.query(Team), Team, current_user).filter(Team.name == body.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Team name already exists")
     
-    new_team = Team(company_id=current_user.company_id, name=name)
+    new_team = Team(company_id=current_user.company_id, name=body.name)
     db.add(new_team)
-    db.flush()  # Get ID before commit
+    db.flush()
     
     create_audit_log(
         db, current_user, "team_created", "team",
-        entity_id=str(new_team.id), entity_name=name,
-        after_value={"name": name}
+        entity_id=str(new_team.id), entity_name=body.name,
+        after_value={"name": body.name}
     )
     
     db.commit()
@@ -401,10 +415,10 @@ def get_team(
     }
 
 
-@router.put("/teams/{team_id}")
+@router.put("/teams/{team_id}", response_model=MessageResponse)
 def update_team(
     team_id: int,
-    name: Optional[str] = Query(None),
+    body: TeamUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
@@ -414,12 +428,12 @@ def update_team(
         raise HTTPException(status_code=404, detail="Team not found")
     
     old_name = team.name
-    if name:
-        team.name = name
+    if body.name:
+        team.name = body.name
         create_audit_log(
             db, current_user, "team_updated", "team",
-            entity_id=str(team.id), entity_name=name,
-            before_value={"name": old_name}, after_value={"name": name}
+            entity_id=str(team.id), entity_name=body.name,
+            before_value={"name": old_name}, after_value={"name": body.name}
         )
     
     db.commit()
@@ -459,10 +473,10 @@ def delete_team(
     return {"message": f"Team {team_name} deleted"}
 
 
-@router.post("/teams/{team_id}/members")
+@router.post("/teams/{team_id}/members", response_model=MessageResponse)
 def add_team_member(
     team_id: int,
-    user_id: int = Query(...),
+    body: TeamMemberAdd,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
@@ -471,7 +485,7 @@ def add_team_member(
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     
-    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == body.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -481,8 +495,8 @@ def add_team_member(
     create_audit_log(
         db, current_user, "team_member_added", "team",
         entity_id=str(team_id), entity_name=team.name,
-        before_value={"user_id": user_id, "old_team_id": old_team_id},
-        after_value={"user_id": user_id, "user_name": user.full_name, "team_id": team_id}
+        before_value={"user_id": body.user_id, "old_team_id": old_team_id},
+        after_value={"user_id": body.user_id, "user_name": user.full_name, "team_id": team_id}
     )
     
     db.commit()
@@ -523,13 +537,17 @@ def remove_team_member(
 # Approvals (Pending Users)
 # ===============================
 
-@router.get("/approvals")
+@router.get("/approvals", response_model=ApprovalListResponse)
 def get_pending_approvals(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """Get users pending approval (company-scoped)"""
-    pending = apply_company_scope(db.query(User), User, current_user).filter(User.status == "pending").all()
+    """Get users pending approval (company-scoped, paginated)."""
+    query = apply_company_scope(db.query(User), User, current_user).filter(User.status == "pending")
+    total = query.count()
+    pending = query.order_by(User.created_at.desc()).offset(skip).limit(limit).all()
     
     return {
         "approvals": [
@@ -542,7 +560,9 @@ def get_pending_approvals(
             }
             for u in pending
         ],
-        "total": len(pending)
+        "total": total,
+        "skip": skip,
+        "limit": limit,
     }
 
 
@@ -574,10 +594,10 @@ def approve_user(
     return {"message": f"User {user.full_name} approved"}
 
 
-@router.post("/approvals/{user_id}/reject")
+@router.post("/approvals/{user_id}/reject", response_model=MessageResponse)
 def reject_user(
     user_id: int,
-    reason: Optional[str] = Query(None),
+    body: RejectRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
@@ -596,7 +616,7 @@ def reject_user(
         db, current_user, "user_rejected", "user",
         entity_id=str(user.id), entity_name=user_name,
         before_value={"email": user_email, "status": "pending"},
-        after_value={"status": "rejected", "reason": reason}
+        after_value={"status": "rejected", "reason": body.reason}
     )
     
     db.delete(user)
@@ -644,15 +664,17 @@ def get_hierarchy(
 # Audit Log
 # ===============================
 
-@router.get("/audit-log")
+@router.get("/audit-log", response_model=AuditLogResponse)
 def get_audit_log(
     days: int = Query(7),
     action: Optional[str] = Query(None),
     entity_type: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """Get audit log entries (company-scoped if admin has company_id)"""
+    """Get audit log entries (company-scoped if admin has company_id, paginated)."""
     since = datetime.now() - timedelta(days=days)
     query = db.query(AuditLog).filter(AuditLog.timestamp >= since)
     if current_user.company_id is not None:
@@ -663,7 +685,8 @@ def get_audit_log(
     if entity_type:
         query = query.filter(AuditLog.entity_type == entity_type)
     
-    logs = query.order_by(AuditLog.timestamp.desc()).limit(500).all()
+    total = query.count()
+    logs = query.order_by(AuditLog.timestamp.desc()).offset(skip).limit(limit).all()
     
     return {
         "logs": [
@@ -681,7 +704,9 @@ def get_audit_log(
             }
             for log in logs
         ],
-        "total": len(logs)
+        "total": total,
+        "skip": skip,
+        "limit": limit,
     }
 
 
@@ -689,7 +714,7 @@ def get_audit_log(
 # Settings
 # ===============================
 
-@router.get("/settings")
+@router.get("/settings", response_model=CompanySettingsResponse)
 def get_settings(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
@@ -700,7 +725,11 @@ def get_settings(
             "company_name": "Company Name",
             "invoice_prefix": "INV",
             "tax_rate": 18.0,
-            "payment_terms": "Net 30 days"
+            "payment_terms": "Net 30 days",
+            "lead_stages": ["New", "Contacted", "Qualified", "Proposal", "Won", "Lost"],
+            "lost_reasons": ["No budget", "Timing not right", "Competitor", "No response"],
+            "task_reminders_enabled": True,
+            "followup_alerts_enabled": True,
         }
     settings = db.query(CompanySettings).filter(CompanySettings.company_id == current_user.company_id).first()
     
@@ -709,8 +738,22 @@ def get_settings(
             "company_name": "Company Name",
             "invoice_prefix": "INV",
             "tax_rate": 18.0,
-            "payment_terms": "Net 30 days"
+            "payment_terms": "Net 30 days",
+            "lead_stages": ["New", "Contacted", "Qualified", "Proposal", "Won", "Lost"],
+            "lost_reasons": ["No budget", "Timing not right", "Competitor", "No response"],
+            "task_reminders_enabled": True,
+            "followup_alerts_enabled": True,
         }
+
+    # Parse pipeline settings stored as JSON text
+    try:
+        lead_stages = json.loads(settings.lead_stages) if settings.lead_stages else []
+    except Exception:
+        lead_stages = ["New", "Contacted", "Qualified", "Proposal", "Won", "Lost"]
+    try:
+        lost_reasons = json.loads(settings.lost_reasons) if settings.lost_reasons else []
+    except Exception:
+        lost_reasons = ["No budget", "Timing not right", "Competitor", "No response"]
     
     return {
         "company_name": settings.company_name,
@@ -718,16 +761,17 @@ def get_settings(
         "gst_number": settings.gst_number,
         "invoice_prefix": settings.invoice_prefix,
         "tax_rate": settings.tax_rate,
-        "payment_terms": settings.payment_terms
+        "payment_terms": settings.payment_terms,
+        "lead_stages": lead_stages,
+        "lost_reasons": lost_reasons,
+        "task_reminders_enabled": bool(settings.task_reminders_enabled),
+        "followup_alerts_enabled": bool(settings.followup_alerts_enabled),
     }
 
 
-@router.put("/settings")
+@router.put("/settings", response_model=MessageResponse)
 def update_settings(
-    company_name: Optional[str] = Query(None),
-    address: Optional[str] = Query(None),
-    invoice_prefix: Optional[str] = Query(None),
-    tax_rate: Optional[float] = Query(None),
+    body: CompanySettingsUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
@@ -742,27 +786,41 @@ def update_settings(
             "company_name": settings.company_name,
             "address": settings.address,
             "invoice_prefix": settings.invoice_prefix,
-            "tax_rate": settings.tax_rate
+            "tax_rate": settings.tax_rate,
+            "task_reminders_enabled": bool(settings.task_reminders_enabled),
+            "followup_alerts_enabled": bool(settings.followup_alerts_enabled),
         }
     
     if not settings:
         settings = CompanySettings(company_id=current_user.company_id)
         db.add(settings)
     
-    if company_name:
-        settings.company_name = company_name
-    if address:
-        settings.address = address
-    if invoice_prefix:
-        settings.invoice_prefix = invoice_prefix
-    if tax_rate is not None:
-        settings.tax_rate = tax_rate
+    if body.company_name is not None:
+        settings.company_name = body.company_name
+    if body.address is not None:
+        settings.address = body.address
+    if body.gst_number is not None:
+        settings.gst_number = body.gst_number
+    if body.invoice_prefix is not None:
+        settings.invoice_prefix = body.invoice_prefix
+    if body.tax_rate is not None:
+        settings.tax_rate = body.tax_rate
+    if body.lead_stages is not None:
+        settings.lead_stages = json.dumps(body.lead_stages)
+    if body.lost_reasons is not None:
+        settings.lost_reasons = json.dumps(body.lost_reasons)
+    if body.task_reminders_enabled is not None:
+        settings.task_reminders_enabled = 1 if body.task_reminders_enabled else 0
+    if body.followup_alerts_enabled is not None:
+        settings.followup_alerts_enabled = 1 if body.followup_alerts_enabled else 0
     
     after_state = {
         "company_name": settings.company_name,
         "address": settings.address,
         "invoice_prefix": settings.invoice_prefix,
-        "tax_rate": settings.tax_rate
+        "tax_rate": settings.tax_rate,
+        "task_reminders_enabled": bool(settings.task_reminders_enabled),
+        "followup_alerts_enabled": bool(settings.followup_alerts_enabled),
     }
     
     create_audit_log(
@@ -791,16 +849,19 @@ def generate_invite_token():
 @router.get("/invites")
 def list_invites(
     status: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """List all invites with optional status filter (company-scoped)"""
+    """List all invites with optional status filter (company-scoped, paginated)."""
     query = apply_company_scope(db.query(Invite), Invite, current_user)
     
     if status and status.lower() != "all":
         query = query.filter(Invite.status == status.lower())
     
-    invites = query.order_by(Invite.created_at.desc()).all()
+    total = query.count()
+    invites = query.order_by(Invite.created_at.desc()).offset(skip).limit(limit).all()
     
     result = []
     for inv in invites:
@@ -824,60 +885,50 @@ def list_invites(
             "created_by": inv.created_by.full_name if inv.created_by else None
         })
     
-    return {"invites": result, "total": len(result)}
+    return {"invites": result, "total": total, "skip": skip, "limit": limit}
 
 
 @router.post("/invites")
 def create_invite(
-    email: str = Query(...),
-    full_name: str = Query(...),
-    role: str = Query(...),
-    phone: Optional[str] = Query(None),
-    team_id: Optional[int] = Query(None),
-    manager_id: Optional[int] = Query(None),
+    body: InviteRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
     """Create a new invite for a user"""
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="Platform Admin cannot create invites; use company admin")
-    # Check if user with this email already exists
-    existing_user = db.query(User).filter(User.email == email).first()
+    existing_user = db.query(User).filter(User.email == body.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="User with this email already exists")
     
-    # Check if pending invite already exists
     existing_invite = db.query(Invite).filter(
-        Invite.email == email,
+        Invite.email == body.email,
         Invite.status == InviteStatus.PENDING
     ).first()
     if existing_invite:
         raise HTTPException(status_code=400, detail="Pending invite already exists for this email")
     
-    # Validate team exists if provided (company-scoped)
-    if team_id:
-        team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == team_id).first()
+    if body.team_id:
+        team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == body.team_id).first()
         if not team:
             raise HTTPException(status_code=400, detail="Team not found")
     
-    # Validate manager exists if provided (company-scoped)
-    if manager_id:
-        manager = apply_company_scope(db.query(User), User, current_user).filter(User.id == manager_id).first()
+    if body.manager_id:
+        manager = apply_company_scope(db.query(User), User, current_user).filter(User.id == body.manager_id).first()
         if not manager:
             raise HTTPException(status_code=400, detail="Manager not found")
     
-    # Create invite
     token = generate_invite_token()
     expires_at = datetime.now() + timedelta(days=INVITE_EXPIRY_DAYS)
     
     invite = Invite(
         company_id=current_user.company_id,
-        email=email,
-        full_name=full_name,
-        phone=phone,
-        role=role,
-        team_id=team_id,
-        manager_id=manager_id,
+        email=body.email,
+        full_name=body.full_name,
+        phone=body.phone,
+        role=body.role,
+        team_id=body.team_id,
+        manager_id=body.manager_id,
         token=token,
         expires_at=expires_at,
         status=InviteStatus.PENDING,
@@ -889,20 +940,19 @@ def create_invite(
     
     create_audit_log(
         db, current_user, "invite_created", "invite",
-        entity_id=str(invite.id), entity_name=email,
-        after_value={"email": email, "role": role, "team_id": team_id}
+        entity_id=str(invite.id), entity_name=body.email,
+        after_value={"email": body.email, "role": body.role, "team_id": body.team_id}
     )
     
     db.commit()
     db.refresh(invite)
     
-    # Return token (in production, this would be sent via email)
     return {
         "id": invite.id,
         "email": invite.email,
         "token": token,
         "expires_at": expires_at.isoformat(),
-        "message": f"Invite created for {email}. Token: {token}"
+        "message": f"Invite created for {body.email}. Token: {token}"
     }
 
 

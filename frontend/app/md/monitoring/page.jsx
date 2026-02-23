@@ -10,7 +10,8 @@ import {
     ChevronRight,
     X,
     ArrowRight,
-    Info
+    Info,
+    Calendar
 } from 'lucide-react';
 import {
     LineChart, Line, ResponsiveContainer

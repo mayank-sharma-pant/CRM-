@@ -9,7 +9,8 @@ from app.utils.dependencies import get_current_user, apply_company_scope, ensure
 from app.models.user import User
 from app.models.follow_up import FollowUp
 from app.models.lead import Lead
-from app.schemas.sales import FollowUpCreate
+from app.schemas.sales import FollowUpCreate, FollowUpListResponse
+from app.schemas.user import MessageResponse
 
 router = APIRouter()
 
@@ -34,7 +35,7 @@ class FollowUpRescheduleBody(BaseModel):
 # Follow-ups Endpoints
 # ===============================
 
-@router.get("")
+@router.get("", response_model=FollowUpListResponse)
 def list_follow_ups(
     status: Optional[str] = Query(None, description="Pending, Completed, Cancelled"),
     lead_id: Optional[int] = Query(None),
@@ -272,7 +273,7 @@ def reschedule_follow_up(
     }
 
 
-@router.delete("/{follow_up_id}")
+@router.delete("/{follow_up_id}", response_model=MessageResponse)
 def delete_follow_up(
     follow_up_id: int,
     db: Session = Depends(get_db),

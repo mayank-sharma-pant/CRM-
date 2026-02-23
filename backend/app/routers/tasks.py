@@ -10,6 +10,8 @@ from app.models.user import User
 from app.models.task import Task
 from app.models.lead import Lead
 from app.models.client import Client
+from app.schemas.sales import TaskListResponse
+from app.schemas.user import MessageResponse
 
 router = APIRouter()
 
@@ -33,7 +35,7 @@ class TaskUpdateBody(BaseModel):
 # Tasks List (for Tasks page)
 # ===============================
 
-@router.get("/list")
+@router.get("/list", response_model=TaskListResponse)
 def get_tasks_list(
     status: Optional[str] = Query(None, description="Filter by status"),
     skip: int = Query(0, ge=0),
@@ -217,7 +219,7 @@ def update_task(
     return {"message": "Task updated successfully", "id": task.id}
 
 
-@router.post("/{task_id}/complete")
+@router.post("/{task_id}/complete", response_model=MessageResponse)
 def complete_task(
     task_id: int,
     db: Session = Depends(get_db),
@@ -237,7 +239,7 @@ def complete_task(
     return {"message": f"Task {task_id} completed successfully"}
 
 
-@router.delete("/{task_id}")
+@router.delete("/{task_id}", response_model=MessageResponse)
 def delete_task(
     task_id: int,
     db: Session = Depends(get_db),

@@ -22,6 +22,7 @@ export default function AdminDashboard() {
         const fetchDashboardData = async () => {
             try {
                 setLoading(true);
+                setError(null);
                 const response = await api.get('/admin/dashboard/stats');
                 const stats = response.data;
 
@@ -44,18 +45,8 @@ export default function AdminDashboard() {
                 setData(dashData);
             } catch (err) {
                 console.error('Failed to fetch dashboard data:', err);
-                setError('Failed to load dashboard data');
-                // Fallback to empty state
-                setData({
-                    stats: [
-                        { id: 1, label: 'Active Users', value: '–', route: '/admin/users' },
-                        { id: 2, label: 'Pending Invites', value: '–', route: '/admin/users' },
-                        { id: 3, label: 'Teams', value: '–', route: '/admin/teams-hierarchy' },
-                        { id: 4, label: 'Disabled Users', value: '–', route: '/admin/users' }
-                    ],
-                    actionRequired: [],
-                    recentActivity: []
-                });
+                setError('Failed to load dashboard data. Please retry.');
+                setData(null);
             } finally {
                 setLoading(false);
             }
@@ -65,6 +56,22 @@ export default function AdminDashboard() {
     }, []);
 
     if (loading) return <DashboardSkeleton />;
+
+    if (error) {
+        return (
+            <div className="mx-auto max-w-[1360px] space-y-4 pb-8 font-sans text-slate-900 dark:text-slate-100">
+                <div className="mt-8 flex flex-col items-center gap-3">
+                    <div className="text-sm font-bold text-red-600 uppercase tracking-widest">{error}</div>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight"
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="mx-auto max-w-[1360px] space-y-4 pb-8 font-sans text-slate-900 dark:text-slate-100">

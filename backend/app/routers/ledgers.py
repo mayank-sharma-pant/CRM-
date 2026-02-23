@@ -374,11 +374,11 @@ def update_ledger_entry(
     if not db_entry:
         raise HTTPException(status_code=404, detail="Entry not found")
         
-    # 4. Update Data
-    # Merge existing data with updates (partial update if needed, but here we replace for simplicity)
-    # Ideally should patch, but full JSON replacement is fine for this UI
+    # 4. Update Data + audit fields
     db_entry.data = entry_update.data
-    
+    db_entry.updated_by = current_user.id
+    db_entry.updated_at = func.now()
+
     db.commit()
     db.refresh(db_entry)
     

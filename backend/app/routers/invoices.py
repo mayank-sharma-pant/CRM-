@@ -1,5 +1,5 @@
 """Invoice creation and list (company-scoped)."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
@@ -112,4 +112,62 @@ def create_invoice(
         "status": invoice.status,
         "issued_date": invoice.issued_date.isoformat() if invoice.issued_date else None,
         "due_date": invoice.due_date.isoformat() if invoice.due_date else None,
+    }
+
+
+@router.get("")
+def list_invoices(
+    status: Optional[str] = Query(None, description="Filter by status (Paid/Pending/Overdue/Draft)"),
+    search: Optional[str] = Query(None, description="Search by client name or invoice number"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    List invoices for the current company (paginated).
+    This is a company-scoped list endpoint, separate from role-specific MD/Purchase views.
+    """
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
+
+    query = apply_company_scope(db.query(Invoice), Invoice, current_user)
+
+    if status and status != "All":
+        query = query.filter(Invoice.status == status)
+
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.join(Client, Client.id == Invoice.client_id).filter(
+            (Client.name.ilike(search_pattern)) |
+            (Invoice.invoice_number.ilike(search_pattern))
+        )
+
+    total = query.count()
+    invoices = query.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()
+
+    client_q = apply_company_scope(db.query(Client), Client, current_user)
+    items = []
+    for inv in invoices:
+        client = client_q.filter(Client.id == inv.client_id).first() if inv.client_id else None
+        items.append({
+            "id": inv.id,
+            "invoice_number": inv.invoice_number,
+            "client": client.name if client else None,
+            "client_id": inv.client_id,
+            "subtotal": float(inv.subtotal or 0),
+            "tax": float(inv.tax or 0),
+            "discount": float(inv.discount or 0),
+            "total": float(inv.total or 0),
+            "status": inv.status,
+            "issued_date": inv.issued_date.isoformat() if inv.issued_date else None,
+            "due_date": inv.due_date.isoformat() if inv.due_date else None,
+            "created_at": inv.created_at.isoformat() if getattr(inv, "created_at", None) else None,
+        })
+
+    return {
+        "items": items,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
     }

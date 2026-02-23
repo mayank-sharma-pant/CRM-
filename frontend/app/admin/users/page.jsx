@@ -103,7 +103,7 @@ export default function AdminUsersPage() {
             if (inviteTeam) params.team_id = inviteTeam;
             if (inviteManager) params.manager_id = inviteManager;
 
-            await api.post('/admin/invites', null, { params });
+            await api.post('/admin/invites', params);
 
             setShowInviteModal(false);
             setInviteEmail('');
@@ -124,7 +124,7 @@ export default function AdminUsersPage() {
 
     const handleUpdateUser = async (userId, data) => {
         try {
-            await api.put(`/admin/users/${userId}`, null, { params: data });
+            await api.put(`/admin/users/${userId}`, data);
             fetchUsers();
         } catch (err) {
             console.error('Update user failed', err);

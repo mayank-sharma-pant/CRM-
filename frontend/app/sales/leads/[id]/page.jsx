@@ -22,41 +22,6 @@ import {
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import api from '../../../../services/api';
 
-// --- ROBUST MOCK DATA ---
-const LEAD_DATA = {
-  id: 101,
-  name: 'Sarah Miller',
-  title: 'VP of Engineering',
-  company: 'TechFlow Inc.',
-  status: 'Contacted',
-  email: 'sarah.m@techflow.io',
-  phone: '+1 (415) 555-0123',
-  source: 'LinkedIn Campaign',
-  assignee: 'Alex Johnson (Self)',
-  location: 'San Francisco, CA',
-  industry: 'SaaS / DevTools',
-  internal_ref: 'L-2024-882',
-
-  tasks: [
-    { id: 1, title: 'Send technical requirements doc', status: 'Open', due: 'Tomorrow', assignee: 'Self' },
-    { id: 2, title: 'Schedule follow-up demo', status: 'Open', due: 'Jan 12', assignee: 'Manager' },
-    { id: 3, title: 'Initial outreach', status: 'Completed', due: 'Dec 20', assignee: 'Self' },
-  ],
-
-  notes: [
-    { id: 1, content: 'She is looking for a solution that supports SSO.', date: '2 days ago', author: 'Alex Johnson' },
-    { id: 2, content: 'Budget approval happens in Q1.', date: '1 week ago', author: 'Alex Johnson' },
-  ],
-
-  timeline: [
-    { id: 1, type: 'note', title: 'Note added', description: 'Interested in the Enterprise plan for 50+ seats.', timestamp: '2 hours ago', icon: FileText, color: 'text-amber-600 bg-amber-100' },
-    { id: 2, type: 'status', title: 'Status changed', description: 'Moved to "Contacted"', timestamp: 'Yesterday', icon: History, color: 'text-blue-600 bg-blue-100' },
-    { id: 3, type: 'task', title: 'Task completed', description: 'Initial outreach call', timestamp: 'Yesterday', icon: CheckSquare, color: 'text-emerald-600 bg-emerald-100' },
-    { id: 4, type: 'email', title: 'Email sent', description: 'Follow-up with pricing deck', timestamp: '3 days ago', icon: Mail, color: 'text-slate-600 bg-slate-100' },
-    { id: 5, type: 'creation', title: 'Lead created', description: 'Imported from LinkedIn', timestamp: '5 days ago', icon: PlusCircle, color: 'text-violet-600 bg-violet-100' },
-  ]
-};
-
 export default function LeadDetailPage() {
   const router = useRouter();
   const { id } = useParams();

@@ -75,22 +75,10 @@ async def get_current_user(
     return user
 
 
-async def get_current_active_user(
+async def require_admin(
     current_user: User = Depends(get_current_user)
 ) -> User:
-    """Ensure user is active"""
-    if current_user.status == "disabled":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is disabled"
-        )
-    return current_user
-
-
-async def require_admin(
-    current_user: User = Depends(get_current_active_user)
-) -> User:
-    """Ensure user has admin role"""
+    """Ensure user has admin role (active check already done by get_current_user)."""
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -100,9 +88,9 @@ async def require_admin(
 
 
 async def require_admin_or_md(
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ) -> User:
-    """Ensure user has admin or MD role"""
+    """Ensure user has admin or MD role."""
     if current_user.role not in ["admin", "md"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -112,7 +100,7 @@ async def require_admin_or_md(
 
 
 def require_company_user(
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ) -> User:
     """Ensure user belongs to a company (not Platform Admin). Used when company_id is required."""
     if current_user.role == "admin" and current_user.company_id is None:

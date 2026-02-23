@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models.leave_request import LeaveRequest
 from app.models.user import User
 from app.utils.dependencies import get_current_user, apply_company_scope
+from app.schemas.user import MessageResponse
 
 router = APIRouter()
 
@@ -104,4 +105,4 @@ def approve_leave(
     leave.approved_at = datetime.now()
     db.commit()
 
-    return {"message": f"Leave request {normalized.lower()}"}
+    return MessageResponse(message=f"Leave request {normalized.lower()}")

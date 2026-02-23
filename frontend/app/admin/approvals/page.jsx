@@ -78,11 +78,9 @@ export default function AdminApprovalsPage() {
 
             await api.post(`/admin/approvals/${selectedUser.id}/approve`);
             // Also update role and team since the approve endpoint just sets status to active
-            await api.put(`/admin/users/${selectedUser.id}`, null, {
-                params: {
-                    role: roleMap[assignedRole] || assignedRole.toLowerCase(),
-                    team_id: assignedTeam || undefined
-                }
+            await api.put(`/admin/users/${selectedUser.id}`, {
+                role: roleMap[assignedRole] || assignedRole.toLowerCase(),
+                team_id: assignedTeam || undefined
             });
 
             fetchApprovals();
@@ -96,9 +94,7 @@ export default function AdminApprovalsPage() {
 
     const confirmRejection = async () => {
         try {
-            await api.post(`/admin/approvals/${selectedUser.id}/reject`, null, {
-                params: { reason: rejectionReason }
-            });
+            await api.post(`/admin/approvals/${selectedUser.id}/reject`, { reason: rejectionReason });
             fetchApprovals();
             setShowRejectModal(false);
             setSelectedUser(null);

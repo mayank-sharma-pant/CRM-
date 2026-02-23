@@ -11,6 +11,7 @@ from app.models.lead import Lead
 from app.models.task import Task
 from app.models.client import Client
 from app.models.invoice import Invoice
+from app.schemas.user import MessageResponse
 
 router = APIRouter()
 
@@ -407,7 +408,7 @@ def get_team_invoices(
     return {"invoices": result, "total": total, "skip": skip, "limit": limit}
 
 
-@router.post("/invoices/{invoice_id}/approve")
+@router.post("/invoices/{invoice_id}/approve", response_model=MessageResponse)
 def approve_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
@@ -422,7 +423,4 @@ def approve_invoice(
     invoice.status = "Pending"  # Approved and sent to client
     db.commit()
     
-    return {
-        "message": f"Invoice {invoice_id} approved",
-        "new_status": "Pending"
-    }
+    return {"message": f"Invoice {invoice_id} approved"}

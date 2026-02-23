@@ -251,10 +251,12 @@ export default function LeaveRequestsPage() {
     const [pendingApprovals, setPendingApprovals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState(null);
 
     const fetchData = async () => {
         try {
             setLoading(true);
+            setError(null);
             const response = await api.get('/leaves');
             const raw = response.data?.items ?? response.data;
             const allLeaves = Array.isArray(raw) ? raw : [];
@@ -268,6 +270,7 @@ export default function LeaveRequestsPage() {
             }
         } catch (error) {
             console.error("Failed to load leave data", error);
+            setError('Unable to load leave records. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -292,6 +295,7 @@ export default function LeaveRequestsPage() {
             window.scrollTo(0, 0);
         } catch (error) {
             console.error('Failed to submit');
+            setError('Failed to submit leave request. Please try again.');
         } finally {
             setSubmitting(false);
         }
@@ -303,6 +307,7 @@ export default function LeaveRequestsPage() {
             fetchData();
         } catch (error) {
             console.error('Failed to update status');
+            setError('Failed to update leave status. Please try again.');
         }
     };
 
@@ -325,6 +330,18 @@ export default function LeaveRequestsPage() {
                 {/* Content Section */}
                 <div className="px-8 pb-12">
                     <div className="max-w-4xl mx-0 space-y-8">
+
+                        {error && !loading && (
+                            <div className="p-4 mb-4 bg-red-50 border border-red-100 text-red-600 text-xs font-semibold rounded-lg flex items-center justify-between">
+                                <span>{error}</span>
+                                <button
+                                    onClick={fetchData}
+                                    className="ml-4 px-3 py-1 bg-red-600 text-white rounded-md text-[11px] font-bold uppercase tracking-tight"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        )}
 
                         {loading ? (
                             <div className="p-8 text-center text-slate-500 text-sm animate-pulse">

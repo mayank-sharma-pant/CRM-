@@ -85,7 +85,7 @@ export default function AdminTeamsPage() {
 
     const confirmAddMember = async () => {
         try {
-            await api.post(`/admin/teams/${selectedTeam.id}/members`, null, { params: { user_id: selectedNewMember } });
+            await api.post(`/admin/teams/${selectedTeam.id}/members`, { user_id: selectedNewMember });
             fetchTeamDetail(selectedTeam.id);
             fetchTeams();
             setShowAddMemberModal(false);
@@ -100,7 +100,7 @@ export default function AdminTeamsPage() {
         try {
             // Changing manager usually means adding them to team or updating team record
             // The backend admin.py uses PUT /admin/users/{user_id} to set team_id
-            await api.put(`/admin/users/${selectedNewManager}`, null, { params: { team_id: selectedTeam.id, role: 'manager' } });
+            await api.put(`/admin/users/${selectedNewManager}`, { team_id: selectedTeam.id, role: 'manager' });
             fetchTeamDetail(selectedTeam.id);
             fetchTeams();
             setShowChangeManagerModal(false);
@@ -113,7 +113,7 @@ export default function AdminTeamsPage() {
 
     const confirmCreateTeam = async () => {
         try {
-            await api.post('/admin/teams', null, { params: { name: newTeamName } });
+            await api.post('/admin/teams', { name: newTeamName });
             fetchTeams();
             setShowCreateTeamModal(false);
             setNewTeamName('');

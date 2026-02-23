@@ -57,11 +57,9 @@ export default function AdminHierarchyPage() {
     const confirmReassign = async () => {
         try {
             const selectedTeamObj = hierarchy.find(t => t.id === Number(targetTeam));
-            await api.put(`/admin/users/${selectedMember.user_id || selectedMember.id}`, null, {
-                params: {
-                    team_id: targetTeam,
-                    manager_id: targetManager || undefined
-                }
+            await api.put(`/admin/users/${selectedMember.user_id || selectedMember.id}`, {
+                team_id: targetTeam,
+                manager_id: targetManager || undefined
             });
             fetchHierarchy();
             setShowReassignModal(false);

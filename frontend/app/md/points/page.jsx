@@ -31,13 +31,7 @@ export default function MDPointsPage() {
                 setPerformance(res.data.performance || []);
             } catch (err) {
                 console.error("Failed to fetch MD points", err);
-                // Fallback mock data
-                setPerformance([
-                    { id: 'EMP001', name: 'Alex Rivera', role: 'Senior Sales', points: 2450, tier: 'Titanium', target: 3000, trend: 'up', bonus: '$12,250' },
-                    { id: 'EMP004', name: 'Sarah Chen', role: 'Account Exec', points: 1820, tier: 'Platinum', target: 2000, trend: 'up', bonus: '$9,100' },
-                    { id: 'EMP009', name: 'Marc Dupont', role: 'Sales Specialist', points: 1100, tier: 'Gold', target: 1500, trend: 'down', bonus: '$5,500' },
-                    { id: 'EMP012', name: 'Elena Rossi', role: 'Junior Sales', points: 890, tier: 'Silver', target: 1000, trend: 'up', bonus: '$4,450' }
-                ]);
+                setPerformance([]);
             } finally {
                 setLoading(false);
             }

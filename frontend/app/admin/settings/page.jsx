@@ -43,9 +43,10 @@ export default function AdminSettingsPage() {
             setInvoicePrefix(data.invoice_prefix || '');
             setTaxRate(String(data.tax_rate || ''));
 
-            // Still mock pipeline/notifications for now as backend doesn't have them
-            setLeadStages(['New', 'Contacted', 'Qualified', 'Proposal', 'Won', 'Lost']);
-            setLostReasons(['No budget', 'Timing not right', 'Competitor', 'No response']);
+            setLeadStages(Array.isArray(data.lead_stages) ? data.lead_stages : ['New', 'Contacted', 'Qualified', 'Proposal', 'Won', 'Lost']);
+            setLostReasons(Array.isArray(data.lost_reasons) ? data.lost_reasons : ['No budget', 'Timing not right', 'Competitor', 'No response']);
+            setRemindersEnabled(Boolean(data.task_reminders_enabled));
+            setFollowupAlertsEnabled(Boolean(data.followup_alerts_enabled));
         } catch (err) {
             console.error('Failed to fetch settings', err);
         } finally {
@@ -59,13 +60,13 @@ export default function AdminSettingsPage() {
 
     const handleSave = async () => {
         try {
-            await api.put('/admin/settings', null, {
-                params: {
-                    company_name: companyName,
-                    address: companyAddress,
-                    invoice_prefix: invoicePrefix,
-                    tax_rate: parseFloat(taxRate) || 0
-                }
+            await api.put('/admin/settings', {
+                company_name: companyName,
+                address: companyAddress,
+                invoice_prefix: invoicePrefix,
+                tax_rate: parseFloat(taxRate) || 0,
+                task_reminders_enabled: remindersEnabled,
+                followup_alerts_enabled: followupAlertsEnabled,
             });
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);

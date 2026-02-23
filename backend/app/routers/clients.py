@@ -8,7 +8,8 @@ from app.utils.dependencies import get_current_user, apply_company_scope, ensure
 from app.models.user import User
 from app.models.client import Client
 from app.models.invoice import Invoice
-from app.schemas.sales import ClientCreate, ClientUpdate
+from app.schemas.sales import ClientCreate, ClientUpdate, ClientListResponse
+from app.schemas.user import MessageResponse
 
 router = APIRouter()
 
@@ -17,7 +18,7 @@ router = APIRouter()
 # Clients Endpoints
 # ===============================
 
-@router.get("")
+@router.get("", response_model=ClientListResponse)
 def list_clients(
     search: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
@@ -151,7 +152,7 @@ def update_client(
     return {"message": "Client updated successfully", "id": client.id}
 
 
-@router.delete("/{client_id}")
+@router.delete("/{client_id}", response_model=MessageResponse)
 def delete_client(
     client_id: int,
     db: Session = Depends(get_db),

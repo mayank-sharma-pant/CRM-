@@ -87,57 +87,8 @@ export default function MDDashboard() {
 
             setData(fullData);
         } catch (err) {
-            console.warn('Failed to fetch MD dashboard - falling back to mock data', err);
-            // Robust Mock Data for MD Dashboard
-            setData({
-                kpis: [
-                    { id: 1, label: 'Total Revenue', value: '$1.2M', change: '+12%', trend: 'up', route: '/md/revenue' },
-                    { id: 2, label: 'Active Leads', value: '450', change: '+5%', trend: 'up', route: '/md/leads' },
-                    { id: 3, label: 'Client Retention', value: '94%', change: '-2%', trend: 'down', route: '/md/clients' },
-                    { id: 4, label: 'System Health', value: 'Optimal', change: 'Stable', trend: 'flat', route: '/md/monitoring' }
-                ],
-                salesMomentum: {
-                    trend: [
-                        { date: 'Mon', revenue: 4200, sales: 21 }, { date: 'Tue', revenue: 3800, sales: 19 },
-                        { date: 'Wed', revenue: 5100, sales: 25 }, { date: 'Thu', revenue: 4700, sales: 23 },
-                        { date: 'Fri', revenue: 6200, sales: 31 }, { date: 'Sat', revenue: 2500, sales: 12 },
-                        { date: 'Sun', revenue: 1800, sales: 9 }
-                    ],
-                    outcomes: [
-                        { stage: 'Converted', count: 42, color: '#10b981' },
-                        { stage: 'Lost', count: 15, color: '#ef4444' }
-                    ]
-                },
-                pipelineSummary: {
-                    stageDistribution: [
-                        { stage: 'Leads', count: 120 }, { stage: 'Qualified', count: 85 },
-                        { stage: 'Negotiation', count: 45 }, { stage: 'Won', count: 32 }
-                    ],
-                    topStage: 'Qualified (85)',
-                    stalledStage: 'Negotiation (10 days avg)'
-                },
-                clientSnapshot: {
-                    growth: [{ date: 'Jan', count: 100 }, { date: 'Feb', count: 112 }, { date: 'Mar', count: 125 }],
-                    status: { active: 125, risk: 4 }
-                },
-                financeSnapshot: {
-                    invoiceHealth: [
-                        { name: 'Paid', value: 85, color: 'emerald-600' },
-                        { name: 'Due', value: 12, color: 'amber-500' },
-                        { name: 'Overdue', value: 3, color: 'red-500' }
-                    ],
-                    counts: { paid: 145, outstanding: 24, overdue: 5 }
-                },
-                trendWatchlist: [
-                    { name: 'Revenue Velocity', delta: '+14.2%', trend: 'up' },
-                    { name: 'Lead Response Time', delta: '-12m', trend: 'up' },
-                    { name: 'Market Sentiment', delta: '+3%', trend: 'up' }
-                ],
-                aiBrief: [
-                    { id: 1, title: 'Strategic Growth', summary: 'Regional expansion in Segment B shows 22% higher yield.', link: '/md/monitoring' },
-                    { id: 2, title: 'Efficiency Signal', summary: 'Automation in Team Alpha reduced latency by 18%.', link: '/md/monitoring' }
-                ]
-            });
+            console.error('Failed to fetch MD dashboard', err);
+            setError('Unable to load MD dashboard. Please retry.');
         } finally {
             setLoading(false);
         }
@@ -148,7 +99,21 @@ export default function MDDashboard() {
     }, []);
 
     if (loading) return <DashboardSkeleton />;
-    if (!data) return <div className="p-12 text-center text-error font-bold uppercase tracking-widest">CRITICAL DATA FAILURE: CONTACT SYSTEMS ADMIN</div>;
+    if (error) {
+        return (
+            <div className="p-12 flex flex-col items-center justify-center gap-4 text-center">
+                <AlertTriangle size={24} className="text-error" />
+                <p className="text-error font-bold uppercase tracking-widest text-[12px]">{error}</p>
+                <button
+                    onClick={fetchDashboard}
+                    className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight"
+                >
+                    Retry
+                </button>
+            </div>
+        );
+    }
+    if (!data) return null;
 
     return (
         <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page">

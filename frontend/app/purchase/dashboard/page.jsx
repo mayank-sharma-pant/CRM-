@@ -23,11 +23,13 @@ export default function PurchaseDashboard() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState(null);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchDashboard = async () => {
             try {
                 setLoading(true);
+                setError(null);
                 const res = await api.get('/purchase/dashboard');
                 const apiData = res.data;
 
@@ -42,6 +44,7 @@ export default function PurchaseDashboard() {
                 setData(enrichedData);
             } catch (err) {
                 console.error("Failed to fetch purchase dashboard", err);
+                setError('Unable to load purchase dashboard. Please try again.');
             } finally {
                 setLoading(false);
             }
@@ -50,6 +53,22 @@ export default function PurchaseDashboard() {
     }, []);
 
     if (loading) return <DashboardSkeleton />;
+
+    if (error) {
+        return (
+            <div className="mx-auto max-w-[1440px] px-6 pb-12 bg-page min-h-screen flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="text-[13px] font-bold text-error uppercase tracking-widest">{error}</div>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight"
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     const totalInvoices = data.invoiceHealth.paid + data.invoiceHealth.pending + data.invoiceHealth.overdue + data.invoiceHealth.draft;
 

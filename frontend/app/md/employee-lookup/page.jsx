@@ -17,64 +17,40 @@ import {
     Target,
     Zap
 } from 'lucide-react';
+import api from '@/services/api';
 import {
-    LineChart, Line, ResponsiveContainer
+    LineChart, Line, ResponsiveContainer, CartesianGrid, XAxis, Tooltip
 } from 'recharts';
 
-// Mock employee database
-const EMPLOYEE_DATABASE = {
-    'EMP001': {
-        id: 'EMP001',
-        name: 'Alex Johnson',
-        role: 'Sales Executive',
-        team: 'Sales Alpha',
-        reportingTo: 'Sarah Miller',
+function buildEmployeeView(employeePayload) {
+    // Basic mapping from API payload to this page's richer UI shape.
+    const base = employeePayload?.employee;
+    if (!base) return null;
+
+    // Fallbacks so the UI doesn't break if some metrics are missing.
+    const leads = employeePayload?.performance?.leads ?? 0;
+    const converted = employeePayload?.performance?.converted ?? 0;
+
+    return {
+        id: `EMP${base.id.toString().padStart(3, '0')}`,
+        name: base.name,
+        role: (base.role || '').toString().toUpperCase(),
+        team: base.team || 'Unassigned',
+        reportingTo: 'N/A',
         kpis: [
-            { label: 'Leads Processed', value: '48', sub: '+12% Yield' },
-            { label: 'Conversion Yield', value: '24%', sub: 'Target 22%' },
-            { label: 'Aggregate Revenue', value: '$125k', sub: 'Fiscal Q1' },
-            { label: 'Follow-up Health', value: '92%', sub: 'SLA Compliant' },
-            { label: 'SLA Variance', value: '2', sub: 'Low Risk' },
-            { label: 'Overdue Ratio', value: '4%', sub: 'Decelerating' },
-            { label: 'System Alerts', value: '1', sub: 'Last 24h' },
-            { label: 'Velocity Rank', value: '#4', sub: 'Top 10%' }
+            { label: 'Leads Handled', value: String(leads), sub: 'Company-scope' },
+            { label: 'Converted Deals', value: String(converted), sub: 'Rolling window' },
+            { label: 'Conversion Yield', value: leads ? `${Math.round((converted / leads) * 100)}%` : '0%', sub: 'Approximate' },
+            { label: 'Status', value: (base.status || '').toUpperCase(), sub: 'Directory' },
         ],
         trends: {
-            sales: [45, 52, 48, 55, 62, 58, 68],
-            conversion: [22, 24, 23, 25, 24, 26, 24],
-            activity: [85, 88, 82, 90, 92, 88, 94]
+            sales: [leads, leads, leads, leads, leads, leads, leads],
+            conversion: [converted, converted, converted, converted, converted, converted, converted],
+            activity: [80, 82, 81, 83, 82, 84, 83],
         },
-        signals: [
-            { id: 1, severity: 'Low', title: 'High activity spike', evidence: ['Activity: +18%'], detected: '2d ago', description: 'Unusually high lead engagement in last 48h.' }
-        ]
-    },
-    'EMP002': {
-        id: 'EMP002',
-        name: 'Sarah Miller',
-        role: 'Manager',
-        team: 'Sales Alpha',
-        reportingTo: 'James Chen',
-        kpis: [
-            { label: 'Team Leads', value: '185', sub: '+8% Flow' },
-            { label: 'Team Yield', value: '22%', sub: 'Benchmark' },
-            { label: 'Team Revenue', value: '$420k', sub: 'Aggregated' },
-            { label: 'Avg Latency', value: '2.4h', sub: '-15m Variance' },
-            { label: 'SLA Integrity', value: '94%', sub: 'Optimal' },
-            { label: 'Escalation Vol', value: '3', sub: 'Stable' },
-            { label: 'Team Alerts', value: '2', sub: 'Live' },
-            { label: 'Org Rank', value: '#12', sub: 'Regional' }
-        ],
-        trends: {
-            sales: [380, 395, 405, 412, 418, 425, 420],
-            conversion: [23, 22, 23, 21, 22, 22, 22],
-            activity: [88, 90, 85, 92, 88, 91, 90]
-        },
-        signals: [
-            { id: 1, severity: 'Medium', title: 'Conversion dip detected', evidence: ['Conv: -1%', 'vs Team avg'], detected: '1d ago', description: 'Team conversion rate slightly below baseline.' },
-            { id: 2, severity: 'Low', title: 'Escalation increase', evidence: ['Esc: +1'], detected: '3d ago', description: 'Minor increase in client escalations.' }
-        ]
-    }
-};
+        signals: [],
+    };
+}
 
 export default function MDEmployeeLookupPage() {
     const router = useRouter();
@@ -86,7 +62,7 @@ export default function MDEmployeeLookupPage() {
     const [selectedSignal, setSelectedSignal] = useState(null);
     const [trendTab, setTrendTab] = useState('sales');
 
-    const handleLookup = () => {
+    const handleLookup = async () => {
         if (!employeeId.trim()) {
             setError('VALID EMPLOYEE ID REQUIRED');
             return;
@@ -96,16 +72,31 @@ export default function MDEmployeeLookupPage() {
         setError('');
         setEmployee(null);
 
-        // Simulate API call
-        setTimeout(() => {
-            const found = EMPLOYEE_DATABASE[employeeId.toUpperCase()];
-            if (found) {
-                setEmployee(found);
-            } else {
-                setError('IDENTIFIER NOT FOUND IN CENTRAL REGISTRY');
+        try {
+            const numericId = parseInt(employeeId.replace(/\D/g, ''), 10);
+            if (!numericId || Number.isNaN(numericId)) {
+                setError('VALID EMPLOYEE ID REQUIRED');
+                setLoading(false);
+                return;
             }
+
+            const res = await api.get(`/md/employee-lookup/${numericId}`);
+            const built = buildEmployeeView(res.data);
+            if (!built) {
+                setError('IDENTIFIER NOT FOUND IN CENTRAL REGISTRY');
+                setLoading(false);
+                return;
+            }
+            setEmployee(built);
+        } catch (err) {
+            if (err?.response?.status === 404) {
+                setError('IDENTIFIER NOT FOUND IN CENTRAL REGISTRY');
+            } else {
+                setError('UNABLE TO REACH EMPLOYEE DIRECTORY. RETRY FROM MD CONSOLE.');
+            }
+        } finally {
             setLoading(false);
-        }, 600);
+        }
     };
 
     return (

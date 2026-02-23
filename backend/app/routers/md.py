@@ -160,16 +160,19 @@ def get_company_sales(
 def get_company_leads(
     status: Optional[str] = Query(None),
     team: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_md)
 ):
-    """Get all company leads with filters"""
+    """Get all company leads with filters (paginated)."""
     query = apply_company_scope(db.query(Lead), Lead, current_user)
     
     if status:
         query = query.filter(Lead.status == status)
     
-    leads = query.order_by(Lead.created_at.desc()).all()
+    total = query.count()
+    leads = query.order_by(Lead.created_at.desc()).offset(skip).limit(limit).all()
     
     result = []
     team_q = apply_company_scope(db.query(Team), Team, current_user)
@@ -186,7 +189,7 @@ def get_company_leads(
             "owner": owner.full_name if owner else "Unassigned"
         })
     
-    return {"leads": result, "total": len(result)}
+    return {"leads": result, "total": total, "skip": skip, "limit": limit}
 
 
 # ===============================
@@ -196,24 +199,28 @@ def get_company_leads(
 @router.get("/clients")
 def get_company_clients(
     status: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_md)
 ):
-    """Get all company clients"""
+    """Get all company clients (paginated list + summary)."""
     client_q = apply_company_scope(db.query(Client), Client, current_user)
     total = client_q.count()
     
-    clients = client_q.order_by(Client.created_at.desc()).limit(10).all()
+    clients = client_q.order_by(Client.created_at.desc()).offset(skip).limit(limit).all()
     
     return {
         "summary": {
             "total": total,
             "active": total
         },
-        "top_clients": [
+        "clients": [
             {"id": c.id, "name": c.name, "company": c.company}
             for c in clients
-        ]
+        ],
+        "skip": skip,
+        "limit": limit,
     }
 
 
@@ -226,6 +233,8 @@ def employee_lookup(
     search: Optional[str] = Query(None),
     team: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_md)
 ):
@@ -241,7 +250,8 @@ def employee_lookup(
     if role:
         query = query.filter(User.role == role.lower())
     
-    users = query.all()
+    total = query.count()
+    users = query.order_by(User.created_at.desc()).offset(skip).limit(limit).all()
     
     result = []
     team_q = apply_company_scope(db.query(Team), Team, current_user)
@@ -257,7 +267,7 @@ def employee_lookup(
             "status": user.status
         })
     
-    return {"employees": result, "total": len(result)}
+    return {"employees": result, "total": total, "skip": skip, "limit": limit}
 
 
 @router.get("/employee-lookup/{user_id}")
@@ -338,6 +348,8 @@ def get_company_monitoring(
 @router.get("/invoices")
 def get_company_invoices(
     status: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_md)
 ):
@@ -346,7 +358,8 @@ def get_company_invoices(
     if status and status != "All":
         inv_q = inv_q.filter(Invoice.status == status)
 
-    invoices = inv_q.order_by(Invoice.created_at.desc()).all()
+    total = inv_q.count()
+    invoices = inv_q.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()
 
     client_q = apply_company_scope(db.query(Client), Client, current_user)
     result = []
@@ -363,7 +376,7 @@ def get_company_invoices(
             "paymentStatus": "Settled" if inv.status == "Paid" else "Awaiting"
         })
 
-    return {"invoices": result, "total": len(result)}
+    return {"invoices": result, "total": total, "skip": skip, "limit": limit}
 
 
 # ===============================
@@ -372,6 +385,8 @@ def get_company_invoices(
 
 @router.get("/points")
 def get_performance_points(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_md)
 ):
@@ -413,4 +428,6 @@ def get_performance_points(
         })
 
     performance.sort(key=lambda x: x["points"], reverse=True)
-    return {"performance": performance, "total": len(performance)}
+    total = len(performance)
+    paginated = performance[skip: skip + limit]
+    return {"performance": paginated, "total": total, "skip": skip, "limit": limit}

@@ -10,6 +10,7 @@ from app.models.user import User
 from app.models.client import Client
 from app.models.invoice import Invoice, InvoiceItem
 from app.models.lead import Lead
+from app.schemas.user import MessageResponse
 
 router = APIRouter()
 
@@ -83,10 +84,12 @@ def get_purchase_dashboard(
 def list_sales_for_approval(
     status: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_purchase)
 ):
-    """List all sales/invoices pending approval"""
+    """List all sales/invoices pending approval (paginated)."""
     query = apply_company_scope(db.query(Invoice), Invoice, current_user)
     
     if status:
@@ -94,7 +97,8 @@ def list_sales_for_approval(
     else:
         query = query.filter(Invoice.status.in_(["Draft", "Pending"]))
     
-    invoices = query.order_by(Invoice.created_at.desc()).all()
+    total = query.count()
+    invoices = query.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()
     
     result = []
     client_q = apply_company_scope(db.query(Client), Client, current_user)
@@ -111,7 +115,7 @@ def list_sales_for_approval(
             "salesperson": creator.full_name if creator else "Unknown"
         })
     
-    return {"sales": result, "total": len(result)}
+    return {"sales": result, "total": total, "skip": skip, "limit": limit}
 
 
 @router.get("/sales/{sale_id}")
@@ -202,17 +206,20 @@ def reject_sale(
 @router.get("/invoices")
 def list_invoices(
     status: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_purchase)
 ):
-    """List all invoices"""
+    """List all invoices (paginated list with summary)."""
     base_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
     
     filtered_query = base_query
     if status:
         filtered_query = filtered_query.filter(Invoice.status == status.title())
     
-    invoices = filtered_query.order_by(Invoice.created_at.desc()).all()
+    total = filtered_query.count()
+    invoices = filtered_query.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()
     
     result = []
     for inv in invoices:
@@ -236,7 +243,7 @@ def list_invoices(
         "total_outstanding": base_query.filter(Invoice.status.in_(["Pending", "Overdue"])).with_entities(func.sum(Invoice.total)).scalar() or 0
     }
     
-    return {"invoices": result, "summary": summary}
+    return {"invoices": result, "summary": summary, "total": total, "skip": skip, "limit": limit}
 
 
 @router.get("/invoices/{invoice_id}")
@@ -275,7 +282,7 @@ def get_invoice_detail(
     }
 
 
-@router.post("/invoices/{invoice_id}/send")
+@router.post("/invoices/{invoice_id}/send", response_model=MessageResponse)
 def send_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
@@ -294,7 +301,7 @@ def send_invoice(
     return {"message": f"Invoice {invoice_id} sent to client"}
 
 
-@router.post("/invoices/{invoice_id}/mark-paid")
+@router.post("/invoices/{invoice_id}/mark-paid", response_model=MessageResponse)
 def mark_invoice_paid(
     invoice_id: int,
     payment_date: str = Query(...),
@@ -316,7 +323,7 @@ def mark_invoice_paid(
     return {"message": f"Invoice {invoice_id} marked as paid"}
 
 
-@router.post("/invoices/{invoice_id}/send-reminder")
+@router.post("/invoices/{invoice_id}/send-reminder", response_model=MessageResponse)
 def send_payment_reminder(
     invoice_id: int,
     db: Session = Depends(get_db),

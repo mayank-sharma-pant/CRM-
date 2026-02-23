@@ -13,106 +13,57 @@ down_revision = "006_invoice_number_per_company"
 branch_labels = None
 depends_on = None
 
+NUMERIC = sa.Numeric(12, 2)
+
+_INVOICE_COLS = ["subtotal", "tax", "discount", "total"]
+_ITEM_COLS = ["unit_price", "total"]
+
+
+def _is_sqlite() -> bool:
+    return op.get_bind().dialect.name == "sqlite"
+
 
 def upgrade() -> None:
-    # invoices: subtotal, tax, discount, total
-    op.alter_column(
-        "invoices",
-        "subtotal",
-        existing_type=sa.Float(),
-        type_=sa.Numeric(12, 2),
-        existing_nullable=True,
-        postgresql_using="subtotal::numeric(12,2)",
-    )
-    op.alter_column(
-        "invoices",
-        "tax",
-        existing_type=sa.Float(),
-        type_=sa.Numeric(12, 2),
-        existing_nullable=True,
-        postgresql_using="tax::numeric(12,2)",
-    )
-    op.alter_column(
-        "invoices",
-        "discount",
-        existing_type=sa.Float(),
-        type_=sa.Numeric(12, 2),
-        existing_nullable=True,
-        postgresql_using="discount::numeric(12,2)",
-    )
-    op.alter_column(
-        "invoices",
-        "total",
-        existing_type=sa.Float(),
-        type_=sa.Numeric(12, 2),
-        existing_nullable=True,
-        postgresql_using="total::numeric(12,2)",
-    )
-    # invoice_items: unit_price, total
-    op.alter_column(
-        "invoice_items",
-        "unit_price",
-        existing_type=sa.Float(),
-        type_=sa.Numeric(12, 2),
-        existing_nullable=True,
-        postgresql_using="unit_price::numeric(12,2)",
-    )
-    op.alter_column(
-        "invoice_items",
-        "total",
-        existing_type=sa.Float(),
-        type_=sa.Numeric(12, 2),
-        existing_nullable=True,
-        postgresql_using="total::numeric(12,2)",
-    )
+    if _is_sqlite():
+        with op.batch_alter_table("invoices") as batch:
+            for col in _INVOICE_COLS:
+                batch.alter_column(col, existing_type=sa.Float(), type_=NUMERIC, existing_nullable=True)
+        with op.batch_alter_table("invoice_items") as batch:
+            for col in _ITEM_COLS:
+                batch.alter_column(col, existing_type=sa.Float(), type_=NUMERIC, existing_nullable=True)
+    else:
+        for col in _INVOICE_COLS:
+            op.alter_column(
+                "invoices", col,
+                existing_type=sa.Float(), type_=NUMERIC, existing_nullable=True,
+                postgresql_using=f"{col}::numeric(12,2)",
+            )
+        for col in _ITEM_COLS:
+            op.alter_column(
+                "invoice_items", col,
+                existing_type=sa.Float(), type_=NUMERIC, existing_nullable=True,
+                postgresql_using=f"{col}::numeric(12,2)",
+            )
 
 
 def downgrade() -> None:
-    op.alter_column(
-        "invoice_items",
-        "total",
-        existing_type=sa.Numeric(12, 2),
-        type_=sa.Float(),
-        existing_nullable=True,
-        postgresql_using="total::double precision",
-    )
-    op.alter_column(
-        "invoice_items",
-        "unit_price",
-        existing_type=sa.Numeric(12, 2),
-        type_=sa.Float(),
-        existing_nullable=True,
-        postgresql_using="unit_price::double precision",
-    )
-    op.alter_column(
-        "invoices",
-        "total",
-        existing_type=sa.Numeric(12, 2),
-        type_=sa.Float(),
-        existing_nullable=True,
-        postgresql_using="total::double precision",
-    )
-    op.alter_column(
-        "invoices",
-        "discount",
-        existing_type=sa.Numeric(12, 2),
-        type_=sa.Float(),
-        existing_nullable=True,
-        postgresql_using="discount::double precision",
-    )
-    op.alter_column(
-        "invoices",
-        "tax",
-        existing_type=sa.Numeric(12, 2),
-        type_=sa.Float(),
-        existing_nullable=True,
-        postgresql_using="tax::double precision",
-    )
-    op.alter_column(
-        "invoices",
-        "subtotal",
-        existing_type=sa.Numeric(12, 2),
-        type_=sa.Float(),
-        existing_nullable=True,
-        postgresql_using="subtotal::double precision",
-    )
+    if _is_sqlite():
+        with op.batch_alter_table("invoice_items") as batch:
+            for col in reversed(_ITEM_COLS):
+                batch.alter_column(col, existing_type=NUMERIC, type_=sa.Float(), existing_nullable=True)
+        with op.batch_alter_table("invoices") as batch:
+            for col in reversed(_INVOICE_COLS):
+                batch.alter_column(col, existing_type=NUMERIC, type_=sa.Float(), existing_nullable=True)
+    else:
+        for col in reversed(_ITEM_COLS):
+            op.alter_column(
+                "invoice_items", col,
+                existing_type=NUMERIC, type_=sa.Float(), existing_nullable=True,
+                postgresql_using=f"{col}::double precision",
+            )
+        for col in reversed(_INVOICE_COLS):
+            op.alter_column(
+                "invoices", col,
+                existing_type=NUMERIC, type_=sa.Float(), existing_nullable=True,
+                postgresql_using=f"{col}::double precision",
+            )

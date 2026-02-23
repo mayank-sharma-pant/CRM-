@@ -8,6 +8,7 @@ const PLATFORM_API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 export default function PlatformDashboardPage() {
     const [metrics, setMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         fetchMetrics();
@@ -25,9 +26,12 @@ export default function PlatformDashboardPage() {
             if (response.ok) {
                 const data = await response.json();
                 setMetrics(data);
+            } else {
+                setError('Failed to load platform metrics. Please check your session.');
             }
         } catch (error) {
             console.error('Failed to fetch metrics:', error);
+            setError('Failed to load platform metrics. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -37,6 +41,22 @@ export default function PlatformDashboardPage() {
         return (
             <div className="flex items-center justify-center h-screen">
                 <div className="w-8 h-8 border-4 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen gap-3">
+                <div className="text-sm font-bold text-red-600 uppercase tracking-widest text-center px-4">
+                    {error}
+                </div>
+                <button
+                    onClick={fetchMetrics}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-bold uppercase tracking-tight"
+                >
+                    Retry
+                </button>
             </div>
         );
     }

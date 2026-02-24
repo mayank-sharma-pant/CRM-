@@ -8,7 +8,7 @@ import TopBar from './TopBar';
 export default function Layout({ children }) {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const pathname = usePathname();
-    const isPublic = ['/', '/login', '/signup'].includes(pathname);
+    const isPublic = ['/', '/login', '/signup'].includes(pathname) || pathname.startsWith('/platform');
 
     if (isPublic) {
         return <>{children}</>;

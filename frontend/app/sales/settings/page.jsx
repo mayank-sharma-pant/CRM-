@@ -14,18 +14,20 @@ import {
   Calendar
 } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import Link from 'next/link';
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
 
-  // Mock State for Form Interactions (Visual only)
-  const [profile, setProfile] = useState({
-    name: 'Alex Johnson',
-    email: 'alex.johnson@company.com',
-    phone: '+1 (555) 000-0000',
-    role: 'Sales Executive' // Read-only
-  });
+  // Profile data from authenticated user context (read-only display)
+  const profile = {
+    name: user?.full_name || '—',
+    email: user?.email || '—',
+    phone: user?.phone || '—',
+    role: user?.role || '—'
+  };
 
   return (
     <div className="bg-slate-50 dark:bg-slate-900 min-h-full font-sans text-slate-900 dark:text-slate-100 pb-12">
@@ -75,8 +77,8 @@ export default function SettingsPage() {
                 <input
                   type="text"
                   value={profile.name}
-                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  readOnly
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white cursor-default"
                 />
               </div>
               <div className="space-y-1.5">
@@ -86,8 +88,8 @@ export default function SettingsPage() {
                   <input
                     type="email"
                     value={profile.email}
-                    onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    readOnly
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white cursor-default"
                   />
                 </div>
               </div>
@@ -98,17 +100,15 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     value={profile.phone}
-                    onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    readOnly
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white cursor-default"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end">
-              <button className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
-                Save Changes
-              </button>
+            <div className="mt-4">
+              <p className="text-xs text-slate-400">Contact your administrator to update profile information.</p>
             </div>
           </div>
         </div>

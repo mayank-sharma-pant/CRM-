@@ -14,7 +14,7 @@ import {
     X
 } from 'lucide-react';
 
-const PLATFORM_API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/platform';
+const PLATFORM_API = '/platform';
 
 export default function PlatformLayout({ children }) {
     const router = useRouter();
@@ -110,8 +110,8 @@ export default function PlatformLayout({ children }) {
                                 key={item.name}
                                 href={item.href}
                                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive
-                                        ? 'bg-blue-600 text-white'
-                                        : 'text-slate-300 hover:bg-slate-800'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'text-slate-300 hover:bg-slate-800'
                                     }`}
                             >
                                 <item.icon size={20} />

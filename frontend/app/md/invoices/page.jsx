@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../services/api';
 import {
@@ -11,40 +11,57 @@ import {
     AlertTriangle,
     FileText,
     Search,
-    Calendar
+    Calendar,
+    RefreshCw
 } from 'lucide-react';
 
 export default function MDInvoicesPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [invoices, setInvoices] = useState([]);
+    const [error, setError] = useState(null);
     const [filter, setFilter] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
 
-    useEffect(() => {
-        const fetchInvoices = async () => {
-            try {
-                setLoading(true);
-                // Use MD specific endpoint if available, fallback to general or purchase for structure
-                // For this implementation, we assume /md/invoices exists based on router links
-                const res = await api.get('/md/invoices');
-                setInvoices(res.data.invoices || []);
-            } catch (err) {
-                console.error("Failed to fetch MD invoices", err);
-                // Fallback mock if API not ready
-                setInvoices([
-                    { id: 'INV-2026-001', client: 'Nexus Corp', amount: '$45,000.00', status: 'Paid', dueDate: '2026-01-15', linkedSale: 'QT-991', paymentStatus: 'Settled' },
-                    { id: 'INV-2026-002', client: 'Aether Dynamics', amount: '$12,500.00', status: 'Overdue', dueDate: '2026-02-01', linkedSale: 'QT-995', paymentStatus: 'Awaiting' },
-                    { id: 'INV-2026-003', client: 'Solaris Inc', amount: '$8,900.00', status: 'Pending', dueDate: '2026-02-15', linkedSale: 'QT-998', paymentStatus: 'Awaiting' }
-                ]);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchInvoices();
+    const fetchInvoices = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const res = await api.get('/md/invoices');
+            setInvoices(res.data.invoices || []);
+        } catch (err) {
+            console.error("Failed to fetch MD invoices", err);
+            setError(err?.response?.data?.detail || err?.message || 'Failed to load invoices.');
+            setInvoices([]);
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
+    useEffect(() => {
+        fetchInvoices();
+    }, [fetchInvoices]);
+
     if (loading) return <InvoicesSkeleton />;
+
+    if (error) {
+        return (
+            <div className="mx-auto max-w-[1440px] px-6 py-12 bg-page min-h-screen flex items-center justify-center">
+                <div className="bg-surface rounded-md border border-border p-8 text-center max-w-md">
+                    <AlertTriangle size={32} className="text-error mx-auto mb-4" />
+                    <p className="text-[13px] font-bold text-primary mb-4">{error}</p>
+                    <button
+                        type="button"
+                        onClick={fetchInvoices}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-surface-elevated border border-border rounded-md text-[12px] font-bold uppercase tracking-tight hover:bg-surface text-secondary transition-all"
+                    >
+                        <RefreshCw size={14} />
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     // Filter invoices
     const filteredInvoices = invoices.filter(inv => {
@@ -103,8 +120,8 @@ export default function MDInvoicesPage() {
                             key={status}
                             onClick={() => setFilter(status)}
                             className={`px-3 py-1.5 rounded-[4px] text-[11px] font-black uppercase tracking-tight transition-all ${filter === status
-                                    ? 'bg-surface text-primary shadow-sm'
-                                    : 'text-muted hover:text-secondary'
+                                ? 'bg-surface text-primary shadow-sm'
+                                : 'text-muted hover:text-secondary'
                                 }`}
                         >
                             {status}

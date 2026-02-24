@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Building2, Users, TrendingUp, FileText, CheckCircle2, Ban, ArrowLeft } from 'lucide-react';
 
-const PLATFORM_API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/platform';
+const PLATFORM_API = '/platform';
 
 export default function CompanyDetailPage() {
     const params = useParams();

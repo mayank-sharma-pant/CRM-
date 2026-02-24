@@ -384,3 +384,55 @@ def accept_invite(
         }
     }
 
+
+# ===============================
+# Seed Admin (one-time setup)
+# ===============================
+
+@router.post("/seed-admin")
+def seed_admin(db: Session = Depends(get_db)):
+    """One-time endpoint to create admin and test users with an active company."""
+    # Check if admin already exists
+    existing = db.query(User).filter(User.role == "admin").first()
+    if existing:
+        return {"message": f"Admin already exists: {existing.email}", "already_exists": True}
+
+    # Create active company
+    company = db.query(Company).filter(Company.status == "active").first()
+    if not company:
+        company = Company(name="SunEdge CRM", status="active", plan="enterprise")
+        db.add(company)
+        db.flush()
+
+    created_users = []
+
+    # Create all role users
+    users_to_create = [
+        ("admin@sunedge.com", "CRM Admin", "admin", "admin123"),
+        ("md@sunedge.com", "Managing Director", "md", "test123"),
+        ("manager@sunedge.com", "Sales Manager", "manager", "test123"),
+        ("sales@sunedge.com", "Sales Executive", "sales", "test123"),
+        ("purchase@sunedge.com", "Purchase Officer", "purchase", "test123"),
+    ]
+
+    for email, name, role, password in users_to_create:
+        exists = db.query(User).filter(User.email == email).first()
+        if not exists:
+            u = User(
+                email=email,
+                full_name=name,
+                hashed_password=get_password_hash(password),
+                role=role,
+                status="active",
+                company_id=company.id,
+                is_active=True,
+            )
+            db.add(u)
+            created_users.append({"email": email, "role": role, "password": password})
+
+    db.commit()
+    return {
+        "message": "Seed complete",
+        "company_id": company.id,
+        "users_created": created_users,
+    }

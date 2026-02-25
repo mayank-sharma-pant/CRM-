@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, is_platform_admin
 from app.models.user import User
@@ -256,7 +257,7 @@ def get_authorized_ledgers(current_user: User = Depends(get_current_user)):
             ))
     return authorized_ledgers
 
-@router.get("/{ledger_slug}", response_model=LedgerDataResponse)
+@router.get("/{ledger_slug}")
 def get_ledger_data(
     ledger_slug: str, 
     current_user: User = Depends(get_current_user),
@@ -265,44 +266,56 @@ def get_ledger_data(
     """
     Returns data for a specific ledger using persistent database.
     """
-    # 1. Validate existence
-    if ledger_slug not in ALL_LEDGERS:
-        raise HTTPException(status_code=404, detail="Ledger not found")
+    import traceback as tb_mod
+    try:
+        # 1. Validate existence
+        if ledger_slug not in ALL_LEDGERS:
+            raise HTTPException(status_code=404, detail="Ledger not found")
+            
+        # 2. Check Permissions (backend enforces – frontend is not trusted)
+        permissions = get_user_ledger_permissions(current_user)
+        access_level = permissions.get(ledger_slug)
         
-    # 2. Check Permissions (backend enforces – frontend is not trusted)
-    permissions = get_user_ledger_permissions(current_user)
-    access_level = permissions.get(ledger_slug)
-    
-    if not access_level:
+        if not access_level:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="You do not have permission to view this ledger."
+            )
+        
+        can_edit = (access_level == "edit")
+        
+        # 3. Fetch Data from Database (company-scoped)
+        entry_query = apply_company_scope(db.query(LedgerEntry), LedgerEntry, current_user)
+        entries = entry_query.filter(LedgerEntry.ledger_slug == ledger_slug).all()
+        
+        # Format rows: extract data json and inject id
+        rows = []
+        for entry in entries:
+            row_data = (entry.data or {}).copy()
+            row_data['id'] = entry.id
+            rows.append(row_data)
+            
+        # Get columns definition
+        columns = get_ledger_columns(ledger_slug)
+        
+        return {
+            "ledger": ledger_slug,
+            "ledger_name": ALL_LEDGERS[ledger_slug],
+            "can_view": True,
+            "can_edit": can_edit,
+            "columns": columns,
+            "rows": rows
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        with open("last_error.txt", "w") as f:
+            tb_mod.print_exc(file=f)
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="You do not have permission to view this ledger."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ledger error: {str(e)}"
         )
-    
-    can_edit = (access_level == "edit")
-    
-    # 3. Fetch Data from Database (company-scoped)
-    entry_query = apply_company_scope(db.query(LedgerEntry), LedgerEntry, current_user)
-    entries = entry_query.filter(LedgerEntry.ledger_slug == ledger_slug).all()
-    
-    # Format rows: extract data json and inject id
-    rows = []
-    for entry in entries:
-        row_data = entry.data.copy()
-        row_data['id'] = entry.id
-        rows.append(row_data)
-        
-    # Get columns definition
-    columns = get_ledger_columns(ledger_slug)
-    
-    return LedgerDataResponse(
-        ledger=ledger_slug,
-        ledger_name=ALL_LEDGERS[ledger_slug],
-        can_view=True,
-        can_edit=can_edit,
-        columns=columns,
-        rows=rows
-    )
+
 
 @router.post("/{ledger_slug}", response_model=LedgerEntryResponse)
 def create_ledger_entry(

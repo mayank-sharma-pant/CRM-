@@ -15,7 +15,8 @@ import {
     Plus,
     Check,
     Clock,
-    User
+    User,
+    ShieldAlert
 } from 'lucide-react';
 import api from '../../../services/api';
 import TaskModal from '../../../components/leads/TaskModal';
@@ -49,11 +50,12 @@ export default function TasksPage() {
     const toggleTask = async (id, currentStatus) => {
         try {
             const newStatus = currentStatus === 'Completed' ? 'Pending' : 'Completed';
-            await api.put(`/tasks/${id}`, null, { params: { status: newStatus } });
+            await api.put(`/tasks/${id}`, { status: newStatus });
             fetchTasks();
         } catch (err) {
             console.error("Failed to toggle task", err);
-            alert(err.response?.data?.detail || "Action failed");
+            const detail = err.response?.data?.detail;
+            alert(typeof detail === 'object' ? JSON.stringify(detail) : (detail || "Action failed"));
         }
     };
 

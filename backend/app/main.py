@@ -1,13 +1,28 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.routers import auth, users, leads, tasks, clients, admin, manager, follow_ups, md, purchase, ledgers, leaves, platform, invoices
 from app.config import settings
+import traceback
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(
     title="CRM API",
     version="1.0.0",
     description="Professional CRM Backend API with FastAPI"
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
+    tb_str = ''.join(tb)
+    logger.error(f"Unhandled error on {request.method} {request.url}:\n{tb_str}")
+    with open("last_error.txt", "w") as f:
+        f.write(f"{request.method} {request.url}\n{tb_str}")
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
+
 
 # CORS Configuration
 app.add_middleware(

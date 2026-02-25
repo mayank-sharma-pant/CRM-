@@ -1,9 +1,12 @@
 Traceback (most recent call last):
-  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-    ~~~~~~~~~~~~~~~~~~~~~~~^
-        cursor, str_statement, effective_parameters, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 2125, in _exec_insertmany_context
+    dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~^
+        cursor,
+        ^^^^^^^
+    ...<2 lines>...
+        context,
+        ^^^^^^^^
     )
     ^
   File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
@@ -11,15 +14,30 @@ Traceback (most recent call last):
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
   File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/psycopg/cursor.py", line 117, in execute
     raise ex.with_traceback(None)
-psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "companies_pkey"
-DETAIL:  Key (id)=(1) already exists.
+psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "users_email_key"
+DETAIL:  Key (email)=(admin@sunedge.com) already exists.
 
 The above exception was the direct cause of the following exception:
 
 Traceback (most recent call last):
-  File "/home/mayank/CRM-/backend/seed_admin.py", line 29, in <module>
-    db.flush()
-    ~~~~~~~~^^
+  File "/home/mayank/CRM-/backend/seed_admin.py", line 47, in <module>
+    db.commit()
+    ~~~~~~~~~^^
+  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 2030, in commit
+    trans.commit(_to_root=True)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "<string>", line 2, in commit
+  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 1311, in commit
+    self._prepare_impl()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "<string>", line 2, in _prepare_impl
+  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 1286, in _prepare_impl
+    self.session.flush()
+    ~~~~~~~~~~~~~~~~~~^^
   File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 4331, in flush
     self._flush(objects)
     ~~~~~~~~~~~^^^^^^^^^
@@ -55,11 +73,9 @@ Traceback (most recent call last):
         ^^^^^^^
     )
     ^
-  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/orm/persistence.py", line 1233, in _emit_insert_statements
+  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/orm/persistence.py", line 1143, in _emit_insert_statements
     result = connection.execute(
-        statement,
-        params,
-        execution_options=execution_options,
+        statement, multiparams, execution_options=execution_options
     )
   File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
     return meth(
@@ -80,27 +96,29 @@ Traceback (most recent call last):
     ...<8 lines>...
         cache_hit=cache_hit,
     )
-  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
-    return self._exec_single_context(
-           ~~~~~~~~~~~~~~~~~~~~~~~~~^
-        dialect, context, statement, parameters
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1844, in _execute_context
+    return self._exec_insertmany_context(dialect, context)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 2133, in _exec_insertmany_context
     self._handle_dbapi_exception(
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        e, str_statement, effective_parameters, cursor, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        e,
+        ^^
+    ...<4 lines>...
+        is_sub_exec=True,
+        ^^^^^^^^^^^^^^^^^
     )
     ^
   File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
-  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-    ~~~~~~~~~~~~~~~~~~~~~~~^
-        cursor, str_statement, effective_parameters, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 2125, in _exec_insertmany_context
+    dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~^
+        cursor,
+        ^^^^^^^
+    ...<2 lines>...
+        context,
+        ^^^^^^^^
     )
     ^
   File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
@@ -108,9 +126,8 @@ Traceback (most recent call last):
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
   File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/psycopg/cursor.py", line 117, in execute
     raise ex.with_traceback(None)
-sqlalchemy.exc.IntegrityError: (psycopg.errors.UniqueViolation) duplicate key value violates unique constraint "companies_pkey"
-DETAIL:  Key (id)=(1) already exists.
-[SQL: INSERT INTO companies (name, status, plan, updated_at) VALUES (%(name)s::VARCHAR, %(status)s::VARCHAR, %(plan)s::VARCHAR, %(updated_at)s::TIMESTAMP WITH TIME ZONE) RETURNING companies.id, companies.created_at]
-[parameters: {'name': 'SunEdge CRM', 'status': 'active', 'plan': 'enterprise', 'updated_at': None}]
+sqlalchemy.exc.IntegrityError: (psycopg.errors.UniqueViolation) duplicate key value violates unique constraint "users_email_key"
+DETAIL:  Key (email)=(admin@sunedge.com) already exists.
+[SQL: INSERT INTO users (email, full_name, hashed_password, role, status, company_id, team_id, manager_id, phone, is_active, last_active_at, updated_at) SELECT p0::VARCHAR, p1::VARCHAR, p2::VARCHAR, p3::VARCHAR, p4::VARCHAR, p5::INTEGER, p6::INTEGER, p7::I ... 1908 characters truncated ...  p10, p11, sen_counter) ORDER BY sen_counter RETURNING users.id, users.created_at, users.id AS id__1]
+[parameters: {'is_active__0': True, 'hashed_password__0': '$pbkdf2-sha256$29000$e48xZkwphdD6n/N.rxXCeA$8aU8ksdHU5WmjrMjlbFgBOpZM2kUFoI.JFHxFoKKU40', 'company_id__0': 3, 'status__0': 'active', 'phone__0': None, 'role__0': 'admin', 'team_id__0': None, 'updated_at__0': None, 'last_active_at__0': None, 'email__0': 'admin@sunedge.com', 'manager_id__0': None, 'full_name__0': 'CRM Admin', 'is_active__1': True, 'hashed_password__1': '$pbkdf2-sha256$29000$o5Ty/j.HsLZWqrW21vofgw$uAXqqKTJtoEdsEh50x0A6q4V7Mr0bONEMxLdfLzzmNE', 'company_id__1': 3, 'status__1': 'active', 'phone__1': None, 'role__1': 'md', 'team_id__1': None, 'updated_at__1': None, 'last_active_at__1': None, 'email__1': 'md@sunedge.com', 'manager_id__1': None, 'full_name__1': 'Managing Director', 'is_active__2': True, 'hashed_password__2': '$pbkdf2-sha256$29000$836PcW7NOUdIKeW8l5Kytg$jfOIFGOQQrcn3ldMctKz7Ro4MxZM6fK/b9xA/14vaXE', 'company_id__2': 3, 'status__2': 'active', 'phone__2': None, 'role__2': 'manager', 'team_id__2': None, 'updated_at__2': None, 'last_active_at__2': None, 'email__2': 'manager@sunedge.com', 'manager_id__2': None, 'full_name__2': 'Sales Manager', 'is_active__3': True, 'hashed_password__3': '$pbkdf2-sha256$29000$A6CUcg5BiPFeCyGE0Pp/zw$gt6sPhCAyYxkZN6FZw036TGBuZ2rA6VymcTikjOHoHs', 'company_id__3': 3, 'status__3': 'active', 'phone__3': None, 'role__3': 'sales', 'team_id__3': None, 'updated_at__3': None, 'last_active_at__3': None, 'email__3': 'sales@sunedge.com', 'manager_id__3': None, 'full_name__3': 'Sales Executive', 'is_active__4': True, 'hashed_password__4': '$pbkdf2-sha256$29000$4BzjvLeW0nrPmbO2NmasFQ$80glfOEKMoxFnFH8gfE.tQfLVkvaGQluvhWIt3pE2vM', 'company_id__4': 3, 'status__4': 'active', 'phone__4': None, 'role__4': 'purchase', 'team_id__4': None, 'updated_at__4': None, 'last_active_at__4': None, 'email__4': 'purchase@sunedge.com', 'manager_id__4': None, 'full_name__4': 'Purchase Officer'}]
 (Background on this error at: https://sqlalche.me/e/20/gkpj)
-Model import warning: cannot import name 'leave' from 'app.models' (/home/mayank/CRM-/backend/app/models/__init__.py)

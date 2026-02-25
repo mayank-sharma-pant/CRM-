@@ -303,10 +303,12 @@ export default function LeadDetailPage() {
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Pending Tasks</h2>
-              <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">{lead.tasks.filter(t => t.status === 'Open').length} Open</span>
+              <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
+                {(lead.tasks || []).filter(t => t.status === 'Open').length} Open
+              </span>
             </div>
             <div className="space-y-1">
-              {lead.tasks.map((task) => (
+              {(lead.tasks || []).map((task) => (
                 <div key={task.id} className="group p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer">
                   <div className="flex items-start gap-3">
                     <div className={`mt-0.5 w-3.5 h-3.5 rounded border flex items-center justify-center ${task.status === 'Completed' ? 'bg-slate-200 border-slate-300' : 'border-slate-300 dark:border-slate-500'}`}>

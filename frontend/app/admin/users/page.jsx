@@ -116,7 +116,8 @@ export default function AdminUsersPage() {
             alert('Invite sent successfully!');
         } catch (err) {
             console.error('Failed to create invite:', err);
-            alert(err.response?.data?.detail || 'Failed to create invite');
+            const detail = err.response?.data?.detail;
+            alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Failed to create invite');
         } finally {
             setInviteLoading(false);
         }
@@ -128,7 +129,8 @@ export default function AdminUsersPage() {
             fetchUsers();
         } catch (err) {
             console.error('Update user failed', err);
-            alert(err.response?.data?.detail || 'Failed to update user');
+            const detail = err.response?.data?.detail;
+            alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Failed to update user');
         }
     };
 
@@ -196,7 +198,7 @@ export default function AdminUsersPage() {
                     onChange={(e) => setTeamFilter(e.target.value)}
                     className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
                 >
-                    {teams.map(team => (
+                    {teamOptions.map(team => (
                         <option key={team} value={team}>{team === 'All' ? 'All Teams' : team}</option>
                     ))}
                 </select>

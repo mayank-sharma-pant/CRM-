@@ -1,4 +1,4 @@
-GET http://localhost:8000/api/manager/monitoring
+GET http://localhost:8000/api/admin/audit-log?days=30
 Traceback (most recent call last):
   File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/starlette/middleware/errors.py", line 164, in __call__
     await self.app(scope, receive, _send)
@@ -25,34 +25,19 @@ Traceback (most recent call last):
   File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/starlette/routing.py", line 72, in app
     response = await func(request)
                ^^^^^^^^^^^^^^^^^^^
-  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 299, in app
-    raise e
-  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 294, in app
-    raw_response = await run_endpoint_function(
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        dependant=dependant, values=values, is_coroutine=is_coroutine
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 315, in app
+    content = await serialize_response(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
     )
     ^
-  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 193, in run_endpoint_function
-    return await run_in_threadpool(dependant.call, **values)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/starlette/concurrency.py", line 40, in run_in_threadpool
-    return await anyio.to_thread.run_sync(func, *args)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/anyio/to_thread.py", line 63, in run_sync
-    return await get_async_backend().run_sync_in_worker_thread(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        func, args, abandon_on_cancel=abandon_on_cancel, limiter=limiter
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 155, in serialize_response
+    raise ResponseValidationError(
+        errors=_normalize_errors(errors), body=response_content
     )
-    ^
-  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/anyio/_backends/_asyncio.py", line 2502, in run_sync_in_worker_thread
-    return await future
-           ^^^^^^^^^^^^
-  File "/home/mayank/CRM-/backend/.venv/lib/python3.14/site-packages/anyio/_backends/_asyncio.py", line 986, in run
-    result = context.run(func, *args)
-  File "/home/mayank/CRM-/backend/app/routers/manager.py", line 107, in get_team_monitoring
-    is_online = member.last_active_at and (datetime.now() - member.last_active_at).total_seconds() < 300 if member.last_active_at else False
-                                           ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-TypeError: can't subtract offset-naive and offset-aware datetimes
+fastapi.exceptions.ResponseValidationError: 4 validation errors:
+  {'type': 'missing', 'loc': ('response', 'logs', 0, 'admin'), 'msg': 'Field required', 'input': {'id': 2, 'action': 'team_created', 'entity_type': 'team', 'entity_id': '6', 'entity_name': 'zxsda', 'admin_id': 10, 'admin_name': 'CRM Admin', 'before_value': None, 'after_value': '{"name": "zxsda"}', 'timestamp': '2026-02-25T13:05:35.481852+05:30'}, 'url': 'https://errors.pydantic.dev/2.12/v/missing'}
+  {'type': 'missing', 'loc': ('response', 'logs', 0, 'entity'), 'msg': 'Field required', 'input': {'id': 2, 'action': 'team_created', 'entity_type': 'team', 'entity_id': '6', 'entity_name': 'zxsda', 'admin_id': 10, 'admin_name': 'CRM Admin', 'before_value': None, 'after_value': '{"name": "zxsda"}', 'timestamp': '2026-02-25T13:05:35.481852+05:30'}, 'url': 'https://errors.pydantic.dev/2.12/v/missing'}
+  {'type': 'missing', 'loc': ('response', 'logs', 1, 'admin'), 'msg': 'Field required', 'input': {'id': 1, 'action': 'team_created', 'entity_type': 'team', 'entity_id': '5', 'entity_name': 'Hero Honda', 'admin_id': 10, 'admin_name': 'CRM Admin', 'before_value': None, 'after_value': '{"name": "Hero Honda"}', 'timestamp': '2026-02-25T12:54:10.358594+05:30'}, 'url': 'https://errors.pydantic.dev/2.12/v/missing'}
+  {'type': 'missing', 'loc': ('response', 'logs', 1, 'entity'), 'msg': 'Field required', 'input': {'id': 1, 'action': 'team_created', 'entity_type': 'team', 'entity_id': '5', 'entity_name': 'Hero Honda', 'admin_id': 10, 'admin_name': 'CRM Admin', 'before_value': None, 'after_value': '{"name": "Hero Honda"}', 'timestamp': '2026-02-25T12:54:10.358594+05:30'}, 'url': 'https://errors.pydantic.dev/2.12/v/missing'}
+

@@ -14,7 +14,7 @@ export default function AdminLayout({ children }) {
             {/* Shared Sidebar */}
             <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
 
-            <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
+            <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
 
                 {/* Admin Top Header */}
                 <header className="h-[72px] bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-8 shadow-sm z-10 shrink-0">

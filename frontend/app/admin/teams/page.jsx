@@ -62,7 +62,7 @@ export default function AdminTeamsPage() {
         fetchTeams();
     }, []);
 
-    const availableMembers = allUsers.filter(u => !u.team_id || u.team_id === 0);
+    const availableMembers = allUsers.filter(u => !u.team);
     const availableManagers = allUsers.filter(u => u.role === 'Manager' || u.role === 'manager');
 
     const handleRemoveMember = (member) => {
@@ -79,20 +79,27 @@ export default function AdminTeamsPage() {
             setMemberToRemove(null);
         } catch (err) {
             console.error('Remove member failed', err);
-            alert(err.response?.data?.detail || 'Removal failed');
+            const detail = err.response?.data?.detail;
+            alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Removal failed');
         }
     };
 
     const confirmAddMember = async () => {
+        const userId = Number(selectedNewMember);
+        if (!userId || isNaN(userId)) {
+            alert('Please select a valid member');
+            return;
+        }
         try {
-            await api.post(`/admin/teams/${selectedTeam.id}/members`, { user_id: selectedNewMember });
+            await api.post(`/admin/teams/${selectedTeam.id}/members`, { user_id: userId });
             fetchTeamDetail(selectedTeam.id);
             fetchTeams();
             setShowAddMemberModal(false);
             setSelectedNewMember('');
         } catch (err) {
             console.error('Add member failed', err);
-            alert(err.response?.data?.detail || 'Addition failed');
+            const detail = err.response?.data?.detail;
+            alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Addition failed');
         }
     };
 
@@ -107,7 +114,8 @@ export default function AdminTeamsPage() {
             setSelectedNewManager('');
         } catch (err) {
             console.error('Change manager failed', err);
-            alert(err.response?.data?.detail || 'Update failed');
+            const detail = err.response?.data?.detail;
+            alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Update failed');
         }
     };
 
@@ -119,7 +127,8 @@ export default function AdminTeamsPage() {
             setNewTeamName('');
         } catch (err) {
             console.error('Create team failed', err);
-            alert(err.response?.data?.detail || 'Creation failed');
+            const detail = err.response?.data?.detail;
+            alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Creation failed');
         }
     };
 
@@ -209,7 +218,7 @@ export default function AdminTeamsPage() {
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white">Team Members ({selectedTeam.members.length})</h3>
                                 <button
-                                    onClick={() => setShowAddMemberModal(true)}
+                                    onClick={() => { setSelectedNewMember(''); setShowAddMemberModal(true); }}
                                     className="flex items-center gap-1 text-[12px] font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
                                 >
                                     <Plus size={14} /> Add Member
@@ -277,7 +286,7 @@ export default function AdminTeamsPage() {
                         >
                             <option value="">Select a member...</option>
                             {availableMembers.map(m => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
+                                <option key={m.user_id} value={m.user_id}>{m.name} ({m.role})</option>
                             ))}
                         </select>
                     </div>

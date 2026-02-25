@@ -31,7 +31,10 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState({
     totalLeads: 0,
     closedLeads: 0,
-    conversionRate: 0
+    conversionRate: 0,
+    totalRevenue: 0,
+    paidRevenue: 0,
+    outstandingRevenue: 0,
   });
   const [priorityTasks, setPriorityTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,23 +48,33 @@ export default function Dashboard() {
     try {
       setLoading(true);
       setError(null);
-      const [leadsRes, tasksRes] = await Promise.all([
+      const [leadsRes, tasksRes, invoicesRes] = await Promise.all([
         api.get('/leads'),
-        api.get('/tasks/list') // Use the specialized list endpoint
+        api.get('/tasks/list'),
+        api.get('/invoices').catch(() => ({ data: [] }))
       ]);
 
       const leads = leadsRes.data?.items ?? leadsRes.data ?? [];
       const allTasks = tasksRes.data?.items ?? tasksRes.data ?? [];
+      const invoices = invoicesRes.data?.items ?? invoicesRes.data ?? [];
 
       // Metrics Calculation
       const total = leads.length;
       const closed = leads.filter(l => l.status === 'Converted').length;
       const rate = total > 0 ? Math.round((closed / total) * 100) : 0;
 
+      // Revenue calculation
+      const totalRev = invoices.reduce((s, i) => s + (i.total || 0), 0);
+      const paidRev = invoices.filter(i => i.status === 'Paid').reduce((s, i) => s + (i.total || 0), 0);
+      const outstandingRev = totalRev - paidRev;
+
       setMetrics({
         totalLeads: total,
         closedLeads: closed,
-        conversionRate: rate
+        conversionRate: rate,
+        totalRevenue: totalRev,
+        paidRevenue: paidRev,
+        outstandingRevenue: outstandingRev
       });
 
       // Priority Tasks Calculation
@@ -71,11 +84,6 @@ export default function Dashboard() {
         .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
         .slice(0, 5)
         .map(t => {
-          // The backend tasks list might have human-readable labels like "Today" or "Yesterday"
-          // but the parseISO might fail. Let's handle both.
-          let isOverdue = false;
-          // If we have a real date field from backend we should use it. 
-          // For now, let's keep the logic simple.
           return {
             ...t,
             statusReason: t.dueDate?.toLowerCase().includes('ago') ? 'OVERDUE' : 'DUE_TODAY'
@@ -150,7 +158,7 @@ export default function Dashboard() {
       <div className="max-w-[1200px] mx-auto px-6 space-y-6">
 
         {/* 1. Summary Metrics: Dense Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KPICard
             label="Total Leads"
             subValue="active pipeline"
@@ -170,7 +178,44 @@ export default function Dashboard() {
             value={`${metrics.conversionRate}%`}
             icon={Percent}
           />
+          <KPICard
+            label="My Revenue"
+            subValue="total invoiced"
+            value={`$${(metrics.totalRevenue / 1000).toFixed(1)}k`}
+            icon={ArrowRight}
+            color="text-accent"
+          />
         </div>
+
+        {/* Revenue Overview Bar */}
+        {metrics.totalRevenue > 0 && (
+          <div className="bg-surface rounded border border-border p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[12px] font-bold text-muted uppercase tracking-wider">Revenue Breakdown</h3>
+              <span className="text-[13px] font-bold text-primary">${metrics.totalRevenue.toLocaleString()}</span>
+            </div>
+            <div className="flex h-2 rounded-full overflow-hidden bg-surface-elevated">
+              <div
+                className="bg-success rounded-l-full transition-all"
+                style={{ width: `${(metrics.paidRevenue / metrics.totalRevenue) * 100}%` }}
+              />
+              <div
+                className="bg-warning rounded-r-full transition-all"
+                style={{ width: `${(metrics.outstandingRevenue / metrics.totalRevenue) * 100}%` }}
+              />
+            </div>
+            <div className="flex items-center gap-4 mt-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-success" />
+                <span className="text-[11px] font-semibold text-secondary">Paid: ${metrics.paidRevenue.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-warning" />
+                <span className="text-[11px] font-semibold text-secondary">Outstanding: ${metrics.outstandingRevenue.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 2. Priority Tasks: Integrated Tool List */}
         <div className="bg-surface rounded border border-border overflow-hidden shadow-sm">

@@ -52,20 +52,21 @@ export default function MDRevenuePage() {
     );
 
     // Filter KPIs to 3: Total Revenue, Growth, Collected/Outstanding
-    const kpisToShow = data.kpis.filter(k => ['total', 'growth', 'outstanding'].includes(k.code)).slice(0, 3);
+    const kpisToShow = (data.kpis || []).filter(k => ['total', 'growth', 'outstanding'].includes(k.code)).slice(0, 3);
 
     // Limit risks to top 5
-    const risksToShow = data.risks.slice(0, 5);
+    const risksToShow = (data.risks || []).slice(0, 5);
 
     // Breakdown: Top 5 + Others
-    const breakdownData = data.breakdown.byPeriod.slice(0, 5);
-    const otherValue = data.breakdown.byPeriod.slice(5).reduce((sum, item) => sum + item.value, 0);
+    const byPeriodRaw = data.breakdown?.byPeriod || [];
+    const breakdownData = byPeriodRaw.slice(0, 5);
+    const otherValue = byPeriodRaw.slice(5).reduce((sum, item) => sum + item.value, 0);
     if (otherValue > 0) {
         breakdownData.push({ name: 'Others', value: otherValue, fill: '#94a3b8' });
     }
 
     // Variance Table (max 8 rows)
-    const varianceRows = data.summaryTable.slice(0, 8);
+    const varianceRows = (data.summaryTable || []).slice(0, 8);
 
     return (
         <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
@@ -81,8 +82,8 @@ export default function MDRevenuePage() {
                     <button
                         onClick={() => setCompareEnabled(!compareEnabled)}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-md border transition-all text-[12px] font-bold uppercase tracking-tight ${compareEnabled
-                                ? 'bg-accent/10 border-accent/30 text-accent'
-                                : 'bg-surface border-border text-secondary hover:bg-surface-elevated'
+                            ? 'bg-accent/10 border-accent/30 text-accent'
+                            : 'bg-surface border-border text-secondary hover:bg-surface-elevated'
                             }`}
                     >
                         <div className={`w-7 h-4 rounded-full relative transition-colors ${compareEnabled ? 'bg-accent' : 'bg-border'}`}>
@@ -125,8 +126,8 @@ export default function MDRevenuePage() {
                                 key={view}
                                 onClick={() => setTrendView(view)}
                                 className={`px-4 py-1 text-[11px] font-bold uppercase tracking-tight rounded transition-all ${trendView === view
-                                        ? 'bg-surface shadow-sm text-primary'
-                                        : 'text-muted hover:text-secondary'
+                                    ? 'bg-surface shadow-sm text-primary'
+                                    : 'text-muted hover:text-secondary'
                                     }`}
                             >
                                 {view}
@@ -225,8 +226,8 @@ export default function MDRevenuePage() {
                                         <td className="py-2.5 px-5 text-[12px] text-right font-black text-secondary tabular-nums font-mono">{row.revenue}</td>
                                         <td className="py-2.5 px-5 text-right">
                                             <span className={`inline-flex items-center px-1.5 py-0.5 rounded-[4px] text-[10px] font-black border tabular-nums ${row.delta.startsWith('+') ? 'bg-success/10 text-success border-success/20' :
-                                                    row.delta === '0%' ? 'bg-surface-elevated text-muted border-border' :
-                                                        'bg-error/10 text-error border-error/20'
+                                                row.delta === '0%' ? 'bg-surface-elevated text-muted border-border' :
+                                                    'bg-error/10 text-error border-error/20'
                                                 }`}>
                                                 {row.delta}
                                             </span>
@@ -330,8 +331,8 @@ export default function MDRevenuePage() {
                         <div className="space-y-6">
                             <div className="flex items-center gap-2">
                                 <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest border ${selectedRisk.severity === 'High' ? 'bg-error/10 text-error border-error/20' :
-                                        selectedRisk.severity === 'Medium' ? 'bg-warning/10 text-warning border-warning/20' :
-                                            'bg-info/10 text-info border-info/20'
+                                    selectedRisk.severity === 'Medium' ? 'bg-warning/10 text-warning border-warning/20' :
+                                        'bg-info/10 text-info border-info/20'
                                     }`}>
                                     {selectedRisk.severity} Priority
                                 </span>
@@ -368,8 +369,8 @@ function BadgeChange({ change, trend }) {
 
     return (
         <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] text-[10px] font-black tabular-nums border ${isUp ? 'bg-success/10 text-success border-success/20' :
-                isDown ? 'bg-error/10 text-error border-error/20' :
-                    'bg-surface-elevated text-muted border-border'
+            isDown ? 'bg-error/10 text-error border-error/20' :
+                'bg-surface-elevated text-muted border-border'
             }`}>
             {isUp ? <TrendingUp size={10} strokeWidth={3} /> : isDown ? <TrendingDown size={10} strokeWidth={3} /> : <Minus size={10} strokeWidth={3} />}
             {change}

@@ -85,13 +85,36 @@ export default function LeadDetailPage() {
               type: 'task',
               title: 'Task Completed',
               description: task.title,
-              timestamp: task.updated_at || new Date().toISOString(), // Fallback
+              timestamp: task.updated_at || new Date().toISOString(),
               icon: CheckSquare,
               color: 'text-emerald-600 bg-emerald-100'
             });
           }
         });
       }
+
+      // Fetch audit timeline events
+      try {
+        const timelineRes = await api.get(`/timeline/lead/${id}`);
+        const events = timelineRes.data?.events || [];
+        events.forEach(ev => {
+          // Skip 'created' action — we already have the creation entry
+          if (ev.action === 'created') return;
+          const actionLabel = ev.action === 'status_changed' ? `Status: ${ev.before_value} → ${ev.after_value}`
+            : ev.action === 'converted' ? `Converted to Client`
+              : ev.action === 'updated' ? 'Lead Updated'
+                : ev.action;
+          timeline.push({
+            id: `audit-${ev.id}`,
+            type: 'activity',
+            title: actionLabel,
+            description: `by ${ev.admin_name || 'System'}`,
+            timestamp: ev.timestamp,
+            icon: History,
+            color: ev.action === 'converted' ? 'text-blue-600 bg-blue-100' : 'text-gray-600 bg-gray-100'
+          });
+        });
+      } catch { /* timeline fetch is non-critical */ }
 
       // Sort timeline by date desc
       data.timeline = timeline.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));

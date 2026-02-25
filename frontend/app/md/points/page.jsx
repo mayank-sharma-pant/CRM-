@@ -20,6 +20,7 @@ export default function MDPointsPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [performance, setPerformance] = useState([]);
+    const [summary, setSummary] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
@@ -29,6 +30,7 @@ export default function MDPointsPage() {
                 // Assume /md/points or /md/performance endpoint
                 const res = await api.get('/md/points');
                 setPerformance(res.data.performance || []);
+                setSummary(res.data.summary || null);
             } catch (err) {
                 console.error("Failed to fetch MD points", err);
                 setPerformance([]);
@@ -65,10 +67,10 @@ export default function MDPointsPage() {
 
             {/* Section A: Global Performance Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <KPIMini label="Aggregate Points" value="284.2k" sub="+12% vs LY" color="text-primary" />
-                <KPIMini label="Bonus Provision" value="$1.42M" sub="Fiscal Q1" color="text-accent" />
-                <KPIMini label="Active Tiers" value="4 Classes" sub="Silver to Titanium" color="text-secondary" />
-                <KPIMini label="Top Performer" value="Alex Rivera" sub="Titanium 2.4k" color="text-success" />
+                <KPIMini label="Aggregate Points" value={summary ? summary.totalPoints.toLocaleString() : '0'} sub={`${performance.length} employees`} color="text-primary" />
+                <KPIMini label="Bonus Provision" value={summary ? `$${summary.totalBonus.toLocaleString()}` : '$0'} sub="Current period" color="text-accent" />
+                <KPIMini label="Active Tiers" value={summary ? `${summary.tierCount} Classes` : '0'} sub="Silver to Titanium" color="text-secondary" />
+                <KPIMini label="Top Performer" value={summary?.topPerformer || 'N/A'} sub={summary ? `${summary.topTier} ${summary.topPoints.toLocaleString()}pts` : ''} color="text-success" />
             </div>
 
             {/* Section B: Filter & Search */}

@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
-import { Bell, Search, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { Settings, LogOut, ChevronDown } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
+import SearchDropdown from './SearchDropdown';
+import NotificationDropdown from './NotificationDropdown';
 
 export default function TopBar() {
     const { user, logout } = useAuth();
@@ -18,7 +20,6 @@ export default function TopBar() {
 
     return (
         <header className="bg-surface border-b border-border h-14 flex items-center justify-between px-6">
-            {/* Left - Search */}
             {/* Left - Search or Branding */}
             {user?.role === 'md' ? (
                 <div className="flex items-center gap-4">
@@ -41,16 +42,7 @@ export default function TopBar() {
                     </span>
                 </div>
             ) : (
-                <div className="flex-1 max-w-md">
-                    <div className="relative">
-                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            className="w-full pl-9 pr-4 py-2 text-sm bg-surface-elevated border border-transparent rounded-md focus:border-border focus:outline-none transition-colors"
-                        />
-                    </div>
-                </div>
+                <SearchDropdown />
             )}
 
             {/* Right - Actions */}
@@ -58,10 +50,7 @@ export default function TopBar() {
                 <ThemeToggle className="!border-none !bg-transparent hover:!bg-surface-elevated h-9 w-9" />
 
                 {/* Notifications */}
-                <button className="relative p-2 text-secondary hover:text-primary hover:bg-surface-elevated rounded-md transition-colors">
-                    <Bell size={18} />
-                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-error rounded-full" />
-                </button>
+                <NotificationDropdown />
 
                 {/* Settings */}
                 <button
@@ -134,3 +123,4 @@ export default function TopBar() {
         </header>
     );
 }
+

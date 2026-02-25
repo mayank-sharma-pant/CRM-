@@ -55,6 +55,50 @@ def get_md_dashboard(
     pending = inv_q.filter(Invoice.status == "Pending").count()
     overdue = inv_q.filter(Invoice.status == "Overdue").count()
     
+    # Daily sales momentum (last 7 days)
+    now = datetime.now()
+    sales_trend = []
+    day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    for i in range(7):
+        day = now - timedelta(days=6 - i)
+        day_end = day + timedelta(days=1)
+        day_rev = inv_q.filter(Invoice.status == "Paid", Invoice.created_at >= day, Invoice.created_at < day_end).with_entities(func.sum(Invoice.total)).scalar() or 0
+        day_leads = lead_q.filter(Lead.created_at >= day, Lead.created_at < day_end).count()
+        sales_trend.append({"date": day.strftime("%a"), "revenue": float(day_rev), "sales": day_leads})
+    
+    # Sales outcomes
+    qualified = lead_q.filter(Lead.status == "Qualified").count()
+    
+    # Client growth (last 6 months)
+    client_growth = []
+    for m in range(6):
+        month_start = (now.replace(day=1) - timedelta(days=30 * (5 - m))).replace(day=1)
+        cumulative = client_q.filter(Client.created_at <= month_start + timedelta(days=31)).count()
+        client_growth.append({"date": month_start.strftime("%b"), "count": cumulative})
+    
+    # Trend watchlist
+    d7_ago = now - timedelta(days=7)
+    d14_ago = now - timedelta(days=14)
+    recent_leads = lead_q.filter(Lead.created_at >= d7_ago).count()
+    prev_leads = lead_q.filter(Lead.created_at >= d14_ago, Lead.created_at < d7_ago).count()
+    lead_velocity = int(((recent_leads - prev_leads) / max(prev_leads, 1)) * 100)
+    
+    task_q = apply_company_scope(db.query(Task), Task, current_user)
+    overdue_tasks = task_q.filter(Task.due_date < now, Task.status != "Completed").count()
+    total_tasks = task_q.filter(Task.due_date >= d7_ago).count()
+    sla_adherence = int(((total_tasks - overdue_tasks) / max(total_tasks, 1)) * 100) - 100
+    
+    # AI Brief
+    overdue_inv = inv_q.filter(Invoice.status == "Overdue").count()
+    stalled_leads = lead_q.filter(Lead.status.in_(["New", "Contacted"]), Lead.created_at < d14_ago).count()
+    ai_brief = []
+    if overdue_inv > 0:
+        ai_brief.append({"id": 1, "title": "Revenue Risk", "summary": f"{overdue_inv} invoice(s) are overdue. Review immediately.", "link": "/md/invoices"})
+    if stalled_leads > 0:
+        ai_brief.append({"id": 2, "title": "Pipeline Stagnation", "summary": f"{stalled_leads} lead(s) have been stalled for 14+ days.", "link": "/md/leads"})
+    if not ai_brief:
+        ai_brief.append({"id": 1, "title": "All Clear", "summary": "No critical alerts. Pipeline and finances are healthy.", "link": "/md/monitoring"})
+    
     return {
         "kpis": [
             {"id": 1, "label": "Total Revenue", "value": f"${total_revenue:,.0f}", "route": "/md/revenue"},
@@ -80,7 +124,23 @@ def get_md_dashboard(
                 {"name": "Overdue", "value": overdue, "color": "#ef4444"}
             ],
             "counts": {"paid": paid, "outstanding": pending, "overdue": overdue}
-        }
+        },
+        "salesMomentum": {
+            "trend": sales_trend,
+            "outcomes": [
+                {"stage": "Converted", "count": converted, "color": "#10b981"},
+                {"stage": "Qualified", "count": qualified, "color": "#6366f1"}
+            ]
+        },
+        "clientSnapshot": {
+            "growth": client_growth,
+            "status": {"active": total_clients, "risk": stalled_leads}
+        },
+        "trendWatchlist": [
+            {"name": "Lead Velocity", "delta": f"{lead_velocity:+d}%", "trend": "up" if lead_velocity > 0 else "down"},
+            {"name": "SLA Adherence", "delta": f"{sla_adherence:+d}%", "trend": "up" if sla_adherence >= 0 else "down"}
+        ],
+        "aiBrief": ai_brief
     }
 
 
@@ -99,11 +159,103 @@ def get_revenue_analytics(
     total_revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
     outstanding = inv_q.filter(Invoice.status == "Pending").with_entities(func.sum(Invoice.total)).scalar() or 0
     
+    # Growth: compare paid invoices in last 30d vs previous 30d
+    now = datetime.now()
+    d30_ago = now - timedelta(days=30)
+    d60_ago = now - timedelta(days=60)
+    
+    recent_rev = inv_q.filter(Invoice.status == "Paid", Invoice.created_at >= d30_ago).with_entities(func.sum(Invoice.total)).scalar() or 0
+    prev_rev = inv_q.filter(Invoice.status == "Paid", Invoice.created_at >= d60_ago, Invoice.created_at < d30_ago).with_entities(func.sum(Invoice.total)).scalar() or 0
+    growth_pct = int(((recent_rev - prev_rev) / prev_rev * 100)) if prev_rev > 0 else 0
+    growth_trend = "up" if growth_pct > 0 else ("down" if growth_pct < 0 else "flat")
+    
+    # Daily revenue trend (last 30 days)
+    revenue_trend = []
+    for i in range(30):
+        day = d30_ago + timedelta(days=i)
+        day_end = day + timedelta(days=1)
+        day_total = inv_q.filter(
+            Invoice.status == "Paid",
+            Invoice.created_at >= day,
+            Invoice.created_at < day_end
+        ).with_entities(func.sum(Invoice.total)).scalar() or 0
+        revenue_trend.append({
+            "date": day.strftime("%b %d"),
+            "value": float(day_total)
+        })
+    
+    # Weekly breakdown (last 4 weeks)
+    breakdown_by_period = []
+    colors = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"]
+    for w in range(4):
+        week_start = now - timedelta(weeks=4 - w)
+        week_end = week_start + timedelta(weeks=1)
+        week_rev = inv_q.filter(
+            Invoice.status == "Paid",
+            Invoice.created_at >= week_start,
+            Invoice.created_at < week_end
+        ).with_entities(func.sum(Invoice.total)).scalar() or 0
+        breakdown_by_period.append({
+            "name": f"Week {w + 1}",
+            "value": float(week_rev),
+            "fill": colors[w % len(colors)]
+        })
+    
+    # Summary table (weekly variance)
+    summary_table = []
+    for w in range(min(8, 4)):
+        week_start = now - timedelta(weeks=4 - w)
+        week_end = week_start + timedelta(weeks=1)
+        week_rev = inv_q.filter(
+            Invoice.status == "Paid",
+            Invoice.created_at >= week_start,
+            Invoice.created_at < week_end
+        ).with_entities(func.sum(Invoice.total)).scalar() or 0
+        # Compare to previous week
+        prev_week_start = week_start - timedelta(weeks=1)
+        prev_week_rev = inv_q.filter(
+            Invoice.status == "Paid",
+            Invoice.created_at >= prev_week_start,
+            Invoice.created_at < week_start
+        ).with_entities(func.sum(Invoice.total)).scalar() or 0
+        delta_pct = int(((week_rev - prev_week_rev) / prev_week_rev * 100)) if prev_week_rev > 0 else 0
+        delta_str = f"+{delta_pct}%" if delta_pct > 0 else f"{delta_pct}%"
+        summary_table.append({
+            "id": w + 1,
+            "period": f"{week_start.strftime('%b %d')} - {week_end.strftime('%b %d')}",
+            "revenue": f"${week_rev:,.0f}",
+            "delta": delta_str
+        })
+    
+    # Overdue invoices as risk signals
+    overdue_invoices = inv_q.filter(Invoice.status == "Overdue").all()
+    risks = []
+    for idx, inv in enumerate(overdue_invoices[:5]):
+        client_q = apply_company_scope(db.query(Client), Client, current_user)
+        client = client_q.filter(Client.id == inv.client_id).first() if inv.client_id else None
+        days_overdue = (now - inv.due_date).days if inv.due_date else 0
+        risks.append({
+            "id": idx + 1,
+            "signal": f"Overdue: {client.name if client else 'Unknown'} INV-{inv.id:04d}",
+            "severity": "High" if days_overdue > 14 else ("Medium" if days_overdue > 7 else "Low"),
+            "metric": f"${inv.total:,.0f}" if inv.total else "$0",
+            "delta": f"-{days_overdue}d",
+            "detected": inv.due_date.strftime("%b %d") if inv.due_date else "N/A"
+        })
+    
     return {
         "kpis": [
-            {"id": 1, "label": "Total Revenue", "value": f"${total_revenue:,.0f}"},
-            {"id": 2, "label": "Outstanding", "value": f"${outstanding:,.0f}"}
+            {"id": 1, "code": "total", "label": "Total Revenue", "value": f"${total_revenue:,.0f}", "change": f"{growth_pct:+d}%", "trend": growth_trend},
+            {"id": 2, "code": "growth", "label": "30D Growth", "value": f"${recent_rev:,.0f}", "change": f"{growth_pct:+d}%", "trend": growth_trend},
+            {"id": 3, "code": "outstanding", "label": "Outstanding", "value": f"${outstanding:,.0f}", "change": None, "trend": "flat"}
         ],
+        "revenueTrend": revenue_trend,
+        "trendInsight": f"Total paid revenue: ${total_revenue:,.0f}. Outstanding: ${outstanding:,.0f}. 30-day growth: {growth_pct:+d}%.",
+        "risks": risks,
+        "breakdown": {
+            "byPeriod": breakdown_by_period
+        },
+        "summaryTable": summary_table,
         "total_revenue": total_revenue,
         "outstanding": outstanding
     }
@@ -140,6 +292,17 @@ def get_company_sales(
             "win_rate": int((team_won / team_leads * 100)) if team_leads > 0 else 0
         })
     
+    # Daily sales trend (last 7 days)
+    now = datetime.now()
+    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    sales_trend = []
+    for i in range(7):
+        day = now - timedelta(days=6 - i)
+        day_end = day + timedelta(days=1)
+        day_rev = inv_q.filter(Invoice.status == "Paid", Invoice.created_at >= day, Invoice.created_at < day_end).with_entities(func.sum(Invoice.total)).scalar() or 0
+        day_deals = lead_q.filter(Lead.created_at >= day, Lead.created_at < day_end).count()
+        sales_trend.append({"date": day.strftime("%a"), "revenue": float(day_rev), "count": day_deals})
+    
     return {
         "summary": {
             "total_deals": total,
@@ -148,7 +311,8 @@ def get_company_sales(
             "active": active,
             "win_rate": win_rate
         },
-        "team_performance": team_performance
+        "team_performance": team_performance,
+        "salesTrend": sales_trend
     }
 
 
@@ -189,7 +353,28 @@ def get_company_leads(
             "owner": owner.full_name if owner else "Unassigned"
         })
     
-    return {"leads": result, "total": total, "skip": skip, "limit": limit}
+    return {
+        "leads": result,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "funnel": [
+            {"name": "New", "value": apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.status == "New").count()},
+            {"name": "Contacted", "value": apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.status == "Contacted").count()},
+            {"name": "Qualified", "value": apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.status == "Qualified").count()},
+            {"name": "Proposal", "value": apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.status == "Proposal").count()},
+            {"name": "Converted", "value": apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.status == "Converted").count()},
+        ],
+        "sourceBreakdown": [
+            {"name": src or "Unknown", "value": cnt, "color": color}
+            for (src, cnt), color in zip(
+                db.query(Lead.source, func.count(Lead.id)).filter(Lead.company_id == current_user.company_id).group_by(Lead.source).all() if current_user.company_id
+                else db.query(Lead.source, func.count(Lead.id)).group_by(Lead.source).all(),
+                ["var(--accent)", "var(--success)", "var(--warning)", "var(--error)", "var(--secondary)"]
+            )
+        ],
+        "conversionRate": int((apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.status == "Converted").count() / max(total, 1)) * 100)
+    }
 
 
 # ===============================
@@ -210,6 +395,14 @@ def get_company_clients(
     
     clients = client_q.order_by(Client.created_at.desc()).offset(skip).limit(limit).all()
     
+    # Growth trend (last 6 months)
+    now = datetime.now()
+    growth_trend = []
+    for m in range(6):
+        month_start = (now.replace(day=1) - timedelta(days=30 * (5 - m))).replace(day=1)
+        cumulative = client_q.filter(Client.created_at <= month_start + timedelta(days=31)).count()
+        growth_trend.append({"date": month_start.strftime("%b"), "value": cumulative})
+    
     return {
         "summary": {
             "total": total,
@@ -221,6 +414,12 @@ def get_company_clients(
         ],
         "skip": skip,
         "limit": limit,
+        "growthTrend": growth_trend,
+        "healthDistribution": [
+            {"name": "Healthy", "value": total, "color": "var(--success)"},
+            {"name": "At Risk", "value": 0, "color": "var(--warning)"},
+            {"name": "Churned", "value": 0, "color": "var(--error)"}
+        ]
     }
 
 
@@ -430,4 +629,24 @@ def get_performance_points(
     performance.sort(key=lambda x: x["points"], reverse=True)
     total = len(performance)
     paginated = performance[skip: skip + limit]
-    return {"performance": paginated, "total": total, "skip": skip, "limit": limit}
+    
+    # Summary KPIs
+    total_points = sum(p["points"] for p in performance)
+    total_bonus = sum(p["points"] * 5 for p in performance)
+    top_performer = performance[0] if performance else None
+    tier_set = set(p["tier"] for p in performance)
+    
+    return {
+        "performance": paginated,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "summary": {
+            "totalPoints": total_points,
+            "totalBonus": total_bonus,
+            "topPerformer": top_performer["name"] if top_performer else "N/A",
+            "topTier": top_performer["tier"] if top_performer else "N/A",
+            "topPoints": top_performer["points"] if top_performer else 0,
+            "tierCount": len(tier_set)
+        }
+    }

@@ -10,6 +10,7 @@ from app.models.lead import Lead
 from app.models.task import Task
 from app.models.client import Client
 from app.models.note import Note
+from app.utils.audit import log_activity
 from app.schemas.sales import (
     LeadResponse, LeadListResponse, LeadCreate, LeadUpdate,
     SalesDashboardResponse, SalesDashboardMetrics, SalesDashboardTask,
@@ -181,6 +182,10 @@ def create_lead(
     db.commit()
     db.refresh(new_lead)
     
+    log_activity(db, user=current_user, action='created', entity_type='lead',
+                 entity_id=new_lead.id, entity_name=new_lead.name)
+    db.commit()
+    
     return {
         "id": new_lead.id,
         "name": new_lead.name,
@@ -206,6 +211,7 @@ def update_lead(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     
+    old_status = lead.status
     # Update fields if provided
     if lead_data.name is not None:
         lead.name = lead_data.name
@@ -221,6 +227,14 @@ def update_lead(
         lead.source = lead_data.source
     if lead_data.notes is not None:
         lead.notes = lead_data.notes
+    
+    # Log activity
+    if lead_data.status is not None and lead_data.status != old_status:
+        log_activity(db, user=current_user, action='status_changed', entity_type='lead',
+                     entity_id=lead.id, entity_name=lead.name, before=old_status, after=lead_data.status)
+    else:
+        log_activity(db, user=current_user, action='updated', entity_type='lead',
+                     entity_id=lead.id, entity_name=lead.name)
     
     db.commit()
     db.refresh(lead)
@@ -340,6 +354,10 @@ def convert_lead(
     db.add(new_client)
     db.commit()
     db.refresh(new_client)
+    
+    log_activity(db, user=current_user, action='converted', entity_type='lead',
+                 entity_id=lead.id, entity_name=lead.name, after=f'Client #{new_client.id}')
+    db.commit()
     
     return {
         "message": f"Lead {lead_id} converted to client successfully",

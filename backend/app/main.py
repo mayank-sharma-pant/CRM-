@@ -1,17 +1,24 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.routers import auth, users, leads, tasks, clients, admin, manager, follow_ups, md, purchase, ledgers, leaves, platform, invoices
+from app.routers import auth, users, leads, tasks, clients, admin, manager, follow_ups, md, purchase, ledgers, leaves, platform, invoices, export, search, notifications, timeline
 from app.config import settings
+from app.middleware.security import SecurityHeadersMiddleware
 import traceback
 import logging
+import os
 
 logger = logging.getLogger("uvicorn.error")
+
+# Disable docs in production
+is_production = os.getenv("ENVIRONMENT", "development") == "production"
 
 app = FastAPI(
     title="CRM API",
     version="1.0.0",
-    description="Professional CRM Backend API with FastAPI"
+    description="Professional CRM Backend API with FastAPI",
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
 )
 
 @app.exception_handler(Exception)
@@ -19,18 +26,22 @@ async def global_exception_handler(request: Request, exc: Exception):
     tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
     tb_str = ''.join(tb)
     logger.error(f"Unhandled error on {request.method} {request.url}:\n{tb_str}")
-    with open("last_error.txt", "w") as f:
-        f.write(f"{request.method} {request.url}\n{tb_str}")
-    return JSONResponse(status_code=500, content={"detail": str(exc)})
+    # Don't expose internal errors in production
+    detail = str(exc) if not is_production else "Internal server error"
+    return JSONResponse(status_code=500, content={"detail": detail})
 
+
+# Security Headers Middleware
+app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
+    expose_headers=["Content-Disposition"],  # For CSV export downloads
 )
 
 # Include API routers
@@ -48,6 +59,10 @@ app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(ledgers.router) # Prefix is defined in the router itself
 app.include_router(leaves.router, prefix="/api/leaves", tags=["Leaves"])
 app.include_router(platform.router, prefix="/platform", tags=["Platform"])
+app.include_router(export.router, prefix="/api/export", tags=["Export"])
+app.include_router(search.router, prefix="/api/search", tags=["Search"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
+app.include_router(timeline.router, prefix="/api/timeline", tags=["Timeline"])
 
 @app.get("/")
 def root():

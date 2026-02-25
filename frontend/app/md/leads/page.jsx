@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../services/api';
+import { downloadCSV } from '../../../services/export';
 import {
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, Legend
 } from 'recharts';
@@ -25,19 +26,11 @@ export default function MDLeadsPage() {
                 const enrichedData = {
                     kpis: [
                         { label: 'Aggregate Inflow', value: apiData.total || 0, sub: 'Lifetime Volume' },
-                        { label: 'Yield Index', value: '2.4%', sub: 'Conversion' },
+                        { label: 'Yield Index', value: `${apiData.conversionRate || 0}%`, sub: 'Conversion' },
                         { label: 'Pipeline depth', value: apiData.total || 0, sub: 'Active Signals' }
                     ],
-                    funnel: [
-                        { name: 'Lead', value: apiData.total || 100 },
-                        { name: 'Contacted', value: 45 },
-                        { name: 'Converted', value: 12 }
-                    ],
-                    sourceBreakdown: [
-                        { name: 'Direct', value: 65, color: 'var(--accent)' },
-                        { name: 'Referral', value: 25, color: 'var(--secondary)' },
-                        { name: 'Organic', value: 10, color: 'var(--primary)' }
-                    ],
+                    funnel: apiData.funnel || [],
+                    sourceBreakdown: apiData.sourceBreakdown || [],
                 };
                 setData(enrichedData);
             } catch (err) {
@@ -67,7 +60,7 @@ export default function MDLeadsPage() {
                         <span>Filter Matrix</span>
                     </button>
                     <div className="h-6 w-px bg-border mx-1"></div>
-                    <button className="p-1.5 text-muted hover:text-primary transition-colors">
+                    <button onClick={() => downloadCSV('/export/leads', {}, 'leads_export.csv')} className="p-1.5 text-muted hover:text-primary transition-colors" title="Export CSV">
                         <Download size={20} strokeWidth={2.5} />
                     </button>
                 </div>

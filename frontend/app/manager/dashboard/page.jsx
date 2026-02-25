@@ -28,7 +28,10 @@ export default function ManagerDashboard() {
     const [metrics, setMetrics] = useState({
         totalLeads: 0,
         closedLeads: 0,
-        conversionRate: 0
+        conversionRate: 0,
+        totalRevenue: 0,
+        paidRevenue: 0,
+        outstandingRevenue: 0
     });
     const [priorityTasks, setPriorityTasks] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -42,13 +45,23 @@ export default function ManagerDashboard() {
     const fetchDashboardData = async () => {
         try {
             setError(null);
-            const response = await api.get('/manager/dashboard');
+            const [response, invoicesRes] = await Promise.all([
+                api.get('/manager/dashboard'),
+                api.get('/invoices').catch(() => ({ data: [] }))
+            ]);
             const data = response.data;
+            const invoices = invoicesRes.data?.items ?? invoicesRes.data ?? [];
+
+            const totalRev = invoices.reduce((s, i) => s + (i.total || 0), 0);
+            const paidRev = invoices.filter(i => i.status === 'Paid').reduce((s, i) => s + (i.total || 0), 0);
 
             setMetrics({
                 totalLeads: data.metrics.total_team_leads,
                 closedLeads: data.metrics.closed_deals,
-                conversionRate: data.metrics.team_conversion_rate
+                conversionRate: data.metrics.team_conversion_rate,
+                totalRevenue: totalRev,
+                paidRevenue: paidRev,
+                outstandingRevenue: totalRev - paidRev
             });
 
             // The backend returns pre-filtered priority tasks
@@ -63,17 +76,17 @@ export default function ManagerDashboard() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-slate-50 dark:bg-slate-900">
-                <div className="text-sm text-slate-500 font-medium animate-pulse">Loading dashboard...</div>
+            <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
+                <div className="text-[13px] text-muted font-bold uppercase tracking-widest animate-pulse">Loading dashboard...</div>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-slate-50 dark:bg-slate-900">
+            <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
                 <div className="flex flex-col items-center gap-3">
-                    <div className="text-xs font-bold text-red-600 uppercase tracking-widest">{error}</div>
+                    <div className="text-[13px] text-error font-bold uppercase tracking-widest">{error}</div>
                     <button
                         onClick={fetchDashboardData}
                         className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight"
@@ -121,7 +134,7 @@ export default function ManagerDashboard() {
             <div className="max-w-5xl mx-auto px-8 space-y-8">
 
                 {/* 1. Summary Metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <KPICard
                         label="Team Leads"
                         subValue="Active Pipeline"
@@ -141,7 +154,38 @@ export default function ManagerDashboard() {
                         value={`${metrics.conversionRate}%`}
                         icon={Percent}
                     />
+                    <KPICard
+                        label="Team Revenue"
+                        subValue="Total Invoiced"
+                        value={`$${(metrics.totalRevenue / 1000).toFixed(1)}k`}
+                        icon={ArrowRight}
+                        color="text-accent"
+                    />
                 </div>
+
+                {/* Revenue Breakdown */}
+                {metrics.totalRevenue > 0 && (
+                    <div className="bg-surface rounded border border-border p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-[12px] font-bold text-muted uppercase tracking-wider">Team Revenue Breakdown</h3>
+                            <span className="text-[13px] font-bold text-primary">${metrics.totalRevenue.toLocaleString()}</span>
+                        </div>
+                        <div className="flex h-2 rounded-full overflow-hidden bg-surface-elevated">
+                            <div className="bg-success rounded-l-full transition-all" style={{ width: `${(metrics.paidRevenue / metrics.totalRevenue) * 100}%` }} />
+                            <div className="bg-warning rounded-r-full transition-all" style={{ width: `${(metrics.outstandingRevenue / metrics.totalRevenue) * 100}%` }} />
+                        </div>
+                        <div className="flex items-center gap-4 mt-2">
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-2 h-2 rounded-full bg-success" />
+                                <span className="text-[11px] font-semibold text-secondary">Paid: ${metrics.paidRevenue.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-2 h-2 rounded-full bg-warning" />
+                                <span className="text-[11px] font-semibold text-secondary">Outstanding: ${metrics.outstandingRevenue.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* 2. Priority Tasks - Solid Tool Look */}
                 <div className="bg-surface dark:bg-slate-900 rounded border border-border overflow-hidden shadow-sm">

@@ -42,12 +42,7 @@ export default function MDSalesPage() {
                         { id: 3, label: 'Success Rate', value: `${apiData.summary?.win_rate || 0}%`, sub: 'Efficiency Index', color: 'text-success' },
                         { id: 4, label: 'Active Pipeline', value: apiData.summary?.active || 0, sub: 'In-Flight' }
                     ],
-                    salesTrend: [
-                        { date: 'Mon', revenue: 5000, count: 2 }, { date: 'Tue', revenue: 8000, count: 3 },
-                        { date: 'Wed', revenue: 3000, count: 1 }, { date: 'Thu', revenue: 12000, count: 4 },
-                        { date: 'Fri', revenue: 7000, count: 2 }, { date: 'Sat', revenue: 2000, count: 1 },
-                        { date: 'Sun', revenue: 9000, count: 3 }
-                    ],
+                    salesTrend: apiData.salesTrend || [],
                     trendObservation: "Stability in deal flow across most teams.",
                     funnel: {
                         stages: [

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import api from '../../../services/api';
+import { downloadCSV } from '../../../services/export';
 import {
     ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, Legend
 } from 'recharts';
@@ -25,15 +26,8 @@ export default function MDClientsPage() {
                         { label: 'Active Retention', value: '94.2%', sub: 'Stability Index', color: 'text-success' },
                         { label: 'Vital Signs', value: backendData.summary?.active || 0, sub: 'Engaged Hubs' }
                     ],
-                    growthTrend: backendData.growthTrend || [
-                        { date: 'Jan', value: 300 }, { date: 'Feb', value: 310 }, { date: 'Mar', value: 315 },
-                        { date: 'Apr', value: 325 }, { date: 'May', value: 335 }, { date: 'Jun', value: 342 }
-                    ],
-                    healthDistribution: backendData.healthDistribution || [
-                        { name: 'Healthy', value: 280, color: 'var(--success)' },
-                        { name: 'At Risk', value: 45, color: 'var(--warning)' },
-                        { name: 'Churned', value: 17, color: 'var(--error)' }
-                    ],
+                    growthTrend: backendData.growthTrend || [],
+                    healthDistribution: backendData.healthDistribution || [],
                     aiInsights: [
                         { type: 'RETENTION', title: 'High Retention Q1', evidence: ['Churn < 1%'], status: 'success' }
                     ]
@@ -66,8 +60,8 @@ export default function MDClientsPage() {
                         <span>Analysis Period</span>
                     </button>
                     <div className="h-6 w-px bg-border mx-1"></div>
-                    <button className="p-1.5 text-muted hover:text-primary transition-colors">
-                        <Download size={20} strokeWidth={2.5} />
+                    <button onClick={() => downloadCSV('/export/clients', {}, 'clients_export.csv')} className="p-1.5 text-muted hover:text-primary transition-colors" title="Export CSV">
+                        <Download size={20} strokeWidth={2.5} title="Export CSV" />
                     </button>
                 </div>
             </div>

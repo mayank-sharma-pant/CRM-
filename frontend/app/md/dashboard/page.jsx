@@ -52,37 +52,10 @@ export default function MDDashboard() {
                     counts: baseData.financeSnapshot?.counts || { paid: 0, outstanding: 0, overdue: 0 }
                 },
                 ...baseData,
-                salesMomentum: baseData.salesMomentum || {
-                    trend: [
-                        { date: 'Mon', revenue: 4000, sales: 2400 },
-                        { date: 'Tue', revenue: 3000, sales: 1398 },
-                        { date: 'Wed', revenue: 2000, sales: 9800 },
-                        { date: 'Thu', revenue: 2780, sales: 3908 },
-                        { date: 'Fri', revenue: 1890, sales: 4800 },
-                        { date: 'Sat', revenue: 2390, sales: 3800 },
-                        { date: 'Sun', revenue: 3490, sales: 4300 },
-                    ],
-                    outcomes: [
-                        { stage: 'Converted', count: 12, color: '#10b981' },
-                        { stage: 'Qualified', count: 34, color: '#6366f1' }
-                    ]
-                },
-                clientSnapshot: baseData.clientSnapshot || {
-                    growth: [
-                        { date: 'Jan', count: 100 },
-                        { date: 'Feb', count: 120 },
-                        { date: 'Mar', count: 150 }
-                    ],
-                    status: { active: 0, risk: 2 }
-                },
-                trendWatchlist: baseData.trendWatchlist || [
-                    { name: 'Lead Velocity', delta: '+12%', trend: 'up' },
-                    { name: 'SLA Adherence', delta: '-3%', trend: 'down' }
-                ],
-                aiBrief: baseData.aiBrief || [
-                    { id: 1, title: 'Strategic Capacity', summary: 'Team Alpha is at 95% capacity. Recommend load balancing.', link: '/md/monitoring' },
-                    { id: 2, title: 'Revenue Risk', summary: '3 high-value invoices are overdue by 10+ days.', link: '/md/revenue' }
-                ]
+                salesMomentum: baseData.salesMomentum || { trend: [], outcomes: [] },
+                clientSnapshot: baseData.clientSnapshot || { growth: [], status: { active: 0, risk: 0 } },
+                trendWatchlist: baseData.trendWatchlist || [],
+                aiBrief: baseData.aiBrief || []
             };
 
             setData(fullData);

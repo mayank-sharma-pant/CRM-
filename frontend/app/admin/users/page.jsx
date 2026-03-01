@@ -100,8 +100,10 @@ export default function AdminUsersPage() {
             };
 
             if (invitePhone) params.phone = invitePhone;
-            if (inviteTeam) params.team_id = inviteTeam;
-            if (inviteManager) params.manager_id = inviteManager;
+            const teamId = inviteTeam ? parseInt(inviteTeam, 10) : null;
+            const managerId = inviteManager ? parseInt(inviteManager, 10) : null;
+            if (teamId && !isNaN(teamId)) params.team_id = teamId;
+            if (managerId && !isNaN(managerId)) params.manager_id = managerId;
 
             await api.post('/admin/invites', params);
 
@@ -372,9 +374,9 @@ export default function AdminUsersPage() {
                                         className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
                                     >
                                         <option value="">Select manager...</option>
-                                        <option value="mgr1">Mike Brown</option>
-                                        <option value="mgr2">James Wilson</option>
-                                        <option value="mgr3">Sarah Thompson</option>
+                                        {users.filter(u => u.role === 'manager').map(m => (
+                                            <option key={m.rawId} value={m.rawId}>{m.name}</option>
+                                        ))}
                                     </select>
                                 </div>
                             )}

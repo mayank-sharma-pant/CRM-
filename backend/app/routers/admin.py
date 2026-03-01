@@ -4,8 +4,9 @@ from sqlalchemy import func
 from typing import Optional, List
 from datetime import datetime, timedelta
 import json
-import secrets
 import logging
+import secrets
+import string
 
 from app.database import get_db
 from app.utils.dependencies import require_admin, apply_company_scope, ensure_company_access
@@ -924,6 +925,10 @@ def create_invite(
     
     token = generate_invite_token()
     expires_at = datetime.now() + timedelta(days=INVITE_EXPIRY_DAYS)
+
+    # Generate a random temporary password (12 chars: letters + digits + symbols)
+    chars = string.ascii_letters + string.digits + "!@#$%"
+    temporary_password = "".join(secrets.choice(chars) for _ in range(12))
     
     invite = Invite(
         company_id=current_user.company_id,
@@ -960,6 +965,7 @@ def create_invite(
         company_name=company_name,
         role=body.role,
         token=token,
+        temporary_password=temporary_password,
     )
     if not email_sent:
         logger.warning("[INVITE] Email not sent for %s — SMTP not configured or failed", body.email)
@@ -987,12 +993,15 @@ def resend_invite(
     if invite.status == InviteStatus.ACCEPTED:
         raise HTTPException(status_code=400, detail="Invite already accepted")
     
-    # Generate new token and extend expiry
+    # Generate new token, extend expiry, and new temporary password
     old_token = invite.token
     invite.token = generate_invite_token()
     invite.expires_at = datetime.now() + timedelta(days=INVITE_EXPIRY_DAYS)
     invite.status = InviteStatus.PENDING
-    
+
+    chars = string.ascii_letters + string.digits + "!@#$%"
+    temporary_password = "".join(secrets.choice(chars) for _ in range(12))
+
     create_audit_log(
         db, current_user, "invite_resent", "invite",
         entity_id=str(invite.id), entity_name=invite.email,
@@ -1011,6 +1020,7 @@ def resend_invite(
         company_name=company_name,
         role=invite.role,
         token=invite.token,
+        temporary_password=temporary_password,
     )
     if not email_sent:
         logger.warning("[INVITE] Resend email not sent for %s", invite.email)

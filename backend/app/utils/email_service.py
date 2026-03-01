@@ -90,13 +90,23 @@ def send_invite_email(
     company_name: str,
     role: str,
     token: str,
+    temporary_password: Optional[str] = None,
     frontend_url: Optional[str] = None,
 ) -> bool:
-    """Send a team invite email with the accept link."""
+    """Send a team invite email with the accept link and optional temporary password."""
     base_url = (frontend_url or settings.FRONTEND_URL).rstrip("/")
     invite_link = f"{base_url}/accept-invite/{token}"
 
     subject = f"You're invited to join {company_name}"
+    password_section = ""
+    if temporary_password:
+        password_section = f"""
+            <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin: 20px 0; border-left: 4px solid #3b82f6;">
+                <p style="color: #475569; font-size: 13px; margin: 0 0 8px; font-weight: 600;">Your temporary password:</p>
+                <p style="color: #1e293b; font-size: 18px; font-weight: 700; font-family: monospace; margin: 0; letter-spacing: 2px;">{temporary_password}</p>
+                <p style="color: #64748b; font-size: 12px; margin: 8px 0 0;">Use this password when accepting the invitation. You can change it after signing in.</p>
+            </div>
+        """
     html = f"""\
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px;">
         <div style="background: #f8fafc; border-radius: 12px; padding: 32px; border: 1px solid #e2e8f0;">
@@ -105,6 +115,7 @@ def send_invite_email(
                 Hi {full_name},<br><br>
                 You've been invited to join <strong>{company_name}</strong> as a <strong>{role.title()}</strong>.
             </p>
+            {password_section}
             <div style="text-align: center; margin: 24px 0;">
                 <a href="{invite_link}"
                    style="display: inline-block; background: #3b82f6; color: #ffffff; text-decoration: none;

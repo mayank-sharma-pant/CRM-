@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, Mail } from 'lucide-react';
 
+// Use same-origin proxy so browser doesn't hit CORS / connection issues
 const PLATFORM_API = '/platform';
 
 export default function PlatformLoginPage() {
@@ -32,8 +33,15 @@ export default function PlatformLoginPage() {
             });
 
             if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.detail || 'Login failed');
+                const text = await response.text();
+                let detail = 'Login failed';
+                try {
+                    const data = JSON.parse(text);
+                    detail = data.detail || detail;
+                } catch {
+                    detail = text || detail;
+                }
+                throw new Error(detail);
             }
 
             const data = await response.json();
@@ -61,45 +69,45 @@ export default function PlatformLoginPage() {
                 {/* Login Form */}
                 <div className="bg-white rounded-2xl shadow-2xl p-8">
                     <form onSubmit={handleLogin} className="space-y-6">
-                        {error && (
-                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                                {error}
-                            </div>
-                        )}
-
                         <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            <label className="block text-sm font-semibold text-slate-800 mb-2">
                                 Email Address
                             </label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                                    placeholder="admin@platform.local"
+                                    className="w-full pl-11 pr-4 py-3 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-500 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                    placeholder="mayanksharmarrk01@gmail.com"
                                     required
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            <label className="block text-sm font-semibold text-slate-800 mb-2">
                                 Password
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
                                 <input
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                    className="w-full pl-11 pr-4 py-3 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-500 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                                     placeholder="••••••••"
                                     required
                                 />
                             </div>
                         </div>
+
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm font-medium">
+                                {error}
+                            </div>
+                        )}
 
                         <button
                             type="submit"

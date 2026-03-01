@@ -123,7 +123,7 @@ export default function AcceptInvitePage() {
                             Set Up Your Account
                         </h2>
                         <p className="mt-2 text-sm text-secondary">
-                            Create a password to complete your registration
+                            Enter the temporary password from your invite email to complete registration
                         </p>
                     </div>
 
@@ -140,7 +140,7 @@ export default function AcceptInvitePage() {
                         <div className="space-y-4">
                             <div>
                                 <label htmlFor="password" className="block text-sm font-semibold text-secondary mb-1.5">
-                                    Password
+                                    Temporary Password (from email)
                                 </label>
                                 <div className="relative">
                                     <input
@@ -149,7 +149,7 @@ export default function AcceptInvitePage() {
                                         required
                                         minLength={8}
                                         className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all shadow-sm"
-                                        placeholder="Min. 8 characters"
+                                        placeholder="Paste the password from your invite email"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                     />
@@ -164,7 +164,7 @@ export default function AcceptInvitePage() {
                             </div>
                             <div>
                                 <label htmlFor="confirmPassword" className="block text-sm font-semibold text-secondary mb-1.5">
-                                    Confirm Password
+                                    Confirm (re-enter password)
                                 </label>
                                 <input
                                     id="confirmPassword"

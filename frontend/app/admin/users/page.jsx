@@ -44,8 +44,8 @@ export default function AdminUsersPage() {
             ]);
 
             const usersData = (usersRes.data.users || []).map(u => ({
-                id: `EMP${String(u.user_id).padStart(3, '0')}`,
-                rawId: u.user_id,
+                id: `EMP${String(u.user_id ?? u.id ?? '').padStart(3, '0')}`,
+                rawId: u.user_id ?? u.id,
                 name: u.name || u.full_name,
                 email: u.email,
                 phone: u.phone || '–',
@@ -206,82 +206,84 @@ export default function AdminUsersPage() {
 
             {/* Users Table */}
             <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                <table className="w-full text-left text-sm">
-                    <thead>
-                        <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">ID</th>
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Name</th>
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Contact</th>
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Role</th>
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Team</th>
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Status</th>
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Joined</th>
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Last Active</th>
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs text-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                        {filteredUsers.map((user) => (
-                            <tr
-                                key={user.rawId}
-                                className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
-                            >
-                                <td className="px-4 py-2.5 font-mono text-xs text-slate-600 dark:text-slate-400">{user.id}</td>
-                                <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-200">{user.name}</td>
-                                <td className="px-4 py-2.5">
-                                    <div className="text-slate-700 dark:text-slate-300 text-xs">{user.email}</div>
-                                    <div className="text-[10px] text-slate-400">{user.phone}</div>
-                                </td>
-                                <td className="px-4 py-2.5">
-                                    <select
-                                        value={user.role.toLowerCase()}
-                                        onChange={(e) => handleUpdateUser(user.rawId, { role: e.target.value })}
-                                        className="bg-transparent border-none text-[10px] font-medium focus:ring-0 p-0 cursor-pointer"
-                                    >
-                                        <option value="sales">Sales</option>
-                                        <option value="manager">Manager</option>
-                                        <option value="md">MD</option>
-                                        <option value="purchase">Purchase</option>
-                                        <option value="admin">Admin</option>
-                                    </select>
-                                </td>
-                                <td className="px-4 py-2.5">
-                                    <select
-                                        value={teams.find(t => t.name === user.team)?.id || ''}
-                                        onChange={(e) => handleUpdateUser(user.rawId, { team_id: e.target.value })}
-                                        className="bg-transparent border-none text-[10px] font-medium focus:ring-0 p-0 cursor-pointer max-w-[100px] truncate"
-                                    >
-                                        <option value="">No Team</option>
-                                        {teams.map(t => (
-                                            <option key={t.id} value={t.id}>{t.name}</option>
-                                        ))}
-                                    </select>
-                                </td>
-                                <td className="px-4 py-2.5">
-                                    <select
-                                        value={user.status.toLowerCase()}
-                                        onChange={(e) => handleUpdateUser(user.rawId, { status: e.target.value })}
-                                        className="bg-transparent border-none text-[10px] font-medium focus:ring-0 p-0 cursor-pointer"
-                                    >
-                                        <option value="active">Active</option>
-                                        <option value="disabled">Disabled</option>
-                                        <option value="pending">Pending</option>
-                                    </select>
-                                </td>
-                                <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 text-xs">{user.joinedAt}</td>
-                                <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 text-xs">{user.lastActive || '-'}</td>
-                                <td className="px-4 py-2.5 text-right">
-                                    <button
-                                        onClick={() => handleUpdateUser(user.rawId, { status: user.status === 'active' ? 'disabled' : 'active' })}
-                                        className={`text-[10px] px-2 py-1 rounded border min-w-[60px] ${user.status === 'active' ? 'text-red-500 border-red-100' : 'text-emerald-500 border-emerald-100'}`}
-                                    >
-                                        {user.status === 'active' ? 'Disable' : 'Enable'}
-                                    </button>
-                                </td>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead>
+                            <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">ID</th>
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Name</th>
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Contact</th>
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Role</th>
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Team</th>
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Status</th>
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Joined</th>
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Last Active</th>
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs text-right">Action</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                            {filteredUsers.map((user) => (
+                                <tr
+                                    key={user.rawId}
+                                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+                                >
+                                    <td className="px-4 py-2.5 font-mono text-xs text-slate-600 dark:text-slate-400">{user.id}</td>
+                                    <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-200">{user.name}</td>
+                                    <td className="px-4 py-2.5">
+                                        <div className="text-slate-700 dark:text-slate-300 text-xs">{user.email}</div>
+                                        <div className="text-[10px] text-slate-400">{user.phone}</div>
+                                    </td>
+                                    <td className="px-4 py-2.5">
+                                        <select
+                                            value={user.role.toLowerCase()}
+                                            onChange={(e) => handleUpdateUser(user.rawId, { role: e.target.value })}
+                                            className="bg-transparent border-none text-[10px] font-medium focus:ring-0 p-0 cursor-pointer"
+                                        >
+                                            <option value="sales">Sales</option>
+                                            <option value="manager">Manager</option>
+                                            <option value="md">MD</option>
+                                            <option value="purchase">Purchase</option>
+                                            <option value="admin">Admin</option>
+                                        </select>
+                                    </td>
+                                    <td className="px-4 py-2.5">
+                                        <select
+                                            value={teams.find(t => t.name === user.team)?.id || ''}
+                                            onChange={(e) => handleUpdateUser(user.rawId, { team_id: e.target.value })}
+                                            className="bg-transparent border-none text-[10px] font-medium focus:ring-0 p-0 cursor-pointer max-w-[100px] truncate"
+                                        >
+                                            <option value="">No Team</option>
+                                            {teams.map(t => (
+                                                <option key={t.id} value={t.id}>{t.name}</option>
+                                            ))}
+                                        </select>
+                                    </td>
+                                    <td className="px-4 py-2.5">
+                                        <select
+                                            value={user.status.toLowerCase()}
+                                            onChange={(e) => handleUpdateUser(user.rawId, { status: e.target.value })}
+                                            className="bg-transparent border-none text-[10px] font-medium focus:ring-0 p-0 cursor-pointer"
+                                        >
+                                            <option value="active">Active</option>
+                                            <option value="disabled">Disabled</option>
+                                            <option value="pending">Pending</option>
+                                        </select>
+                                    </td>
+                                    <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 text-xs">{user.joinedAt}</td>
+                                    <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 text-xs">{user.lastActive || '-'}</td>
+                                    <td className="px-4 py-2.5 text-right">
+                                        <button
+                                            onClick={() => handleUpdateUser(user.rawId, { status: user.status === 'active' ? 'disabled' : 'active' })}
+                                            className={`text-[10px] px-2 py-1 rounded border min-w-[60px] ${user.status === 'active' ? 'text-red-500 border-red-100' : 'text-emerald-500 border-emerald-100'}`}
+                                        >
+                                            {user.status === 'active' ? 'Disable' : 'Enable'}
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
                 {filteredUsers.length === 0 && (
                     <div className="flex items-center justify-center h-32 text-slate-500 dark:text-slate-400 text-sm">

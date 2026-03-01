@@ -32,6 +32,10 @@ export default function CompanyRequestsPage() {
     };
 
     const handleApprove = async (companyId, companyName) => {
+        if (!companyId) {
+            alert('Error: Company ID is missing');
+            return;
+        }
         if (!confirm(`Approve company "${companyName}"?`)) return;
 
         try {
@@ -44,13 +48,20 @@ export default function CompanyRequestsPage() {
             if (response.ok) {
                 alert(`Company "${companyName}" approved successfully`);
                 fetchPendingRequests();
+            } else {
+                const data = await response.json().catch(() => ({}));
+                alert(`Failed to approve: ${data.detail || response.statusText}`);
             }
         } catch (error) {
-            alert('Failed to approve company');
+            alert('Network error: Failed to approve company');
         }
     };
 
     const handleReject = async (companyId, companyName) => {
+        if (!companyId) {
+            alert('Error: Company ID is missing');
+            return;
+        }
         const reason = prompt(`Reject company "${companyName}"?\n\nEnter rejection reason:`);
         if (!reason) return;
 
@@ -67,9 +78,12 @@ export default function CompanyRequestsPage() {
             if (response.ok) {
                 alert(`Company "${companyName}" rejected`);
                 fetchPendingRequests();
+            } else {
+                const data = await response.json().catch(() => ({}));
+                alert(`Failed to reject: ${data.detail || response.statusText}`);
             }
         } catch (error) {
-            alert('Failed to reject company');
+            alert('Network error: Failed to reject company');
         }
     };
 
@@ -94,70 +108,72 @@ export default function CompanyRequestsPage() {
                         <p className="text-slate-400 text-sm mt-1">All caught up!</p>
                     </div>
                 ) : (
-                    <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Company
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Domain
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Requested
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Plan
-                                </th>
-                                <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {requests.map((request) => (
-                                <tr key={request.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-blue-50 rounded-lg">
-                                                <Building2 className="text-blue-600" size={20} />
-                                            </div>
-                                            <span className="font-semibold text-slate-900">{request.name}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-600">
-                                        {request.domain || <span className="text-slate-400 italic">None</span>}
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-600 text-sm">
-                                        {new Date(request.requested_at).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="inline-flex px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full">
-                                            {request.plan_id === 1 ? 'Starter' : request.plan_id === 2 ? 'Growth' : 'Enterprise'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={() => handleApprove(request.id, request.name)}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
-                                            >
-                                                <CheckCircle size={16} />
-                                                Approve
-                                            </button>
-                                            <button
-                                                onClick={() => handleReject(request.id, request.name)}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
-                                            >
-                                                <XCircle size={16} />
-                                                Reject
-                                            </button>
-                                        </div>
-                                    </td>
+                    <div className="overflow-x-auto">
+                        <table className="w-full whitespace-nowrap">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Company
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Domain
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Requested
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Plan
+                                    </th>
+                                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Actions
+                                    </th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {requests.map((request) => (
+                                    <tr key={request.id} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 bg-blue-50 rounded-lg">
+                                                    <Building2 className="text-blue-600" size={20} />
+                                                </div>
+                                                <span className="font-semibold text-slate-900">{request.name}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600">
+                                            {request.domain || <span className="text-slate-400 italic">None</span>}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 text-sm">
+                                            {new Date(request.requested_at).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="inline-flex px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full">
+                                                {request.plan_id === 1 ? 'Starter' : request.plan_id === 2 ? 'Growth' : 'Enterprise'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleApprove(request.id, request.name)}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                                >
+                                                    <CheckCircle size={16} />
+                                                    Approve
+                                                </button>
+                                                <button
+                                                    onClick={() => handleReject(request.id, request.name)}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                                >
+                                                    <XCircle size={16} />
+                                                    Reject
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
         </div>

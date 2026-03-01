@@ -202,6 +202,8 @@ def approve_company(
         raise HTTPException(status_code=404, detail="Company not found")
     company.status = "active"
     company.updated_at = datetime.now()
+    # Also activate all pending users in this company
+    db.query(User).filter(User.company_id == company_id, User.status == "pending").update({"status": "active", "is_active": True})
     db.commit()
     _create_platform_audit(db, current_user, "company_approved", company_id=company_id)
     return {"message": "Company approved"}

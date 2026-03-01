@@ -2,11 +2,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.config import settings
 
-# Create database engine (use psycopg URL for PostgreSQL)
+# Create database engine
 database_url = settings.get_database_url()
 engine = create_engine(
     database_url,
-    connect_args={"check_same_thread": False} if "sqlite" in database_url else {}
+    connect_args={"check_same_thread": False} if "sqlite" in database_url else {},
+    pool_pre_ping=True,  # Health check for Neon serverless auto-suspend
 )
 
 # Session factory
@@ -22,3 +23,4 @@ def get_db():
         yield db
     finally:
         db.close()
+

@@ -134,57 +134,59 @@ export default function AdminApprovalsPage() {
 
             {/* Approvals Table */}
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <table className="w-full text-left text-[13px]">
-                    <thead>
-                        <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Name</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Contact</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Requested Role</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Submitted</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Status</th>
-                            <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px] text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                        {filteredApprovals.map((user) => (
-                            <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                <td className="px-5 py-3.5 font-medium text-slate-800 dark:text-slate-200">{user.name}</td>
-                                <td className="px-5 py-3.5">
-                                    <div className="text-slate-700 dark:text-slate-300">{user.email}</div>
-                                </td>
-                                <td className="px-5 py-3.5">
-                                    <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded text-[11px] font-medium">
-                                        {user.role}
-                                    </span>
-                                </td>
-                                <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{user.requested_at}</td>
-                                <td className="px-5 py-3.5">
-                                    <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded text-[11px] font-bold uppercase">
-                                        Pending
-                                    </span>
-                                </td>
-                                <td className="px-5 py-3.5 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                        <button
-                                            onClick={() => handleApprove(user)}
-                                            className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
-                                            title="Approve"
-                                        >
-                                            <Check size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleReject(user)}
-                                            className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
-                                            title="Reject"
-                                        >
-                                            <X size={16} />
-                                        </button>
-                                    </div>
-                                </td>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-[13px] whitespace-nowrap">
+                        <thead>
+                            <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Name</th>
+                                <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Contact</th>
+                                <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Requested Role</th>
+                                <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Submitted</th>
+                                <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Status</th>
+                                <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px] text-right">Actions</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                            {filteredApprovals.map((user) => (
+                                <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    <td className="px-5 py-3.5 font-medium text-slate-800 dark:text-slate-200">{user.name}</td>
+                                    <td className="px-5 py-3.5">
+                                        <div className="text-slate-700 dark:text-slate-300">{user.email}</div>
+                                    </td>
+                                    <td className="px-5 py-3.5">
+                                        <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded text-[11px] font-medium">
+                                            {user.role}
+                                        </span>
+                                    </td>
+                                    <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{user.requested_at}</td>
+                                    <td className="px-5 py-3.5">
+                                        <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded text-[11px] font-bold uppercase">
+                                            Pending
+                                        </span>
+                                    </td>
+                                    <td className="px-5 py-3.5 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button
+                                                onClick={() => handleApprove(user)}
+                                                className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+                                                title="Approve"
+                                            >
+                                                <Check size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleReject(user)}
+                                                className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+                                                title="Reject"
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
                 {filteredApprovals.length === 0 && (
                     <div className="flex items-center justify-center h-32 text-slate-500 dark:text-slate-400">

@@ -1,13 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '../../components/Sidebar';
 import ThemeToggle from '../../components/ThemeToggle';
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, LogOut } from 'lucide-react';
 
 export default function AdminLayout({ children }) {
+    const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [showProfileMenu, setShowProfileMenu] = useState(false);
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        router.push('/login');
+    };
 
     return (
         <div className="flex h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden font-sans">
@@ -49,15 +57,32 @@ export default function AdminLayout({ children }) {
                                 <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-800"></span>
                             </button>
 
-                            <div className="w-8 h-8 rounded-full bg-slate-900 dark:bg-slate-700 flex items-center justify-center text-white text-xs font-bold ring-2 ring-slate-100 dark:ring-slate-800">
-                                AD
+                            {/* Profile + Logout dropdown */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowProfileMenu(!showProfileMenu)}
+                                    className="w-8 h-8 rounded-full bg-slate-900 dark:bg-slate-700 flex items-center justify-center text-white text-xs font-bold ring-2 ring-slate-100 dark:ring-slate-800 cursor-pointer hover:ring-slate-300 transition-all"
+                                >
+                                    AD
+                                </button>
+                                {showProfileMenu && (
+                                    <div className="absolute right-0 top-10 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 z-50">
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                                        >
+                                            <LogOut size={14} />
+                                            Log out
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
                 </header>
 
                 {/* Content Area */}
-                <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 px-8 py-7 scroll-smooth">
+                <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 px-8 py-7 scroll-smooth" onClick={() => setShowProfileMenu(false)}>
                     {children}
                 </main>
             </div>

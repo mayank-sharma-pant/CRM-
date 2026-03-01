@@ -94,8 +94,8 @@ export default function PurchaseInvoicesPage() {
                             key={status}
                             onClick={() => setFilter(status)}
                             className={`px-3 py-1.5 rounded-[4px] text-[11px] font-black uppercase tracking-tight transition-all ${filter === status
-                                    ? 'bg-surface text-primary shadow-sm'
-                                    : 'text-muted hover:text-secondary'
+                                ? 'bg-surface text-primary shadow-sm'
+                                : 'text-muted hover:text-secondary'
                                 }`}
                         >
                             {status}

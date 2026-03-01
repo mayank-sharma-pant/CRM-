@@ -98,19 +98,35 @@ class TeamMember(BaseModel):
     role: str
 
 
+class TeamManagerInfo(BaseModel):
+    id: int
+    name: str
+
+
 class TeamResponse(BaseModel):
     id: int
     name: str
-    manager: Optional[str] = None
-    manager_id: Optional[str] = None
+    manager: Optional[TeamManagerInfo] = None
+    manager_id: Optional[int] = None
     members: List[TeamMember] = []
     
     class Config:
         from_attributes = True
 
 
+class TeamListItem(BaseModel):
+    id: int
+    name: str
+    member_count: int = 0
+    manager: Optional[TeamManagerInfo] = None
+    created_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class TeamListResponse(BaseModel):
-    teams: List[TeamResponse]
+    teams: List[TeamListItem]
     total: int = 0
     skip: int = 0
     limit: int = 100

@@ -133,8 +133,8 @@ export default function PurchaseMonitoringPage() {
                                 {trendText === 'Worsening' && <TrendingUp size={28} className="text-error" strokeWidth={3} />}
                                 {trendText === 'Stable' && <Minus size={28} className="text-muted" strokeWidth={3} />}
                                 <span className={`text-[20px] font-black uppercase tracking-tight ${trendText === 'Improving' ? 'text-success' :
-                                        trendText === 'Worsening' ? 'text-error' :
-                                            'text-primary'
+                                    trendText === 'Worsening' ? 'text-error' :
+                                        'text-primary'
                                     }`}>
                                     {trendText}
                                 </span>
@@ -189,8 +189,8 @@ export default function PurchaseMonitoringPage() {
                                         <div className="flex items-center gap-2">
                                             <div className={`w-1.5 h-1.5 rounded-full ${alert.severity === 'High' ? 'bg-error animate-pulse' : alert.severity === 'Medium' ? 'bg-warning' : 'bg-info'}`}></div>
                                             <span className={`text-[10px] font-black uppercase tracking-widest ${alert.severity === 'High' ? 'text-error' :
-                                                    alert.severity === 'Medium' ? 'text-warning' :
-                                                        'text-info'
+                                                alert.severity === 'Medium' ? 'text-warning' :
+                                                    'text-info'
                                                 }`}>
                                                 {alert.severity}
                                             </span>
@@ -260,8 +260,8 @@ export default function PurchaseMonitoringPage() {
                         <div className="space-y-6">
                             <div>
                                 <div className={`inline-flex items-center gap-2 px-2 py-0.5 rounded-[4px] border text-[10px] font-black uppercase tracking-widest mb-4 ${selectedAlert.severity === 'High' ? 'bg-error/10 text-error border-error/20' :
-                                        selectedAlert.severity === 'Medium' ? 'bg-warning/10 text-warning border-warning/20' :
-                                            'bg-info/10 text-info border-info/20'
+                                    selectedAlert.severity === 'Medium' ? 'bg-warning/10 text-warning border-warning/20' :
+                                        'bg-info/10 text-info border-info/20'
                                     }`}>
                                     <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
                                     {selectedAlert.severity} SEVERITY

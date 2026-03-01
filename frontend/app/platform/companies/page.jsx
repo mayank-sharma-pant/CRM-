@@ -96,70 +96,72 @@ export default function CompaniesListPage() {
                         <p className="text-slate-500 font-medium">No companies found</p>
                     </div>
                 ) : (
-                    <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Company
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Plan
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Users
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Created
-                                </th>
-                                <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {filteredCompanies.map((company) => (
-                                <tr key={company.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <div>
-                                            <p className="font-semibold text-slate-900">{company.name}</p>
-                                            {company.domain && (
-                                                <p className="text-sm text-slate-500">{company.domain}</p>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex px-2.5 py-1 border text-xs font-semibold rounded-full ${getStatusBadge(company.status)}`}>
-                                            {company.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-600">
-                                        {company.plan_id === 1 ? 'Starter' : company.plan_id === 2 ? 'Growth' : 'Enterprise'}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2 text-slate-600">
-                                            <Users size={16} />
-                                            <span>{company.user_count}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-600 text-sm">
-                                        {new Date(company.created_at).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <Link
-                                            href={`/platform/companies/${company.id}`}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-                                        >
-                                            <Eye size={16} />
-                                            View
-                                        </Link>
-                                    </td>
+                    <div className="overflow-x-auto">
+                        <table className="w-full whitespace-nowrap">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Company
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Status
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Plan
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Users
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Created
+                                    </th>
+                                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Actions
+                                    </th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {filteredCompanies.map((company) => (
+                                    <tr key={company.id} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div>
+                                                <p className="font-semibold text-slate-900">{company.name}</p>
+                                                {company.domain && (
+                                                    <p className="text-sm text-slate-500">{company.domain}</p>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex px-2.5 py-1 border text-xs font-semibold rounded-full ${getStatusBadge(company.status)}`}>
+                                                {company.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600">
+                                            {company.plan_id === 1 ? 'Starter' : company.plan_id === 2 ? 'Growth' : 'Enterprise'}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2 text-slate-600">
+                                                <Users size={16} />
+                                                <span>{company.user_count}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 text-sm">
+                                            {new Date(company.created_at).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <Link
+                                                href={`/platform/companies/${company.id}`}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                            >
+                                                <Eye size={16} />
+                                                View
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
         </div>

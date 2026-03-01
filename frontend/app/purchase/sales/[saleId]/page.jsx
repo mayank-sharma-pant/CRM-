@@ -49,10 +49,10 @@ export default function SalesReviewDetailPage() {
                         type: 'Client'
                     },
                     pricing: {
-                        subtotal: `$${Number(subtotal).toLocaleString('en-US', {minimumFractionDigits: 2})}`,
+                        subtotal: `$${Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
                         discount: '0%',
                         discountAmount: '$0.00',
-                        total: `$${Number(total).toLocaleString('en-US', {minimumFractionDigits: 2})}`
+                        total: `$${Number(total).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
                     },
                     invoiceLinkage: { hasInvoice: true, invoiceId: `INV-${d.id}`, invoiceStatus: d.status },
                     rep: d.salesperson?.name || 'Unknown',
@@ -64,8 +64,8 @@ export default function SalesReviewDetailPage() {
                     items: (d.deal?.items || []).map(i => ({
                         description: i.description,
                         qty: i.quantity || 1,
-                        unitPrice: `$${Number(i.total / (i.quantity || 1)).toLocaleString('en-US', {minimumFractionDigits: 2})}`,
-                        total: `$${Number(i.total).toLocaleString('en-US', {minimumFractionDigits: 2})}`
+                        unitPrice: `$${Number(i.total / (i.quantity || 1)).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                        total: `$${Number(i.total).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
                     }))
                 });
             } catch (err) {
@@ -146,26 +146,28 @@ export default function SalesReviewDetailPage() {
                     <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
                         <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white mb-4">Sale Summary</h3>
                         <div className="space-y-2">
-                            <table className="w-full text-[13px]">
-                                <thead>
-                                    <tr className="border-b border-slate-100 dark:border-slate-700/50">
-                                        <th className="text-left py-2 font-medium text-slate-500">Description</th>
-                                        <th className="text-center py-2 font-medium text-slate-500 w-20">Qty</th>
-                                        <th className="text-right py-2 font-medium text-slate-500 w-28">Unit Price</th>
-                                        <th className="text-right py-2 font-medium text-slate-500 w-28">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
-                                    {sale.items.map((item, i) => (
-                                        <tr key={i}>
-                                            <td className="py-2.5 text-slate-800 dark:text-slate-200">{item.description}</td>
-                                            <td className="py-2.5 text-center text-slate-600 dark:text-slate-400">{item.qty}</td>
-                                            <td className="py-2.5 text-right text-slate-600 dark:text-slate-400">{item.unitPrice}</td>
-                                            <td className="py-2.5 text-right font-medium text-slate-800 dark:text-slate-200">{item.total}</td>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-[13px]">
+                                    <thead>
+                                        <tr className="border-b border-slate-100 dark:border-slate-700/50">
+                                            <th className="text-left py-2 font-medium text-slate-500 whitespace-nowrap">Description</th>
+                                            <th className="text-center py-2 font-medium text-slate-500 w-20 whitespace-nowrap">Qty</th>
+                                            <th className="text-right py-2 font-medium text-slate-500 w-28 whitespace-nowrap">Unit Price</th>
+                                            <th className="text-right py-2 font-medium text-slate-500 w-28 whitespace-nowrap">Total</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
+                                        {sale.items.map((item, i) => (
+                                            <tr key={i}>
+                                                <td className="py-2.5 text-slate-800 dark:text-slate-200 whitespace-nowrap">{item.description}</td>
+                                                <td className="py-2.5 text-center text-slate-600 dark:text-slate-400 whitespace-nowrap">{item.qty}</td>
+                                                <td className="py-2.5 text-right text-slate-600 dark:text-slate-400 whitespace-nowrap">{item.unitPrice}</td>
+                                                <td className="py-2.5 text-right font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">{item.total}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
 

@@ -102,43 +102,45 @@ export default function AdminAuditPage() {
 
             {/* Audit Table */}
             <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                <table className="w-full text-left text-sm">
-                    <thead>
-                        <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Timestamp</th>
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Admin</th>
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Action</th>
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Entity</th>
-                            <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Change</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                        {filteredLogs.map((log) => (
-                            <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                <td className="px-4 py-2.5 font-mono text-xs text-slate-500 dark:text-slate-400">{log.timestamp}</td>
-                                <td className="px-4 py-2.5">
-                                    <div className="flex items-center gap-2">
-                                        <Shield size={14} className="text-slate-500" />
-                                        <span className="text-sm text-slate-700 dark:text-slate-300">{log.admin}</span>
-                                    </div>
-                                </td>
-                                <td className="px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200">{log.action}</td>
-                                <td className="px-4 py-2.5 font-medium text-sm text-slate-800 dark:text-slate-200">{log.entity}</td>
-                                <td className="px-4 py-2.5">
-                                    <div className="flex items-center gap-2 text-xs">
-                                        {log.before && (
-                                            <>
-                                                <span className="text-slate-500">{log.before}</span>
-                                                <ArrowRight size={12} className="text-slate-400" />
-                                            </>
-                                        )}
-                                        <span className="font-medium text-slate-700 dark:text-slate-300">{log.after}</span>
-                                    </div>
-                                </td>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead>
+                            <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Timestamp</th>
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Admin</th>
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Action</th>
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Entity</th>
+                                <th className="px-4 py-2.5 font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide text-xs">Change</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                            {filteredLogs.map((log) => (
+                                <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    <td className="px-4 py-2.5 font-mono text-xs text-slate-500 dark:text-slate-400">{log.timestamp}</td>
+                                    <td className="px-4 py-2.5">
+                                        <div className="flex items-center gap-2">
+                                            <Shield size={14} className="text-slate-500" />
+                                            <span className="text-sm text-slate-700 dark:text-slate-300">{log.admin}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200">{log.action}</td>
+                                    <td className="px-4 py-2.5 font-medium text-sm text-slate-800 dark:text-slate-200">{log.entity}</td>
+                                    <td className="px-4 py-2.5">
+                                        <div className="flex items-center gap-2 text-xs">
+                                            {log.before && (
+                                                <>
+                                                    <span className="text-slate-500">{log.before}</span>
+                                                    <ArrowRight size={12} className="text-slate-400" />
+                                                </>
+                                            )}
+                                            <span className="font-medium text-slate-700 dark:text-slate-300">{log.after}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
                 {filteredLogs.length === 0 && (
                     <div className="flex items-center justify-center h-32 text-slate-500 dark:text-slate-400 text-sm">

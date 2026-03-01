@@ -71,48 +71,50 @@ export default function SystemLogsPage() {
                         <p className="text-slate-500 font-medium">No logs found</p>
                     </div>
                 ) : (
-                    <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Timestamp
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Action
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Company ID
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    Admin ID
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    IP Address
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {logs.map((log) => (
-                                <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4 text-sm text-slate-600">
-                                        {new Date(log.timestamp).toLocaleString()}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${getActionColor(log.action)}`}>
-                                            {log.action}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-600">
-                                        {log.company_id || <span className="text-slate-400 italic">System</span>}
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-600">{log.performed_by}</td>
-                                    <td className="px-6 py-4 text-slate-600 font-mono text-xs">
-                                        {log.ip_address || <span className="text-slate-400 italic">N/A</span>}
-                                    </td>
+                    <div className="overflow-x-auto">
+                        <table className="w-full whitespace-nowrap">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Timestamp
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Action
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Company ID
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Admin ID
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        IP Address
+                                    </th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {logs.map((log) => (
+                                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4 text-sm text-slate-600">
+                                            {new Date(log.timestamp).toLocaleString()}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${getActionColor(log.action)}`}>
+                                                {log.action}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600">
+                                            {log.company_id || <span className="text-slate-400 italic">System</span>}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600">{log.performed_by}</td>
+                                        <td className="px-6 py-4 text-slate-600 font-mono text-xs">
+                                            {log.ip_address || <span className="text-slate-400 italic">N/A</span>}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
         </div>

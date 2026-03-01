@@ -116,60 +116,59 @@ export default function ManagerTasksPage() {
                 </div>
 
                 {/* Task List: Integrated Tool Style */}
-                <div className="bg-surface border border-border rounded shadow-sm overflow-hidden min-h-[400px]">
-                    <div className="divide-y divide-border/50">
-                        {getTasksForTab().length === 0 ? (
-                            <div className="p-16 text-center text-muted text-[13px] font-medium italic">
-                                No active tasks found in this trajectory.
-                            </div>
-                        ) : (
-                            getTasksForTab().map((task) => (
-                                <div
-                                    key={task.id}
-                                    className={`group flex items-center gap-4 px-5 py-3 hover:bg-surface-elevated/20 transition-colors ${task.isChild ? 'pl-12 bg-surface-elevated/10' : ''
-                                        } ${completedTasks.has(task.id) ? 'opacity-40 saturate-0' : ''}`}
-                                >
-                                    {/* Checkbox Action */}
-                                    <button
-                                        onClick={() => toggleTask(task.id)}
-                                        className={`shrink-0 w-4 h-4 rounded border transition-all flex items-center justify-center ${completedTasks.has(task.id)
-                                            ? 'bg-success border-success text-white'
-                                            : 'border-border-strong hover:border-accent text-transparent bg-surface'
-                                            }`}
-                                    >
-                                        <Check size={10} strokeWidth={4} />
-                                    </button>
-
-                                    {/* Task Content */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-3">
-                                            {task.isChild && <CornerDownRight size={12} className="text-muted opacity-50" />}
-                                            <span className={`text-[13px] font-bold text-primary group-hover:text-accent transition-colors ${completedTasks.has(task.id) ? 'line-through opacity-50' : ''
-                                                }`}>
-                                                {task.title}
-                                            </span>
-
-                                            <span className={`inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border tabular-nums ${task.entityType === 'Lead' ? 'bg-accent/5 text-accent border-accent/10 whitespace-nowrap' :
-                                                task.entityType === 'Client' ? 'bg-secondary/5 text-secondary border-secondary/10 whitespace-nowrap' :
-                                                    'bg-surface-elevated text-muted border-border whitespace-nowrap'
-                                                }`}>
-                                                {task.entityType === 'Lead' ? <UserCircle size={10} strokeWidth={2.5} /> : <Briefcase size={10} strokeWidth={2.5} />}
-                                                {task.entity}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Metadata Row: Due Date */}
-                                    <div className="shrink-0 flex items-center gap-2 tabular-nums">
-                                        <div className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-tight ${activeTab === 'Overdue' ? 'text-error' : activeTab === 'Today' ? 'text-success' : 'text-muted'
-                                            }`}>
-                                            <Clock size={12} strokeWidth={2.5} />
-                                            {task.dueDate}
-                                        </div>
-                                    </div>
+                <div className="overflow-x-auto">
+                    <div className="bg-surface border border-border rounded shadow-sm overflow-hidden min-w-[600px] min-h-[400px]">
+                        <div className="divide-y divide-border/50">
+                            {getTasksForTab().length === 0 ? (
+                                <div className="p-16 text-center text-muted text-[13px] font-medium italic">
+                                    No active tasks found in this trajectory.
                                 </div>
-                            ))
-                        )}
+                            ) : (
+                                getTasksForTab().map((task) => (
+                                    <div
+                                        key={task.id}
+                                        className={`group flex items-center gap-4 px-5 py-3 hover:bg-surface-elevated/20 transition-colors ${task.isChild ? 'pl-12 bg-surface-elevated/10' : ''
+                                            } ${completedTasks.has(task.id) ? 'opacity-40 saturate-0' : ''}`}
+                                    >
+                                        {/* Checkbox Action */}
+                                        <button
+                                            onClick={() => toggleTask(task.id)}
+                                            className={`shrink-0 w-4 h-4 rounded border transition-all flex items-center justify-center ${completedTasks.has(task.id)
+                                                ? 'bg-success border-success text-white'
+                                                : 'border-border-strong hover:border-accent text-transparent bg-surface'
+                                                }`}
+                                        >
+                                            <Check size={10} strokeWidth={4} />
+                                        </button>
+                                        {/* Task Content */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-3">
+                                                {task.isChild && <CornerDownRight size={12} className="text-muted opacity-50" />}
+                                                <span className={`text-[13px] font-bold text-primary group-hover:text-accent transition-colors ${completedTasks.has(task.id) ? 'line-through opacity-50' : ''
+                                                    }`}>
+                                                    {task.title}
+                                                </span>
+                                                <span className={`inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border tabular-nums ${task.entityType === 'Lead' ? 'bg-accent/5 text-accent border-accent/10 whitespace-nowrap' :
+                                                    task.entityType === 'Client' ? 'bg-secondary/5 text-secondary border-secondary/10 whitespace-nowrap' :
+                                                        'bg-surface-elevated text-muted border-border whitespace-nowrap'
+                                                    }`}>
+                                                    {task.entityType === 'Lead' ? <UserCircle size={10} strokeWidth={2.5} /> : <Briefcase size={10} strokeWidth={2.5} />}
+                                                    {task.entity}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {/* Metadata Row: Due Date */}
+                                        <div className="shrink-0 flex items-center gap-2 tabular-nums">
+                                            <div className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-tight ${activeTab === 'Overdue' ? 'text-error' : activeTab === 'Today' ? 'text-success' : 'text-muted'
+                                                }`}>
+                                                <Clock size={12} strokeWidth={2.5} />
+                                                {task.dueDate}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
 

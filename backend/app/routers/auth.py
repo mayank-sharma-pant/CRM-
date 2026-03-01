@@ -6,6 +6,9 @@ from datetime import datetime, timedelta, timezone
 from collections import defaultdict, deque
 from time import time
 import secrets
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 
 from app.database import get_db
 from app.models.user import User
@@ -14,6 +17,8 @@ from app.models.otp import OTPCode
 from app.schemas.user import UserCreate, UserResponse, Token, LoginResponse, MeResponse, MessageResponse
 from app.utils.security import verify_password, get_password_hash, create_access_token, decode_access_token
 from app.utils.dependencies import get_current_user
+from app.utils.email_service import send_otp_email
+from sqlalchemy import func as sa_func
 
 router = APIRouter()
 
@@ -85,7 +90,7 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
     # Rate limit by email to prevent abuse
     key = f"signup_email:{user_data.email.lower()}"
     _check_rate_limit(key, _RATE_LIMITS["signup_email"])
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    existing_user = db.query(User).filter(sa_func.lower(User.email) == user_data.email.lower()).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -94,11 +99,12 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
 
     hashed_password = get_password_hash(user_data.password)
 
-    ALLOWED_SIGNUP_ROLES = {"sales", "manager", "md", "purchase"}
-    role = user_data.role if user_data.role in ALLOWED_SIGNUP_ROLES else "md"
+    # Company creator is always the company admin
+    role = "admin"
 
+    company_name = (user_data.company_name or "").strip() or f"{user_data.full_name}'s Company"
     new_company = Company(
-        name=f"{user_data.full_name}'s Company",
+        name=company_name,
         status="pending",
     )
     db.add(new_company)
@@ -111,7 +117,7 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
         role=role,
         company_id=new_company.id,
         phone=user_data.phone,
-        status="active",
+        status="pending",
     )
 
     db.add(db_user)
@@ -135,7 +141,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     email = form_data.username.lower()
     key = f"login_email:{email}"
     _check_rate_limit(key, _RATE_LIMITS["login_email"])
-    user = db.query(User).filter(User.email == form_data.username).first()
+    user = db.query(User).filter(sa_func.lower(User.email) == form_data.username.lower()).first()
 
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
@@ -172,7 +178,7 @@ def request_otp(payload: OTPRequest, db: Session = Depends(get_db)):
     # Rate limit OTP requests per email
     key = f"request_otp_email:{payload.email.lower()}"
     _check_rate_limit(key, _RATE_LIMITS["request_otp_email"])
-    user = db.query(User).filter(User.email == payload.email).first()
+    user = db.query(User).filter(sa_func.lower(User.email) == payload.email.lower()).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.status == "disabled":
@@ -186,7 +192,9 @@ def request_otp(payload: OTPRequest, db: Session = Depends(get_db)):
     db.add(OTPCode(email=payload.email, code=otp_code, expires_at=expires_at))
     db.commit()
 
-    print(f"[OTP] {payload.email} -> {otp_code} (expires in {OTP_EXPIRY_MINUTES} min)")
+    sent = send_otp_email(payload.email, otp_code, OTP_EXPIRY_MINUTES)
+    if not sent:
+        logger.warning("[OTP] Email not sent for %s — SMTP not configured or failed", payload.email)
     return {"message": "OTP sent successfully"}
 
 
@@ -209,7 +217,7 @@ def login_otp(payload: OTPLoginRequest, db: Session = Depends(get_db)):
     if payload.otp_code.strip() != record.code:
         raise HTTPException(status_code=401, detail="Invalid OTP code")
 
-    user = db.query(User).filter(User.email == payload.email).first()
+    user = db.query(User).filter(sa_func.lower(User.email) == payload.email.lower()).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.status == "disabled":
@@ -324,7 +332,7 @@ def accept_invite(
         )
     
     # Check if expired
-    if invite.expires_at and datetime.now() > invite.expires_at:
+    if invite.expires_at and datetime.now(timezone.utc) > invite.expires_at:
         invite.status = InviteStatus.EXPIRED
         db.commit()
         raise HTTPException(
@@ -386,53 +394,94 @@ def accept_invite(
 
 
 # ===============================
-# Seed Admin (one-time setup)
+# Password Reset
 # ===============================
 
-@router.post("/seed-admin")
-def seed_admin(db: Session = Depends(get_db)):
-    """One-time endpoint to create admin and test users with an active company."""
-    # Check if admin already exists
-    existing = db.query(User).filter(User.role == "admin").first()
-    if existing:
-        return {"message": f"Admin already exists: {existing.email}", "already_exists": True}
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
 
-    # Create active company
-    company = db.query(Company).filter(Company.status == "active").first()
-    if not company:
-        company = Company(name="SunEdge CRM", status="active", plan="enterprise")
-        db.add(company)
-        db.flush()
 
-    created_users = []
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
+    new_password: str
 
-    # Create all role users
-    users_to_create = [
-        ("admin@sunedge.com", "CRM Admin", "admin", "admin123"),
-        ("md@sunedge.com", "Managing Director", "md", "test123"),
-        ("manager@sunedge.com", "Sales Manager", "manager", "test123"),
-        ("sales@sunedge.com", "Sales Executive", "sales", "test123"),
-        ("purchase@sunedge.com", "Purchase Officer", "purchase", "test123"),
-    ]
 
-    for email, name, role, password in users_to_create:
-        exists = db.query(User).filter(User.email == email).first()
-        if not exists:
-            u = User(
-                email=email,
-                full_name=name,
-                hashed_password=get_password_hash(password),
-                role=role,
-                status="active",
-                company_id=company.id,
-                is_active=True,
-            )
-            db.add(u)
-            created_users.append({"email": email, "role": role, "password": password})
+@router.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Send an OTP to the user's email for password reset."""
+    key = f"forgot_pw:{payload.email.lower()}"
+    _check_rate_limit(key, _RATE_LIMITS["request_otp_email"])
 
+    user = db.query(User).filter(sa_func.lower(User.email) == payload.email.lower()).first()
+    if not user:
+        # Don't reveal whether the email exists
+        return {"message": "If this email is registered, a reset code has been sent."}
+
+    otp_code = f"{secrets.randbelow(1000000):06d}"
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
+
+    db.query(OTPCode).filter(OTPCode.email == user.email).delete()
+    db.add(OTPCode(email=user.email, code=otp_code, expires_at=expires_at))
     db.commit()
-    return {
-        "message": "Seed complete",
-        "company_id": company.id,
-        "users_created": created_users,
-    }
+
+    from app.utils.email_service import send_email
+    send_email(
+        to_email=user.email,
+        subject="Password Reset Code",
+        html_content=f"""\
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+            <div style="background: #f8fafc; border-radius: 12px; padding: 32px; text-align: center; border: 1px solid #e2e8f0;">
+                <h2 style="color: #1e293b; margin: 0 0 8px;">Password Reset</h2>
+                <p style="color: #64748b; font-size: 14px; margin: 0 0 24px;">Use the code below to reset your password.</p>
+                <div style="background: #ffffff; border: 2px dashed #f59e0b; border-radius: 8px; padding: 16px; margin: 0 0 24px;">
+                    <span style="font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #1e293b;">{otp_code}</span>
+                </div>
+                <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                    This code expires in <strong>{OTP_EXPIRY_MINUTES} minutes</strong>.<br>
+                    If you didn't request this, you can safely ignore this email.
+                </p>
+            </div>
+        </div>
+        """,
+    )
+
+    return {"message": "If this email is registered, a reset code has been sent."}
+
+
+@router.post("/reset-password")
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Verify OTP and set a new password."""
+    key = f"reset_pw:{payload.email.lower()}"
+    _check_rate_limit(key, _RATE_LIMITS["login_otp_email"])
+
+    user = db.query(User).filter(sa_func.lower(User.email) == payload.email.lower()).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    record = (
+        db.query(OTPCode)
+        .filter(OTPCode.email == user.email)
+        .order_by(OTPCode.created_at.desc())
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=400, detail="No reset code found. Please request a new one.")
+
+    now = datetime.now(timezone.utc)
+    if record.expires_at and now > record.expires_at:
+        db.delete(record)
+        db.commit()
+        raise HTTPException(status_code=400, detail="Reset code has expired. Please request a new one.")
+
+    if payload.otp_code.strip() != record.code:
+        raise HTTPException(status_code=400, detail="Invalid reset code")
+
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    user.hashed_password = get_password_hash(payload.new_password)
+    db.delete(record)
+    db.commit()
+
+    return {"message": "Password reset successfully. You can now log in with your new password."}

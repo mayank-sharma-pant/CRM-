@@ -149,8 +149,8 @@ export default function MDMonitoringPage() {
                                 {trendText === 'Worsening' && <TrendingUp size={28} className="text-error" strokeWidth={3} />}
                                 {trendText === 'Stable' && <Minus size={28} className="text-muted" strokeWidth={3} />}
                                 <span className={`text-[20px] font-black uppercase tracking-tight ${trendText === 'Improving' ? 'text-success' :
-                                        trendText === 'Worsening' ? 'text-error' :
-                                            'text-primary'
+                                    trendText === 'Worsening' ? 'text-error' :
+                                        'text-primary'
                                     }`}>
                                     {trendText}
                                 </span>
@@ -212,8 +212,8 @@ export default function MDMonitoringPage() {
                                         <div className="flex items-center gap-2">
                                             <div className={`w-1.5 h-1.5 rounded-full ${alert.severity === 'High' ? 'bg-error animate-pulse' : alert.severity === 'Medium' ? 'bg-warning' : 'bg-info'}`}></div>
                                             <span className={`text-[10px] font-black uppercase tracking-widest ${alert.severity === 'High' ? 'text-error' :
-                                                    alert.severity === 'Medium' ? 'text-warning' :
-                                                        'text-info'
+                                                alert.severity === 'Medium' ? 'text-warning' :
+                                                    'text-info'
                                                 }`}>
                                                 {alert.severity}
                                             </span>
@@ -284,8 +284,8 @@ export default function MDMonitoringPage() {
                         {data.aiInterpretation && data.aiInterpretation.slice(0, 3).map((insight, i) => (
                             <div key={i} className="flex items-start gap-4 p-3 bg-surface-elevated/30 rounded-md border border-border/50">
                                 <span className={`shrink-0 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-[4px] border ${insight.type === 'RISK' ? 'bg-error/10 text-error border-error/20' :
-                                        insight.type === 'FINANCE' ? 'bg-success/10 text-success border-success/20' :
-                                            'bg-info/10 text-info border-info/20'
+                                    insight.type === 'FINANCE' ? 'bg-success/10 text-success border-success/20' :
+                                        'bg-info/10 text-info border-info/20'
                                     }`}>
                                     {insight.type}
                                 </span>
@@ -335,8 +335,8 @@ function AlertDrawer({ alert, onClose, riskTrend, router }) {
                 {/* Title + Severity */}
                 <div className="mb-8">
                     <div className={`inline-flex items-center gap-2 px-2 py-0.5 rounded-[4px] border text-[10px] font-black uppercase tracking-widest mb-4 ${alert.severity === 'High' ? 'bg-error/10 text-error border-error/20' :
-                            alert.severity === 'Medium' ? 'bg-warning/10 text-warning border-warning/20' :
-                                'bg-info/10 text-info border-info/20'
+                        alert.severity === 'Medium' ? 'bg-warning/10 text-warning border-warning/20' :
+                            'bg-info/10 text-info border-info/20'
                         }`}>
                         <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
                         {alert.severity} SEVERITY

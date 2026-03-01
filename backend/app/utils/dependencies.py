@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from sqlalchemy import func as sa_func
 from typing import Optional, Any
 from app.database import get_db
 from app.models.user import User
@@ -57,7 +58,7 @@ async def get_current_user(
     if email is None:
         raise credentials_exception
 
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(sa_func.lower(User.email) == email.lower()).first()
     if user is None:
         raise credentials_exception
 
@@ -132,4 +133,4 @@ def get_optional_current_user(
     if email is None:
         return None
     
-    return db.query(User).filter(User.email == email).first()
+    return db.query(User).filter(sa_func.lower(User.email) == email.lower()).first()

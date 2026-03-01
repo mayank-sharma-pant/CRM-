@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function Login() {
@@ -16,6 +16,8 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const { login, requestOTP, loginOTP } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const justRegistered = searchParams.get('registered') === 'true';
 
     const handleRedirect = (role) => {
         const routes = {
@@ -94,6 +96,15 @@ export default function Login() {
                             Sign in to access your dashboard
                         </p>
                     </div>
+
+                    {justRegistered && (
+                        <div className="bg-accent/10 border border-accent/20 text-accent px-4 py-3 rounded-lg text-sm flex items-center gap-2 mb-6 animate-fade-in">
+                            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Registration complete! Your company is pending admin approval. You'll be able to log in once approved.
+                        </div>
+                    )}
 
                     {/* Method Toggle */}
                     <div className="flex p-1 bg-surface-elevated rounded-lg mb-8 border border-border">
@@ -185,7 +196,7 @@ export default function Login() {
                                             required={loginMethod === 'otp' && otpSent}
                                             disabled={!otpSent}
                                             className="flex-1 px-4 py-3 bg-surface border border-border rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all shadow-sm disabled:opacity-50"
-                                            placeholder={otpSent ? "Check console for code" : "Click send code"}
+                                            placeholder={otpSent ? "Enter 6-digit code" : "Click send code"}
                                             value={otpCode}
                                             onChange={(e) => setOtpCode(e.target.value)}
                                         />
@@ -203,7 +214,7 @@ export default function Login() {
                                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
-                                            Code printed to backend terminal
+                                            Verification code sent to your email
                                         </p>
                                     )}
                                 </div>
@@ -221,7 +232,13 @@ export default function Login() {
                         </div>
                     </form>
 
-                    <div className="mt-8 text-center text-sm">
+                    <div className="mt-4 text-center">
+                        <Link href="/forgot-password" className="text-xs font-medium text-muted hover:text-accent transition-colors">
+                            Forgot your password?
+                        </Link>
+                    </div>
+
+                    <div className="mt-6 text-center text-sm">
                         <span className="text-secondary">Don't have an account? </span>
                         <Link href="/signup" className="font-semibold text-accent hover:text-accent-hover hover:underline transition-colors">
                             Create an account

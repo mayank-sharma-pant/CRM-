@@ -112,65 +112,67 @@ export default function InvoicesPage() {
                     </div>
                 ) : (
                     <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 text-slate-500 font-medium uppercase tracking-wider text-[11px]">
-                                <tr>
-                                    <th className="px-6 py-3">Invoice</th>
-                                    <th className="px-6 py-3">Client</th>
-                                    <th className="px-6 py-3">Date</th>
-                                    <th className="px-6 py-3">Due Date</th>
-                                    <th className="px-6 py-3">Amount</th>
-                                    <th className="px-6 py-3">Status</th>
-                                    {viewMode === 'manager' && <th className="px-6 py-3">Owner</th>}
-                                    <th className="px-6 py-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                {invoices.length > 0 ? (
-                                    invoices.map((invoice) => (
-                                        <tr key={invoice.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
-                                            <td className="px-6 py-4 font-mono text-slate-600 dark:text-slate-300 text-xs">
-                                                {invoice.id}
-                                            </td>
-                                            <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                                                {invoice.client}
-                                            </td>
-                                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
-                                                {invoice.date}
-                                            </td>
-                                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
-                                                {invoice.dueDate}
-                                            </td>
-                                            <td className="px-6 py-4 font-semibold text-slate-900 dark:text-slate-200">
-                                                {invoice.amount}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${getStatusColor(invoice.status)}`}>
-                                                    {getStatusIcon(invoice.status)}
-                                                    {invoice.status}
-                                                </span>
-                                            </td>
-                                            {viewMode === 'manager' && (
-                                                <td className="px-6 py-4 text-slate-500 text-xs">
-                                                    {invoice.owner}
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm whitespace-nowrap">
+                                <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 text-slate-500 font-medium uppercase tracking-wider text-[11px]">
+                                    <tr>
+                                        <th className="px-6 py-3">Invoice</th>
+                                        <th className="px-6 py-3">Client</th>
+                                        <th className="px-6 py-3">Date</th>
+                                        <th className="px-6 py-3">Due Date</th>
+                                        <th className="px-6 py-3">Amount</th>
+                                        <th className="px-6 py-3">Status</th>
+                                        {viewMode === 'manager' && <th className="px-6 py-3">Owner</th>}
+                                        <th className="px-6 py-3 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                    {invoices.length > 0 ? (
+                                        invoices.map((invoice) => (
+                                            <tr key={invoice.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
+                                                <td className="px-6 py-4 font-mono text-slate-600 dark:text-slate-300 text-xs">
+                                                    {invoice.id}
                                                 </td>
-                                            )}
-                                            <td className="px-6 py-4 text-right">
-                                                <button className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                                                    <ArrowUpRight size={16} />
-                                                </button>
+                                                <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                                                    {invoice.client}
+                                                </td>
+                                                <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
+                                                    {invoice.date}
+                                                </td>
+                                                <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
+                                                    {invoice.dueDate}
+                                                </td>
+                                                <td className="px-6 py-4 font-semibold text-slate-900 dark:text-slate-200">
+                                                    {invoice.amount}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${getStatusColor(invoice.status)}`}>
+                                                        {getStatusIcon(invoice.status)}
+                                                        {invoice.status}
+                                                    </span>
+                                                </td>
+                                                {viewMode === 'manager' && (
+                                                    <td className="px-6 py-4 text-slate-500 text-xs">
+                                                        {invoice.owner}
+                                                    </td>
+                                                )}
+                                                <td className="px-6 py-4 text-right">
+                                                    <button className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                                                        <ArrowUpRight size={16} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400 italic">
+                                                No invoices found.
                                             </td>
                                         </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={8} className="px-6 py-12 text-center text-slate-400 italic">
-                                            No invoices found.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
             </div>

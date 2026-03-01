@@ -10,8 +10,9 @@ class Settings(BaseSettings):
 
     def get_database_url(self) -> str:
         url = self.DATABASE_URL
+        # Use psycopg2 driver for PostgreSQL
         if url.startswith("postgresql://") and "+" not in url.split("//")[0]:
-            url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
         return url
 
     SECRET_KEY: str = "your-secret-key-change-in-production-min-32-chars"
@@ -25,6 +26,10 @@ class Settings(BaseSettings):
     SMTP_PORT: Optional[int] = None
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM_EMAIL: Optional[str] = None
+    SMTP_TLS: bool = True
+
+    FRONTEND_URL: str = "http://localhost:3000"
 
     class Config:
         env_file = ".env"

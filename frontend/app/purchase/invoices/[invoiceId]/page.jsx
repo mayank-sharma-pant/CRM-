@@ -31,7 +31,7 @@ export default function InvoiceDetailPage() {
             try {
                 const res = await api.get(`/purchase/invoices/${params.invoiceId}`);
                 const d = res.data;
-                const fmt = (v) => `$${Number(v || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                const fmt = (v) => `$${Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
                 const statusMap = { paid: 'Paid', pending: 'Pending', overdue: 'Overdue', draft: 'Draft', sent: 'Sent' };
                 const st = statusMap[(d.status || '').toLowerCase()] || d.status || 'Draft';
 
@@ -140,26 +140,28 @@ export default function InvoiceDetailPage() {
                     {/* Invoice Items */}
                     <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
                         <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white mb-4">Invoice Items</h3>
-                        <table className="w-full text-[13px]">
-                            <thead>
-                                <tr className="border-b border-slate-100 dark:border-slate-700/50">
-                                    <th className="text-left py-2 font-medium text-slate-500">Description</th>
-                                    <th className="text-center py-2 font-medium text-slate-500 w-20">Qty</th>
-                                    <th className="text-right py-2 font-medium text-slate-500 w-28">Unit Price</th>
-                                    <th className="text-right py-2 font-medium text-slate-500 w-28">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
-                                {invoice.items.map((item, i) => (
-                                    <tr key={i}>
-                                        <td className="py-2.5 text-slate-800 dark:text-slate-200">{item.description}</td>
-                                        <td className="py-2.5 text-center text-slate-600 dark:text-slate-400">{item.qty}</td>
-                                        <td className="py-2.5 text-right text-slate-600 dark:text-slate-400">{item.unitPrice}</td>
-                                        <td className="py-2.5 text-right font-medium text-slate-800 dark:text-slate-200">{item.total}</td>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-[13px]">
+                                <thead>
+                                    <tr className="border-b border-slate-100 dark:border-slate-700/50">
+                                        <th className="text-left py-2 font-medium text-slate-500 whitespace-nowrap">Description</th>
+                                        <th className="text-center py-2 font-medium text-slate-500 w-20 whitespace-nowrap">Qty</th>
+                                        <th className="text-right py-2 font-medium text-slate-500 w-28 whitespace-nowrap">Unit Price</th>
+                                        <th className="text-right py-2 font-medium text-slate-500 w-28 whitespace-nowrap">Total</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
+                                    {invoice.items.map((item, i) => (
+                                        <tr key={i}>
+                                            <td className="py-2.5 text-slate-800 dark:text-slate-200 whitespace-nowrap">{item.description}</td>
+                                            <td className="py-2.5 text-center text-slate-600 dark:text-slate-400 whitespace-nowrap">{item.qty}</td>
+                                            <td className="py-2.5 text-right text-slate-600 dark:text-slate-400 whitespace-nowrap">{item.unitPrice}</td>
+                                            <td className="py-2.5 text-right font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">{item.total}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 space-y-2">
                             <div className="flex justify-between text-[14px]">
                                 <span className="text-slate-600 dark:text-slate-400">Subtotal</span>

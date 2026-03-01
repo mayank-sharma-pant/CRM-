@@ -83,8 +83,8 @@ export default function PurchaseSalesPage() {
                             key={status}
                             onClick={() => setStatusFilter(status)}
                             className={`px-3 py-1.5 rounded-[4px] text-[11px] font-black uppercase tracking-tight transition-all ${statusFilter === status
-                                    ? 'bg-surface text-primary shadow-sm'
-                                    : 'text-muted hover:text-secondary'
+                                ? 'bg-surface text-primary shadow-sm'
+                                : 'text-muted hover:text-secondary'
                                 }`}
                         >
                             {status === 'Pending Review' ? 'Pending' : status}
@@ -113,13 +113,13 @@ export default function PurchaseSalesPage() {
                     <table className="w-full text-left">
                         <thead>
                             <tr className="border-b border-border bg-surface-elevated/20">
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Sale ID</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Client Identity</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Value (USD)</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Variance</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Status</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Origin Date</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Audit State</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Sale ID</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Client Identity</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Value (USD)</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Variance</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Status</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Origin Date</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Audit State</th>
                                 <th className="py-3 px-5"></th>
                             </tr>
                         </thead>
@@ -130,23 +130,23 @@ export default function PurchaseSalesPage() {
                                     onClick={() => router.push(`/purchase/sales/${sale.id}`)}
                                     className={`group hover:bg-surface-elevated/30 cursor-pointer transition-all ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
                                 >
-                                    <td className="py-3.5 px-5 font-mono text-[12px] font-bold text-primary">{sale.saleId}</td>
-                                    <td className="py-3.5 px-5 text-[13px] font-bold text-secondary">{sale.client}</td>
-                                    <td className="py-3.5 px-5 text-[14px] font-black text-primary tabular-nums">{sale.amount}</td>
-                                    <td className="py-3.5 px-5">
+                                    <td className="py-3.5 px-5 font-mono text-[12px] font-bold text-primary whitespace-nowrap">{sale.saleId}</td>
+                                    <td className="py-3.5 px-5 text-[13px] font-bold text-secondary whitespace-nowrap">{sale.client}</td>
+                                    <td className="py-3.5 px-5 text-[14px] font-black text-primary tabular-nums whitespace-nowrap">{sale.amount}</td>
+                                    <td className="py-3.5 px-5 whitespace-nowrap">
                                         <span className={`text-[11px] font-bold ${parseFloat(sale.discount?.replace('%', '') || 0) > 10 ? 'text-error' : 'text-muted'
                                             }`}>
                                             {sale.discount || '0%'}
                                         </span>
                                     </td>
-                                    <td className="py-3.5 px-5">
+                                    <td className="py-3.5 px-5 whitespace-nowrap">
                                         <StatusBadge status={sale.status} />
                                     </td>
-                                    <td className="py-3.5 px-5 text-[12px] font-bold text-muted uppercase tracking-tight font-mono">{sale.createdDate}</td>
-                                    <td className="py-3.5 px-5">
+                                    <td className="py-3.5 px-5 text-[12px] font-bold text-muted uppercase tracking-tight font-mono whitespace-nowrap">{sale.createdDate}</td>
+                                    <td className="py-3.5 px-5 whitespace-nowrap">
                                         <ReviewerBadge status={sale.reviewerStatus} />
                                     </td>
-                                    <td className="py-3.5 px-5 text-right w-10">
+                                    <td className="py-3.5 px-5 text-right w-10 whitespace-nowrap">
                                         <ChevronRight size={14} className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
                                     </td>
                                 </tr>

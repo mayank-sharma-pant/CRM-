@@ -146,7 +146,7 @@ export default function MDInvoicesPage() {
             {/* Section C: Forensic Ledger (Table) */}
             <div className="bg-surface rounded-md border border-border shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                    <table className="w-full text-left whitespace-nowrap">
                         <thead>
                             <tr className="border-b border-border bg-surface-elevated/20">
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Identifier</th>

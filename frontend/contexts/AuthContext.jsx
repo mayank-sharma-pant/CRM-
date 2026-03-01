@@ -74,7 +74,8 @@ export function AuthProvider({ children }) {
             password: userData.password,
             full_name: userData.fullName,
             phone: userData.phone,
-            role: 'sales' // Default role for public signup
+            company_name: userData.businessName,
+            role: 'sales' // Backend overrides to 'admin' for company creator
         };
         const response = await api.post('/auth/signup', payload);
         return response.data;

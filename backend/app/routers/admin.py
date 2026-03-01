@@ -5,6 +5,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 import json
 import secrets
+import logging
 
 from app.database import get_db
 from app.utils.dependencies import require_admin, apply_company_scope, ensure_company_access
@@ -15,7 +16,9 @@ from app.models.task import Task
 from app.models.audit import AuditLog
 from app.models.invite import Invite, InviteStatus
 from app.models.company_settings import CompanySettings
+from app.models.company import Company
 from app.utils.security import get_password_hash
+from app.utils.email_service import send_invite_email
 from app.schemas.admin import (
     DashboardResponse,
     UserListResponse, UserUpdateRequest,
@@ -28,6 +31,7 @@ from app.schemas.admin import (
 from app.schemas.user import MessageResponse
 
 router = APIRouter()
+logger = logging.getLogger("uvicorn.error")
 
 
 # ===============================
@@ -946,13 +950,26 @@ def create_invite(
     
     db.commit()
     db.refresh(invite)
-    
+
+    # Send invite email (non-blocking — failure does not roll back)
+    company = db.query(Company).filter(Company.id == current_user.company_id).first()
+    company_name = company.name if company else "your team"
+    email_sent = send_invite_email(
+        to_email=body.email,
+        full_name=body.full_name,
+        company_name=company_name,
+        role=body.role,
+        token=token,
+    )
+    if not email_sent:
+        logger.warning("[INVITE] Email not sent for %s — SMTP not configured or failed", body.email)
+
     return {
         "id": invite.id,
         "email": invite.email,
-        "token": token,
+        "email_sent": email_sent,
         "expires_at": expires_at.isoformat(),
-        "message": f"Invite created for {body.email}. Token: {token}"
+        "message": f"Invite created for {body.email}"
     }
 
 
@@ -984,11 +1001,24 @@ def resend_invite(
     )
     
     db.commit()
-    
+
+    # Resend invite email
+    company = db.query(Company).filter(Company.id == current_user.company_id).first()
+    company_name = company.name if company else "your team"
+    email_sent = send_invite_email(
+        to_email=invite.email,
+        full_name=invite.full_name,
+        company_name=company_name,
+        role=invite.role,
+        token=invite.token,
+    )
+    if not email_sent:
+        logger.warning("[INVITE] Resend email not sent for %s", invite.email)
+
     return {
         "id": invite.id,
         "email": invite.email,
-        "token": invite.token,
+        "email_sent": email_sent,
         "expires_at": invite.expires_at.isoformat(),
         "message": f"Invite resent to {invite.email}"
     }

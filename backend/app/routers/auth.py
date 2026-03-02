@@ -331,8 +331,11 @@ def accept_invite(
             detail="Invite has been cancelled"
         )
     
-    # Check if expired
-    if invite.expires_at and datetime.now(timezone.utc) > invite.expires_at:
+    # Check if expired (handle both tz-aware and naive datetimes for SQLite compat)
+    if invite.expires_at:
+        now_utc = datetime.now(timezone.utc)
+        exp = invite.expires_at if invite.expires_at.tzinfo else invite.expires_at.replace(tzinfo=timezone.utc)
+    if invite.expires_at and now_utc > exp:
         invite.status = InviteStatus.EXPIRED
         db.commit()
         raise HTTPException(

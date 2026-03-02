@@ -13,6 +13,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
         
+        # Enforce HTTPS (HSTS) - 1 year
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        
         # Prevent MIME type sniffing
         response.headers["X-Content-Type-Options"] = "nosniff"
         

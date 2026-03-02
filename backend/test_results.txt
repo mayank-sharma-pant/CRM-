@@ -1,0 +1,52 @@
+LOGIN OK: admin
+LOGIN OK: sales1
+LOGIN OK: sales2
+LOGIN OK: manager1
+LOGIN OK: md
+LOGIN OK: purchase
+LOGIN OK: manager2
+
+=== LEADS ===
+  Create lead 'Alice Johnson': 201
+  Create lead 'Bob Smith': 201
+  Create lead 'Carol Davis': 201
+  Update lead to Qualified: 200
+  List leads (sales1): 200 total=6
+  List leads (manager1): 200 total=6
+  Convert lead to client: 200
+
+=== CLIENTS ===
+  Create client 'Dan Wilson': 201
+  Create client 'Eve Lee': 201
+  List clients (sales1): 200 total=6
+
+=== TASKS ===
+  Create task 'Follow up with TechCorp': 201
+  Create task 'Prepare proposal for DataSoft': 201
+  Create task 'Review CloudNet requirements': 201
+  Complete task: 200
+  List tasks (sales1): 200 total=0
+
+=== FOLLOW-UPS ===
+  Create follow-up: 201
+  Create follow-up: 201
+  List follow-ups: 200 total=2
+
+=== LEAVES ===
+  Apply leave (sales1): 200
+  Apply leave (sales2): 200
+  Approve leave: 200
+  List leaves (manager1): 200 total=0
+
+=== DASHBOARDS ===
+  Sales dashboard: 200
+  Manager dashboard: 200
+  MD dashboard: 200
+  Admin dashboard: 404
+
+=== ADMIN FEATURES ===
+  Teams: 200
+  Users: 200
+  Hierarchy: 200
+  Audit Log: 500
+  Settings: 200

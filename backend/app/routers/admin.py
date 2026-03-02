@@ -697,15 +697,12 @@ def get_audit_log(
         "logs": [
             {
                 "id": log.id,
+                "timestamp": log.timestamp.isoformat() if log.timestamp else "",
+                "admin": log.admin_name or f"User #{log.admin_id}",
                 "action": log.action,
-                "entity_type": log.entity_type,
-                "entity_id": log.entity_id,
-                "entity_name": log.entity_name,
-                "admin_id": log.admin_id,
-                "admin_name": log.admin_name,
-                "before_value": log.before_value,
-                "after_value": log.after_value,
-                "timestamp": log.timestamp.isoformat() if log.timestamp else None
+                "entity": f"{log.entity_type}: {log.entity_name or log.entity_id or ''}",
+                "before": log.before_value,
+                "after": log.after_value,
             }
             for log in logs
         ],

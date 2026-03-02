@@ -10,9 +10,9 @@ class Settings(BaseSettings):
 
     def get_database_url(self) -> str:
         url = self.DATABASE_URL
-        # Use psycopg2 driver for PostgreSQL
+        # Use psycopg (v3) driver for PostgreSQL
         if url.startswith("postgresql://") and "+" not in url.split("//")[0]:
-            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+            url = url.replace("postgresql://", "postgresql+psycopg://", 1)
         return url
 
     SECRET_KEY: str = "your-secret-key-change-in-production-min-32-chars"

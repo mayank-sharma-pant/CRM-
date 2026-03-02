@@ -1,7 +1,0 @@
-  OK admin@rte.com: role=admin, id=2
-  FAIL sales1@rte.com: 401 - Incorrect email or password
-  OK sales2@rte.com: role=sales, id=3
-  OK manager1@rte.com: role=manager, id=4
-  OK md@rte.com: role=md, id=5
-  OK purchase@rte.com: role=purchase, id=6
-  OK manager2@rte.com: role=manager, id=7

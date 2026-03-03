@@ -64,9 +64,9 @@ def get_client(
 ):
     """Get client details by ID"""
     client = db.query(Client).filter(Client.id == client_id).first()
-    ensure_company_access(client, current_user)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
+    ensure_company_access(client, current_user)
     
     # Get client invoices (company-scoped)
     inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
@@ -131,9 +131,9 @@ def update_client(
 ):
     """Update client details"""
     client = db.query(Client).filter(Client.id == client_id).first()
-    ensure_company_access(client, current_user)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
+    ensure_company_access(client, current_user)
     
     if body.name is not None:
         client.name = body.name
@@ -160,9 +160,9 @@ def delete_client(
 ):
     """Delete a client"""
     client = db.query(Client).filter(Client.id == client_id).first()
-    ensure_company_access(client, current_user)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
+    ensure_company_access(client, current_user)
     
     db.delete(client)
     db.commit()
@@ -182,9 +182,9 @@ def get_client_invoices(
 ):
     """Get all invoices for a client"""
     client = db.query(Client).filter(Client.id == client_id).first()
-    ensure_company_access(client, current_user)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
+    ensure_company_access(client, current_user)
     
     inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
     invoices = inv_query.filter(Invoice.client_id == client_id).all()

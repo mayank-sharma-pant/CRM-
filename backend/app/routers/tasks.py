@@ -141,9 +141,9 @@ def get_task(
 ):
     """Get task details by ID"""
     task = db.query(Task).filter(Task.id == task_id).first()
-    ensure_company_access(task, current_user)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    ensure_company_access(task, current_user)
     
     return {
         "id": task.id,
@@ -200,9 +200,9 @@ def update_task(
 ):
     """Update a task"""
     task = db.query(Task).filter(Task.id == task_id).first()
-    ensure_company_access(task, current_user)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    ensure_company_access(task, current_user)
     
     if body.title is not None:
         task.title = body.title
@@ -227,9 +227,9 @@ def complete_task(
 ):
     """Mark task as completed"""
     task = db.query(Task).filter(Task.id == task_id).first()
-    ensure_company_access(task, current_user)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    ensure_company_access(task, current_user)
     
     task.status = "Completed"
     task.completed_at = datetime.now()
@@ -247,9 +247,9 @@ def delete_task(
 ):
     """Delete a task"""
     task = db.query(Task).filter(Task.id == task_id).first()
-    ensure_company_access(task, current_user)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    ensure_company_access(task, current_user)
     
     db.delete(task)
     db.commit()

@@ -143,9 +143,9 @@ def get_follow_up(
 ):
     """Get follow-up details by ID"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
-    ensure_company_access(fu, current_user)
     if not fu:
         raise HTTPException(status_code=404, detail="Follow-up not found")
+    ensure_company_access(fu, current_user)
     
     lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == fu.lead_id).first()
     
@@ -203,9 +203,9 @@ def update_follow_up(
 ):
     """Update follow-up details"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
-    ensure_company_access(fu, current_user)
     if not fu:
         raise HTTPException(status_code=404, detail="Follow-up not found")
+    ensure_company_access(fu, current_user)
     
     if body.scheduled_date is not None:
         fu.scheduled_date = datetime.strptime(body.scheduled_date, "%Y-%m-%d").date()
@@ -228,9 +228,9 @@ def complete_follow_up(
 ):
     """Mark follow-up as completed"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
-    ensure_company_access(fu, current_user)
     if not fu:
         raise HTTPException(status_code=404, detail="Follow-up not found")
+    ensure_company_access(fu, current_user)
     
     fu.status = "Completed"
     fu.outcome = body.outcome
@@ -254,9 +254,9 @@ def reschedule_follow_up(
 ):
     """Reschedule a follow-up"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
-    ensure_company_access(fu, current_user)
     if not fu:
         raise HTTPException(status_code=404, detail="Follow-up not found")
+    ensure_company_access(fu, current_user)
     
     fu.scheduled_date = datetime.strptime(body.new_date, "%Y-%m-%d").date()
     if body.new_time:
@@ -281,9 +281,9 @@ def delete_follow_up(
 ):
     """Delete a follow-up"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
-    ensure_company_access(fu, current_user)
     if not fu:
         raise HTTPException(status_code=404, detail="Follow-up not found")
+    ensure_company_access(fu, current_user)
     
     db.delete(fu)
     db.commit()

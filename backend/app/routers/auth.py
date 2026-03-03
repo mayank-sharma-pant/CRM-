@@ -331,17 +331,17 @@ def accept_invite(
             detail="Invite has been cancelled"
         )
     
-    # Check if expired (handle both tz-aware and naive datetimes for SQLite compat)
+    # Check if expired (handle both tz-aware and naive datetimes for PostgreSQL compat)
     if invite.expires_at:
         now_utc = datetime.now(timezone.utc)
         exp = invite.expires_at if invite.expires_at.tzinfo else invite.expires_at.replace(tzinfo=timezone.utc)
-    if invite.expires_at and now_utc > exp:
-        invite.status = InviteStatus.EXPIRED
-        db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invite has expired. Please request a new invite."
-        )
+        if now_utc > exp:
+            invite.status = InviteStatus.EXPIRED
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invite has expired. Please request a new invite."
+            )
     
     # Check if user with this email already exists
     existing_user = db.query(User).filter(User.email == invite.email).first()

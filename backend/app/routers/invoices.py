@@ -42,9 +42,9 @@ def create_invoice(
         raise HTTPException(status_code=400, detail="At least one line item is required")
 
     client = db.query(Client).filter(Client.id == body.client_id).first()
-    ensure_company_access(client, current_user)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
+    ensure_company_access(client, current_user)
 
     company_id = current_user.company_id
     settings = db.query(CompanySettings).filter(CompanySettings.company_id == company_id).first()

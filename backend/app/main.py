@@ -6,9 +6,36 @@ from app.config import settings
 from app.middleware.security import SecurityHeadersMiddleware
 import traceback
 import logging
+import logging.config
 import os
 
-logger = logging.getLogger("uvicorn.error")
+# -------------------------------------------------------
+# Structured logging — JSON-friendly format for production
+# -------------------------------------------------------
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.config.dictConfig({
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {
+            "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            "datefmt": "%Y-%m-%dT%H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "default",
+            "stream": "ext://sys.stdout",
+        },
+    },
+    "root": {
+        "level": LOG_LEVEL,
+        "handlers": ["console"],
+    },
+})
+
+logger = logging.getLogger("app")
 
 # Disable docs in production
 is_production = os.getenv("ENVIRONMENT", "development") == "production"
@@ -66,11 +93,10 @@ app.include_router(timeline.router, prefix="/api/timeline", tags=["Timeline"])
 
 @app.get("/")
 def root():
-    return {
-        "message": "CRM API is running",
-        "version": "1.0.0",
-        "docs": "/docs"
-    }
+    resp = {"message": "CRM API is running", "version": "1.0.0"}
+    if not is_production:
+        resp["docs"] = "/docs"
+    return resp
 
 @app.get("/health")
 def health_check():

@@ -308,12 +308,10 @@ def get_ledger_data(
         }
     except HTTPException:
         raise
-    except Exception as e:
-        with open("last_error.txt", "w") as f:
-            tb_mod.print_exc(file=f)
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ledger error: {str(e)}"
+            detail="Internal server error"
         )
 
 
@@ -383,9 +381,9 @@ def update_ledger_entry(
         LedgerEntry.id == entry_id,
         LedgerEntry.ledger_slug == ledger_slug
     ).first()
-    ensure_company_access(db_entry, current_user)
     if not db_entry:
         raise HTTPException(status_code=404, detail="Entry not found")
+    ensure_company_access(db_entry, current_user)
         
     # 4. Update Data + audit fields
     db_entry.data = entry_update.data
@@ -419,9 +417,9 @@ def delete_ledger_entry(
         LedgerEntry.id == entry_id,
         LedgerEntry.ledger_slug == ledger_slug
     ).first()
-    ensure_company_access(db_entry, current_user)
     if not db_entry:
         raise HTTPException(status_code=404, detail="Entry not found")
+    ensure_company_access(db_entry, current_user)
         
     db.delete(db_entry)
     db.commit()

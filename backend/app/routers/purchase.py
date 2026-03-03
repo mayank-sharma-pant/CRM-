@@ -126,9 +126,9 @@ def get_sale_detail(
 ):
     """Get detailed sale/invoice information for approval"""
     invoice = db.query(Invoice).filter(Invoice.id == sale_id).first()
-    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Sale not found")
+    ensure_company_access(invoice, current_user)
     
     client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == invoice.client_id).first()
     creator = apply_company_scope(db.query(User), User, current_user).filter(User.id == invoice.created_by_id).first() if invoice.created_by_id else None
@@ -162,9 +162,9 @@ def approve_sale(
 ):
     """Approve a sale/invoice"""
     invoice = db.query(Invoice).filter(Invoice.id == sale_id).first()
-    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Sale not found")
+    ensure_company_access(invoice, current_user)
     
     invoice.status = "Pending"  # Move from Draft to Pending (sent to client)
     db.commit()
@@ -185,9 +185,9 @@ def reject_sale(
 ):
     """Reject a sale/invoice"""
     invoice = db.query(Invoice).filter(Invoice.id == sale_id).first()
-    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Sale not found")
+    ensure_company_access(invoice, current_user)
     
     invoice.status = "Rejected"
     db.commit()
@@ -254,9 +254,9 @@ def get_invoice_detail(
 ):
     """Get detailed invoice information"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
-    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+    ensure_company_access(invoice, current_user)
     
     client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == invoice.client_id).first()
     items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice_id).all()
@@ -290,9 +290,9 @@ def send_invoice(
 ):
     """Send invoice to client"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
-    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+    ensure_company_access(invoice, current_user)
     
     invoice.status = "Pending"
     invoice.issued_date = datetime.now().date()
@@ -312,9 +312,9 @@ def mark_invoice_paid(
 ):
     """Mark invoice as paid"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
-    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+    ensure_company_access(invoice, current_user)
     
     invoice.status = "Paid"
     invoice.paid_date = datetime.strptime(payment_date, "%Y-%m-%d").date()
@@ -331,9 +331,9 @@ def send_payment_reminder(
 ):
     """Send payment reminder for invoice"""
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
-    ensure_company_access(invoice, current_user)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+    ensure_company_access(invoice, current_user)
     
     return {"message": f"Payment reminder sent for invoice {invoice_id}"}
 

@@ -137,9 +137,9 @@ def get_lead(
 ):
     """Get lead details by ID"""
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    ensure_company_access(lead, current_user)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
+    ensure_company_access(lead, current_user)
     
     return {
         "id": lead.id,
@@ -207,9 +207,9 @@ def update_lead(
 ):
     """Update lead details"""
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    ensure_company_access(lead, current_user)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
+    ensure_company_access(lead, current_user)
     
     old_status = lead.status
     # Update fields if provided
@@ -256,9 +256,9 @@ def delete_lead(
 ):
     """Delete a lead"""
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    ensure_company_access(lead, current_user)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
+    ensure_company_access(lead, current_user)
     
     db.delete(lead)
     db.commit()
@@ -274,9 +274,9 @@ def list_lead_notes(
 ):
     """List notes attached to a lead."""
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    ensure_company_access(lead, current_user)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
+    ensure_company_access(lead, current_user)
 
     notes = db.query(Note).filter(Note.lead_id == lead_id).order_by(Note.created_at.desc()).all()
     return [
@@ -300,9 +300,9 @@ def add_lead_note(
 ):
     """Create a note for a lead."""
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    ensure_company_access(lead, current_user)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
+    ensure_company_access(lead, current_user)
 
     note = Note(
         company_id=current_user.company_id,
@@ -331,9 +331,9 @@ def convert_lead(
 ):
     """Convert a lead to a client"""
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    ensure_company_access(lead, current_user)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
+    ensure_company_access(lead, current_user)
     
     # Create client from lead
     new_client = Client(

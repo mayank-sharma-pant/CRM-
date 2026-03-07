@@ -69,13 +69,27 @@ def get_sales_dashboard(
             "statusReason": "DUE_TODAY"
         })
     
+    # Status breakdown for charts
+    from sqlalchemy import func as sa_func
+    status_counts = lead_query.with_entities(Lead.status, sa_func.count(Lead.id)).group_by(Lead.status).all()
+    leads_by_status = [{"status": s, "count": c} for s, c in status_counts]
+    
+    # Source breakdown for charts
+    source_counts = lead_query.with_entities(Lead.source, sa_func.count(Lead.id)).group_by(Lead.source).all()
+    leads_by_source = [{"source": s or "Unknown", "count": c} for s, c in source_counts]
+    
+    lost_leads = lead_query.filter(Lead.status == "Lost").count()
+    
     return {
         "metrics": {
             "total_leads": total_leads,
             "closed_leads": closed_leads,
+            "lost_leads": lost_leads,
             "conversion_rate": conversion_rate
         },
-        "priority_tasks": priority_tasks
+        "priority_tasks": priority_tasks,
+        "leadsByStatus": leads_by_status,
+        "leadsBySource": leads_by_source
     }
 
 

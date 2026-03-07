@@ -181,6 +181,7 @@ class FollowUpListResponse(BaseModel):
 class SalesDashboardMetrics(BaseModel):
     total_leads: int
     closed_leads: int
+    lost_leads: int = 0
     conversion_rate: int
 
 
@@ -194,6 +195,8 @@ class SalesDashboardTask(BaseModel):
 class SalesDashboardResponse(BaseModel):
     metrics: SalesDashboardMetrics
     priority_tasks: List[SalesDashboardTask]
+    leadsByStatus: List[dict] = []
+    leadsBySource: List[dict] = []
 
 
 # ===============================

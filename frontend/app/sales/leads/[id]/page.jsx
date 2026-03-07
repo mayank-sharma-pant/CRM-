@@ -43,10 +43,10 @@ export default function LeadDetailPage() {
 
       // Map permissions
       data.permissions = {
-        canEdit: !isManager,
-        canConvert: !isManager,
-        canAddTask: !isManager,
-        canAddNote: !isManager,
+        canEdit: true,
+        canConvert: true,
+        canAddTask: true,
+        canAddNote: true,
         canReassign: isManager
       };
 
@@ -163,7 +163,7 @@ export default function LeadDetailPage() {
       });
       await api.put(`/leads/${id}`, { status: 'Converted' });
       alert("Converted successfully!");
-      router.push('/sales/clients');
+      router.push(window.location.pathname.startsWith('/manager') ? '/manager/clients' : '/sales/clients');
     } catch (err) {
       console.error("Conversion failed", err);
     }
@@ -332,29 +332,49 @@ export default function LeadDetailPage() {
               </span>
             </div>
             <div className="space-y-1">
-              {(lead.tasks || []).map((task) => (
+              {(lead.tasks || []).filter(t => t.status !== 'Completed').map((task) => (
                 <div key={task.id} className="group p-2 rounded hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer">
                   <div className="flex items-start gap-3">
-                    <div className={`mt-0.5 w-3.5 h-3.5 rounded border flex items-center justify-center ${task.status === 'Completed' ? 'bg-slate-200 border-slate-300' : 'border-slate-300 dark:border-slate-500'}`}>
-                      {task.status === 'Completed' && <CheckSquare size={10} className="text-slate-500" />}
-                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await api.put(`/tasks/${task.id}/complete`);
+                          fetchLeadData();
+                        } catch (err) { console.error(err); }
+                      }}
+                      title="Mark as completed"
+                      className="mt-0.5 w-3.5 h-3.5 rounded border border-slate-300 dark:border-slate-500 hover:border-emerald-500 hover:bg-emerald-50 flex items-center justify-center transition-colors"
+                    >
+                    </button>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-medium truncate ${task.status === 'Completed' ? 'text-slate-400 line-through' : 'text-slate-700 dark:text-slate-200'}`}>
+                      <p className="text-xs font-medium truncate text-slate-700 dark:text-slate-200">
                         {task.title}
                       </p>
-                      {task.status === 'Open' || task.status === 'Pending' ? (
+                      {(task.status === 'Open' || task.status === 'Pending') && (
                         <div className="flex items-center gap-2 mt-1">
                           <span className={`text-[10px] ${task.due_date ? 'text-amber-600' : 'text-slate-400'} flex items-center gap-1`}>
                             <Clock size={10} /> {task.due_date ? (() => { try { return formatDistanceToNow(parseISO(task.due_date), { addSuffix: true }); } catch { return task.due_date; } })() : 'No date'}
                           </span>
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
+              {(lead.tasks || []).filter(t => t.status !== 'Completed').length === 0 && (
+                <p className="text-xs text-slate-400 text-center py-3 italic">No pending tasks</p>
+              )}
               {lead.permissions?.canAddTask && (
-                <button className="w-full py-2 mt-2 text-xs font-medium text-slate-500 hover:text-blue-600 dashed border border-slate-200 rounded hover:border-blue-200 transition-all flex items-center justify-center gap-2">
+                <button onClick={async () => {
+                  const title = window.prompt('Task title:');
+                  if (!title) return;
+                  const dueDate = window.prompt('Due date (YYYY-MM-DD):', new Date(Date.now() + 86400000).toISOString().split('T')[0]);
+                  if (!dueDate) return;
+                  try {
+                    await api.post('/tasks', { title, lead_id: parseInt(id), due_date: dueDate, priority: 'medium' });
+                    fetchLeadData();
+                  } catch (err) { alert(err.response?.data?.detail || 'Failed to add task'); }
+                }} className="w-full py-2 mt-2 text-xs font-medium text-slate-500 hover:text-blue-600 dashed border border-slate-200 rounded hover:border-blue-200 transition-all flex items-center justify-center gap-2">
                   <PlusCircle size={12} /> Add Task
                 </button>
               )}

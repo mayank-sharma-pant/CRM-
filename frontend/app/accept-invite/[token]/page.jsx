@@ -10,47 +10,16 @@ export default function AcceptInvitePage() {
     const params = useParams();
     const token = params.token;
 
-    const [invite, setInvite] = useState(null);
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [validating, setValidating] = useState(true);
     const [accepted, setAccepted] = useState(false);
 
-    useEffect(() => {
-        // Try to validate the invite token on load
-        const validateToken = async () => {
-            try {
-                // We don't have a dedicated GET endpoint for public invite validation,
-                // so we just show the form and let the POST handle validation
-                setValidating(false);
-            } catch {
-                setValidating(false);
-            }
-        };
-        validateToken();
-    }, [token]);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleAccept = async () => {
         setError('');
-
-        if (password.length < 8) {
-            setError('Password must be at least 8 characters');
-            return;
-        }
-
-        if (password !== confirmPassword) {
-            setError('Passwords do not match');
-            return;
-        }
-
         setLoading(true);
         try {
             const response = await api.post(`/auth/accept-invite/${token}`, {
-                password,
+                password: '',
             });
 
             const { access_token, user } = response.data;
@@ -79,14 +48,6 @@ export default function AcceptInvitePage() {
             setLoading(false);
         }
     };
-
-    if (validating) {
-        return (
-            <div className="min-h-screen bg-page flex items-center justify-center">
-                <div className="text-sm text-muted animate-pulse">Validating invite...</div>
-            </div>
-        );
-    }
 
     if (accepted) {
         return (
@@ -120,75 +81,31 @@ export default function AcceptInvitePage() {
                             </div>
                         </Link>
                         <h2 className="text-2xl font-bold text-primary tracking-tight">
-                            Set Up Your Account
+                            Accept Invitation
                         </h2>
                         <p className="mt-2 text-sm text-secondary">
-                            Enter the temporary password from your invite email to complete registration
+                            Click the button below to create your account. You can log in using the password from your invite email.
                         </p>
                     </div>
 
-                    <form className="space-y-5" onSubmit={handleSubmit}>
-                        {error && (
-                            <div className="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
-                                <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                {error}
-                            </div>
-                        )}
-
-                        <div className="space-y-4">
-                            <div>
-                                <label htmlFor="password" className="block text-sm font-semibold text-secondary mb-1.5">
-                                    Temporary Password (from email)
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        id="password"
-                                        type={showPassword ? 'text' : 'password'}
-                                        required
-                                        minLength={8}
-                                        className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all shadow-sm"
-                                        placeholder="Paste the password from your invite email"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-accent hover:text-accent-hover transition-colors"
-                                    >
-                                        {showPassword ? 'Hide' : 'Show'}
-                                    </button>
-                                </div>
-                            </div>
-                            <div>
-                                <label htmlFor="confirmPassword" className="block text-sm font-semibold text-secondary mb-1.5">
-                                    Confirm (re-enter password)
-                                </label>
-                                <input
-                                    id="confirmPassword"
-                                    type={showPassword ? 'text' : 'password'}
-                                    required
-                                    minLength={8}
-                                    className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all shadow-sm"
-                                    placeholder="Re-enter your password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                />
-                            </div>
+                    {error && (
+                        <div className="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in mb-5">
+                            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {error}
                         </div>
+                    )}
 
-                        <div className="pt-2">
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full py-3 px-4 bg-accent hover:opacity-90 text-page font-semibold rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-sm transition-all duration-200"
-                            >
-                                {loading ? 'Creating account...' : 'Create Account & Login'}
-                            </button>
-                        </div>
-                    </form>
+                    <div className="pt-2">
+                        <button
+                            onClick={handleAccept}
+                            disabled={loading}
+                            className="w-full py-3 px-4 bg-accent hover:opacity-90 text-page font-semibold rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-sm transition-all duration-200"
+                        >
+                            {loading ? 'Creating account...' : 'Accept & Create Account'}
+                        </button>
+                    </div>
 
                     <div className="mt-8 text-center text-sm">
                         <span className="text-secondary">Already have an account? </span>

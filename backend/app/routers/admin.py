@@ -10,6 +10,7 @@ import string
 
 from app.database import get_db
 from app.utils.dependencies import require_admin, apply_company_scope, ensure_company_access
+from app.utils.security import get_password_hash
 from app.models.user import User
 from app.models.team import Team
 from app.models.lead import Lead
@@ -936,6 +937,7 @@ def create_invite(
         team_id=body.team_id,
         manager_id=body.manager_id,
         token=token,
+        hashed_password=get_password_hash(temporary_password),
         expires_at=expires_at,
         status=InviteStatus.PENDING,
         created_by_id=current_user.id

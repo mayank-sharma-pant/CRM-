@@ -299,7 +299,7 @@ from app.models.team import Team
 
 
 class AcceptInviteBody(BaseModel):
-    password: str
+    password: str = ""
 
 
 @router.post("/accept-invite/{token}")
@@ -351,13 +351,18 @@ def accept_invite(
             detail="User with this email already exists"
         )
     
-    if len(body.password) < 8:
+    # Determine password: use provided password, or fall back to stored invite hash
+    if body.password and len(body.password) >= 8:
+        hashed_password = get_password_hash(body.password)
+    elif invite.hashed_password:
+        # Use the temporary password that was emailed to the user
+        hashed_password = invite.hashed_password
+    else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password must be at least 8 characters"
         )
     
-    hashed_password = get_password_hash(body.password)
     new_user = User(
         email=invite.email,
         full_name=invite.full_name,

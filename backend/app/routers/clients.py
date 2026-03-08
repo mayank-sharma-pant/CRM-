@@ -8,6 +8,9 @@ from app.utils.dependencies import get_current_user, apply_company_scope, ensure
 from app.models.user import User
 from app.models.client import Client
 from app.models.invoice import Invoice
+from app.models.note import Note
+from app.models.task import Task
+from app.models.audit import AuditLog
 from app.schemas.sales import ClientCreate, ClientUpdate, ClientListResponse
 from app.schemas.user import MessageResponse
 
@@ -72,6 +75,12 @@ def get_client(
     inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
     invoices = inv_query.filter(Invoice.client_id == client_id).all()
     
+    # Get client notes
+    notes = db.query(Note).filter(Note.client_id == client_id).order_by(Note.created_at.desc()).all()
+    
+    # Get client tasks
+    tasks = db.query(Task).filter(Task.client_id == client_id).order_by(Task.due_date.asc()).all()
+    
     return {
         "id": client.id,
         "name": client.name,
@@ -89,6 +98,26 @@ def get_client(
                 "issued_date": inv.issued_date.strftime("%Y-%m-%d") if inv.issued_date else None
             }
             for inv in invoices
+        ],
+        "notes": [
+            {
+                "id": note.id,
+                "content": note.content,
+                "author": note.author_name or "System",
+                "date": note.created_at.strftime("%b %d, %Y") if note.created_at else None
+            }
+            for note in notes
+        ],
+        "tasks": [
+            {
+                "id": task.id,
+                "title": task.title,
+                "due": task.due_date.strftime("%b %d") if task.due_date else "No date",
+                "priority": task.priority.capitalize(),
+                "status": task.status,
+                "assigned_to": task.assigned_to_id
+            }
+            for task in tasks
         ]
     }
 
@@ -201,3 +230,49 @@ def get_client_invoices(
         }
         for inv in invoices
     ]
+
+
+@router.post("/{client_id}/notes", status_code=status.HTTP_201_CREATED)
+def add_client_note(
+    client_id: int,
+    content: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Add a note to a client"""
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    ensure_company_access(client, current_user)
+    
+    new_note = Note(
+        client_id=client_id,
+        content=content,
+        author_id=current_user.id,
+        author_name=current_user.full_name
+    )
+    db.add(new_note)
+    
+    # Audit log
+    log = AuditLog(
+        company_id=client.company_id,
+        entity_type="client",
+        entity_id=str(client.id),
+        entity_name=client.name,
+        action="note_added",
+        admin_id=current_user.id,
+        admin_name=current_user.full_name,
+        after_value=content
+    )
+    db.add(log)
+    
+    db.commit()
+    db.refresh(new_note)
+    
+    return {
+        "id": new_note.id,
+        "content": new_note.content,
+        "author": new_note.author_name,
+        "date": new_note.created_at.strftime("%b %d, %Y") if new_note.created_at else None
+    }
+

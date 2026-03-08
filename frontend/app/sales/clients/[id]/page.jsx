@@ -34,44 +34,70 @@ export default function ClientDetailPage() {
     const isManager = pathname?.startsWith('/manager');
     const basePath = isManager ? '/manager/clients' : '/sales/clients';
 
-    useEffect(() => {
+    const fetchClientData = async () => {
         if (!params?.id) return;
+        try {
+            const res = await api.get(`/clients/${params.id}`);
+            const data = res.data;
+            const clientData = {
+                id: data.id,
+                name: data.name,
+                title: '',
+                company: data.company || '',
+                status: 'Active',
+                email: data.email || '',
+                phone: data.phone || '',
+                address: data.address || '',
+                industry: '',
+                source: '',
+                internal_id: `CLI-${data.id}`,
+                since: data.created_at || '',
+                owner: '',
+                timeline: [],
+                tasks: data.tasks || [],
+                notes: data.notes || [],
+                invoices: data.invoices || [],
+                permissions: isManager
+                    ? { canEdit: false, canAddNote: false, canCreateTask: false }
+                    : { canEdit: true, canAddNote: true, canCreateTask: true }
+            };
+            setClient(clientData);
+        } catch (err) {
+            console.error(`Failed to fetch client ${params.id}:`, err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        const fetchClient = async () => {
-            try {
-                const res = await api.get(`/clients/${params.id}`);
-                const data = res.data;
-                const clientData = {
-                    id: data.id,
-                    name: data.name,
-                    title: '',
-                    company: data.company || '',
-                    status: 'Active',
-                    email: data.email || '',
-                    phone: data.phone || '',
-                    address: data.address || '',
-                    industry: '',
-                    source: '',
-                    internal_id: `CLI-${data.id}`,
-                    since: data.created_at || '',
-                    owner: '',
-                    timeline: [],
-                    tasks: [],
-                    notes: [],
-                    invoices: data.invoices || [],
-                    permissions: isManager
-                        ? { canEdit: false, canAddNote: false, canCreateTask: false }
-                        : { canEdit: true, canAddNote: true, canCreateTask: true }
-                };
-                setClient(clientData);
-            } catch (err) {
-                console.error(`Failed to fetch client ${params.id}:`, err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchClient();
+    useEffect(() => {
+        fetchClientData();
     }, [params, isManager]);
+
+    const handleAddNote = async () => {
+        const content = window.prompt('Enter note content:');
+        if (!content) return;
+        try {
+            await api.post(`/clients/${params.id}/notes`, null, { params: { content } });
+            fetchClientData();
+        } catch (err) {
+            console.error("Add note failed", err);
+            alert("Failed to add note");
+        }
+    };
+
+    const handleCreateTask = async () => {
+        const title = window.prompt("Task title:");
+        if (!title) return;
+        const dueDate = window.prompt("Due date (YYYY-MM-DD):", new Date(Date.now() + 86400000).toISOString().split('T')[0]);
+        if (!dueDate) return;
+        try {
+            await api.post('/tasks', { title, client_id: parseInt(params.id), due_date: dueDate, priority: 'medium' });
+            fetchClientData();
+        } catch (err) {
+            console.error("Failed to create task", err);
+            alert(err.response?.data?.detail || "Failed to create task");
+        }
+    };
 
     if (loading) {
         return (
@@ -130,13 +156,13 @@ export default function ClientDetailPage() {
                     <div className="flex items-center gap-3">
                         {/* PERMISSION CHECK: Add Note */}
                         {client.permissions?.canAddNote && (
-                            <button className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm">
+                            <button onClick={handleAddNote} className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm">
                                 <Plus size={14} /> Add Note
                             </button>
                         )}
                         {/* PERMISSION CHECK: Create Task */}
                         {client.permissions?.canCreateTask && (
-                            <button className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                            <button onClick={handleCreateTask} className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
                                 <CheckSquare size={14} /> Create Task
                             </button>
                         )}
@@ -294,7 +320,7 @@ export default function ClientDetailPage() {
                                         Notes
                                     </h2>
                                     {client.permissions?.canAddNote && (
-                                        <button className="text-xs text-blue-600 hover:underline font-medium">Add Note</button>
+                                        <button onClick={handleAddNote} className="text-xs text-blue-600 hover:underline font-medium">Add Note</button>
                                     )}
                                 </div>
 

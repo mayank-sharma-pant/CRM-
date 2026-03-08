@@ -338,7 +338,7 @@ export default function LeadDetailPage() {
                     <button
                       onClick={async () => {
                         try {
-                          await api.put(`/tasks/${task.id}/complete`);
+                          await api.post(`/tasks/${task.id}/complete`);
                           fetchLeadData();
                         } catch (err) { console.error(err); }
                       }}

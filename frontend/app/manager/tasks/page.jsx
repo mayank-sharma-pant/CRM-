@@ -62,7 +62,7 @@ export default function ManagerTasksPage() {
             newCompleted.delete(id);
         } else {
             newCompleted.add(id);
-            try { await api.put(`/tasks/${id}/complete`); } catch (err) { console.error(err); }
+            try { await api.post(`/tasks/${id}/complete`); } catch (err) { console.error(err); }
         }
         setCompletedTasks(newCompleted);
     };

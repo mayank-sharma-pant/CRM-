@@ -52,7 +52,8 @@ export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = 
                 priority: formData.priority,
                 due_date: formData.due_date || null,
                 lead_id: formData.lead_id ? parseInt(formData.lead_id, 10) : null,
-                client_id: null
+                client_id: null,
+                assigned_to_id: formData.assigned_to ? parseInt(formData.assigned_to, 10) : null
             });
             onRefresh();
             onClose();

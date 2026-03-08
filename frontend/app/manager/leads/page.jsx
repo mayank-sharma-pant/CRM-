@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { formatDistanceToNow, parseISO, differenceInDays } from 'date-fns';
 import api from '../../../services/api';
@@ -31,6 +32,13 @@ export default function ManagerLeads() {
     const [showCreate, setShowCreate] = useState(false);
     const [creating, setCreating] = useState(false);
     const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', source: 'Referral' });
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        if (searchParams.get('action') === 'new') {
+            setShowCreate(true);
+        }
+    }, [searchParams]);
 
     useEffect(() => { fetchLeads(); }, []);
 

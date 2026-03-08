@@ -26,7 +26,14 @@ export default function PurchaseSalesPage() {
             try {
                 setLoading(true);
                 const res = await api.get('/purchase/sales');
-                setSales(res.data.sales || []);
+                const mappedSales = (res.data.sales || []).map(sale => ({
+                    ...sale,
+                    saleId: `SAL-${sale.id}`,
+                    createdDate: sale.date,
+                    reviewerStatus: sale.status === 'pending' ? 'Pending Review' : 'Verified',
+                    status: sale.status === 'pending' ? 'Pending Review' : sale.status.charAt(0).toUpperCase() + sale.status.slice(1)
+                }));
+                setSales(mappedSales);
             } catch (err) {
                 console.error("Failed to fetch purchase sales", err);
             } finally {

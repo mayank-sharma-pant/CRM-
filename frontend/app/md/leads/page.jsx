@@ -31,6 +31,7 @@ export default function MDLeadsPage() {
                     ],
                     funnel: apiData.funnel || [],
                     sourceBreakdown: apiData.sourceBreakdown || [],
+                    leads: apiData.leads || []
                 };
                 setData(enrichedData);
             } catch (err) {
@@ -109,6 +110,62 @@ export default function MDLeadsPage() {
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
+                </div>
+            </div>
+
+            {/* SECTION 3: DATA TABLE */}
+            <div className="bg-surface rounded-md border border-border shadow-sm overflow-hidden mt-6">
+                <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-surface-elevated/30">
+                    <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight flex items-center gap-2">
+                        <Users size={16} className="text-secondary" />
+                        Comprehensive Lead Roster
+                    </h3>
+                    <span className="text-[11px] font-black text-muted uppercase tracking-widest bg-surface border border-border px-2 py-0.5 rounded shadow-sm">{data.leads.length} Records</span>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left whitespace-nowrap">
+                        <thead>
+                            <tr className="border-b border-border bg-surface-elevated/10">
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent">Identification</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent">Organization</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent">Status</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent">Structural Unit</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent">Assigned Agent</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                            {data.leads.length > 0 ? (
+                                data.leads.map((lead, idx) => (
+                                    <tr 
+                                        key={lead.id} 
+                                        onClick={() => router.push(`/md/leads/${lead.id}`)}
+                                        className={`group hover:bg-surface-elevated/30 cursor-pointer transition-colors ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
+                                    >
+                                        <td className="py-3.5 px-5 font-bold text-[13px] text-primary">{lead.name}</td>
+                                        <td className="py-3.5 px-5 font-medium text-[12px] text-secondary">{lead.company}</td>
+                                        <td className="py-3.5 px-5">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-[4px] border text-[10px] font-black uppercase tracking-widest 
+                                                ${lead.status === 'Converted' ? 'bg-success/10 text-success border-success/20' : 
+                                                  lead.status === 'Lost' ? 'bg-error/10 text-error border-error/20' : 
+                                                  'bg-info/10 text-info border-info/20'}`}>
+                                                {lead.status}
+                                            </span>
+                                        </td>
+                                        <td className="py-3.5 px-5 text-[12px] font-bold text-muted uppercase tracking-tight">{lead.team || '—'}</td>
+                                        <td className="py-3.5 px-5 text-[12px] font-medium text-secondary">{lead.owner || '—'}</td>
+                                        <td className="py-3.5 px-5 text-right w-10">
+                                            <ChevronRight size={14} className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all inline-block" />
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={6} className="py-8 text-center text-[12px] font-bold text-muted uppercase tracking-widest">No active leads in registry</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

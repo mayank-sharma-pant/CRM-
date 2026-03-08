@@ -21,13 +21,16 @@ import {
     ChevronDown,
     ChevronRight
 } from 'lucide-react';
-
+import TaskModal from '../../../../components/leads/TaskModal';
+import NoteModal from '../../../../components/leads/NoteModal';
 
 export default function ClientDetailPage() {
     const params = useParams();
     const router = useRouter();
     const pathname = usePathname();
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+    const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
     const [client, setClient] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -73,30 +76,12 @@ export default function ClientDetailPage() {
         fetchClientData();
     }, [params, isManager]);
 
-    const handleAddNote = async () => {
-        const content = window.prompt('Enter note content:');
-        if (!content) return;
-        try {
-            await api.post(`/clients/${params.id}/notes`, null, { params: { content } });
-            fetchClientData();
-        } catch (err) {
-            console.error("Add note failed", err);
-            alert("Failed to add note");
-        }
+    const handleAddNote = () => {
+        setIsNoteModalOpen(true);
     };
 
-    const handleCreateTask = async () => {
-        const title = window.prompt("Task title:");
-        if (!title) return;
-        const dueDate = window.prompt("Due date (YYYY-MM-DD):", new Date(Date.now() + 86400000).toISOString().split('T')[0]);
-        if (!dueDate) return;
-        try {
-            await api.post('/tasks', { title, client_id: parseInt(params.id), due_date: dueDate, priority: 'medium' });
-            fetchClientData();
-        } catch (err) {
-            console.error("Failed to create task", err);
-            alert(err.response?.data?.detail || "Failed to create task");
-        }
+    const handleCreateTask = () => {
+        setIsTaskModalOpen(true);
     };
 
     if (loading) {
@@ -379,6 +364,19 @@ export default function ClientDetailPage() {
 
                 </div>
             </div>
+
+            <TaskModal 
+                isOpen={isTaskModalOpen} 
+                onClose={() => setIsTaskModalOpen(false)} 
+                onRefresh={fetchClientData} 
+                currentClientId={params.id} 
+            />
+            <NoteModal 
+                isOpen={isNoteModalOpen} 
+                onClose={() => setIsNoteModalOpen(false)} 
+                onRefresh={fetchClientData} 
+                endpoint={`/clients/${params.id}/notes`} 
+            />
 
         </div>
     );

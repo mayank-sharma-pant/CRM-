@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Loader2, Calendar, User } from 'lucide-react';
 import api from '../../services/api';
 
-export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = null }) {
+export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = null, currentClientId = null }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [users, setUsers] = useState([]);
@@ -14,7 +14,8 @@ export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = 
         priority: 'medium',
         due_date: new Date().toISOString().split('T')[0],
         assigned_to: '',
-        lead_id: currentLeadId || ''
+        lead_id: currentLeadId || '',
+        client_id: currentClientId || ''
     });
 
     useEffect(() => {
@@ -52,7 +53,7 @@ export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = 
                 priority: formData.priority,
                 due_date: formData.due_date || null,
                 lead_id: formData.lead_id ? parseInt(formData.lead_id, 10) : null,
-                client_id: null,
+                client_id: formData.client_id ? parseInt(formData.client_id, 10) : null,
                 assigned_to_id: formData.assigned_to ? parseInt(formData.assigned_to, 10) : null
             });
             onRefresh();
@@ -61,7 +62,7 @@ export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = 
             setFormData({
                 title: '', description: '', priority: 'medium',
                 due_date: new Date().toISOString().split('T')[0],
-                assigned_to: '', lead_id: currentLeadId || ''
+                assigned_to: '', lead_id: currentLeadId || '', client_id: currentClientId || ''
             });
         } catch (err) {
             console.error("Create task failed", err);

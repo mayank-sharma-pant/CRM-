@@ -26,7 +26,15 @@ export default function PurchaseInvoicesPage() {
             try {
                 setLoading(true);
                 const res = await api.get('/purchase/invoices');
-                setInvoices(res.data.invoices || []);
+                const mappedInvoices = (res.data.invoices || []).map(inv => ({
+                    ...inv,
+                    id: inv.number || `INV-${inv.id}`,
+                    db_id: inv.id,
+                    dueDate: inv.due,
+                    originDate: inv.issued,
+                    status: inv.status.charAt(0).toUpperCase() + inv.status.slice(1)
+                }));
+                setInvoices(mappedInvoices);
             } catch (err) {
                 console.error("Failed to fetch purchase invoices", err);
             } finally {
@@ -140,8 +148,8 @@ export default function PurchaseInvoicesPage() {
                         <tbody className="divide-y divide-border/50">
                             {filteredInvoices.map((invoice, idx) => (
                                 <tr
-                                    key={invoice.id}
-                                    onClick={() => router.push(`/purchase/invoices/${encodeURIComponent(invoice.id)}`)}
+                                    key={invoice.db_id}
+                                    onClick={() => router.push(`/purchase/invoices/${encodeURIComponent(invoice.db_id)}`)}
                                     className={`group hover:bg-surface-elevated/30 cursor-pointer transition-all ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
                                 >
                                     <td className="py-3.5 px-5 font-mono text-[12px] font-bold text-primary">{invoice.id}</td>

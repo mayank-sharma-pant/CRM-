@@ -1,16 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '../../../services/api';
 import { downloadCSV } from '../../../services/export';
 import {
     ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, Legend
 } from 'recharts';
 import {
-    Briefcase, TrendingUp, ChevronRight, Calendar, Download, ShieldAlert
+    Briefcase, TrendingUp, ChevronRight, Calendar, Download, ShieldAlert, Users
 } from 'lucide-react';
 
 export default function MDClientsPage() {
+    const router = useRouter();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -28,6 +30,7 @@ export default function MDClientsPage() {
                     ],
                     growthTrend: backendData.growthTrend || [],
                     healthDistribution: backendData.healthDistribution || [],
+                    clients: backendData.clients || [],
                     aiInsights: [
                         { type: 'RETENTION', title: 'High Retention Q1', evidence: ['Churn < 1%'], status: 'success' }
                     ]
@@ -124,6 +127,51 @@ export default function MDClientsPage() {
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
+                </div>
+            </div>
+
+            {/* SECTION 3: DATA TABLE */}
+            <div className="bg-surface rounded-md border border-border shadow-sm overflow-hidden mt-6">
+                <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-surface-elevated/30">
+                    <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight flex items-center gap-2">
+                        <Users size={16} className="text-secondary" />
+                        Comprehensive Client Roster
+                    </h3>
+                    <span className="text-[11px] font-black text-muted uppercase tracking-widest bg-surface border border-border px-2 py-0.5 rounded shadow-sm">{data.clients.length} Records</span>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left whitespace-nowrap">
+                        <thead>
+                            <tr className="border-b border-border bg-surface-elevated/10">
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent">Identification</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent">Client Identity</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent">Organization</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                            {data.clients.length > 0 ? (
+                                data.clients.map((client, idx) => (
+                                    <tr 
+                                        key={client.id} 
+                                        onClick={() => router.push(`/md/clients/${client.id}`)}
+                                        className={`group hover:bg-surface-elevated/30 cursor-pointer transition-colors ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
+                                    >
+                                        <td className="py-3.5 px-5 font-mono font-bold text-[12px] text-muted">CLI-{client.id}</td>
+                                        <td className="py-3.5 px-5 font-bold text-[13px] text-primary">{client.name}</td>
+                                        <td className="py-3.5 px-5 font-medium text-[12px] text-secondary">{client.company}</td>
+                                        <td className="py-3.5 px-5 text-right w-10">
+                                            <ChevronRight size={14} className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all inline-block" />
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={4} className="py-8 text-center text-[12px] font-bold text-muted uppercase tracking-widest">No active clients in registry</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 

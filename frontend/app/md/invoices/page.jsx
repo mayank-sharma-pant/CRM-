@@ -163,7 +163,7 @@ export default function MDInvoicesPage() {
                             {filteredInvoices.map((invoice, idx) => (
                                 <tr
                                     key={invoice.id}
-                                    onClick={() => router.push(`/md/invoices/${encodeURIComponent(invoice.id)}`)}
+                                    onClick={() => alert('Invoice Detail View Coming Soon')}
                                     className={`group hover:bg-surface-elevated/30 cursor-pointer transition-all ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
                                 >
                                     <td className="py-3.5 px-5 font-mono text-[12px] font-bold text-primary">{invoice.id}</td>

@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import api from '../../../../services/api';
+import TaskModal from '../../../../components/leads/TaskModal';
+import NoteModal from '../../../../components/leads/NoteModal';
 
 export default function LeadDetailPage() {
   const router = useRouter();
@@ -28,6 +30,8 @@ export default function LeadDetailPage() {
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
 
   useEffect(() => {
     fetchLeadData();
@@ -169,20 +173,17 @@ export default function LeadDetailPage() {
     }
   };
 
-  const handleAddNote = async () => {
-    const content = window.prompt("Enter note content:");
-    if (!content) return;
-    try {
-      await api.post(`/leads/${id}/notes`, null, { params: { content } });
-      fetchLeadData();
-    } catch (err) {
-      console.error("Add note failed", err);
-    }
+  const handleAddNote = () => {
+    setIsNoteModalOpen(true);
+  };
+
+  const handleCreateTask = () => {
+    setIsTaskModalOpen(true);
   };
 
   if (!lead) return <div className="p-6">Loading...</div>;
 
-  return (
+  return ( <>
     <div className="bg-slate-50 dark:bg-slate-900 min-h-full font-sans text-slate-900 dark:text-slate-100 pb-12">
 
       {/* --- PAGE HEADER --- */}
@@ -441,5 +442,17 @@ export default function LeadDetailPage() {
 
       </div>
     </div>
-  );
+  <TaskModal
+    isOpen={isTaskModalOpen}
+    onClose={() => setIsTaskModalOpen(false)}
+    onRefresh={fetchLeadData}
+    currentLeadId={id}
+  />
+  <NoteModal
+    isOpen={isNoteModalOpen}
+    onClose={() => setIsNoteModalOpen(false)}
+    onRefresh={fetchLeadData}
+    endpoint={`/leads/${id}/notes`}
+  />
+  </> );
 }

@@ -31,8 +31,8 @@ export default function ManagerLeads() {
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
     const [creating, setCreating] = useState(false);
-    const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', source: 'Referral' });
-    const searchParams = useSearchParams();
+    const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', source: 'Referral', assigned_to_id: '' });
+    const [teamMembers, setTeamMembers] = useState([]);
 
     useEffect(() => {
         if (searchParams.get('action') === 'new') {
@@ -40,7 +40,10 @@ export default function ManagerLeads() {
         }
     }, [searchParams]);
 
-    useEffect(() => { fetchLeads(); }, []);
+    useEffect(() => { 
+        fetchLeads(); 
+        fetchTeamMembers();
+    }, []);
 
     const fetchLeads = async () => {
         try {
@@ -53,6 +56,15 @@ export default function ManagerLeads() {
         }
     };
 
+    const fetchTeamMembers = async () => {
+        try {
+            const response = await api.get('/manager/monitoring');
+            setTeamMembers(response.data.team_members || []);
+        } catch (err) {
+            console.error("Failed to fetch team members", err);
+        }
+    };
+
     const handleCreate = async (e) => {
         e.preventDefault();
         if (!form.name.trim()) return;
@@ -60,7 +72,7 @@ export default function ManagerLeads() {
         try {
             await api.post('/leads', form);
             setShowCreate(false);
-            setForm({ name: '', email: '', phone: '', company: '', source: 'Referral' });
+            setForm({ name: '', email: '', phone: '', company: '', source: 'Referral', assigned_to_id: '' });
             fetchLeads();
         } catch (err) {
             alert(err.response?.data?.detail || 'Failed to create lead');
@@ -145,6 +157,11 @@ export default function ManagerLeads() {
                             <select value={form.source} onChange={e => setForm({ ...form, source: e.target.value })}
                                 className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent">
                                 <option>Referral</option><option>Website</option><option>Social Media</option><option>Cold Call</option><option>Other</option>
+                            </select>
+                            <select value={form.assigned_to_id || ''} onChange={e => setForm({ ...form, assigned_to_id: e.target.value ? parseInt(e.target.value) : '' })}
+                                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent">
+                                <option value="">Assign to (Optional)</option>
+                                {teamMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                             </select>
                             <button type="submit" disabled={creating}
                                 className="w-full py-2.5 bg-accent hover:bg-accent-hover text-white font-bold rounded-lg text-sm disabled:opacity-50 transition-all">

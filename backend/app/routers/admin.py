@@ -199,6 +199,22 @@ def update_user(
     
     before_state = {"role": user.role, "team_id": user.team_id, "status": user.status}
     
+    target_role = body.role if body.role is not None else user.role
+    target_team = body.team_id if body.team_id is not None else user.team_id
+    target_team = target_team if target_team > 0 else None
+    
+    # 1-Manager-Per-Team Constraint
+    if target_role == "manager" and target_team is not None:
+        if (target_role != user.role or target_team != user.team_id):
+            existing_manager = apply_company_scope(db.query(User), User, current_user).filter(
+                User.team_id == target_team,
+                User.role == "manager",
+                User.status != "disabled",
+                User.id != user_id
+            ).first()
+            if existing_manager:
+                raise HTTPException(status_code=400, detail="This team already has an active manager. A team can only have one manager.")
+    
     if body.role is not None:
         user.role = body.role
     if body.team_id is not None:
@@ -915,6 +931,24 @@ def create_invite(
         team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == body.team_id).first()
         if not team:
             raise HTTPException(status_code=400, detail="Team not found")
+        
+        # 1-Manager-Per-Team Constraint
+        if body.role == "manager":
+            existing_manager = apply_company_scope(db.query(User), User, current_user).filter(
+                User.team_id == body.team_id,
+                User.role == "manager",
+                User.status != "disabled"
+            ).first()
+            if existing_manager:
+                raise HTTPException(status_code=400, detail="This team already has an active manager. A team can only have one manager.")
+            
+            pending_invite = apply_company_scope(db.query(Invite), Invite, current_user).filter(
+                Invite.team_id == body.team_id,
+                Invite.role == "manager",
+                Invite.status == InviteStatus.PENDING
+            ).first()
+            if pending_invite:
+                raise HTTPException(status_code=400, detail="This team already has a pending manager invite.")
     
     if body.manager_id:
         manager = apply_company_scope(db.query(User), User, current_user).filter(User.id == body.manager_id).first()

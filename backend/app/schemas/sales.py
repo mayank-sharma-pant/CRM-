@@ -18,7 +18,7 @@ class LeadBase(BaseModel):
 
 
 class LeadCreate(LeadBase):
-    pass
+    assigned_to_id: Optional[int] = None
 
 
 class LeadUpdate(BaseModel):

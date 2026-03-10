@@ -215,6 +215,17 @@ def create_lead(
     """Create a new lead"""
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
+        
+    # Validation for assigned_to_id
+    assigned_to_id = lead_data.assigned_to_id
+    if assigned_to_id:
+        assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == assigned_to_id).first()
+        if not assignee:
+            raise HTTPException(status_code=400, detail="Assigned user not found in your company")
+            
+    # Auto-assign team_id if current_user is a manager
+    team_id = current_user.team_id if current_user.role == "manager" else None
+    
     new_lead = Lead(
         company_id=current_user.company_id,
         name=lead_data.name,
@@ -223,7 +234,9 @@ def create_lead(
         company=lead_data.company,
         source=lead_data.source,
         service_type=lead_data.service_type if hasattr(lead_data, 'service_type') else None,
-        status="New"
+        status="New",
+        assigned_to_id=assigned_to_id,
+        team_id=team_id
     )
     
     db.add(new_lead)

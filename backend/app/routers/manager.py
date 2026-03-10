@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, is_platform_admin
@@ -104,7 +104,14 @@ def get_team_monitoring(
     
     for member in team_members:
         # Check if active in last 5 minutes
-        is_online = member.last_active_at and (datetime.now() - member.last_active_at).total_seconds() < 300 if member.last_active_at else False
+        now = datetime.now(timezone.utc)
+        if member.last_active_at:
+            # Ensure last_active_at has tzinfo before subtraction, or make it naive
+            member_last_active = member.last_active_at if member.last_active_at.tzinfo else member.last_active_at.replace(tzinfo=timezone.utc)
+            is_online = (now - member_last_active).total_seconds() < 300
+        else:
+            is_online = False
+            member_last_active = None
         
         task_q = apply_company_scope(db.query(Task), Task, current_user)
         pending = task_q.filter(Task.assigned_to_id == member.id, Task.status == "Pending").count()
@@ -118,9 +125,9 @@ def get_team_monitoring(
             online_count += 1
             status = "online"
             last_active = "Just now"
-        elif member.last_active_at:
-            status = "away" if (datetime.now() - member.last_active_at).total_seconds() < 3600 else "offline"
-            last_active = member.last_active_at.strftime("%I:%M %p")
+        elif member_last_active:
+            status = "away" if (now - member_last_active).total_seconds() < 3600 else "offline"
+            last_active = member_last_active.strftime("%I:%M %p")
         else:
             status = "offline"
             last_active = "Never"

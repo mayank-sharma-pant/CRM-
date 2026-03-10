@@ -155,6 +155,37 @@ def get_lead(
         raise HTTPException(status_code=404, detail="Lead not found")
     ensure_company_access(lead, current_user)
     
+    # Fetch tasks linked to this lead
+    tasks = db.query(Task).filter(Task.lead_id == lead_id).order_by(Task.created_at.desc()).all()
+    tasks_list = [
+        {
+            "id": t.id,
+            "title": t.title,
+            "status": t.status,
+            "priority": t.priority,
+            "due_date": t.due_date.isoformat() if t.due_date else None,
+            "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+            "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+        }
+        for t in tasks
+    ]
+    
+    # Fetch notes linked to this lead
+    notes = db.query(Note).filter(Note.lead_id == lead_id).order_by(Note.created_at.desc()).all()
+    notes_list = [
+        {
+            "id": n.id,
+            "content": n.content,
+            "created_by_id": n.created_by_id,
+            "created_by_name": n.created_by.full_name if n.created_by else None,
+            "created_at": n.created_at.isoformat() if n.created_at else None,
+        }
+        for n in notes
+    ]
+    
+    # Fetch assignee name
+    assignee = db.query(User).filter(User.id == lead.assigned_to_id).first() if lead.assigned_to_id else None
+    
     return {
         "id": lead.id,
         "name": lead.name,
@@ -165,6 +196,9 @@ def get_lead(
         "source": lead.source,
         "service_type": lead.service_type,
         "notes": lead.notes,
+        "tasks": tasks_list,
+        "notes_list": notes_list,
+        "assignee": assignee.full_name if assignee else "Unassigned",
         "created_at": lead.created_at.strftime("%Y-%m-%d") if lead.created_at else None,
         "last_contacted_at": lead.last_contacted_at.isoformat() if lead.last_contacted_at else None,
         "last_response_at": lead.last_response_at.isoformat() if lead.last_response_at else None,
@@ -366,6 +400,13 @@ def convert_lead(
     lead.converted_at = datetime.now()
     
     db.add(new_client)
+    db.flush()  # Get new_client.id before committing
+    
+    # Migrate all tasks from lead to also point to the new client
+    lead_tasks = db.query(Task).filter(Task.lead_id == lead.id).all()
+    for task in lead_tasks:
+        task.client_id = new_client.id
+    
     db.commit()
     db.refresh(new_client)
     

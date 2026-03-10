@@ -32,6 +32,12 @@ def get_sales_dashboard(
     """Get sales executive dashboard with metrics and priority tasks"""
     # Get real counts from database (company-scoped)
     lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
+    
+    # Role-based scoping for leads
+    if current_user.role == "sales":
+        lead_query = lead_query.filter(Lead.assigned_to_id == current_user.id)
+    elif current_user.role == "manager":
+        lead_query = lead_query.filter(Lead.team_id == current_user.team_id)
     total_leads = lead_query.count()
     closed_leads = lead_query.filter(Lead.status.in_(["Converted", "Lost"])).count()
     conversion_rate = int((closed_leads / total_leads * 100)) if total_leads > 0 else 0
@@ -42,6 +48,14 @@ def get_sales_dashboard(
     today_end = today_start + timedelta(days=1)
     
     task_query = apply_company_scope(db.query(Task), Task, current_user)
+    
+    # Role-based filtering for tasks
+    if current_user.role == "sales":
+        task_query = task_query.filter((Task.assigned_to_id == current_user.id) | (Task.assigned_by_id == current_user.id))
+    elif current_user.role == "manager":
+        team_members = db.query(User.id).filter(User.team_id == current_user.team_id).all()
+        team_member_ids = [m[0] for m in team_members]
+        task_query = task_query.filter((Task.assigned_to_id.in_(team_member_ids)) | (Task.assigned_by_id == current_user.id))
     overdue_tasks = task_query.filter(
         Task.due_date < today_start,
         Task.status != "Completed"

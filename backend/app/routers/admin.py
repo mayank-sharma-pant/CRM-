@@ -151,6 +151,7 @@ def list_users(
             "phone": user.phone,
             "role": user.role.title(),
             "team": team.name if team else None,
+            "team_id": user.team_id,
             "status": user.status.title(),
             "joined_at": user.created_at.strftime("%Y-%m-%d") if user.created_at else None,
             "last_active": user.last_active_at.strftime("%Y-%m-%d %H:%M") if user.last_active_at else None

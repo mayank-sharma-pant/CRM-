@@ -51,6 +51,7 @@ export default function AdminUsersPage() {
                 phone: u.phone || '–',
                 role: u.role,
                 team: u.team || null,
+                team_id: u.team_id || null,
                 status: u.status,
                 joinedAt: u.joined_at,
                 lastActive: u.last_active
@@ -374,7 +375,7 @@ export default function AdminUsersPage() {
                                         className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
                                     >
                                         <option value="">Select manager...</option>
-                                        {users.filter(u => u.role.toLowerCase() === 'manager').map(m => (
+                                        {users.filter(u => u.role.toLowerCase() === 'manager' && (!inviteTeam || u.team_id === parseInt(inviteTeam, 10))).map(m => (
                                             <option key={m.rawId} value={m.rawId}>{m.name}</option>
                                         ))}
                                     </select>

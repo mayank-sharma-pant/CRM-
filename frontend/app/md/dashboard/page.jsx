@@ -253,7 +253,7 @@ export default function MDDashboard() {
                                 <PieChart>
                                     <Pie data={data.financeSnapshot.invoiceHealth} innerRadius={35} outerRadius={50} paddingAngle={4} dataKey="value">
                                         {data.financeSnapshot.invoiceHealth.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={`var(--${entry.color.replace('emerald-600', 'success').replace('red-500', 'error').replace('amber-500', 'warning')})`} />
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
                                         ))}
                                     </Pie>
                                 </PieChart>

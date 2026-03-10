@@ -198,14 +198,24 @@ def create_task(
     """Create a new task"""
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
+    due_date_val = None
+    if body.due_date and body.due_date.strip():
+        try:
+            due_date_str = body.due_date.replace("Z", "+00:00")
+            due_date_val = datetime.fromisoformat(due_date_str)
+        except ValueError:
+            pass
+
     new_task = Task(
         company_id=current_user.company_id,
         title=body.title,
         description=body.description,
         priority=body.priority,
-        due_date=datetime.fromisoformat(body.due_date) if body.due_date else None,
+        due_date=due_date_val,
         lead_id=body.lead_id,
         client_id=body.client_id,
+        assigned_to_id=current_user.id,
+        assigned_by_id=current_user.id,
         status="Pending"
     )
     

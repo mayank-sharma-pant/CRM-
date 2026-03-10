@@ -36,18 +36,20 @@ def get_manager_dashboard(
     current_user: User = Depends(require_manager)
 ):
     """Get manager dashboard with team metrics"""
-    # Get real counts (company-scoped)
-    lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
+    # Get real counts (company-scoped and team-scoped)
+    lead_query = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.team_id == current_user.team_id)
     total_leads = lead_query.count()
     closed_leads = lead_query.filter(Lead.status.in_(["Converted", "Lost"])).count()
     conversion_rate = int((closed_leads / total_leads * 100)) if total_leads > 0 else 0
     
-    # Get team members (sales users, company-scoped)
-    user_query = apply_company_scope(db.query(User), User, current_user)
+    # Get team members (sales users, team-scoped)
+    user_query = apply_company_scope(db.query(User), User, current_user).filter(User.team_id == current_user.team_id)
     team_members = user_query.filter(User.role == "sales").all()
+    team_member_ids = [m.id for m in team_members]
+    
     team_stats = []
     for member in team_members:
-        m_lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
+        m_lead_query = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.team_id == current_user.team_id)
         active = m_lead_query.filter(Lead.assigned_to_id == member.id, Lead.status.notin_(["Converted", "Lost"])).count()
         converted = m_lead_query.filter(Lead.assigned_to_id == member.id, Lead.status == "Converted").count()
         team_stats.append({
@@ -62,6 +64,10 @@ def get_manager_dashboard(
     today_start = datetime(now.year, now.month, now.day)
     
     task_query = apply_company_scope(db.query(Task), Task, current_user)
+    if team_member_ids:
+        task_query = task_query.filter((Task.assigned_to_id.in_(team_member_ids)) | (Task.assigned_by_id == current_user.id))
+    else:
+        task_query = task_query.filter(Task.assigned_by_id == current_user.id)
     overdue_tasks = task_query.filter(
         Task.due_date < today_start,
         Task.status != "Completed"
@@ -97,7 +103,7 @@ def get_team_monitoring(
     current_user: User = Depends(require_manager)
 ):
     """Get team activity monitoring data"""
-    team_members = apply_company_scope(db.query(User), User, current_user).filter(User.role == "sales").all()
+    team_members = apply_company_scope(db.query(User), User, current_user).filter(User.role == "sales", User.team_id == current_user.team_id).all()
     
     members_data = []
     online_count = 0
@@ -159,9 +165,9 @@ def get_team_member_detail(
     current_user: User = Depends(require_manager)
 ):
     """Get detailed activity for a team member"""
-    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id, User.team_id == current_user.team_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User not found or not in your team")
     
     # Get lead counts (company-scoped)
     lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
@@ -207,7 +213,7 @@ def get_team_leads(
     current_user: User = Depends(require_manager)
 ):
     """Get leads for the manager's team (paginated)."""
-    query = apply_company_scope(db.query(Lead), Lead, current_user)
+    query = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.team_id == current_user.team_id)
     if status:
         query = query.filter(Lead.status == status)
     if member_id:
@@ -243,9 +249,12 @@ def reassign_lead(
         raise HTTPException(status_code=404, detail="Lead not found")
     ensure_company_access(lead, current_user)
     
-    new_assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == new_assignee_id).first()
+    if lead.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="Lead does not belong to your team")
+    
+    new_assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == new_assignee_id, User.team_id == current_user.team_id).first()
     if not new_assignee:
-        raise HTTPException(status_code=404, detail="Assignee not found")
+        raise HTTPException(status_code=404, detail="Assignee not found or not in your team")
     
     lead.assigned_to_id = new_assignee_id
     db.commit()

@@ -28,12 +28,7 @@ export default function AdminDashboard() {
 
                 // Transform API response to dashboard format
                 const dashData = {
-                    stats: [
-                        { id: 1, label: 'Active Users', value: stats.active_users?.toString() || '0', route: '/admin/users' },
-                        { id: 2, label: 'Pending Invites', value: stats.pending_users?.toString() || '0', route: '/admin/users' },
-                        { id: 3, label: 'Teams', value: stats.teams?.toString() || '0', route: '/admin/teams-hierarchy' },
-                        { id: 4, label: 'Disabled Users', value: stats.disabled_users?.toString() || '0', route: '/admin/users' }
-                    ],
+                    stats: stats.stats || [],
                     actionRequired: stats.action_required || [],
                     recentActivity: (stats.recent_activity || []).map((item, idx) => ({
                         id: item.id || idx + 1,

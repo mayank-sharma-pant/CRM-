@@ -19,7 +19,12 @@ export default function Login() {
     const searchParams = useSearchParams();
     const justRegistered = searchParams.get('registered') === 'true';
 
-    const handleRedirect = (role) => {
+    const handleRedirect = (userObj) => {
+        const role = userObj?.role || 'sales';
+        if (role === 'admin' && !userObj.company_id) {
+            router.push('/platform/dashboard');
+            return;
+        }
         const routes = {
             sales: '/sales/dashboard',
             manager: '/manager/dashboard',
@@ -66,7 +71,7 @@ export default function Login() {
                 result = await loginOTP(email, otpCode);
             }
 
-            handleRedirect(result.user?.role || 'sales');
+            handleRedirect(result.user);
         } catch (err) {
             setError(err.response?.data?.detail || 'Login failed. Please check your credentials.');
         } finally {

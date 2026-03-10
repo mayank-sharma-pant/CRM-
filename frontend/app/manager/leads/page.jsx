@@ -33,6 +33,7 @@ export default function ManagerLeads() {
     const [creating, setCreating] = useState(false);
     const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', source: 'Referral', assigned_to_id: '' });
     const [teamMembers, setTeamMembers] = useState([]);
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         if (searchParams.get('action') === 'new') {

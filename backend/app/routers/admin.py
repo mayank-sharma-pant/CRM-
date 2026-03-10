@@ -221,8 +221,18 @@ def update_user(
         user.team_id = body.team_id if body.team_id > 0 else None
     if body.status is not None:
         user.status = body.status
-    
-    after_state = {"role": user.role, "team_id": user.team_id, "status": user.status}
+    if body.manager_id is not None:
+        if body.manager_id > 0:
+            manager = apply_company_scope(db.query(User), User, current_user).filter(User.id == body.manager_id).first()
+            if not manager:
+                raise HTTPException(status_code=400, detail="Manager not found")
+            if target_team and manager.team_id != target_team:
+                raise HTTPException(status_code=400, detail="The selected manager does not belong to the correct team.")
+            user.manager_id = body.manager_id
+        else:
+            user.manager_id = None
+            
+    after_state = {"role": user.role, "team_id": user.team_id, "status": user.status, "manager_id": user.manager_id}
     
     create_audit_log(
         db, current_user, "user_updated", "user",
@@ -954,6 +964,8 @@ def create_invite(
         manager = apply_company_scope(db.query(User), User, current_user).filter(User.id == body.manager_id).first()
         if not manager:
             raise HTTPException(status_code=400, detail="Manager not found")
+        if body.team_id and manager.team_id != body.team_id:
+            raise HTTPException(status_code=400, detail="The selected manager does not belong to the selected team.")
     
     token = generate_invite_token()
     expires_at = datetime.now() + timedelta(days=INVITE_EXPIRY_DAYS)

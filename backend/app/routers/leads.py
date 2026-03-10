@@ -106,8 +106,15 @@ def list_leads(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """List leads for the current sales user (paginated)."""
+    """List leads based on user role."""
     query = apply_company_scope(db.query(Lead), Lead, current_user)
+    
+    # Apply role-based scoping
+    if current_user.role == "sales":
+        query = query.filter(Lead.assigned_to_id == current_user.id)
+    elif current_user.role == "manager":
+        # Managers see leads assigned to their team (or explicitly owned by the manager)
+        query = query.filter(Lead.team_id == current_user.team_id)
     if status:
         query = query.filter(Lead.status == status)
     if search:
@@ -149,10 +156,16 @@ def get_lead(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get lead details by ID"""
-    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    """Get lead details by ID (with role scoping)"""
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
+        
+    # Apply role-based scoping
+    if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not have access to this lead")
+    if current_user.role == "manager" and lead.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="You do not have access to this team's lead")
     ensure_company_access(lead, current_user)
     
     # Fetch tasks linked to this lead
@@ -271,6 +284,12 @@ def update_lead(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     ensure_company_access(lead, current_user)
+    
+    # Apply role-based scoping
+    if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You cannot edit a lead you do not own")
+    if current_user.role == "manager" and lead.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="You cannot edit a lead outside your team")
     
     old_status = lead.status
     # Update fields if provided

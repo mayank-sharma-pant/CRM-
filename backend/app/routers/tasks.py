@@ -44,7 +44,18 @@ def get_tasks_list(
     current_user: User = Depends(get_current_user)
 ):
     """Get full task list with grouping (paginated)."""
+    # Base query for tasks
     query = apply_company_scope(db.query(Task), Task, current_user)
+    
+    # Role-based filtering
+    if current_user.role == "sales":
+        query = query.filter((Task.assigned_to_id == current_user.id) | (Task.assigned_by_id == current_user.id))
+    elif current_user.role == "manager":
+        # Managers see tasks assigned to anyone in their team or created by them
+        team_members = db.query(User.id).filter(User.team_id == current_user.team_id).all()
+        team_member_ids = [m[0] for m in team_members]
+        query = query.filter((Task.assigned_to_id.in_(team_member_ids)) | (Task.assigned_by_id == current_user.id))
+    
     if status:
         query = query.filter(Task.status == status)
     total = query.count()
@@ -101,6 +112,15 @@ def get_priority_tasks(
     today_end = today_start + timedelta(days=1)
     
     task_query = apply_company_scope(db.query(Task), Task, current_user)
+    
+    # Role-based filtering
+    if current_user.role == "sales":
+        task_query = task_query.filter((Task.assigned_to_id == current_user.id) | (Task.assigned_by_id == current_user.id))
+    elif current_user.role == "manager":
+        team_members = db.query(User.id).filter(User.team_id == current_user.team_id).all()
+        team_member_ids = [m[0] for m in team_members]
+        task_query = task_query.filter((Task.assigned_to_id.in_(team_member_ids)) | (Task.assigned_by_id == current_user.id))
+        
     # Overdue tasks
     overdue = task_query.filter(
         Task.due_date < today_start,
@@ -144,6 +164,16 @@ def get_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     ensure_company_access(task, current_user)
+    
+    # Role-based scoping checking
+    if current_user.role == "sales":
+        if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You do not have access to this task")
+    elif current_user.role == "manager":
+        # Check if the assignee belongs to the manager's team
+        assignee = db.query(User).filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
+        if assignee and assignee.team_id != current_user.team_id and task.assigned_by_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You do not have access to this team's task")
     
     return {
         "id": task.id,
@@ -203,6 +233,15 @@ def update_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     ensure_company_access(task, current_user)
+    
+    # Role-based editing rules
+    if current_user.role == "sales":
+        if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You cannot edit someone else's task")
+    elif current_user.role == "manager":
+        assignee = db.query(User).filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
+        if assignee and assignee.team_id != current_user.team_id and task.assigned_by_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You cannot edit a task outside your team")
     
     if body.title is not None:
         task.title = body.title

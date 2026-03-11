@@ -95,6 +95,7 @@ def get_sales_dashboard(
     leads_by_source = [{"source": s or "Unknown", "count": c} for s, c in source_counts]
     
     active_leads = lead_query.filter(Lead.status.notin_(["Converted", "Lost"])).count()
+    lost_leads = lead_query.filter(Lead.status == "Lost").count()
     two_weeks_ago = datetime.now() - timedelta(days=14)
     stalled_leads = lead_query.filter(Lead.status.in_(["New", "Contacted"]), Lead.created_at < two_weeks_ago).count()
     
@@ -364,6 +365,18 @@ def update_lead(
         lead.source = lead_data.source
     if lead_data.notes is not None:
         lead.notes = lead_data.notes
+        
+    if getattr(lead_data, "assigned_to_id", None) is not None:
+        if current_user.role == "sales":
+            raise HTTPException(status_code=403, detail="Sales executives cannot reassign leads")
+        
+        assignee = db.query(User).filter(User.id == lead_data.assigned_to_id, User.company_id == current_user.company_id).first()
+        if not assignee:
+            raise HTTPException(status_code=400, detail="User not found in this company")
+        if current_user.role == "manager" and assignee.team_id != current_user.team_id:
+            raise HTTPException(status_code=403, detail="Cannot assign lead outside your team")
+            
+        lead.assigned_to_id = lead_data.assigned_to_id
     
     # Log activity
     if lead_data.status is not None and lead_data.status != old_status:

@@ -30,6 +30,7 @@ class LeadUpdate(BaseModel):
     source: Optional[str] = None
     service_type: Optional[str] = None
     notes: Optional[str] = None
+    assigned_to_id: Optional[int] = None
 
 
 class LeadResponse(LeadBase):

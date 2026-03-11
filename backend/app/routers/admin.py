@@ -961,12 +961,16 @@ def create_invite(
             if pending_invite:
                 raise HTTPException(status_code=400, detail="This team already has a pending manager invite.")
     
-    if body.manager_id:
-        manager = apply_company_scope(db.query(User), User, current_user).filter(User.id == body.manager_id).first()
-        if not manager:
-            raise HTTPException(status_code=400, detail="Manager not found")
-        if body.team_id and manager.team_id != body.team_id:
-            raise HTTPException(status_code=400, detail="The selected manager does not belong to the selected team.")
+    # Auto-detect manager from team (no manual selection needed)
+    resolved_manager_id = body.manager_id  # allow explicit override if needed
+    if not resolved_manager_id and body.team_id and body.role == "sales":
+        team_manager = apply_company_scope(db.query(User), User, current_user).filter(
+            User.team_id == body.team_id,
+            User.role == "manager",
+            User.status != "disabled"
+        ).first()
+        if team_manager:
+            resolved_manager_id = team_manager.id
     
     token = generate_invite_token()
     expires_at = datetime.now() + timedelta(days=INVITE_EXPIRY_DAYS)
@@ -982,7 +986,7 @@ def create_invite(
         phone=body.phone,
         role=body.role,
         team_id=body.team_id,
-        manager_id=body.manager_id,
+        manager_id=resolved_manager_id,
         token=token,
         hashed_password=get_password_hash(temporary_password),
         expires_at=expires_at,

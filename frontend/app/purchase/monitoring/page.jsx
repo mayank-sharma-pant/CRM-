@@ -38,12 +38,10 @@ export default function PurchaseMonitoringPage() {
                         highSeverity: apiData.alerts?.filter(a => a.severity === 'High').length || 0,
                         trendDirection: apiData.summary?.trendDirection?.toLowerCase() || 'stable'
                     },
-                    riskTrend: apiData.riskTrend || apiData.risk_trend || [
-                        { date: 'Mon', value: 2 }, { date: 'Tue', value: 3 }, { date: 'Wed', value: 1 },
-                        { date: 'Thu', value: 4 }, { date: 'Fri', value: 2 }, { date: 'Sat', value: 1 },
-                        { date: 'Sun', value: 3 }
-                    ],
-                    trendSummary: "Purchase deviations stabilized following settlement corrections.",
+                    riskTrend: apiData.riskTrend || apiData.risk_trend || [],
+                    trendSummary: apiData.metrics?.overdue_invoices > 0
+                        ? `${apiData.metrics.overdue_invoices} overdue invoices require attention. Settlement rate: ${apiData.metrics.settlement_rate || 0}%`
+                        : `All invoices on track. Settlement rate: ${apiData.metrics?.settlement_rate || 0}%`,
                     alerts: apiData.alerts?.map(a => ({
                         id: a.id,
                         severity: a.severity || 'Medium',
@@ -54,9 +52,19 @@ export default function PurchaseMonitoringPage() {
                         detected: a.detected || 'Now',
                         description: a.description || a.message
                     })) || [],
-                    aiInterpretation: [
-                        { type: 'FISCAL', title: 'Vendor Latency', evidence: ['3 high-value invoices pending'] },
-                        { type: 'RISK', title: 'Duplicate Entries', evidence: ['Potential overlap in INV-202'] }
+                    operationalMetrics: [
+                        {
+                            label: 'Settlement Rate',
+                            delta: `${apiData.metrics?.settlement_rate || 0}%`,
+                            route: '/purchase/invoices',
+                            trend: (apiData.metrics?.settlement_rate || 0) >= 50 ? 'up' : 'down'
+                        },
+                        {
+                            label: 'Outstanding Amount',
+                            delta: `$${Number(apiData.metrics?.pending_amount || 0).toLocaleString()}`,
+                            route: '/purchase/invoices',
+                            trend: (apiData.metrics?.pending_amount || 0) > 0 ? 'down' : 'up'
+                        }
                     ]
                 };
 
@@ -230,10 +238,7 @@ export default function PurchaseMonitoringPage() {
                 <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-border shadow-sm p-5">
                     <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight mb-5">Operational Metrics</h3>
                     <div className="space-y-1.5">
-                        {[
-                            { label: 'Settlement Efficiency', delta: '+4.2%', route: '/purchase/invoices', trend: 'up' },
-                            { label: 'Vendor Compliance', delta: '-1.8%', route: '/purchase/dashboard', trend: 'down' }
-                        ].map((item, i) => (
+                        {(data.operationalMetrics || []).map((item, i) => (
                             <div key={i} onClick={() => router.push(item.route)} className="flex items-center justify-between px-3 py-2 bg-surface hover:bg-surface-elevated border border-border rounded-md cursor-pointer transition-all group">
                                 <span className="text-[12px] font-bold text-secondary uppercase tracking-tight">{item.label}</span>
                                 <div className="flex items-center gap-4">

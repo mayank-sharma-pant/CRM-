@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
+from pydantic import BaseModel
+from decimal import Decimal
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, is_platform_admin
@@ -15,6 +17,24 @@ from app.schemas.user import MessageResponse
 router = APIRouter()
 
 PURCHASE_ROLES = {"purchase", "md", "admin"}
+
+
+# ===============================
+# Pydantic Schemas
+# ===============================
+
+class InvoiceItemCreate(BaseModel):
+    description: str
+    quantity: int = 1
+    unit_price: float = 0
+
+class InvoiceCreate(BaseModel):
+    client_id: int
+    items: List[InvoiceItemCreate]
+    tax: float = 0
+    discount: float = 0
+    notes: Optional[str] = None
+    due_days: int = 30  # days until due
 
 
 def require_purchase(current_user: User = Depends(get_current_user)) -> User:
@@ -246,6 +266,78 @@ def list_invoices(
     return {"invoices": result, "summary": summary, "total": total, "skip": skip, "limit": limit}
 
 
+@router.post("/invoices")
+def create_invoice(
+    body: InvoiceCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_purchase)
+):
+    """Create a new invoice from purchase department"""
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="Platform Admin cannot create invoices")
+    
+    # Validate client
+    client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == body.client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Generate invoice number
+    count = apply_company_scope(db.query(Invoice), Invoice, current_user).count()
+    inv_number = f"INV-{current_user.company_id:03d}-{count + 1:04d}"
+    
+    # Calculate totals
+    subtotal = Decimal(0)
+    for item in body.items:
+        subtotal += Decimal(str(item.unit_price)) * item.quantity
+    
+    tax_amount = Decimal(str(body.tax))
+    discount_amount = Decimal(str(body.discount))
+    total = subtotal + tax_amount - discount_amount
+    
+    today = datetime.now().date()
+    due_date = today + timedelta(days=body.due_days)
+    
+    invoice = Invoice(
+        company_id=current_user.company_id,
+        invoice_number=inv_number,
+        client_id=body.client_id,
+        subtotal=subtotal,
+        tax=tax_amount,
+        discount=discount_amount,
+        total=total,
+        status="Draft",
+        issued_date=today,
+        due_date=due_date,
+        notes=body.notes,
+        created_by_id=current_user.id
+    )
+    db.add(invoice)
+    db.flush()
+    
+    # Add line items
+    for item in body.items:
+        line = InvoiceItem(
+            company_id=current_user.company_id,
+            invoice_id=invoice.id,
+            description=item.description,
+            quantity=item.quantity,
+            unit_price=Decimal(str(item.unit_price)),
+            total=Decimal(str(item.unit_price)) * item.quantity
+        )
+        db.add(line)
+    
+    db.commit()
+    db.refresh(invoice)
+    
+    return {
+        "id": invoice.id,
+        "number": inv_number,
+        "total": float(total),
+        "status": "Draft",
+        "message": f"Invoice {inv_number} created successfully"
+    }
+
+
 @router.get("/invoices/{invoice_id}")
 def get_invoice_detail(
     invoice_id: int,
@@ -349,20 +441,78 @@ def get_purchase_monitoring(
 ):
     """Get purchase department monitoring and analytics"""
     inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    
     # Invoice stats
     overdue_count = inv_q.filter(Invoice.status == "Overdue").count()
     overdue_amount = inv_q.filter(Invoice.status == "Overdue").with_entities(func.sum(Invoice.total)).scalar() or 0
-    
     pending_count = inv_q.filter(Invoice.status == "Pending").count()
+    pending_amount = inv_q.filter(Invoice.status == "Pending").with_entities(func.sum(Invoice.total)).scalar() or 0
+    paid_count = inv_q.filter(Invoice.status == "Paid").count()
+    paid_amount = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
+    draft_count = inv_q.filter(Invoice.status == "Draft").count()
+    total_invoices = inv_q.count()
+    
+    # Build alerts dynamically
+    alerts = []
+    if overdue_count > 0:
+        alerts.append({
+            "id": 1, "type": "invoice", "severity": "High",
+            "title": f"{overdue_count} invoices overdue",
+            "message": f"{overdue_count} invoices overdue totaling ${float(overdue_amount):,.0f}",
+            "category": "Finance", "detected": "Now",
+            "evidence": [f"${float(overdue_amount):,.0f} outstanding"]
+        })
+    if pending_count > 3:
+        alerts.append({
+            "id": 2, "type": "invoice", "severity": "Medium",
+            "title": f"{pending_count} invoices pending settlement",
+            "message": f"High volume of pending invoices ({pending_count})",
+            "category": "Operations", "detected": "Now",
+            "evidence": [f"{pending_count} pending invoices"]
+        })
+    if draft_count > 0:
+        alerts.append({
+            "id": 3, "type": "invoice", "severity": "Low",
+            "title": f"{draft_count} draft invoices need attention",
+            "message": f"{draft_count} invoices still in draft status",
+            "category": "Workflow", "detected": "Now",
+            "evidence": [f"{draft_count} unsent drafts"]
+        })
+    
+    # Dynamic risk trend (last 7 days of invoice activity)
+    risk_trend = []
+    day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    for i in range(6, -1, -1):
+        d = datetime.now() - timedelta(days=i)
+        day_count = inv_q.filter(
+            func.date(Invoice.created_at) == d.date()
+        ).count()
+        risk_trend.append({"date": day_names[d.weekday()], "value": day_count})
+    
+    # Determine trend direction
+    trend_direction = "stable"
+    if overdue_count > 0:
+        trend_direction = "worsening"
+    elif paid_count > pending_count:
+        trend_direction = "improving"
+    
+    # Operational metrics
+    settlement_rate = round((paid_count / total_invoices * 100), 1) if total_invoices > 0 else 0
     
     return {
-        "alerts": [
-            {"id": 1, "type": "invoice", "severity": "High", 
-             "message": f"{overdue_count} invoices overdue totaling ${overdue_amount:,.0f}"}
-        ] if overdue_count > 0 else [],
+        "alerts": alerts,
         "metrics": {
             "pending_invoices": pending_count,
             "overdue_invoices": overdue_count,
-            "overdue_amount": overdue_amount
+            "overdue_amount": float(overdue_amount),
+            "paid_amount": float(paid_amount),
+            "pending_amount": float(pending_amount),
+            "total_invoices": total_invoices,
+            "settlement_rate": settlement_rate
+        },
+        "risk_trend": risk_trend,
+        "summary": {
+            "trendDirection": trend_direction
         }
     }
+

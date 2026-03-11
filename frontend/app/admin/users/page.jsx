@@ -102,9 +102,7 @@ export default function AdminUsersPage() {
 
             if (invitePhone) params.phone = invitePhone;
             const teamId = inviteTeam ? parseInt(inviteTeam, 10) : null;
-            const managerId = inviteManager ? parseInt(inviteManager, 10) : null;
             if (teamId && !isNaN(teamId)) params.team_id = teamId;
-            if (managerId && !isNaN(managerId)) params.manager_id = managerId;
 
             await api.post('/admin/invites', params);
 
@@ -366,21 +364,6 @@ export default function AdminUsersPage() {
                                     ))}
                                 </select>
                             </div>
-                            {inviteRole === 'Sales Executive' && (
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Reporting Manager</label>
-                                    <select
-                                        value={inviteManager}
-                                        onChange={(e) => setInviteManager(e.target.value)}
-                                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
-                                    >
-                                        <option value="">Select manager...</option>
-                                        {users.filter(u => u.role.toLowerCase() === 'manager' && (!inviteTeam || u.team_id === parseInt(inviteTeam, 10))).map(m => (
-                                            <option key={m.rawId} value={m.rawId}>{m.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
                         </div>
 
                         <div className="flex gap-3">

@@ -1,0 +1,225 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import api from '../../services/api';
+import {
+    X,
+    Trash2,
+    Plus,
+    Receipt
+} from 'lucide-react';
+
+export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId, clientName, endpoint = '/invoices' }) {
+    const [clients, setClients] = useState([]);
+    const [selectedClientId, setSelectedClientId] = useState(clientId || '');
+    const [items, setItems] = useState([{ description: '', quantity: 1, unit_price: 0 }]);
+    const [tax, setTax] = useState(0);
+    const [discount, setDiscount] = useState(0);
+    const [dueDays, setDueDays] = useState(30);
+    const [notes, setNotes] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (!clientId) {
+            api.get('/clients').then(res => {
+                setClients(res.data.clients || res.data || []);
+            }).catch(() => {});
+        }
+    }, [clientId]);
+
+    if (!isOpen) return null;
+
+    const addItem = () => setItems([...items, { description: '', quantity: 1, unit_price: 0 }]);
+    const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
+    const updateItem = (idx, field, value) => {
+        const updated = [...items];
+        updated[idx][field] = field === 'quantity' ? parseInt(value) || 1 : field === 'unit_price' ? parseFloat(value) || 0 : value;
+        setItems(updated);
+    };
+
+    const subtotal = items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+    const total = subtotal + tax - discount;
+
+    const handleSubmit = async () => {
+        const targetClientId = clientId || selectedClientId;
+        if (!targetClientId) { alert('Please select a client'); return; }
+        if (items.some(i => !i.description.trim())) { alert('All items need a description'); return; }
+        setSubmitting(true);
+        try {
+            await api.post(endpoint, {
+                client_id: parseInt(targetClientId),
+                items: items.map(i => ({ description: i.description, quantity: i.quantity, unit_price: i.unit_price })),
+                tax, 
+                discount, 
+                due_days: dueDays, 
+                notes: notes || null
+            });
+            alert('Order created successfully!');
+            onCreated();
+        } catch (err) {
+            const detail = err.response?.data?.detail;
+            alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Failed to create order');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in duration-200">
+                
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                            <Receipt size={22} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Create Sales Order</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Initiate a new order for review</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {/* Client Selection (if not fixed) */}
+                    {!clientId && (
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Client Selection</label>
+                            <select
+                                value={selectedClientId}
+                                onChange={(e) => setSelectedClientId(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+                            >
+                                <option value="">Select a client...</option>
+                                {clients.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    {clientId && (
+                        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg px-4 py-3 border border-slate-100 dark:border-slate-700/50">
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Order For</span>
+                            <span className="text-sm font-semibold text-slate-900 dark:text-white">{clientName || 'Selected Client'}</span>
+                        </div>
+                    )}
+
+                    {/* Line Items */}
+                    <div>
+                        <div className="flex items-center justify-between mb-2 ml-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Order Items</label>
+                            <button onClick={addItem} className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold">
+                                <Plus size={12} /> Add Row
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            {items.map((item, idx) => (
+                                <div key={idx} className="flex gap-2 group">
+                                    <div className="flex-1">
+                                        <input
+                                            type="text"
+                                            value={item.description}
+                                            onChange={(e) => updateItem(idx, 'description', e.target.value)}
+                                            placeholder="Item detail..."
+                                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none"
+                                        />
+                                    </div>
+                                    <div className="w-20">
+                                        <input
+                                            type="number"
+                                            value={item.quantity}
+                                            onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
+                                            placeholder="Qty"
+                                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-center"
+                                            min={1}
+                                        />
+                                    </div>
+                                    <div className="w-28">
+                                        <input
+                                            type="number"
+                                            value={item.unit_price}
+                                            onChange={(e) => updateItem(idx, 'unit_price', e.target.value)}
+                                            placeholder="Price"
+                                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-right"
+                                            min={0}
+                                            step={0.01}
+                                        />
+                                    </div>
+                                    {items.length > 1 && (
+                                        <button onClick={() => removeItem(idx)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Financial Options */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Tax Offset ($)</label>
+                            <input type="number" value={tax} onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
+                                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+                                min={0} step={0.01} />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Discount ($)</label>
+                            <input type="number" value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+                                min={0} step={0.01} />
+                        </div>
+                    </div>
+
+                    {/* Additional Notes */}
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Order Memo</label>
+                        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none"
+                            placeholder="Specify order details or special requests..." />
+                    </div>
+
+                    {/* Summary */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-2.5">
+                        <div className="flex justify-between text-xs text-slate-400 font-medium">
+                            <span>Subtotal</span>
+                            <span className="text-slate-300 font-mono">${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-400 font-medium">
+                            <span>Admin/Tax (+)</span>
+                            <span className="text-emerald-500 font-mono">+${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-400 font-medium">
+                            <span>Incentive/Disc (-)</span>
+                            <span className="text-red-400 font-mono">-${discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-white pt-2.5 border-t border-slate-800">
+                            <span className="text-sm uppercase tracking-wider">Final Order Value</span>
+                            <span className="text-lg font-mono">${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex gap-3">
+                    <button onClick={onClose}
+                        className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm">
+                        Keep Browsing
+                    </button>
+                    <button onClick={handleSubmit} disabled={submitting}
+                        className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
+                        {submitting ? 'Submitting...' : 'Initiate Approval'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}

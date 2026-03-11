@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import TaskModal from '../../../../components/leads/TaskModal';
 import NoteModal from '../../../../components/leads/NoteModal';
+import CreateOrderModal from '../../../../components/shared/CreateOrderModal';
 
 export default function ClientDetailPage() {
     const params = useParams();
@@ -31,6 +32,7 @@ export default function ClientDetailPage() {
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+    const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
     const [client, setClient] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -145,6 +147,12 @@ export default function ClientDetailPage() {
                                 <Plus size={14} /> Add Note
                             </button>
                         )}
+                        {/* PERMISSION CHECK: Create Order (Initiate Order) */}
+                        {client.permissions?.canCreateTask && (
+                            <button onClick={() => setIsOrderModalOpen(true)} className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                                <Receipt size={14} /> Create Order
+                            </button>
+                        )}
                         {/* PERMISSION CHECK: Create Task */}
                         {client.permissions?.canCreateTask && (
                             <button onClick={handleCreateTask} className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
@@ -255,7 +263,7 @@ export default function ClientDetailPage() {
                                 <span className="text-xs font-medium text-slate-400">{getTasks().filter(t => t.status === 'Open').length} Open</span>
                             </div>
 
-                            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden divide-y divide-slate-100 dark:divide-slate-700/50">
+                            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden divide-y divide-slate-100 dark:divide-slate-700/50 mb-8">
                                 {getTasks().length > 0 ? (
                                     getTasks().map((task) => (
                                         <div key={task.id} className="group flex items-center justify-between px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
@@ -290,6 +298,55 @@ export default function ClientDetailPage() {
                                         <button className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline">
                                             View all tasks
                                         </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                    <Receipt size={18} className="text-emerald-500" />
+                                    Orders & Invoices
+                                </h2>
+                                <span className="text-xs font-medium text-slate-400">{client.invoices?.length || 0} Total</span>
+                            </div>
+
+                            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden divide-y divide-slate-100 dark:divide-slate-700/50">
+                                {client.invoices && client.invoices.length > 0 ? (
+                                    client.invoices.map((inv) => (
+                                        <div key={inv.id} className="group flex items-center justify-between px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                                    <Receipt size={16} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                                        {inv.invoice_number}
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold">
+                                                        Issue: {inv.issued_date || 'Draft'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-8">
+                                                <div className="text-right">
+                                                    <p className="text-sm font-bold text-slate-900 dark:text-white">
+                                                        ${inv.total?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </p>
+                                                    <p className={`text-[10px] font-black uppercase tracking-tighter ${
+                                                        inv.status === 'Paid' ? 'text-emerald-500' : 
+                                                        inv.status === 'Draft' ? 'text-slate-400' :
+                                                        inv.status === 'Rejected' ? 'text-red-500' : 'text-amber-500'
+                                                    }`}>
+                                                        {inv.status}
+                                                    </p>
+                                                </div>
+                                                <ChevronRight size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="px-5 py-8 text-center text-sm text-slate-500">
+                                        No transaction history found.
                                     </div>
                                 )}
                             </div>
@@ -376,6 +433,13 @@ export default function ClientDetailPage() {
                 onClose={() => setIsNoteModalOpen(false)} 
                 onRefresh={fetchClientData} 
                 endpoint={`/clients/${params.id}/notes`} 
+            />
+            <CreateOrderModal
+                isOpen={isOrderModalOpen}
+                onClose={() => setIsOrderModalOpen(false)}
+                onCreated={() => { setIsOrderModalOpen(false); fetchClientData(); }}
+                clientId={params.id}
+                clientName={client.name}
             />
 
         </div>

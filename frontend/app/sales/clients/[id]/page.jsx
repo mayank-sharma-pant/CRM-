@@ -19,7 +19,8 @@ import {
     User,
     History,
     ChevronDown,
-    ChevronRight
+    ChevronRight,
+    Receipt
 } from 'lucide-react';
 import TaskModal from '../../../../components/leads/TaskModal';
 import NoteModal from '../../../../components/leads/NoteModal';

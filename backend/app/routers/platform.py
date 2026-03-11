@@ -11,6 +11,7 @@ from app.models.client import Client
 from app.models.task import Task
 from app.models.invoice import Invoice
 from app.models.audit import AuditLog
+from app.models.company_settings import CompanySettings
 from app.utils.security import create_access_token, decode_access_token, verify_password
 
 router = APIRouter()
@@ -204,6 +205,13 @@ def approve_company(
     company.updated_at = datetime.now()
     # Also activate all pending users in this company
     db.query(User).filter(User.company_id == company_id, User.status == "pending").update({"status": "active", "is_active": True})
+    
+    # Ensure company settings exist
+    settings = db.query(CompanySettings).filter(CompanySettings.company_id == company_id).first()
+    if not settings:
+        settings = CompanySettings(company_id=company_id)
+        db.add(settings)
+        
     db.commit()
     _create_platform_audit(db, current_user, "company_approved", company_id=company_id)
     return {"message": "Company approved"}

@@ -11,6 +11,7 @@ from app.utils.dependencies import get_current_user, apply_company_scope, ensure
 from app.models.user import User
 from app.models.client import Client
 from app.models.invoice import Invoice, InvoiceItem
+from app.models.company_settings import CompanySettings
 from app.models.lead import Lead
 from app.schemas.user import MessageResponse
 
@@ -282,8 +283,12 @@ def create_invoice(
         raise HTTPException(status_code=404, detail="Client not found")
     
     # Generate invoice number
+    settings = db.query(CompanySettings).filter(CompanySettings.company_id == current_user.company_id).first()
+    prefix = (settings.invoice_prefix or "INV").strip() if settings and settings.invoice_prefix else "INV"
+    prefix = prefix or "INV"
+    
     count = apply_company_scope(db.query(Invoice), Invoice, current_user).count()
-    inv_number = f"INV-{current_user.company_id:03d}-{count + 1:04d}"
+    inv_number = f"{prefix}-{current_user.company_id:03d}-{count + 1:04d}"
     
     # Calculate totals
     subtotal = Decimal(0)

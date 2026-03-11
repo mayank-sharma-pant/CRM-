@@ -22,7 +22,8 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
     useEffect(() => {
         if (!clientId) {
             api.get('/clients').then(res => {
-                setClients(res.data.clients || res.data || []);
+                const data = res.data?.items ?? res.data?.clients ?? res.data;
+                setClients(Array.isArray(data) ? data : []);
             }).catch(() => {});
         }
     }, [clientId]);

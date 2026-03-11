@@ -48,7 +48,13 @@ def create_invoice(
 
     company_id = current_user.company_id
     settings = db.query(CompanySettings).filter(CompanySettings.company_id == company_id).first()
-    prefix = (settings.invoice_prefix or "INV").strip() or "INV"
+    
+    # Use defaults if settings don't exist
+    prefix = "INV"
+    tax_rate = 18.0
+    if settings:
+        prefix = (settings.invoice_prefix or "INV").strip() or "INV"
+        tax_rate = getattr(settings, "tax_rate", 18.0) or 18.0
 
     if body.invoice_number:
         invoice_number = body.invoice_number.strip()
@@ -67,7 +73,7 @@ def create_invoice(
         total = (it.quantity or 0) * (it.unit_price or 0)
         subtotal += total
 
-    tax_rate = getattr(settings, "tax_rate", None) or 0
+    # Use the tax_rate determined above
     tax = round(subtotal * (float(tax_rate) / 100), 2)
     total = subtotal + tax
 

@@ -59,6 +59,7 @@ const ROLE_NAVIGATION = {
     sales: [
         { name: 'Dashboard', href: '/sales/dashboard', icon: 'LayoutDashboard' },
         { name: 'Leads', href: '/sales/leads', icon: 'Users' },
+        { name: 'Clients', href: '/sales/clients', icon: 'Briefcase' },
         { name: 'Tasks', href: '/sales/tasks', icon: 'CheckSquare' },
         { name: 'Follow-ups', href: '/sales/follow-ups', icon: 'Calendar' },
         { name: 'Performance', href: '/sales/performance', icon: 'BarChart' },

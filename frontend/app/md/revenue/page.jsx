@@ -54,8 +54,8 @@ export default function MDRevenuePage() {
     // Filter KPIs to 3: Total Revenue, Growth, Collected/Outstanding
     const kpisToShow = (data.kpis || []).filter(k => ['total', 'growth', 'outstanding'].includes(k.code)).slice(0, 3);
 
-    // Limit risks to top 5
     const risksToShow = (data.risks || []).slice(0, 5);
+    const aiInsights = data.aiInsights || [];
 
     // Breakdown: Top 5 + Others
     const byPeriodRaw = data.breakdown?.byPeriod || [];
@@ -316,6 +316,33 @@ export default function MDRevenuePage() {
                     ))}
                 </div>
             </div>
+            
+            {/* Section E: AI Revenue Insights */}
+            {aiInsights.length > 0 && (
+                <div className="bg-surface rounded-md border border-border flex items-center justify-between p-5 shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center">
+                            <Activity size={20} className="text-accent" />
+                        </div>
+                        <div>
+                            <h3 className="text-[14px] font-bold text-primary flex items-center gap-2">
+                                {aiInsights[0].title}
+                                <span className="text-[9px] font-black bg-surface-elevated px-2 py-0.5 rounded-[4px] uppercase tracking-widest text-muted border border-border">AI Analysis</span>
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-[10px] font-bold uppercase tracking-widest ${aiInsights[0].tag === 'Healthy' ? 'text-success' : 'text-warning'}`}>{aiInsights[0].tag}</span>
+                                {aiInsights[0].evidence.map((ev, i) => (
+                                    <span key={i} className="text-[11px] font-bold text-secondary before:content-['•'] before:mr-2 before:text-muted/50">{ev}</span>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <button onClick={() => router.push('/md/monitoring')} className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-md text-[12px] font-bold uppercase tracking-tight hover:bg-accent-hover transition-colors shadow-md shadow-accent/20">
+                        Scan Operations
+                        <ArrowRight size={14} strokeWidth={2.5} />
+                    </button>
+                </div>
+            )}
 
             {/* Risk Drawer (Slide-in Right) */}
             {selectedRisk && (

@@ -32,11 +32,15 @@ def list_leaves(
     query = apply_company_scope(db.query(LeaveRequest), LeaveRequest, current_user)
 
     if current_user.role == "manager":
-        query = query.filter(
+        query = query.join(User, LeaveRequest.user_id == User.id).filter(
             (LeaveRequest.user_id == current_user.id)
-            | (LeaveRequest.user.has(User.manager_id == current_user.id))
+            | (User.team_id == current_user.team_id)
         )
-    elif current_user.role not in ["admin", "md", "purchase"]:
+    elif current_user.role in ["admin", "md"]:
+        # Admin and MD see all leaves in the company
+        pass
+    else:
+        # Sales, Purchase, and others only see their own leaves
         query = query.filter(LeaveRequest.user_id == current_user.id)
 
     total = query.count()
@@ -95,6 +99,12 @@ def approve_leave(
 
     if current_user.role not in ["manager", "admin", "md"]:
         raise HTTPException(status_code=403, detail="Only manager/admin/md can approve leaves")
+
+    # Role-based approval restrictions
+    leave_user = db.query(User).filter(User.id == leave.user_id).first()
+    if current_user.role == "manager":
+        if not leave_user or leave_user.role != "sales" or leave_user.team_id != current_user.team_id:
+            raise HTTPException(status_code=403, detail="Managers can only approve leaves for their sales team")
 
     normalized = payload.status.strip().capitalize()
     if normalized not in ["Approved", "Rejected"]:

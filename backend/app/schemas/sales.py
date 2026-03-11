@@ -182,7 +182,23 @@ class SalesDashboardMetrics(BaseModel):
     total_leads: int
     closed_leads: int
     lost_leads: int = 0
+    active_leads: int = 0
+    stalled_leads: int = 0
     conversion_rate: int
+    total_revenue: float = 0.0
+    paid_revenue: float = 0.0
+    outstanding_revenue: float = 0.0
+
+
+class SalesDashboardTaskMetrics(BaseModel):
+    completed: int
+    in_progress: int
+    overdue: int
+
+
+class SalesDashboardActivity(BaseModel):
+    new_leads_this_week: int
+    tasks_done_this_week: int
 
 
 class SalesDashboardTask(BaseModel):
@@ -194,6 +210,8 @@ class SalesDashboardTask(BaseModel):
 
 class SalesDashboardResponse(BaseModel):
     metrics: SalesDashboardMetrics
+    task_metrics: SalesDashboardTaskMetrics
+    activity: SalesDashboardActivity
     priority_tasks: List[SalesDashboardTask]
     leadsByStatus: List[dict] = []
     leadsBySource: List[dict] = []

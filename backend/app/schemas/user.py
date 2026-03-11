@@ -45,6 +45,7 @@ class LoginUserInfo(BaseModel):
     email: str
     full_name: str
     role: str
+    company_id: Optional[int] = None
 
 
 class LoginResponse(BaseModel):

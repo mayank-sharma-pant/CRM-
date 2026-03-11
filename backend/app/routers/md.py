@@ -243,6 +243,23 @@ def get_revenue_analytics(
             "detected": inv.due_date.strftime("%b %d") if inv.due_date else "N/A"
         })
     
+    # Dynamic Revenue Trend Insight
+    if recent_rev > prev_rev:
+        trend_insight = f"Revenue grew by {growth_pct}% over the last 30 days. Steady cash flow."
+    elif recent_rev < prev_rev:
+        trend_insight = f"Revenue contracted by {growth_pct}% compared to the previous 30 days. Monitor retention."
+    else:
+        trend_insight = "Revenue is perfectly flat compared to the previous 30 days."
+
+    # Dynamic AI Growth Insights (Mock logic based on current rev/outstanding)
+    ai_insights = []
+    if outstanding > total_revenue * 0.3 and total_revenue > 0:
+        ai_insights.append({"tag": "Liquidity", "title": "High AR vs Collected", "evidence": [f"{int((outstanding/total_revenue)*100)}% of revenue is pending."]})
+    elif growth_pct < 0:
+        ai_insights.append({"tag": "Contraction", "title": "Negative Growth", "evidence": [f"Down {abs(growth_pct)}% from last 30d."]})
+    else:
+        ai_insights.append({"tag": "Healthy", "title": "Stable Cashflow", "evidence": ["Collections nominal."]})
+
     return {
         "kpis": [
             {"id": 1, "code": "total", "label": "Total Revenue", "value": f"${total_revenue:,.0f}", "change": f"{growth_pct:+d}%", "trend": growth_trend},
@@ -250,14 +267,15 @@ def get_revenue_analytics(
             {"id": 3, "code": "outstanding", "label": "Outstanding", "value": f"${outstanding:,.0f}", "change": None, "trend": "flat"}
         ],
         "revenueTrend": revenue_trend,
-        "trendInsight": f"Total paid revenue: ${total_revenue:,.0f}. Outstanding: ${outstanding:,.0f}. 30-day growth: {growth_pct:+d}%.",
+        "trendInsight": trend_insight,
         "risks": risks,
         "breakdown": {
             "byPeriod": breakdown_by_period
         },
         "summaryTable": summary_table,
         "total_revenue": total_revenue,
-        "outstanding": outstanding
+        "outstanding": outstanding,
+        "aiInsights": ai_insights
     }
 
 
@@ -303,6 +321,34 @@ def get_company_sales(
         day_deals = lead_q.filter(Lead.created_at >= day, Lead.created_at < day_end).count()
         sales_trend.append({"date": day.strftime("%a"), "revenue": float(day_rev), "count": day_deals})
     
+    # Trend Observation
+    if len(sales_trend) >= 2 and sales_trend[-1]["count"] > sales_trend[-2]["count"]:
+        obs = f"Lead volume is accelerating. Today saw {sales_trend[-1]['count']} vs {sales_trend[-2]['count']} yesterday."
+    else:
+        obs = "Transactional flow is stable. Pipeline requires top-funnel injection."
+
+    # Funnel and Signals
+    funnel = {
+        "stages": [
+            {"name": "Total Deals", "value": total, "color": "var(--accent)"},
+            {"name": "Active", "value": active, "color": "var(--secondary)"},
+            {"name": "Won", "value": won, "color": "var(--primary)"}
+        ],
+        "signals": [
+            {"label": "Conversion", "value": f"{win_rate}%", "metric": "Target 25%", "status": "positive" if win_rate >= 25 else "warning"}
+        ]
+    }
+
+    # AI Insights
+    ai_insights = []
+    avg_velocity = 14  # placeholder for lead age tracking
+    if win_rate < 20:
+        ai_insights.append({"tag": "Critical", "title": "Conversion Drop", "evidence": [f"Win rate at {win_rate}%"], "link": "/md/monitoring"})
+    elif active > (won + lost) * 2:
+        ai_insights.append({"tag": "Bottleneck", "title": "Pipeline Congestion", "evidence": [f"{active} active deals aging"], "link": "/md/monitoring"})
+    else:
+        ai_insights.append({"tag": "Performance", "title": "Pipeline Velocity", "evidence": [f"Avg {avg_velocity} days"], "link": "/md/monitoring"})
+
     return {
         "summary": {
             "total_deals": total,
@@ -312,7 +358,10 @@ def get_company_sales(
             "win_rate": win_rate
         },
         "team_performance": team_performance,
-        "salesTrend": sales_trend
+        "salesTrend": sales_trend,
+        "trendObservation": obs,
+        "funnel": funnel,
+        "aiInsights": ai_insights
     }
 
 

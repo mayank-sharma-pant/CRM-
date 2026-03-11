@@ -9,8 +9,10 @@ from app.models.user import User
 from app.models.lead import Lead
 from app.models.task import Task
 from app.models.client import Client
+from app.models.invoice import Invoice
 from app.models.note import Note
 from app.utils.audit import log_activity
+from sqlalchemy import func as sa_func
 from app.schemas.sales import (
     LeadResponse, LeadListResponse, LeadCreate, LeadUpdate,
     SalesDashboardResponse, SalesDashboardMetrics, SalesDashboardTask,
@@ -92,14 +94,55 @@ def get_sales_dashboard(
     source_counts = lead_query.with_entities(Lead.source, sa_func.count(Lead.id)).group_by(Lead.source).all()
     leads_by_source = [{"source": s or "Unknown", "count": c} for s, c in source_counts]
     
-    lost_leads = lead_query.filter(Lead.status == "Lost").count()
+    active_leads = lead_query.filter(Lead.status.notin_(["Converted", "Lost"])).count()
+    two_weeks_ago = datetime.now() - timedelta(days=14)
+    stalled_leads = lead_query.filter(Lead.status.in_(["New", "Contacted"]), Lead.created_at < two_weeks_ago).count()
     
+    # Revenue calculations (company-scoped)
+    inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    if current_user.role == "sales":
+        client_ids = db.query(Client.id).filter(Client.assigned_to_id == current_user.id).all()
+        client_ids = [c[0] for c in client_ids]
+        inv_query = inv_query.filter(Invoice.client_id.in_(client_ids))
+    elif current_user.role == "manager":
+        team_client_ids = db.query(Client.id).filter(Client.team_id == current_user.team_id).all()
+        team_client_ids = [c[0] for c in team_client_ids]
+        inv_query = inv_query.filter(Invoice.client_id.in_(team_client_ids))
+
+    total_rev = inv_query.with_entities(sa_func.sum(Invoice.total)).scalar() or 0.0
+    paid_rev = inv_query.filter(Invoice.status == "Paid").with_entities(sa_func.sum(Invoice.total)).scalar() or 0.0
+    outstanding_rev = total_rev - paid_rev
+
+    # Task metrics
+    completed_tasks = task_query.filter(Task.status == "Completed").count()
+    in_progress_tasks = task_query.filter(Task.status == "Pending").count()
+    overdue_task_count = task_query.filter(Task.due_date < today_start, Task.status != "Completed").count()
+
+    # Activity this week
+    one_week_ago = datetime.now() - timedelta(days=7)
+    new_leads_this_week = lead_query.filter(Lead.created_at >= one_week_ago).count()
+    tasks_done_this_week = task_query.filter(Task.status == "Completed", Task.completed_at >= one_week_ago).count()
+
     return {
         "metrics": {
             "total_leads": total_leads,
             "closed_leads": closed_leads,
             "lost_leads": lost_leads,
-            "conversion_rate": conversion_rate
+            "active_leads": active_leads,
+            "stalled_leads": stalled_leads,
+            "conversion_rate": conversion_rate,
+            "total_revenue": float(total_rev),
+            "paid_revenue": float(paid_rev),
+            "outstanding_revenue": float(outstanding_rev)
+        },
+        "task_metrics": {
+            "completed": completed_tasks,
+            "in_progress": in_progress_tasks,
+            "overdue": overdue_task_count
+        },
+        "activity": {
+            "new_leads_this_week": new_leads_this_week,
+            "tasks_done_this_week": tasks_done_this_week
         },
         "priority_tasks": priority_tasks,
         "leadsByStatus": leads_by_status,

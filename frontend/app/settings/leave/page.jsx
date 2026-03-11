@@ -193,7 +193,7 @@ const LeaveApprovalList = ({ requests, onAction }) => {
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/50 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800">
                 <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     <CheckCircle size={16} className="text-emerald-600 dark:text-emerald-400" />
-                    Pending Approvals (Team)
+                    Pending Approvals
                 </h2>
                 <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold">
                     {requests.length}
@@ -261,10 +261,16 @@ export default function LeaveRequestsPage() {
             const raw = response.data?.items ?? response.data;
             const allLeaves = Array.isArray(raw) ? raw : [];
 
-            // If user is manager, they might see both their own and their team's
-            if (user?.role === 'manager') {
+            // If user is manager, admin, or md, they handle approvals
+            if (['manager', 'admin', 'md'].includes(user?.role)) {
                 setPendingApprovals(allLeaves.filter(l => l.status === 'Pending' && l.user_id !== user.id));
-                setHistory(allLeaves.filter(l => l.user_id === user.id));
+                if (user?.role === 'manager') {
+                    // Manager sees their own leaves in history
+                    setHistory(allLeaves.filter(l => l.user_id === user.id));
+                } else {
+                    // Admin/MD see all non-pending, or their own pending
+                    setHistory(allLeaves.filter(l => l.status !== 'Pending' || l.user_id === user.id));
+                }
             } else {
                 setHistory(allLeaves);
             }
@@ -351,11 +357,11 @@ export default function LeaveRequestsPage() {
                             <>
                                 {/* Section 1: Form (Conditional) */}
 
-                                {(user?.role === 'sales' || user?.role === 'manager') && (
+                                {['sales', 'manager', 'purchase'].includes(user?.role) && (
                                     <LeaveRequestForm onSubmit={handleCreateRequest} isLoading={submitting} />
                                 )}
 
-                                {user?.role === 'manager' && pendingApprovals.length > 0 && (
+                                {['manager', 'admin', 'md'].includes(user?.role) && pendingApprovals.length > 0 && (
                                     <LeaveApprovalList requests={pendingApprovals} onAction={handleAction} />
                                 )}
 

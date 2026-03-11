@@ -12,14 +12,8 @@ export default function PerformancePage() {
         const fetchPerformance = async () => {
             try {
                 setLoading(true);
-                // Building a basic performance snapshot from active entities
-                const [leadsRes, tasksRes] = await Promise.all([
-                    api.get('/leads'),
-                    api.get('/tasks/list')
-                ]);
-
-                const leads = leadsRes.data?.items ?? leadsRes.data?.leads ?? [];
-                const tasks = tasksRes.data?.items ?? tasksRes.data ?? [];
+                const res = await api.get('/leads/dashboard');
+                const apiData = res.data;
 
                 const performanceSnapshot = {
                     header: {
@@ -27,29 +21,29 @@ export default function PerformancePage() {
                         subtitle: 'Real-time sales execution metrics'
                     },
                     leadsMetrics: [
-                        { label: 'Total Leads', value: leads.length, icon: 'Users', color: 'blue' },
-                        { label: 'Conversion Rate', value: `${Math.round((leads.filter(l => l.status === 'Converted').length / Math.max(leads.length, 1)) * 100)}%`, icon: 'Target', color: 'emerald' },
-                        { label: 'Active Pipeline', value: leads.filter(l => !['Converted', 'Lost'].includes(l.status)).length, icon: 'TrendingUp', color: 'blue' }
+                        { label: 'Total Leads', value: apiData.metrics.total_leads, icon: 'Users', color: 'blue' },
+                        { label: 'Conversion Rate', value: `${apiData.metrics.conversion_rate}%`, icon: 'Target', color: 'emerald' },
+                        { label: 'Active Pipeline', value: apiData.metrics.active_leads, icon: 'TrendingUp', color: 'blue' }
                     ],
                     taskStatus: {
                         title: 'Task Execution',
-                        completed: tasks.filter(t => t.status === 'Completed').length,
-                        inProgress: tasks.filter(t => t.status === 'Pending').length,
-                        overdue: tasks.filter(t => t.status === 'Overdue').length
+                        completed: apiData.task_metrics.completed,
+                        inProgress: apiData.task_metrics.in_progress,
+                        overdue: apiData.task_metrics.overdue
                     },
                     activity: {
                         title: 'Recent Activity',
                         section1: {
                             title: 'This Week',
                             items: [
-                                { label: 'New Leads', value: leads.filter(l => new Date(l.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length },
-                                { label: 'Tasks Done', value: tasks.filter(t => t.status === 'Completed').length }
+                                { label: 'New Leads', value: apiData.activity.new_leads_this_week },
+                                { label: 'Tasks Done', value: apiData.activity.tasks_done_this_week }
                             ]
                         },
                         section2: {
                             title: 'Pipeline Health',
                             items: [
-                                { label: 'Stalled Leads', value: leads.filter(l => l.status === 'Contacted').length }
+                                { label: 'Stalled Leads (14d+)', value: apiData.metrics.stalled_leads }
                             ]
                         }
                     },

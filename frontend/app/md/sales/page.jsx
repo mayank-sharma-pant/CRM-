@@ -43,16 +43,14 @@ export default function MDSalesPage() {
                         { id: 4, label: 'Active Pipeline', value: apiData.summary?.active || 0, sub: 'In-Flight' }
                     ],
                     salesTrend: apiData.salesTrend || [],
-                    trendObservation: "Stability in deal flow across most teams.",
-                    funnel: {
+                    trendObservation: apiData.trendObservation || "Stability in deal flow across most teams.",
+                    funnel: apiData.funnel || {
                         stages: [
-                            { name: 'Total Deals', value: apiData.summary?.total_deals || 100, color: 'var(--accent)' },
-                            { name: 'Active', value: apiData.summary?.active || 50, color: 'var(--secondary)' },
-                            { name: 'Won', value: apiData.summary?.won || 20, color: 'var(--primary)' }
+                            { name: 'Total Deals', value: apiData.summary?.total_deals || 0, color: 'var(--accent)' },
+                            { name: 'Active', value: apiData.summary?.active || 0, color: 'var(--secondary)' },
+                            { name: 'Won', value: apiData.summary?.won || 0, color: 'var(--primary)' }
                         ],
-                        signals: [
-                            { label: 'Conversion', value: `${apiData.summary?.win_rate || 0}%`, metric: 'Target 25%', status: 'neutral' }
-                        ]
+                        signals: []
                     },
                     teamComparison: apiData.team_performance?.map(t => ({
                         team: t.team,
@@ -63,9 +61,7 @@ export default function MDSalesPage() {
                     salesSummary: [
                         { id: 1, period: 'Current Month', sales: apiData.summary?.total_deals || 0, revenue: `$${(apiData.summary?.won || 0) * 10}k`, conversion: `${apiData.summary?.win_rate || 0}%`, notes: 'Steady growth' }
                     ],
-                    aiInsights: [
-                        { tag: 'Performance', title: 'Pipeline Velocity', evidence: ['Avg 14 days'], link: '/md/monitoring' }
-                    ]
+                    aiInsights: apiData.aiInsights || []
                 };
 
                 setData(enrichedData);

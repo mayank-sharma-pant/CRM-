@@ -48,49 +48,19 @@ export default function Dashboard() {
     try {
       setLoading(true);
       setError(null);
-      const [leadsRes, tasksRes, invoicesRes] = await Promise.all([
-        api.get('/leads'),
-        api.get('/tasks/list'),
-        api.get('/invoices').catch(() => ({ data: [] }))
-      ]);
-
-      const leads = leadsRes.data?.items ?? leadsRes.data ?? [];
-      const allTasks = tasksRes.data?.items ?? tasksRes.data ?? [];
-      const invoices = invoicesRes.data?.items ?? invoicesRes.data ?? [];
-
-      // Metrics Calculation
-      const total = leads.length;
-      const closed = leads.filter(l => l.status === 'Converted').length;
-      const rate = total > 0 ? Math.round((closed / total) * 100) : 0;
-
-      // Revenue calculation
-      const totalRev = invoices.reduce((s, i) => s + (i.total || 0), 0);
-      const paidRev = invoices.filter(i => i.status === 'Paid').reduce((s, i) => s + (i.total || 0), 0);
-      const outstandingRev = totalRev - paidRev;
+      const res = await api.get('/leads/dashboard');
+      const data = res.data;
 
       setMetrics({
-        totalLeads: total,
-        closedLeads: closed,
-        conversionRate: rate,
-        totalRevenue: totalRev,
-        paidRevenue: paidRev,
-        outstandingRevenue: outstandingRev
+        totalLeads: data.metrics.total_leads,
+        closedLeads: data.metrics.closed_leads,
+        conversionRate: data.metrics.conversion_rate,
+        totalRevenue: data.metrics.total_revenue,
+        paidRevenue: data.metrics.paid_revenue,
+        outstandingRevenue: data.metrics.outstanding_revenue
       });
 
-      // Priority Tasks Calculation
-      const now = new Date();
-      const urgentTasks = allTasks
-        .filter(t => t.status !== 'Completed')
-        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-        .slice(0, 5)
-        .map(t => {
-          return {
-            ...t,
-            statusReason: t.dueDate?.toLowerCase().includes('ago') ? 'OVERDUE' : 'DUE_TODAY'
-          };
-        });
-
-      setPriorityTasks(urgentTasks);
+      setPriorityTasks(data.priority_tasks);
     } catch (error) {
       console.error('Dashboard fetch failed:', error);
       setError('Unable to load sales dashboard. Please try again.');

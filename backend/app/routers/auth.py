@@ -167,7 +167,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             "id": user.id,
             "email": user.email,
             "full_name": user.full_name,
-            "role": user.role
+            "role": user.role,
+            "company_id": user.company_id
         }
     }
 
@@ -237,6 +238,7 @@ def login_otp(payload: OTPLoginRequest, db: Session = Depends(get_db)):
             "email": user.email,
             "full_name": user.full_name,
             "role": user.role,
+            "company_id": user.company_id,
         },
     }
 

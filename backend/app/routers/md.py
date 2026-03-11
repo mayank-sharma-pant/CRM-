@@ -487,6 +487,30 @@ def get_employee_detail(
     leads = lead_q.filter(Lead.assigned_to_id == user_id).count()
     converted = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == "Converted").count()
     
+    # Calculate 7-day trends
+    now = datetime.now()
+    sales_trend = []
+    conversion_trend = []
+    for i in range(7):
+        day = now - timedelta(days=6 - i)
+        day_end = day + timedelta(days=1)
+        day_leads = lead_q.filter(Lead.assigned_to_id == user_id, Lead.created_at >= day, Lead.created_at < day_end).count()
+        day_conv = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == "Converted", Lead.updated_at >= day, Lead.updated_at < day_end).count()
+        sales_trend.append(day_leads)
+        conversion_trend.append(day_conv)
+
+    # Team performance context
+    team_metrics = {"leads": 0, "converted": 0, "avg_leads_per_member": 0}
+    if team:
+        team_members_count = db.query(User).filter(User.team_id == team.id).count()
+        team_leads = lead_q.filter(Lead.team_id == team.id).count()
+        team_converted = lead_q.filter(Lead.team_id == team.id, Lead.status == "Converted").count()
+        team_metrics = {
+            "leads": team_leads,
+            "converted": team_converted,
+            "avg_leads_per_member": round(team_leads / max(team_members_count, 1), 1)
+        }
+
     return {
         "employee": {
             "id": user.id,
@@ -500,9 +524,14 @@ def get_employee_detail(
         "performance": {
             "leads": leads,
             "converted": converted
-        }
+        },
+        "trends": {
+            "sales": sales_trend,
+            "conversion": conversion_trend,
+            "activity": sales_trend  # Fallback for activity
+        },
+        "team_performance": team_metrics
     }
-
 
 # ===============================
 # Company Monitoring
@@ -526,17 +555,56 @@ def get_company_monitoring(
             "leads": team_leads
         })
     
-    # Get overdue tasks (company-scoped)
-    overdue_count = apply_company_scope(db.query(Task), Task, current_user).filter(
+    alerts = []
+    ai_interpretation = []
+    
+    # 1. Overdue tasks
+    overdue_tasks = apply_company_scope(db.query(Task), Task, current_user).filter(
         Task.due_date < datetime.now(),
         Task.status != "Completed"
     ).count()
-    
+    if overdue_tasks > 0:
+        alerts.append({
+            "id": 1, "type": "Operations", "title": "Task SLA Breach", 
+            "message": f"{overdue_tasks} overdue tasks", "severity": "High"
+        })
+        ai_interpretation.append({"type": "RISK", "title": "SLA Degradation", "evidence": [f"{overdue_tasks} missed deadlines"]})
+
+    # 2. Overdue Invoices
+    overdue_invoices = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(
+        Invoice.status == "Overdue"
+    ).count()
+    if overdue_invoices > 0:
+        alerts.append({
+            "id": 2, "type": "Finance", "title": "Liquidity Gap Projected", 
+            "message": f"{overdue_invoices} overdue invoices detected", "severity": "High"
+        })
+        ai_interpretation.append({"type": "FINANCE", "title": "Cashflow Risk", "evidence": [f"{overdue_invoices} unsettled"]})
+
+    # 3. Stalled Leads
+    two_weeks_ago = datetime.now() - timedelta(days=14)
+    stalled_leads = lead_q.filter(Lead.status.in_(["New", "Contacted"]), Lead.created_at < two_weeks_ago).count()
+    if stalled_leads > 0:
+        alerts.append({
+            "id": 3, "type": "Sales", "title": "Stalled Deals in Negotiation", 
+            "message": f"{stalled_leads} leads stalled for 14+ days", "severity": "Medium"
+        })
+        ai_interpretation.append({"type": "RISK", "title": "Pipeline Stagnation", "evidence": [f"{stalled_leads} aging leads"]})
+
+    if not ai_interpretation:
+        ai_interpretation.append({"type": "INFO", "title": "System Nominal", "evidence": ["All clear"]})
+
+    # Mock trend history (until we have an alert history table)
+    risk_trend = [
+        {"date": (datetime.now() - timedelta(days=i)).strftime("%a"), "value": max(1, len(alerts) - (i % 3))}
+        for i in range(6, -1, -1)
+    ]
+
     return {
-        "alerts": [
-            {"id": 1, "type": "tasks", "message": f"{overdue_count} overdue tasks", "severity": "Medium"}
-        ] if overdue_count > 0 else [],
-        "team_status": team_status
+        "alerts": alerts,
+        "team_status": team_status,
+        "risk_trend": risk_trend,
+        "ai_interpretation": ai_interpretation
     }
 
 

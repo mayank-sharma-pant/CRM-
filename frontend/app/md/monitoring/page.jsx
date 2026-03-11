@@ -47,25 +47,19 @@ export default function MDMonitoringPage() {
                         highSeverity: apiData.alerts?.filter(a => a.severity === 'High').length || 0,
                         trendDirection: 'stable'
                     },
-                    riskTrend: [
-                        { date: 'Mon', value: 2 }, { date: 'Tue', value: 3 }, { date: 'Wed', value: 1 },
-                        { date: 'Thu', value: 4 }, { date: 'Fri', value: 2 }, { date: 'Sat', value: 1 },
-                        { date: 'Sun', value: 3 }
-                    ],
+                    riskTrend: apiData.risk_trend || [],
                     trendSummary: "Alert volume stabilized based on recent activity logs.",
                     alerts: apiData.alerts?.map(a => ({
                         id: a.id,
                         severity: a.severity || 'Medium',
-                        title: a.message || a.title || 'System Alert',
+                        title: a.title || 'System Alert',
                         category: a.type || 'General',
                         evidence: [a.message],
                         trend: 'flat',
                         detected: 'Today',
                         description: a.message
                     })) || [],
-                    aiInterpretation: [
-                        { type: 'RISK', title: 'Task Backlog', evidence: ['Monitor team response times'] }
-                    ]
+                    aiInterpretation: apiData.ai_interpretation || []
                 };
 
                 setData(enrichedData);

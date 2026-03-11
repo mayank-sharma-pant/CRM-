@@ -40,13 +40,13 @@ function buildEmployeeView(employeePayload) {
         kpis: [
             { label: 'Leads Handled', value: String(leads), sub: 'Company-scope' },
             { label: 'Converted Deals', value: String(converted), sub: 'Rolling window' },
+            { label: 'Team Avg Leads', value: String(employeePayload?.team_performance?.avg_leads_per_member || 0), sub: 'Team Benchmark' },
             { label: 'Conversion Yield', value: leads ? `${Math.round((converted / leads) * 100)}%` : '0%', sub: 'Approximate' },
-            { label: 'Status', value: (base.status || '').toUpperCase(), sub: 'Directory' },
         ],
-        trends: {
-            sales: [leads, leads, leads, leads, leads, leads, leads],
-            conversion: [converted, converted, converted, converted, converted, converted, converted],
-            activity: [80, 82, 81, 83, 82, 84, 83],
+        trends: employeePayload?.trends || {
+            sales: [0, 0, 0, 0, 0, 0, 0],
+            conversion: [0, 0, 0, 0, 0, 0, 0],
+            activity: [0, 0, 0, 0, 0, 0, 0],
         },
         signals: [],
     };

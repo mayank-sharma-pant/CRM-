@@ -99,9 +99,18 @@ def get_sales_dashboard(
     two_weeks_ago = datetime.now() - timedelta(days=14)
     stalled_leads = lead_query.filter(Lead.status.in_(["New", "Contacted"]), Lead.created_at < two_weeks_ago).count()
     
-    # Revenue calculations (company-scoped)
+    # Revenue and Order calculations (company-scoped)
     inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    my_orders_count = 0
+    my_orders_revenue = 0.0
+    
     if current_user.role == "sales":
+        # Invoices explicitly created by this sales rep
+        sales_inv_query = inv_query.filter(Invoice.created_by_id == current_user.id)
+        my_orders_count = sales_inv_query.count()
+        my_orders_revenue = sales_inv_query.filter(Invoice.status != "Cancelled").with_entities(sa_func.sum(Invoice.total)).scalar() or 0.0
+        
+        # Original client ledger scoping
         client_ids = db.query(Client.id).filter(Client.assigned_to_id == current_user.id).all()
         client_ids = [c[0] for c in client_ids]
         inv_query = inv_query.filter(Invoice.client_id.in_(client_ids))
@@ -134,7 +143,9 @@ def get_sales_dashboard(
             "conversion_rate": conversion_rate,
             "total_revenue": float(total_rev),
             "paid_revenue": float(paid_rev),
-            "outstanding_revenue": float(outstanding_rev)
+            "outstanding_revenue": float(outstanding_rev),
+            "my_orders": my_orders_count,
+            "my_revenue": float(my_orders_revenue)
         },
         "task_metrics": {
             "completed": completed_tasks,

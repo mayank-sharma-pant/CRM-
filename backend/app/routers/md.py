@@ -678,13 +678,17 @@ def get_company_invoices(
     invoices = inv_q.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()
 
     client_q = apply_company_scope(db.query(Client), Client, current_user)
+    user_q = apply_company_scope(db.query(User), User, current_user)
     result = []
     for inv in invoices:
         client = client_q.filter(Client.id == inv.client_id).first() if inv.client_id else None
+        creator = user_q.filter(User.id == inv.created_by_id).first() if getattr(inv, "created_by_id", None) else None
+        
         result.append({
             "id": f"INV-{inv.id:04d}",
             "db_id": inv.id,
             "client": client.name if client else "Unknown",
+            "sales_rep_name": creator.name if creator else "System",
             "amount": f"${inv.total:,.2f}" if inv.total else "$0.00",
             "status": inv.status or "Draft",
             "dueDate": inv.due_date.strftime("%Y-%m-%d") if inv.due_date else None,

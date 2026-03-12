@@ -314,7 +314,11 @@ export default function ClientDetailPage() {
                             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden divide-y divide-slate-100 dark:divide-slate-700/50">
                                 {client.invoices && client.invoices.length > 0 ? (
                                     client.invoices.map((inv) => (
-                                        <div key={inv.id} className="group flex items-center justify-between px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                        <div 
+                                            key={inv.id} 
+                                            onClick={() => router.push(`${isManager ? '/manager' : '/sales'}/invoices/${inv.id}`)}
+                                            className="group flex items-center justify-between px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer"
+                                        >
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                                                     <Receipt size={16} />

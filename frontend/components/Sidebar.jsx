@@ -60,6 +60,7 @@ const ROLE_NAVIGATION = {
         { name: 'Dashboard', href: '/sales/dashboard', icon: 'LayoutDashboard' },
         { name: 'Leads', href: '/sales/leads', icon: 'Users' },
         { name: 'Clients', href: '/sales/clients', icon: 'Briefcase' },
+        { name: 'My Orders', href: '/sales/orders', icon: 'Receipt' },
         { name: 'Tasks', href: '/sales/tasks', icon: 'CheckSquare' },
         { name: 'Follow-ups', href: '/sales/follow-ups', icon: 'Calendar' },
         { name: 'Performance', href: '/sales/performance', icon: 'BarChart' },
@@ -70,6 +71,7 @@ const ROLE_NAVIGATION = {
 
         { category: 'TEAM' },
         { name: 'Team Monitoring', href: '/manager/monitoring', icon: 'Activity' },
+        { name: 'My Team', href: '/manager/team', icon: 'UsersRound' },
         { name: 'Leads', href: '/manager/leads', icon: 'Users' },
         { name: 'Clients', href: '/manager/clients', icon: 'Briefcase' },
         { name: 'Tasks', href: '/manager/tasks', icon: 'CheckSquare' },

@@ -138,6 +138,10 @@ def list_invoices(
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
 
     query = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    
+    # If Sales, restrict to their own generated invoices
+    if getattr(current_user, "role", "") == "sales":
+        query = query.filter(Invoice.created_by_id == current_user.id)
 
     if status and status != "All":
         query = query.filter(Invoice.status == status)
@@ -153,14 +157,19 @@ def list_invoices(
     invoices = query.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()
 
     client_q = apply_company_scope(db.query(Client), Client, current_user)
+    user_q = apply_company_scope(db.query(User), User, current_user)
     items = []
     for inv in invoices:
         client = client_q.filter(Client.id == inv.client_id).first() if inv.client_id else None
+        creator = user_q.filter(User.id == inv.created_by_id).first() if getattr(inv, "created_by_id", None) else None
+        
         items.append({
             "id": inv.id,
             "invoice_number": inv.invoice_number,
             "client": client.name if client else None,
             "client_id": inv.client_id,
+            "sales_rep_id": inv.created_by_id,
+            "sales_rep_name": creator.name if creator else "System",
             "subtotal": float(inv.subtotal or 0),
             "tax": float(inv.tax or 0),
             "discount": float(inv.discount or 0),
@@ -176,4 +185,47 @@ def list_invoices(
         "total": total,
         "skip": skip,
         "limit": limit,
+    }
+
+@router.get("/{invoice_id}")
+def get_invoice(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get a specific invoice by ID (company-scoped)."""
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
+        
+    invoice = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+        
+    client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == invoice.client_id).first()
+    ensure_company_access(client, current_user)
+
+    items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice.id).all()
+    
+    return {
+        "id": invoice.id,
+        "number": invoice.invoice_number,
+        "client": {
+            "name": client.name if client else None,
+            "email": client.email if client else None,
+            "address": client.address if client else None,
+        },
+        "status": invoice.status,
+        "total": invoice.total,
+        "subtotal": invoice.subtotal,
+        "tax": invoice.tax,
+        "issued": invoice.issued_date.isoformat() if invoice.issued_date else None,
+        "due": invoice.due_date.isoformat() if invoice.due_date else None,
+        "items": [
+            {
+                "description": item.description,
+                "quantity": item.quantity,
+                "unit_price": item.unit_price,
+                "total": item.total
+            } for item in items
+        ]
     }

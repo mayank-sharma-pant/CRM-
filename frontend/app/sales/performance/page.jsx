@@ -23,7 +23,7 @@ export default function PerformancePage() {
                     leadsMetrics: [
                         { label: 'Total Leads', value: apiData.metrics.total_leads, icon: 'Users', color: 'blue' },
                         { label: 'Conversion Rate', value: `${apiData.metrics.conversion_rate}%`, icon: 'Target', color: 'emerald' },
-                        { label: 'Active Pipeline', value: apiData.metrics.active_leads, icon: 'TrendingUp', color: 'blue' }
+                        { label: 'Revenue Sourced', value: `$${apiData.metrics.my_revenue.toLocaleString()}`, icon: 'TrendingUp', color: 'blue' }
                     ],
                     taskStatus: {
                         title: 'Task Execution',
@@ -37,7 +37,8 @@ export default function PerformancePage() {
                             title: 'This Week',
                             items: [
                                 { label: 'New Leads', value: apiData.activity.new_leads_this_week },
-                                { label: 'Tasks Done', value: apiData.activity.tasks_done_this_week }
+                                { label: 'Tasks Done', value: apiData.activity.tasks_done_this_week },
+                                { label: 'Orders Made', value: apiData.metrics.my_orders }
                             ]
                         },
                         section2: {

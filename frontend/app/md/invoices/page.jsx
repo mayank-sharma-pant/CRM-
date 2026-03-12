@@ -151,6 +151,7 @@ export default function MDInvoicesPage() {
                             <tr className="border-b border-border bg-surface-elevated/20">
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Identifier</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Client Identity</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Sales Rep</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Value (USD)</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Lifecycle</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Maturity Date</th>
@@ -168,6 +169,16 @@ export default function MDInvoicesPage() {
                                 >
                                     <td className="py-3.5 px-5 font-mono text-[12px] font-bold text-primary">{invoice.id}</td>
                                     <td className="py-3.5 px-5 text-[13px] font-bold text-secondary">{invoice.client}</td>
+                                    <td className="py-3.5 px-5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-5 h-5 rounded flex items-center justify-center bg-surface border border-border text-[10px] font-black text-muted">
+                                                {invoice.sales_rep_name ? invoice.sales_rep_name.charAt(0) : 'S'}
+                                            </span>
+                                            <span className="text-[12px] font-bold text-muted">
+                                                {invoice.sales_rep_name || 'System'}
+                                            </span>
+                                        </div>
+                                    </td>
                                     <td className="py-3.5 px-5 text-[14px] font-black text-primary tabular-nums">{invoice.amount}</td>
                                     <td className="py-3.5 px-5">
                                         <InvoiceStatusBadge status={invoice.status} />

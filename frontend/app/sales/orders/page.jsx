@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../services/api';
 import {
-    Receipt,
     ChevronRight,
     CheckCircle,
     Clock,
@@ -12,13 +11,11 @@ import {
     FileText,
     Search,
     Calendar,
-    Plus,
-    X,
-    Trash2
+    Plus
 } from 'lucide-react';
 import CreateOrderModal from '../../../components/shared/CreateOrderModal';
 
-export default function PurchaseInvoicesPage() {
+export default function SalesOrdersPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [invoices, setInvoices] = useState([]);
@@ -29,18 +26,19 @@ export default function PurchaseInvoicesPage() {
     const fetchInvoices = async () => {
         try {
             setLoading(true);
-            const res = await api.get('/purchase/invoices');
-            const mappedInvoices = (res.data.invoices || []).map(inv => ({
+            // The backend endpoint `/invoices` is already scoped in invoices.py to only 
+            // return the current user's explicitly generated invoices if role == 'sales'
+            const res = await api.get('/invoices');
+            const mappedInvoices = (res.data.items || []).map(inv => ({
                 ...inv,
-                id: inv.number || `INV-${inv.id}`,
                 db_id: inv.id,
-                dueDate: inv.due,
-                originDate: inv.issued,
-                status: inv.status.charAt(0).toUpperCase() + inv.status.slice(1)
+                id: inv.invoice_number,
+                dueDate: inv.due_date,
+                originDate: inv.issued_date,
             }));
             setInvoices(mappedInvoices);
         } catch (err) {
-            console.error("Failed to fetch purchase invoices", err);
+            console.error("Failed to fetch sourced orders", err);
         } finally {
             setLoading(false);
         }
@@ -61,50 +59,48 @@ export default function PurchaseInvoicesPage() {
     const statusCounts = {
         All: invoices.length,
         Draft: invoices.filter(i => i.status === 'Draft').length,
-        Sent: invoices.filter(i => i.status === 'Sent').length,
-        Pending: invoices.filter(i => i.status === 'Pending').length,
+        Sent: invoices.filter(i => i.status === 'Sent' || i.status === 'Pending').length,
         Paid: invoices.filter(i => i.status === 'Paid').length,
-        Overdue: invoices.filter(i => i.status === 'Overdue').length
     };
+
+    const totalRevenueSourced = invoices.filter(i => i.status !== 'Cancelled').reduce((sum, inv) => sum + (inv.total || 0), 0);
 
     return (
         <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
 
-            {/* Header: Fiscal Control Plane */}
+            {/* Header */}
             <div className="flex items-center justify-between py-4 border-b border-border">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-primary">Purchase Invoices</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Forensic Settlement Ledger</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-primary">My Sourced Orders</h1>
+                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Track Transactions You Generated</p>
                 </div>
                 <div className="flex items-center gap-2.5">
-                    {statusCounts.Overdue > 0 && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-error/10 border border-error/20 rounded-md">
-                            <AlertTriangle size={14} className="text-error" strokeWidth={2.5} />
-                            <span className="text-[12px] font-black text-error uppercase tracking-tight">{statusCounts.Overdue} Critical Lag</span>
-                        </div>
-                    )}
+                    <div className="flex flex-col items-end mr-4">
+                         <span className="text-[10px] font-black uppercase tracking-widest text-muted">Total Value Sourced</span>
+                         <span className="text-[16px] font-black text-emerald-400 leading-none">${totalRevenueSourced.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    </div>
                     <button
                         onClick={() => setShowCreateModal(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-black uppercase tracking-tight transition-all shadow-sm shadow-accent/10"
+                        className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-black uppercase tracking-tight transition-all shadow-sm shadow-accent/10"
                     >
-                        <FileText size={14} strokeWidth={2.5} />
-                        New Entry
+                        <Plus size={16} strokeWidth={2.5} />
+                        Create Order
                     </button>
                 </div>
             </div>
 
-            {/* Section A: KPI Matrix (Condensed) */}
+            {/* Section A: KPI Matrix */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <KPIMini label="Total Volume" value={invoices.length} sub="Active Items" />
-                <KPIMini label="Settled" value={statusCounts.Paid} sub="Verification Complete" color="text-success" />
-                <KPIMini label="Pending" value={statusCounts.Pending + statusCounts.Sent} sub="In-Transit" color="text-warning" />
-                <KPIMini label="Overdue" value={statusCounts.Overdue} sub="Action Required" color="text-error" />
+                <KPIMini label="Total Sourced" value={statusCounts.All} sub="Orders Generated" />
+                <KPIMini label="Settled / Paid" value={statusCounts.Paid} sub="Revenue Realized" color="text-success" />
+                <KPIMini label="Pending Approval" value={statusCounts.Sent} sub="Awaiting Purchase" color="text-warning" />
+                <KPIMini label="Drafts" value={statusCounts.Draft} sub="Unsubmitted" color="text-muted" />
             </div>
 
             {/* Section B: Filter & Control Strip */}
             <div className="flex flex-wrap items-center justify-between gap-4 bg-surface p-2 rounded-md border border-border">
                 <div className="flex bg-surface-elevated p-1 rounded-md border border-border">
-                    {['All', 'Draft', 'Sent', 'Pending', 'Paid', 'Overdue'].map((status) => (
+                    {['All', 'Draft', 'Pending', 'Paid'].map((status) => (
                         <button
                             key={status}
                             onClick={() => setFilter(status)}
@@ -125,27 +121,24 @@ export default function PurchaseInvoicesPage() {
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="SEARCH FORENSICS..."
+                            placeholder="SEARCH ORDERS..."
                             className="pl-9 pr-4 py-1.5 bg-surface-elevated border border-border rounded-md text-[11px] font-bold uppercase tracking-widest placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent min-w-[240px]"
                         />
                     </div>
                 </div>
             </div>
 
-            {/* Section C: Forensic Ledger (Table) */}
+            {/* Section C: Ledger (Table) */}
             <div className="bg-surface rounded-md border border-border shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
                             <tr className="border-b border-border bg-surface-elevated/20">
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Identifier</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Counterparty</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Sales Rep</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Fiscal Value</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Lifecycle</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Maturity Date</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Issued</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Settlement</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Client</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Order Value</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Status</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Issued Date</th>
                                 <th className="py-3 px-5"></th>
                             </tr>
                         </thead>
@@ -153,32 +146,18 @@ export default function PurchaseInvoicesPage() {
                             {filteredInvoices.map((invoice, idx) => (
                                 <tr
                                     key={invoice.db_id}
-                                    onClick={() => router.push(`/purchase/invoices/${encodeURIComponent(invoice.db_id)}`)}
+                                    onClick={() => router.push(`/sales/invoices/${encodeURIComponent(invoice.db_id)}`)}
                                     className={`group hover:bg-surface-elevated/30 cursor-pointer transition-all ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
                                 >
                                     <td className="py-3.5 px-5 font-mono text-[12px] font-bold text-primary">{invoice.id}</td>
                                     <td className="py-3.5 px-5 text-[13px] font-bold text-secondary">{invoice.client}</td>
-                                    <td className="py-3.5 px-5">
-                                        <div className="flex items-center gap-2">
-                                            <span className="w-5 h-5 rounded flex items-center justify-center bg-surface border border-border text-[10px] font-black text-muted">
-                                                {invoice.sales_rep_name ? invoice.sales_rep_name.charAt(0) : 'S'}
-                                            </span>
-                                            <span className="text-[12px] font-bold text-muted">
-                                                {invoice.sales_rep_name || 'System'}
-                                            </span>
-                                        </div>
-                                    </td>
                                     <td className="py-3.5 px-5 text-[14px] font-black text-primary tabular-nums">
-                                        ${Number(invoice.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                        ${Number(invoice.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                     </td>
                                     <td className="py-3.5 px-5">
                                         <InvoiceStatusBadge status={invoice.status} />
                                     </td>
-                                    <td className="py-3.5 px-5 text-[12px] font-bold text-muted uppercase tracking-tight">{invoice.dueDate || '—'}</td>
                                     <td className="py-3.5 px-5 text-[12px] font-bold text-muted uppercase tracking-tight">{invoice.originDate || '—'}</td>
-                                    <td className="py-3.5 px-5">
-                                        <PaymentStatusBadge status={invoice.status === 'Paid' ? 'Settled' : invoice.status === 'Draft' ? null : 'Awaiting'} />
-                                    </td>
                                     <td className="py-3.5 px-5 text-right w-10">
                                         <ChevronRight size={14} className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
                                     </td>
@@ -193,7 +172,7 @@ export default function PurchaseInvoicesPage() {
                         <div className="w-12 h-12 rounded-full bg-surface-elevated border border-border flex items-center justify-center mb-4">
                             <Search size={20} className="text-muted/30" />
                         </div>
-                        <p className="text-[13px] font-bold text-muted uppercase tracking-widest">No matching records found</p>
+                        <p className="text-[13px] font-bold text-muted uppercase tracking-widest">No matching orders generated by you.</p>
                     </div>
                 )}
             </div>
@@ -203,7 +182,7 @@ export default function PurchaseInvoicesPage() {
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
                 onCreated={() => { setShowCreateModal(false); fetchInvoices(); }}
-                endpoint="/purchase/invoices"
+                endpoint="/invoices"
             />
         </div>
     );
@@ -227,7 +206,6 @@ function InvoiceStatusBadge({ status }) {
     const maps = {
         Paid: { colors: 'bg-success/10 text-success border-success/20', icon: CheckCircle },
         Pending: { colors: 'bg-warning/10 text-warning border-warning/20', icon: Clock },
-        Sent: { colors: 'bg-info/10 text-info border-info/20', icon: Clock },
         Overdue: { colors: 'bg-error/10 text-error border-error/20', icon: AlertTriangle },
         Draft: { colors: 'bg-surface-elevated text-muted border-border', icon: FileText }
     };
@@ -240,26 +218,6 @@ function InvoiceStatusBadge({ status }) {
             {status}
         </span>
     );
-}
-
-function PaymentStatusBadge({ status }) {
-    if (status === 'Settled') {
-        return (
-            <div className="flex items-center gap-1.5">
-                <div className="w-1 h-1 rounded-full bg-success"></div>
-                <span className="text-[11px] font-black text-success uppercase tracking-widest">Settled</span>
-            </div>
-        );
-    }
-    if (status === 'Awaiting') {
-        return (
-            <div className="flex items-center gap-1.5 text-muted/60">
-                <div className="w-1 h-1 rounded-full bg-current"></div>
-                <span className="text-[11px] font-black uppercase tracking-widest">Awaiting</span>
-            </div>
-        );
-    }
-    return <span className="text-[11px] text-muted opacity-30">—</span>;
 }
 
 function InvoicesSkeleton() {

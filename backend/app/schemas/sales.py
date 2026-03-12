@@ -189,6 +189,8 @@ class SalesDashboardMetrics(BaseModel):
     total_revenue: float = 0.0
     paid_revenue: float = 0.0
     outstanding_revenue: float = 0.0
+    my_orders: int = 0
+    my_revenue: float = 0.0
 
 
 class SalesDashboardTaskMetrics(BaseModel):

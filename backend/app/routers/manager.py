@@ -401,7 +401,11 @@ def get_team_invoices(
     current_user: User = Depends(require_manager)
 ):
     """Get invoices created by team members (paginated)."""
-    query = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    # Restrict invoices to those created by the manager's team members
+    team_members = apply_company_scope(db.query(User.id), User, current_user).filter(User.team_id == current_user.team_id).all()
+    team_member_ids = [m.id for m in team_members]
+    
+    query = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.created_by_id.in_(team_member_ids))
     if status:
         query = query.filter(Invoice.status == status)
     total = query.count()
@@ -411,17 +415,26 @@ def get_team_invoices(
     user_q = apply_company_scope(db.query(User), User, current_user)
     for inv in invoices:
         client = client_q.filter(Client.id == inv.client_id).first()
-        creator = user_q.filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
+        creator = user_q.filter(User.id == inv.created_by_id).first() if getattr(inv, "created_by_id", None) else None
+        
         result.append({
             "id": inv.id,
-            "number": inv.invoice_number,
+            "invoice_number": inv.invoice_number,
             "client": client.name if client else "Unknown",
-            "amount": inv.total,
+            "client_id": inv.client_id,
+            "sales_rep_id": inv.created_by_id,
+            "sales_rep_name": creator.full_name if creator else "System",
+            "subtotal": float(inv.subtotal or 0),
+            "tax": float(inv.tax or 0),
+            "discount": float(inv.discount or 0),
+            "total": float(inv.total or 0),
             "status": inv.status,
-            "created_by": creator.full_name if creator else "Unknown",
-            "date": inv.issued_date.strftime("%Y-%m-%d") if inv.issued_date else None
+            "issued_date": inv.issued_date.isoformat() if inv.issued_date else None,
+            "due_date": inv.due_date.isoformat() if inv.due_date else None,
+            "created_at": inv.created_at.isoformat() if getattr(inv, "created_at", None) else None,
         })
-    return {"invoices": result, "total": total, "skip": skip, "limit": limit}
+        
+    return {"items": result, "total": total, "skip": skip, "limit": limit}
 
 
 @router.post("/invoices/{invoice_id}/approve", response_model=MessageResponse)
@@ -440,3 +453,96 @@ def approve_invoice(
     db.commit()
     
     return {"message": f"Invoice {invoice_id} approved"}
+
+# ===============================
+# Team Management
+# ===============================
+
+@router.get("/team")
+def get_manager_team(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager)
+):
+    """List all team members assigned to this manager's team"""
+    team_members = apply_company_scope(db.query(User), User, current_user).filter(
+        User.team_id == current_user.team_id,
+        User.role == "sales"
+    ).all()
+    
+    result = []
+    for member in team_members:
+        # Get basic counts for each member
+        lead_count = db.query(Lead).filter(Lead.assigned_to_id == member.id).count()
+        order_count = db.query(Invoice).filter(Invoice.created_by_id == member.id).count()
+        
+        result.append({
+            "id": member.id,
+            "full_name": member.full_name,
+            "email": member.email,
+            "role": member.role,
+            "status": member.status,
+            "lead_count": lead_count,
+            "order_count": order_count,
+            "last_active": member.last_active_at.isoformat() if member.last_active_at else None
+        })
+        
+    return {"team": result}
+
+@router.get("/team/{user_id}/performance")
+def get_team_member_performance(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager)
+):
+    """Detailed performance metrics for a specific team member"""
+    member = apply_company_scope(db.query(User), User, current_user).filter(
+        User.id == user_id,
+        User.team_id == current_user.team_id
+    ).first()
+    
+    if not member:
+        raise HTTPException(status_code=404, detail="Team member not found")
+        
+    # Lead metrics
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.assigned_to_id == user_id)
+    total_leads = lead_q.count()
+    converted_leads = lead_q.filter(Lead.status == "Converted").count()
+    lost_leads = lead_q.filter(Lead.status == "Lost").count()
+    
+    # Order metrics
+    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.created_by_id == user_id)
+    total_orders = inv_q.count()
+    revenue_sourced = inv_q.filter(Invoice.status != "Cancelled").with_entities(func.sum(Invoice.total)).scalar() or 0.0
+    paid_revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0.0
+    
+    # Task metrics
+    task_q = apply_company_scope(db.query(Task), Task, current_user).filter(Task.assigned_to_id == user_id)
+    tasks_completed = task_q.filter(Task.status == "Completed").count()
+    tasks_pending = task_q.filter(Task.status == "Pending").count()
+    
+    return {
+        "member": {
+            "id": member.id,
+            "full_name": member.full_name,
+            "email": member.email,
+            "role": member.role,
+            "created_at": member.created_at.isoformat() if member.created_at else None
+        },
+        "metrics": {
+            "leads": {
+                "total": total_leads,
+                "converted": converted_leads,
+                "lost": lost_leads,
+                "conversion_rate": round((converted_leads / total_leads * 100), 1) if total_leads > 0 else 0
+            },
+            "orders": {
+                "total_count": total_orders,
+                "total_value": float(revenue_sourced),
+                "paid_value": float(paid_revenue)
+            },
+            "tasks": {
+                "completed": tasks_completed,
+                "pending": tasks_pending
+            }
+        }
+    }

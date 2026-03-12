@@ -67,7 +67,7 @@ export default function MDInvoicesPage() {
     const filteredInvoices = invoices.filter(inv => {
         const matchesFilter = filter === 'All' || inv.status === filter;
         const matchesSearch = (inv.client || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (inv.id || '').toLowerCase().includes(searchQuery.toLowerCase());
+            String(inv.id || '').toLowerCase().includes(searchQuery.toLowerCase());
         return matchesFilter && matchesSearch;
     });
 
@@ -164,8 +164,7 @@ export default function MDInvoicesPage() {
                             {filteredInvoices.map((invoice, idx) => (
                                 <tr
                                     key={invoice.id}
-                                    onClick={() => alert('Invoice Detail View Coming Soon')}
-                                    className={`group hover:bg-surface-elevated/30 cursor-pointer transition-all ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
+                                    className={`group hover:bg-surface-elevated/30 cursor-default transition-all ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
                                 >
                                     <td className="py-3.5 px-5 font-mono text-[12px] font-bold text-primary">{invoice.id}</td>
                                     <td className="py-3.5 px-5 text-[13px] font-bold text-secondary">{invoice.client}</td>

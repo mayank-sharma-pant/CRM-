@@ -245,6 +245,7 @@ def list_invoices(
     result = []
     for inv in invoices:
         client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == inv.client_id).first()
+        creator = apply_company_scope(db.query(User), User, current_user).filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
         result.append({
             "id": inv.id,
             "number": inv.invoice_number,
@@ -253,7 +254,8 @@ def list_invoices(
             "status": inv.status.lower(),
             "issued": inv.issued_date.strftime("%Y-%m-%d") if inv.issued_date else None,
             "due": inv.due_date.strftime("%Y-%m-%d") if inv.due_date else None,
-            "paid_at": inv.paid_date.strftime("%Y-%m-%d") if inv.paid_date else None
+            "paid_at": inv.paid_date.strftime("%Y-%m-%d") if inv.paid_date else None,
+            "sales_rep_name": creator.full_name if creator else "System"
         })
     
     summary = {

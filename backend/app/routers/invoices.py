@@ -28,7 +28,10 @@ class InvoiceCreate(BaseModel):
     invoice_number: Optional[str] = None
     issued_date: Optional[date] = None
     due_date: Optional[date] = None
+    due_days: Optional[int] = None
     notes: Optional[str] = None
+    tax: Optional[float] = None       # dollar amount from frontend
+    discount: Optional[float] = None   # dollar amount from frontend
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -73,9 +76,20 @@ def create_invoice(
         total = (it.quantity or 0) * (it.unit_price or 0)
         subtotal += total
 
-    # Use the tax_rate determined above
-    tax = round(subtotal * (float(tax_rate) / 100), 2)
-    total = subtotal + tax
+    # Use frontend-provided tax/discount if present, else auto-calc from company settings
+    if body.tax is not None:
+        tax = round(body.tax, 2)
+    else:
+        tax = round(subtotal * (float(tax_rate) / 100), 2)
+    discount_val = round(body.discount, 2) if body.discount else 0.0
+    total = subtotal + tax - discount_val
+
+    # Handle due_days -> due_date
+    from datetime import timedelta
+    issued = body.issued_date or date.today()
+    due = body.due_date
+    if not due and body.due_days:
+        due = issued + timedelta(days=body.due_days)
 
     invoice = Invoice(
         company_id=company_id,
@@ -83,11 +97,11 @@ def create_invoice(
         client_id=body.client_id,
         subtotal=subtotal,
         tax=tax,
-        discount=0.0,
+        discount=discount_val,
         total=total,
         status="Draft",
-        issued_date=body.issued_date,
-        due_date=body.due_date,
+        issued_date=issued,
+        due_date=due,
         notes=body.notes,
         created_by_id=current_user.id,
     )

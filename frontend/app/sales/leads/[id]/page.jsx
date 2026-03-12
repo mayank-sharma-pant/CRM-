@@ -49,8 +49,8 @@ export default function LeadDetailPage() {
 
       // Map permissions
       data.permissions = {
-        canEdit: true,
-        canConvert: true,
+        canEdit: !['Converted', 'Lost', 'Lost Client'].includes(data.status),
+        canConvert: !['Converted', 'Lost', 'Lost Client'].includes(data.status),
         canAddTask: true,
         canAddNote: true,
         canReassign: isManager
@@ -169,13 +169,13 @@ export default function LeadDetailPage() {
   const handleConvert = async () => {
     if (!window.confirm("Convert this lead to a formal client?")) return;
     try {
-      // Assuming a generic create client from lead info since no specific convert endpoint
       await api.post('/clients', {
         name: lead.name,
         email: lead.email || null,
         phone: lead.phone || null,
         company: lead.company || null,
-        address: null
+        address: null,
+        converted_from_lead_id: parseInt(id)
       });
       await api.put(`/leads/${id}`, { status: 'Converted' });
       alert("Converted successfully!");
@@ -245,7 +245,7 @@ export default function LeadDetailPage() {
                   Update Status <ChevronDown size={14} />
                 </button>
                 <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl hidden group-hover:block z-30 overflow-hidden">
-                  {['New', 'Contacted', 'Qualified', 'Proposal', 'Lost'].map(status => (
+                  {['New', 'Contacted', 'Qualified', 'Proposal', 'Lost', 'Lost Client'].map(status => (
                     <button
                       key={status}
                       onClick={() => handleUpdateStatus(status)}

@@ -13,8 +13,7 @@ const TABS = [
     { id: 'New', label: 'New' },
     { id: 'Contacted', label: 'Contacted' },
     { id: 'Qualified', label: 'Follow-up' },
-    { id: 'Converted', label: 'Converted' },
-    { id: 'Lost', label: 'Lost' }
+    { id: 'Closed', label: 'Closed' }
 ];
 
 const STATUS_STYLES = {
@@ -22,7 +21,8 @@ const STATUS_STYLES = {
     'Contacted': 'bg-blue-50 text-blue-700 border-blue-200',
     'Qualified': 'bg-violet-50 text-violet-700 border-violet-200',
     'Converted': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    'Lost': 'bg-gray-50 text-gray-500 border-gray-200'
+    'Lost': 'bg-gray-50 text-gray-500 border-gray-200',
+    'Lost Client': 'bg-red-50 text-red-700 border-red-200'
 };
 
 export default function ManagerLeads() {
@@ -84,7 +84,8 @@ export default function ManagerLeads() {
 
     const getFilteredLeads = () => {
         if (activeTab === 'all') return leads;
-        if (activeTab === 'active') return leads.filter(l => ['New', 'Contacted', 'Qualified'].includes(l.status));
+        if (activeTab === 'active') return leads.filter(l => ['New', 'Contacted', 'Qualified', 'Proposal'].includes(l.status));
+        if (activeTab === 'Closed') return leads.filter(l => ['Converted', 'Lost', 'Lost Client'].includes(l.status));
         return leads.filter(l => l.status === activeTab);
     };
 
@@ -193,7 +194,7 @@ export default function ManagerLeads() {
                     ) : (
                         filteredLeads.map(lead => {
                             const signal = getEngagementSignal(lead);
-                            const isMuted = ['Converted', 'Lost'].includes(lead.status);
+                            const isMuted = ['Converted', 'Lost', 'Lost Client'].includes(lead.status);
                             return (
                                 <Link key={lead.id} href={`/manager/leads/${lead.id}`}
                                     className={`flex items-center gap-4 px-5 py-2.5 hover:bg-surface-elevated/20 transition-colors group ${isMuted ? 'opacity-60 saturate-[0.8]' : ''}`}>

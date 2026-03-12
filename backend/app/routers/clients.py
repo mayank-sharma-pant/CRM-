@@ -31,6 +31,11 @@ def list_clients(
 ):
     """List clients (paginated)."""
     query = apply_company_scope(db.query(Client), Client, current_user)
+    
+    # Sales executives only see their own clients
+    if getattr(current_user, 'role', '') == 'sales':
+        query = query.filter(Client.assigned_to_id == current_user.id)
+    
     if search:
         search_pattern = f"%{search}%"
         query = query.filter(
@@ -131,13 +136,26 @@ def create_client(
     """Create a new client"""
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
+    
+    # Prevent duplicate conversion from same lead
+    if body.converted_from_lead_id:
+        existing = db.query(Client).filter(
+            Client.company_id == current_user.company_id,
+            Client.converted_from_lead_id == body.converted_from_lead_id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="This lead has already been converted to a client.")
+    
     new_client = Client(
         company_id=current_user.company_id,
         name=body.name,
         email=body.email,
         phone=body.phone,
         company=body.company,
-        address=body.address
+        address=body.address,
+        assigned_to_id=body.assigned_to_id or current_user.id,
+        team_id=body.team_id or current_user.team_id,
+        converted_from_lead_id=body.converted_from_lead_id,
     )
     
     db.add(new_client)

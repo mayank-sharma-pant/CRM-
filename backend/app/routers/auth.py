@@ -135,6 +135,9 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
         }
     except Exception as e:
         db.rollback()
+        import traceback
+        with open("error_log.txt", "a") as f:
+            f.write(f"SIGNUP ERROR for {user_data.email}:\n{traceback.format_exc()}\n")
         logger.error(f"SIGNUP ERROR: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
@@ -373,42 +376,53 @@ def accept_invite(
             detail="Password must be at least 8 characters"
         )
     
-    new_user = User(
-        email=invite.email,
-        full_name=invite.full_name,
-        phone=invite.phone,
-        hashed_password=hashed_password,
-        role=invite.role,
-        company_id=invite.company_id,
-        team_id=invite.team_id,
-        manager_id=invite.manager_id,
-        status="active",  # Invited users are auto-activated
-        is_active=True
-    )
-    
-    db.add(new_user)
-    
-    # Mark invite as accepted
-    invite.status = InviteStatus.ACCEPTED
-    
-    db.commit()
-    db.refresh(new_user)
-    
-    # Create access token for immediate login
-    access_token = create_access_token(data={"sub": new_user.email, "role": new_user.role})
-    
-    return {
-        "message": "Account created successfully",
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": {
-            "id": new_user.id,
-            "email": new_user.email,
-            "full_name": new_user.full_name,
-            "role": new_user.role,
-            "team_id": new_user.team_id
+    try:
+        new_user = User(
+            email=invite.email,
+            full_name=invite.full_name,
+            phone=invite.phone,
+            hashed_password=hashed_password,
+            role=invite.role,
+            company_id=invite.company_id,
+            team_id=invite.team_id,
+            manager_id=invite.manager_id,
+            status="active",  # Invited users are auto-activated
+            is_active=True
+        )
+        
+        db.add(new_user)
+        
+        # Mark invite as accepted
+        invite.status = InviteStatus.ACCEPTED
+        
+        db.commit()
+        db.refresh(new_user)
+        
+        # Create access token for immediate login
+        access_token = create_access_token(data={"sub": new_user.email, "role": new_user.role})
+        
+        return {
+            "message": "Account created successfully",
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "id": new_user.id,
+                "email": new_user.email,
+                "full_name": new_user.full_name,
+                "role": new_user.role,
+                "team_id": new_user.team_id
+            }
         }
-    }
+    except Exception as e:
+        db.rollback()
+        import traceback
+        with open("error_log.txt", "a") as f:
+            f.write(f"ACCEPT INVITE ERROR for {invite.email}:\n{traceback.format_exc()}\n")
+        logger.error(f"ACCEPT INVITE ERROR: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Registration failed: {str(e)}"
+        )
 
 
 # ===============================

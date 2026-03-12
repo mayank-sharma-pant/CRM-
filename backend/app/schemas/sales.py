@@ -115,6 +115,8 @@ class ClientBase(BaseModel):
 
 class ClientCreate(ClientBase):
     converted_from_lead_id: Optional[int] = None
+    assigned_to_id: Optional[int] = None
+    team_id: Optional[int] = None
 
 
 class ClientUpdate(BaseModel):

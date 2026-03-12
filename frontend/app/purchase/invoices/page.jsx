@@ -22,6 +22,7 @@ export default function PurchaseInvoicesPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [invoices, setInvoices] = useState([]);
+    const [error, setError] = useState(null);
     const [filter, setFilter] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -29,6 +30,7 @@ export default function PurchaseInvoicesPage() {
     const fetchInvoices = async () => {
         try {
             setLoading(true);
+            setError(null);
             const res = await api.get('/purchase/invoices');
             const mappedInvoices = (res.data.invoices || []).map(inv => ({
                 ...inv,
@@ -41,6 +43,8 @@ export default function PurchaseInvoicesPage() {
             setInvoices(mappedInvoices);
         } catch (err) {
             console.error("Failed to fetch purchase invoices", err);
+            setError(err?.response?.data?.detail || err?.message || 'Failed to load invoices.');
+            setInvoices([]);
         } finally {
             setLoading(false);
         }
@@ -49,6 +53,25 @@ export default function PurchaseInvoicesPage() {
     useEffect(() => { fetchInvoices(); }, []);
 
     if (loading) return <InvoicesSkeleton />;
+
+    if (error) {
+        return (
+            <div className="mx-auto max-w-[1440px] px-6 py-12 bg-page min-h-screen flex items-center justify-center">
+                <div className="bg-surface rounded-md border border-border p-8 text-center max-w-md">
+                    <AlertTriangle size={32} className="text-error mx-auto mb-4" />
+                    <p className="text-[13px] font-bold text-primary mb-4">{error}</p>
+                    <button
+                        type="button"
+                        onClick={fetchInvoices}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-surface-elevated border border-border rounded-md text-[12px] font-bold uppercase tracking-tight hover:bg-surface text-secondary transition-all"
+                    >
+                        <Search size={14} />
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     // Filter invoices
     const filteredInvoices = invoices.filter(inv => {

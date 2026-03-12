@@ -1,0 +1,7 @@
+--- LATEST INVITES ---
+ID: 4, Email: mayanksharmarrk30@gmail.com, Status: accepted, Token: 5gtUrRYxY3...
+
+--- LATEST USERS ---
+ID: 7, Email: mayanksharmarrk30@gmail.com, Role: manager, Status: active, Company: 4
+ID: 6, Email: mayanksharmarrk07@gmail.com, Role: admin, Status: active, Company: 4
+ID: 1, Email: mayanksharmarrk01@gmail.com, Role: admin, Status: active, Company: None

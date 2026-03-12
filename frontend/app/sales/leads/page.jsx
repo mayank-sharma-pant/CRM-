@@ -26,8 +26,7 @@ const TABS = [
   { id: 'New', label: 'New' },
   { id: 'Contacted', label: 'Contacted' },
   { id: 'Qualified', label: 'Follow-up' },
-  { id: 'Converted', label: 'Converted' },
-  { id: 'Lost', label: 'Lost' }
+  { id: 'Closed', label: 'Closed' }
 ];
 
 const STATUS_STYLES = {
@@ -35,7 +34,8 @@ const STATUS_STYLES = {
   'Contacted': 'bg-blue-50 text-blue-700 border-blue-200',
   'Qualified': 'bg-violet-50 text-violet-700 border-violet-200',
   'Converted': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'Lost': 'bg-gray-50 text-gray-500 border-gray-200'
+  'Lost': 'bg-gray-50 text-gray-500 border-gray-200',
+  'Lost Client': 'bg-red-50 text-red-700 border-red-200'
 };
 
 export default function Leads() {
@@ -63,7 +63,7 @@ export default function Leads() {
       let url = '/leads';
       const params = {};
 
-      if (activeTab !== 'all' && activeTab !== 'active') {
+      if (activeTab !== 'all' && activeTab !== 'active' && activeTab !== 'Closed') {
         params.status = activeTab;
       }
 
@@ -71,10 +71,10 @@ export default function Leads() {
       const raw = response.data?.items ?? response.data;
       let data = Array.isArray(raw) ? raw : [];
 
-      // If 'active', we still want New, Contacted, Qualified
-      // The backend doesn't have an 'active' filter shortcut yet, so we can either add it to backend or filter here
       if (activeTab === 'active') {
-        data = data.filter(l => ['New', 'Contacted', 'Qualified'].includes(l.status));
+        data = data.filter(l => ['New', 'Contacted', 'Qualified', 'Proposal'].includes(l.status));
+      } else if (activeTab === 'Closed') {
+        data = data.filter(l => ['Converted', 'Lost', 'Lost Client'].includes(l.status));
       }
 
       setLeads(data);
@@ -210,7 +210,7 @@ export default function Leads() {
             ) : (
               filteredLeads.map((lead, idx) => {
                 const signal = getEngagementSignal(lead);
-                const isMuted = ['Converted', 'Lost'].includes(lead.status);
+                const isMuted = ['Converted', 'Lost', 'Lost Client'].includes(lead.status);
 
                 return (
                   <Link
@@ -233,7 +233,7 @@ export default function Leads() {
                     {/* Center: Context */}
                     <div className="w-[20%] flex justify-center">
                       <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${lead.status === 'Converted' ? 'bg-success/10 text-success border-success/20' :
-                        lead.status === 'Lost' ? 'bg-muted/10 text-muted border-muted/20' :
+                        (lead.status === 'Lost' || lead.status === 'Lost Client') ? 'bg-muted/10 text-muted border-muted/20' :
                           lead.status === 'Qualified' ? 'bg-accent/10 text-accent border-accent/20' :
                             'bg-info/10 text-info border-info/20'
                         }`}>

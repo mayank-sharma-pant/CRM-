@@ -48,7 +48,7 @@ def get_md_dashboard(
     client_q = apply_company_scope(db.query(Client), Client, current_user)
     total_clients = client_q.count()
     inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
-    total_revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
+    total_revenue = inv_q.filter(Invoice.status != "Cancelled").with_entities(func.sum(Invoice.total)).scalar() or 0
     
     # Invoice stats
     paid = inv_q.filter(Invoice.status == "Paid").count()
@@ -156,8 +156,9 @@ def get_revenue_analytics(
 ):
     """Get detailed revenue analytics"""
     inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
-    total_revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
-    outstanding = inv_q.filter(Invoice.status == "Pending").with_entities(func.sum(Invoice.total)).scalar() or 0
+    total_revenue = inv_q.filter(Invoice.status != "Cancelled").with_entities(func.sum(Invoice.total)).scalar() or 0
+    collected_revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
+    outstanding = inv_q.filter(Invoice.status.in_(["Pending", "Sent", "Draft"])).with_entities(func.sum(Invoice.total)).scalar() or 0
     
     # Growth: compare paid invoices in last 30d vs previous 30d
     now = datetime.now()
@@ -688,7 +689,7 @@ def get_company_invoices(
             "id": f"INV-{inv.id:04d}",
             "db_id": inv.id,
             "client": client.name if client else "Unknown",
-            "sales_rep_name": creator.name if creator else "System",
+            "sales_rep_name": creator.full_name if creator else "System",
             "amount": f"${inv.total:,.2f}" if inv.total else "$0.00",
             "status": inv.status or "Draft",
             "dueDate": inv.due_date.strftime("%Y-%m-%d") if inv.due_date else None,
@@ -771,3 +772,52 @@ def get_performance_points(
             "tierCount": len(tier_set)
         }
     }
+
+
+# ===============================
+# MD Teams Overview
+# ===============================
+
+@router.get("/teams")
+def get_md_teams(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_md)
+):
+    """Get all teams with member counts and performance KPIs for MD overview."""
+    teams = apply_company_scope(db.query(Team), Team, current_user).all()
+
+    result = []
+    for team in teams:
+        members = db.query(User).filter(User.team_id == team.id, User.company_id == current_user.company_id).all()
+        member_ids = [m.id for m in members]
+
+        lead_count = db.query(Lead).filter(Lead.assigned_to_id.in_(member_ids)).count() if member_ids else 0
+        converted = db.query(Lead).filter(Lead.assigned_to_id.in_(member_ids), Lead.status == "Converted").count() if member_ids else 0
+        revenue = db.query(func.sum(Invoice.total)).filter(Invoice.created_by_id.in_(member_ids), Invoice.status == "Paid").scalar() or 0 if member_ids else 0
+        order_count = db.query(Invoice).filter(Invoice.created_by_id.in_(member_ids)).count() if member_ids else 0
+
+        manager = next((m for m in members if m.role == "manager"), None)
+
+        result.append({
+            "id": team.id,
+            "name": team.name,
+            "manager": manager.full_name if manager else "Unassigned",
+            "member_count": len([m for m in members if m.role == "sales"]),
+            "total_leads": lead_count,
+            "converted_leads": converted,
+            "conversion_rate": round((converted / lead_count * 100), 1) if lead_count > 0 else 0,
+            "revenue": float(revenue),
+            "order_count": order_count,
+            "members": [
+                {
+                    "id": m.id,
+                    "full_name": m.full_name,
+                    "email": m.email,
+                    "role": m.role,
+                    "status": m.status
+                }
+                for m in members
+            ]
+        })
+
+    return {"teams": result, "total": len(result)}

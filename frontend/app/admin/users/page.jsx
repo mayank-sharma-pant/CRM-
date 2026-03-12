@@ -94,15 +94,20 @@ export default function AdminUsersPage() {
                 'Admin': 'admin'
             };
 
+            const mappedRole = roleMap[inviteRole] || inviteRole.toLowerCase();
             const params = {
                 email: inviteEmail,
                 full_name: inviteName,
-                role: roleMap[inviteRole] || inviteRole.toLowerCase()
+                role: mappedRole
             };
 
             if (invitePhone) params.phone = invitePhone;
-            const teamId = inviteTeam ? parseInt(inviteTeam, 10) : null;
-            if (teamId && !isNaN(teamId)) params.team_id = teamId;
+            
+            // Only attach team_id for sales and managers
+            if (['sales', 'manager'].includes(mappedRole)) {
+                const teamId = inviteTeam ? parseInt(inviteTeam, 10) : null;
+                if (teamId && !isNaN(teamId)) params.team_id = teamId;
+            }
 
             await api.post('/admin/invites', params);
 
@@ -351,19 +356,21 @@ export default function AdminUsersPage() {
                                     <option value="Admin">Admin</option>
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Team</label>
-                                <select
-                                    value={inviteTeam}
-                                    onChange={(e) => setInviteTeam(e.target.value)}
-                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
-                                >
-                                    <option value="">No team</option>
-                                    {teams.map(t => (
-                                        <option key={t.id} value={t.id}>{t.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {['Sales Executive', 'Manager'].includes(inviteRole) && (
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Team</label>
+                                    <select
+                                        value={inviteTeam}
+                                        onChange={(e) => setInviteTeam(e.target.value)}
+                                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                    >
+                                        <option value="">No team</option>
+                                        {teams.map(t => (
+                                            <option key={t.id} value={t.id}>{t.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex gap-3">

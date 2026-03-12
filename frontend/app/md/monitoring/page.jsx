@@ -40,22 +40,41 @@ export default function MDMonitoringPage() {
                 const res = await api.get('/md/monitoring');
                 const apiData = res.data;
 
+                const riskTrend = apiData.risk_trend || [];
+                let trendDirection = 'stable';
+                let trendSummary = "System parameters stabilized.";
+                
+                if (riskTrend.length >= 2) {
+                    const todayVal = riskTrend[riskTrend.length - 1].value;
+                    const yestVal = riskTrend[riskTrend.length - 2].value;
+                    if (todayVal > yestVal) {
+                        trendDirection = 'worsening';
+                        trendSummary = `Risk signals increased by ${todayVal - yestVal} compared to yesterday.`;
+                    } else if (todayVal < yestVal) {
+                        trendDirection = 'improving';
+                        trendSummary = `Risk signals decreased by ${yestVal - todayVal} compared to yesterday.`;
+                    } else {
+                        trendDirection = 'stable';
+                        trendSummary = `Risk volume remained stable at ${todayVal} signals.`;
+                    }
+                }
+
                 // Bridge backend to rich frontend format
                 const enrichedData = {
                     summary: {
                         activeAlerts: apiData.alerts?.length || 0,
                         highSeverity: apiData.alerts?.filter(a => a.severity === 'High').length || 0,
-                        trendDirection: 'stable'
+                        trendDirection: trendDirection
                     },
-                    riskTrend: apiData.risk_trend || [],
-                    trendSummary: "Alert volume stabilized based on recent activity logs.",
+                    riskTrend: riskTrend,
+                    trendSummary: trendSummary,
                     alerts: apiData.alerts?.map(a => ({
                         id: a.id,
                         severity: a.severity || 'Medium',
                         title: a.title || 'System Alert',
                         category: a.type || 'General',
                         evidence: [a.message],
-                        trend: 'flat',
+                        trend: trendDirection === 'worsening' ? 'up' : trendDirection === 'improving' ? 'down' : 'flat',
                         detected: 'Today',
                         description: a.message
                     })) || [],

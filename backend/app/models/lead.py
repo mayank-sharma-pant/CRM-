@@ -12,6 +12,7 @@ class LeadStatus(str, enum.Enum):
     PROPOSAL = "Proposal"
     CONVERTED = "Converted"
     LOST = "Lost"
+    LOST_CLIENT = "Lost Client"
 
 
 class Lead(Base):

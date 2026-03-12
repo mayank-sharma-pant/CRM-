@@ -25,7 +25,7 @@ const ROLE_DASHBOARDS = {
 };
 
 /** Pages that anyone can access (logged in or not) */
-const PUBLIC_PATHS = ['/', '/login', '/signup', '/platform'];
+const PUBLIC_PATHS = ['/', '/login', '/signup', '/platform', '/accept-invite'];
 
 function isPublicPath(pathname) {
     return PUBLIC_PATHS.some(p =>
@@ -45,7 +45,7 @@ export default function RouteGuard({ children }) {
         if (isPublicPath(pathname)) return;
 
         // Shared pages anyone logged-in can access
-        const sharedPaths = ['/settings', '/finance', '/financial-ledgers'];
+        const sharedPaths = ['/settings', '/finance', '/financial-ledgers', '/report-bug'];
         if (sharedPaths.some(p => pathname.startsWith(p))) {
             if (!user) {
                 router.replace('/login');

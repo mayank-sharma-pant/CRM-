@@ -31,7 +31,14 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
-        window.location.href = '/login';
+        
+        // Do not force redirect if we are already on a public auth page
+        const publicPaths = ['/login', '/signup', '/accept-invite', '/forgot-password', '/reset-password'];
+        const isPublicPath = window.location.pathname === '/' || publicPaths.some(p => window.location.pathname.startsWith(p));
+        
+        if (!isPublicPath) {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);

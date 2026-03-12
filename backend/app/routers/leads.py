@@ -41,8 +41,8 @@ def get_sales_dashboard(
     elif current_user.role == "manager":
         lead_query = lead_query.filter(Lead.team_id == current_user.team_id)
     total_leads = lead_query.count()
-    closed_leads = lead_query.filter(Lead.status.in_(["Converted", "Lost"])).count()
-    conversion_rate = int((closed_leads / total_leads * 100)) if total_leads > 0 else 0
+    converted_leads = lead_query.filter(Lead.status == "Converted").count()
+    conversion_rate = int((converted_leads / total_leads * 100)) if total_leads > 0 else 0
     
     # Get priority tasks (overdue and due today)
     now = datetime.now()
@@ -136,7 +136,7 @@ def get_sales_dashboard(
     return {
         "metrics": {
             "total_leads": total_leads,
-            "closed_leads": closed_leads,
+            "closed_leads": converted_leads,
             "lost_leads": lost_leads,
             "active_leads": active_leads,
             "stalled_leads": stalled_leads,

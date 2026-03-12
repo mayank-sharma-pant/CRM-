@@ -102,36 +102,44 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
     # Company creator is always the company admin
     role = "admin"
 
-    company_name = (user_data.company_name or "").strip() or f"{user_data.full_name}'s Company"
-    new_company = Company(
-        name=company_name,
-        status="pending",
-    )
-    db.add(new_company)
-    db.flush()
+    try:
+        company_name = (user_data.company_name or "").strip() or f"{user_data.full_name}'s Company"
+        new_company = Company(
+            name=company_name,
+            status="pending",
+        )
+        db.add(new_company)
+        db.flush()
 
-    db_user = User(
-        email=user_data.email,
-        full_name=user_data.full_name,
-        hashed_password=hashed_password,
-        role=role,
-        company_id=new_company.id,
-        phone=user_data.phone,
-        status="pending",
-    )
+        db_user = User(
+            email=user_data.email,
+            full_name=user_data.full_name,
+            hashed_password=hashed_password,
+            role=role,
+            company_id=new_company.id,
+            phone=user_data.phone,
+            status="pending",
+        )
 
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
 
-    return {
-        "id": db_user.id,
-        "email": db_user.email,
-        "full_name": db_user.full_name,
-        "role": db_user.role,
-        "company_id": db_user.company_id,
-        "message": "User registered successfully. Company is pending approval."
-    }
+        return {
+            "id": db_user.id,
+            "email": db_user.email,
+            "full_name": db_user.full_name,
+            "role": db_user.role,
+            "company_id": db_user.company_id,
+            "message": "User registered successfully. Company is pending approval."
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"SIGNUP ERROR: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Registration failed: {str(e)}"
+        )
 
 
 @router.post("/login", response_model=LoginResponse)

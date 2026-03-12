@@ -27,6 +27,7 @@ import {
     GitBranch,
     FileText,
     BookOpen,
+    Bug,
     Menu,
     X
 } from 'lucide-react';
@@ -52,7 +53,8 @@ const ICON_MAP = {
     UsersRound,
     GitBranch,
     FileText,
-    BookOpen
+    BookOpen,
+    Bug
 };
 
 const ROLE_NAVIGATION = {
@@ -151,6 +153,10 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 }))
             });
         }
+
+        // Universal links for all roles
+        navData.push({ category: 'SUPPORT' });
+        navData.push({ name: 'Report Bug', href: '/report-bug', icon: 'Bug' });
 
         setNavigation(navData);
     }, [user?.role, loading, pathname, ledgerLoading, authorizedLedgers]);

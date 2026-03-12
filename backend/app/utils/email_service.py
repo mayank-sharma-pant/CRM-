@@ -10,7 +10,9 @@ import smtplib
 import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import Optional
+from email.mime.base import MIMEBase
+from email import encoders
+from typing import Optional, List, Tuple
 
 from app.config import settings
 
@@ -53,6 +55,68 @@ def send_email(to_email: str, subject: str, html_content: str) -> bool:
         server.sendmail(from_email, to_email, msg.as_string())
         server.quit()
         logger.info("[EMAIL] Sent '%s' to %s", subject, to_email)
+        return True
+    except Exception as exc:
+        logger.error("[EMAIL] Failed to send to %s: %s", to_email, str(exc))
+        return False
+
+
+# ──────────────────────────────────────
+# Email with attachments
+# ──────────────────────────────────────
+
+def send_email_with_attachments(
+    to_email: str,
+    subject: str,
+    html_content: str,
+    attachments: Optional[List[Tuple[str, bytes, str]]] = None,
+) -> bool:
+    """Send an email with optional file attachments.
+
+    Args:
+        to_email: Recipient address.
+        subject: Email subject.
+        html_content: HTML body.
+        attachments: List of (filename, file_bytes, content_type) tuples.
+
+    Returns True on success, False on failure.
+    """
+    if not _is_configured():
+        logger.warning("[EMAIL] SMTP not configured — skipping email to %s", to_email)
+        return False
+
+    from_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USER
+
+    msg = MIMEMultipart("mixed")
+    msg["Subject"] = subject
+    msg["From"] = from_email
+    msg["To"] = to_email
+
+    # HTML body
+    msg.attach(MIMEText(html_content, "html"))
+
+    # Attachments
+    for filename, file_bytes, content_type in (attachments or []):
+        maintype, _, subtype = content_type.partition("/")
+        part = MIMEBase(maintype, subtype or "octet-stream")
+        part.set_payload(file_bytes)
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", "attachment", filename=filename)
+        msg.attach(part)
+
+    try:
+        if settings.SMTP_TLS:
+            server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+        else:
+            server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15)
+
+        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+        server.sendmail(from_email, to_email, msg.as_string())
+        server.quit()
+        logger.info("[EMAIL] Sent '%s' with %d attachment(s) to %s", subject, len(attachments or []), to_email)
         return True
     except Exception as exc:
         logger.error("[EMAIL] Failed to send to %s: %s", to_email, str(exc))

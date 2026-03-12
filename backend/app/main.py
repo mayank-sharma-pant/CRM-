@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.routers import auth, users, leads, tasks, clients, admin, manager, follow_ups, md, purchase, ledgers, leaves, platform, invoices, export, search, notifications, timeline
+from app.routers import auth, users, leads, tasks, clients, admin, manager, follow_ups, md, purchase, ledgers, leaves, platform, invoices, export, search, notifications, timeline, bug_report
 from app.config import settings
 from app.middleware.security import SecurityHeadersMiddleware
 import traceback
@@ -90,6 +90,7 @@ app.include_router(export.router, prefix="/api/export", tags=["Export"])
 app.include_router(search.router, prefix="/api/search", tags=["Search"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
 app.include_router(timeline.router, prefix="/api/timeline", tags=["Timeline"])
+app.include_router(bug_report.router, prefix="/api/bug-report", tags=["Bug Reports"])
 
 @app.get("/")
 def root():

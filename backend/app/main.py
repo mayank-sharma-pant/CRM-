@@ -50,6 +50,10 @@ app = FastAPI(
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    # Let FastAPI's built-in handler deal with HTTPException (4xx, 5xx with detail)
+    from fastapi import HTTPException as FastAPIHTTPException
+    if isinstance(exc, FastAPIHTTPException):
+        raise exc
     tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
     tb_str = ''.join(tb)
     logger.error(f"Unhandled error on {request.method} {request.url}:\n{tb_str}")

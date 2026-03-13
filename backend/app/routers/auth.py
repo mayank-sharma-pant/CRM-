@@ -164,7 +164,13 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if user.status == "disabled":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled")
 
-    _check_company_status(user, db)
+    try:
+        _check_company_status(user, db)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"LOGIN ERROR during company check for {email}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
     user.last_active_at = datetime.now(timezone.utc)
     db.commit()

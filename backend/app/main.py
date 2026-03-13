@@ -47,6 +47,9 @@ app = FastAPI(
     redoc_url=None if is_production else "/redoc",
 )
 
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     # Let FastAPI's built-in handler deal with HTTPException (4xx, 5xx with detail)

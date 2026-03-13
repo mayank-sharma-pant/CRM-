@@ -3,7 +3,7 @@ import api from './api';
 export const financeService = {
     // Get list of authorized ledgers for navigation (sidebar). Throws on error so UI can show error + retry.
     getAuthorizedLedgers: async () => {
-        const response = await api.get('/ledgers/');
+        const response = await api.get('/ledgers');
         return response.data;
     },
 

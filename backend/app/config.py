@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000, https://crm.perioxia.com"
+    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,https://crm.perioxia.com,https://perioxia.com,https://www.crm.perioxia.com,https://www.perioxia.com"
 
     SMTP_HOST: Optional[str] = None
     SMTP_PORT: Optional[int] = None

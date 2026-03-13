@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.routers import auth, users, leads, tasks, clients, admin, manager, follow_ups, md, purchase, ledgers, leaves, platform, invoices, export, search, notifications, timeline, bug_report
 from app.config import settings
-from app.middleware.security import SecurityHeadersMiddleware
 import traceback
 import logging
 import logging.config
@@ -61,17 +60,13 @@ async def global_exception_handler(request: Request, exc: Exception):
     detail = str(exc) if not is_production else "Internal server error"
     return JSONResponse(status_code=500, content={"detail": detail})
 
-
-# Security Headers Middleware
-app.add_middleware(SecurityHeadersMiddleware)
-
-# CORS Configuration
+# CORS Configuration — allow all origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
     expose_headers=["Content-Disposition"],  # For CSV export downloads
 )
 

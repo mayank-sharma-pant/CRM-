@@ -22,10 +22,13 @@ export default function MDClientsPage() {
                 setLoading(true);
                 const res = await api.get('/md/clients');
                 const backendData = res.data;
+                const totalC = backendData.summary?.total || 0;
+                const churned = (backendData.healthDistribution || []).find(h => h.name === 'Churned')?.value || 0;
+                const retentionPct = totalC > 0 ? ((totalC - churned) / totalC * 100).toFixed(1) + '%' : '0%';
                 const mappedData = {
                     kpis: [
-                        { label: 'Aggregate Clients', value: backendData.summary?.total || 0, sub: 'Total Portfolio' },
-                        { label: 'Active Retention', value: '94.2%', sub: 'Stability Index', color: 'text-success' },
+                        { label: 'Aggregate Clients', value: totalC, sub: 'Total Portfolio' },
+                        { label: 'Active Retention', value: retentionPct, sub: 'Stability Index', color: 'text-success' },
                         { label: 'Vital Signs', value: backendData.summary?.active || 0, sub: 'Engaged Hubs' }
                     ],
                     growthTrend: backendData.growthTrend || [],

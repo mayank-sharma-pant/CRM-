@@ -58,7 +58,7 @@ export default function ClientDetailPage() {
                 source: '',
                 internal_id: `CLI-${data.id}`,
                 since: data.created_at || '',
-                owner: '',
+                owner: data.assigned_to_name || 'Unassigned',
                 timeline: [],
                 tasks: data.tasks || [],
                 notes: data.notes || [],

@@ -279,7 +279,7 @@ export default function MDRevenuePage() {
                         <AlertTriangle size={16} className="text-warning" strokeWidth={2.5} />
                         <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Revenue Risk Matrix</h3>
                     </div>
-                    <button onClick={() => router.push('/md/monitoring')} className="text-[11px] font-black text-accent hover:text-accent-hover uppercase tracking-tight transition-all">
+                    <button onClick={() => router.push('/md/sales')} className="text-[11px] font-black text-accent hover:text-accent-hover uppercase tracking-tight transition-all">
                         Deep Scan
                     </button>
                 </div>
@@ -337,7 +337,7 @@ export default function MDRevenuePage() {
                             </div>
                         </div>
                     </div>
-                    <button onClick={() => router.push('/md/monitoring')} className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-md text-[12px] font-bold uppercase tracking-tight hover:bg-accent-hover transition-colors shadow-md shadow-accent/20">
+                    <button onClick={() => router.push('/md/sales')} className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-md text-[12px] font-bold uppercase tracking-tight hover:bg-accent-hover transition-colors shadow-md shadow-accent/20">
                         Scan Operations
                         <ArrowRight size={14} strokeWidth={2.5} />
                     </button>

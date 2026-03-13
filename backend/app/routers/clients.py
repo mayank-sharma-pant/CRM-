@@ -45,6 +45,14 @@ def list_clients(
         )
     total = query.count()
     clients = query.order_by(Client.created_at.desc()).offset(skip).limit(limit).all()
+
+    # Pre-fetch assignee names for all clients in one query
+    assignee_ids = list({c.assigned_to_id for c in clients if c.assigned_to_id})
+    assignee_map = {}
+    if assignee_ids:
+        assignees = db.query(User).filter(User.id.in_(assignee_ids)).all()
+        assignee_map = {u.id: u.full_name for u in assignees}
+
     return {
         "items": [
             {
@@ -54,6 +62,8 @@ def list_clients(
                 "phone": client.phone,
                 "company": client.company,
                 "address": client.address,
+                "assigned_to_id": client.assigned_to_id,
+                "assigned_to_name": assignee_map.get(client.assigned_to_id, "Unassigned"),
                 "created_at": client.created_at.strftime("%Y-%m-%d") if client.created_at else None
             }
             for client in clients
@@ -86,6 +96,13 @@ def get_client(
     # Get client tasks
     tasks = db.query(Task).filter(Task.client_id == client_id).order_by(Task.due_date.asc()).all()
     
+    # Look up assignee name
+    assignee_name = "Unassigned"
+    if client.assigned_to_id:
+        assignee = db.query(User).filter(User.id == client.assigned_to_id).first()
+        if assignee:
+            assignee_name = assignee.full_name
+
     return {
         "id": client.id,
         "name": client.name,
@@ -93,6 +110,8 @@ def get_client(
         "phone": client.phone,
         "company": client.company,
         "address": client.address,
+        "assigned_to_id": client.assigned_to_id,
+        "assigned_to_name": assignee_name,
         "created_at": client.created_at.strftime("%Y-%m-%d") if client.created_at else None,
         "invoices": [
             {

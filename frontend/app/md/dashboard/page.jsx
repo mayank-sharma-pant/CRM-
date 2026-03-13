@@ -279,7 +279,7 @@ export default function MDDashboard() {
                             <TrendingUp size={16} className="text-muted" strokeWidth={2.5} />
                             <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Trend Watchlist</h3>
                         </div>
-                        <LinkText href="/md/monitoring">Command Center</LinkText>
+                        <LinkText href="/md/sales">Analysis</LinkText>
                     </div>
                     <div className="divide-y divide-border/50">
                         {data.trendWatchlist.map((trend, i) => (

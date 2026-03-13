@@ -175,7 +175,9 @@ export default function LeadDetailPage() {
         phone: lead.phone || null,
         company: lead.company || null,
         address: null,
-        converted_from_lead_id: parseInt(id)
+        converted_from_lead_id: parseInt(id),
+        assigned_to_id: lead.assigned_to_id || null,
+        team_id: lead.team_id || null,
       });
       await api.put(`/leads/${id}`, { status: 'Converted' });
       alert("Converted successfully!");

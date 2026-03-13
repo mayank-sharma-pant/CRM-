@@ -22,6 +22,7 @@ export default function MDInvoicesPage() {
     const [error, setError] = useState(null);
     const [filter, setFilter] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
+    const [expandedId, setExpandedId] = useState(null);
 
     const fetchInvoices = useCallback(async () => {
         try {
@@ -162,43 +163,75 @@ export default function MDInvoicesPage() {
                         </thead>
                         <tbody className="divide-y divide-border/50">
                             {filteredInvoices.map((invoice, idx) => (
-                                <tr
-                                    key={invoice.id}
-                                    className={`group hover:bg-surface-elevated/30 cursor-default transition-all ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
-                                >
-                                    <td className="py-3.5 px-5 font-mono text-[12px] font-bold text-primary">{invoice.id}</td>
-                                    <td className="py-3.5 px-5 text-[13px] font-bold text-secondary">{invoice.client}</td>
-                                    <td className="py-3.5 px-5">
-                                        <div className="flex items-center gap-2">
-                                            <span className="w-5 h-5 rounded flex items-center justify-center bg-surface border border-border text-[10px] font-black text-muted">
-                                                {invoice.sales_rep_name ? invoice.sales_rep_name.charAt(0) : 'S'}
-                                            </span>
-                                            <span className="text-[12px] font-bold text-muted">
-                                                {invoice.sales_rep_name || 'System'}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="py-3.5 px-5 text-[14px] font-black text-primary tabular-nums">{invoice.amount}</td>
-                                    <td className="py-3.5 px-5">
-                                        <InvoiceStatusBadge status={invoice.status} />
-                                    </td>
-                                    <td className="py-3.5 px-5 text-[12px] font-bold text-muted uppercase tracking-tight">{invoice.dueDate}</td>
-                                    <td className="py-3.5 px-5">
-                                        {invoice.linkedSale ? (
-                                            <span className="text-[11px] font-black text-accent uppercase tracking-widest bg-accent/5 px-1.5 py-0.5 rounded-[4px] border border-accent/10">
-                                                {invoice.linkedSale}
-                                            </span>
-                                        ) : (
-                                            <span className="text-[11px] text-muted opacity-30">—</span>
-                                        )}
-                                    </td>
-                                    <td className="py-3.5 px-5">
-                                        <PaymentStatusBadge status={invoice.paymentStatus} />
-                                    </td>
-                                    <td className="py-3.5 px-5 text-right w-10">
-                                        <ChevronRight size={14} className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
-                                    </td>
-                                </tr>
+                                <>
+                                    <tr
+                                        key={invoice.id}
+                                        onClick={() => setExpandedId(expandedId === invoice.id ? null : invoice.id)}
+                                        className={`group hover:bg-surface-elevated/30 cursor-pointer transition-all ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
+                                    >
+                                        <td className="py-3.5 px-5 font-mono text-[12px] font-bold text-primary">{invoice.id}</td>
+                                        <td className="py-3.5 px-5 text-[13px] font-bold text-secondary">{invoice.client}</td>
+                                        <td className="py-3.5 px-5">
+                                            <div className="flex items-center gap-2">
+                                                <span className="w-5 h-5 rounded flex items-center justify-center bg-surface border border-border text-[10px] font-black text-muted">
+                                                    {invoice.sales_rep_name ? invoice.sales_rep_name.charAt(0) : 'S'}
+                                                </span>
+                                                <span className="text-[12px] font-bold text-muted">
+                                                    {invoice.sales_rep_name || 'System'}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="py-3.5 px-5 text-[14px] font-black text-primary tabular-nums">{invoice.amount}</td>
+                                        <td className="py-3.5 px-5">
+                                            <InvoiceStatusBadge status={invoice.status} />
+                                        </td>
+                                        <td className="py-3.5 px-5 text-[12px] font-bold text-muted uppercase tracking-tight">{invoice.dueDate}</td>
+                                        <td className="py-3.5 px-5">
+                                            {invoice.linkedSale ? (
+                                                <span className="text-[11px] font-black text-accent uppercase tracking-widest bg-accent/5 px-1.5 py-0.5 rounded-[4px] border border-accent/10">
+                                                    {invoice.linkedSale}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[11px] text-muted opacity-30">—</span>
+                                            )}
+                                        </td>
+                                        <td className="py-3.5 px-5">
+                                            <PaymentStatusBadge status={invoice.paymentStatus} />
+                                        </td>
+                                        <td className="py-3.5 px-5 text-right w-10">
+                                            <ChevronRight size={14} className={`text-muted transition-all ${expandedId === invoice.id ? 'rotate-90 text-accent' : 'group-hover:text-accent group-hover:translate-x-0.5'}`} />
+                                        </td>
+                                    </tr>
+                                    {expandedId === invoice.id && (
+                                        <tr key={`detail-${invoice.id}`}>
+                                            <td colSpan={9} className="bg-surface-elevated/20 border-t border-b border-border/50 px-8 py-5">
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                                    <DetailField label="Invoice ID" value={`INV-${String(invoice.id).padStart(4, '0')}`} />
+                                                    <DetailField label="Client" value={invoice.client || 'N/A'} />
+                                                    <DetailField label="Amount" value={invoice.amount || '$0'} highlight />
+                                                    <DetailField label="Status" value={invoice.status || 'Unknown'} />
+                                                    <DetailField label="Due Date" value={invoice.dueDate || 'N/A'} />
+                                                    <DetailField label="Sales Rep" value={invoice.sales_rep_name || 'System'} />
+                                                    <DetailField label="Payment" value={invoice.paymentStatus || 'Pending'} />
+                                                    <DetailField label="Linked Sale" value={invoice.linkedSale || 'None'} />
+                                                </div>
+                                                {invoice.items && invoice.items.length > 0 && (
+                                                    <div className="mt-4 pt-4 border-t border-border/30">
+                                                        <h4 className="text-[10px] font-black text-muted uppercase tracking-widest mb-2">Line Items</h4>
+                                                        <div className="space-y-1">
+                                                            {invoice.items.map((item, ii) => (
+                                                                <div key={ii} className="flex justify-between text-[12px] py-1">
+                                                                    <span className="font-medium text-secondary">{item.description || item.name || `Item ${ii + 1}`}</span>
+                                                                    <span className="font-bold text-primary tabular-nums">{item.quantity || 1} × ${item.unit_price || item.price || 0}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    )}
+                                </>
                             ))}
                         </tbody>
                     </table>
@@ -268,6 +301,15 @@ function PaymentStatusBadge({ status }) {
         );
     }
     return <span className="text-[11px] text-muted opacity-30">—</span>;
+}
+
+function DetailField({ label, value, highlight }) {
+    return (
+        <div>
+            <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-1">{label}</div>
+            <div className={`text-[13px] font-bold ${highlight ? 'text-accent' : 'text-primary'}`}>{value}</div>
+        </div>
+    );
 }
 
 function InvoicesSkeleton() {

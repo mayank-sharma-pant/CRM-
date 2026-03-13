@@ -92,11 +92,9 @@ const ROLE_NAVIGATION = {
         { name: 'Revenue', href: '/md/revenue', icon: 'DollarSign' },
         { name: 'Sales', href: '/md/sales', icon: 'TrendingUp' },
         { name: 'Teams', href: '/md/teams', icon: 'Users' },
-        { name: 'Monitoring', href: '/md/monitoring', icon: 'Activity' },
         { name: 'Leads', href: '/md/leads', icon: 'Target' },
         { name: 'Clients', href: '/md/clients', icon: 'Briefcase' },
         { name: 'Invoices', href: '/md/invoices', icon: 'Receipt' },
-        { name: 'Points', href: '/md/points', icon: 'Award' },
     ],
     purchase: [
         { name: 'Dashboard', href: '/purchase/dashboard', icon: 'LayoutDashboard' },

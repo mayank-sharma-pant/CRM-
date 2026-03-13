@@ -97,7 +97,7 @@ def get_md_dashboard(
     if stalled_leads > 0:
         ai_brief.append({"id": 2, "title": "Pipeline Stagnation", "summary": f"{stalled_leads} lead(s) have been stalled for 14+ days.", "link": "/md/leads"})
     if not ai_brief:
-        ai_brief.append({"id": 1, "title": "All Clear", "summary": "No critical alerts. Pipeline and finances are healthy.", "link": "/md/monitoring"})
+        ai_brief.append({"id": 1, "title": "All Clear", "summary": "No critical alerts. Pipeline and finances are healthy.", "link": "/md/dashboard"})
     
     return {
         "kpis": [
@@ -165,8 +165,8 @@ def get_revenue_analytics(
     d30_ago = now - timedelta(days=30)
     d60_ago = now - timedelta(days=60)
     
-    recent_rev = inv_q.filter(Invoice.status == "Paid", Invoice.created_at >= d30_ago).with_entities(func.sum(Invoice.total)).scalar() or 0
-    prev_rev = inv_q.filter(Invoice.status == "Paid", Invoice.created_at >= d60_ago, Invoice.created_at < d30_ago).with_entities(func.sum(Invoice.total)).scalar() or 0
+    recent_rev = inv_q.filter(Invoice.status != "Cancelled", Invoice.created_at >= d30_ago).with_entities(func.sum(Invoice.total)).scalar() or 0
+    prev_rev = inv_q.filter(Invoice.status != "Cancelled", Invoice.created_at >= d60_ago, Invoice.created_at < d30_ago).with_entities(func.sum(Invoice.total)).scalar() or 0
     growth_pct = int(((recent_rev - prev_rev) / prev_rev * 100)) if prev_rev > 0 else 0
     growth_trend = "up" if growth_pct > 0 else ("down" if growth_pct < 0 else "flat")
     
@@ -176,7 +176,7 @@ def get_revenue_analytics(
         day = d30_ago + timedelta(days=i)
         day_end = day + timedelta(days=1)
         day_total = inv_q.filter(
-            Invoice.status == "Paid",
+            Invoice.status != "Cancelled",
             Invoice.created_at >= day,
             Invoice.created_at < day_end
         ).with_entities(func.sum(Invoice.total)).scalar() or 0
@@ -192,7 +192,7 @@ def get_revenue_analytics(
         week_start = now - timedelta(weeks=4 - w)
         week_end = week_start + timedelta(weeks=1)
         week_rev = inv_q.filter(
-            Invoice.status == "Paid",
+            Invoice.status != "Cancelled",
             Invoice.created_at >= week_start,
             Invoice.created_at < week_end
         ).with_entities(func.sum(Invoice.total)).scalar() or 0
@@ -208,14 +208,14 @@ def get_revenue_analytics(
         week_start = now - timedelta(weeks=4 - w)
         week_end = week_start + timedelta(weeks=1)
         week_rev = inv_q.filter(
-            Invoice.status == "Paid",
+            Invoice.status != "Cancelled",
             Invoice.created_at >= week_start,
             Invoice.created_at < week_end
         ).with_entities(func.sum(Invoice.total)).scalar() or 0
         # Compare to previous week
         prev_week_start = week_start - timedelta(weeks=1)
         prev_week_rev = inv_q.filter(
-            Invoice.status == "Paid",
+            Invoice.status != "Cancelled",
             Invoice.created_at >= prev_week_start,
             Invoice.created_at < week_start
         ).with_entities(func.sum(Invoice.total)).scalar() or 0

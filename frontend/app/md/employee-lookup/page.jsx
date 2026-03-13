@@ -312,7 +312,7 @@ export default function MDEmployeeLookupPage() {
 
                             <section className="pt-8 border-t border-border mt-auto">
                                 <button
-                                    onClick={() => router.push('/md/monitoring')}
+                                    onClick={() => router.push('/md/sales')}
                                     className="w-full flex items-center justify-between px-5 py-4 bg-accent text-white rounded-md text-[14px] font-black uppercase tracking-tight shadow-md shadow-accent/20 hover:bg-accent-hover transition-all"
                                 >
                                     Proceed to System Monitoring

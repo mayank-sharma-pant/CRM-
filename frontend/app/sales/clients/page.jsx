@@ -95,6 +95,14 @@ export default function ClientsPage() {
                                                 </>
                                             )}
                                             <span className="truncate">{client.email}</span>
+                                            {client.assigned_to_name && (
+                                                <>
+                                                    <span className="text-slate-300 dark:text-slate-600">&bull;</span>
+                                                    <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium truncate">
+                                                        Owner: {client.assigned_to_name}
+                                                    </span>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
 

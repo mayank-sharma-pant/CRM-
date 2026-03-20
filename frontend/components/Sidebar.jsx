@@ -188,7 +188,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                 <div className="w-8 h-8 rounded bg-accent flex items-center justify-center text-page">
                                     <LayoutDashboard size={18} fill="currentColor" className="text-white/20" />
                                 </div>
-                                <span>LocalCRM</span>
+                                <span>Perioxia CRM</span>
                             </Link>
                         )}
                         <button
@@ -243,7 +243,14 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     </nav>
 
                     {/* Footer */}
-                    <div className="p-4 border-t border-border shrink-0">
+                    <div className="p-4 border-t border-border shrink-0 space-y-1">
+                        <Link
+                            href="/profile"
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-secondary hover:bg-surface-elevated hover:text-primary transition-colors"
+                        >
+                            <User size={20} strokeWidth={1.5} className="text-muted" />
+                            {isOpen && <span className="text-sm font-medium">My Profile</span>}
+                        </Link>
                         <Link
                             href="/settings/leave"
                             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-secondary hover:bg-surface-elevated hover:text-primary transition-colors"

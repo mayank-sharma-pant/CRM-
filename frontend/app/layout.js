@@ -6,7 +6,7 @@ import RouteGuard from '../components/RouteGuard';
 import ErrorBoundary from '../components/ErrorBoundary';
 
 export const metadata = {
-    title: 'LocalCRM - Simple CRM for Service Businesses',
+    title: 'Perioxia CRM - Simple CRM for Service Businesses',
     description: 'A simple, fast CRM that helps local service businesses track leads, automate follow-ups, and grow revenue.',
 };
 

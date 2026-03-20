@@ -4,10 +4,11 @@ import time
 import subprocess
 
 def test_http_signup():
+    print("--- Diagnostic Tool: Perioxia CRM Registration ---")
     print("Starting local backend for testing...")
     # Start the backend in the background
     cmd = ["uvicorn", "app.main:app", "--port", "8008"]
-    proc = subprocess.Popen(cmd, cwd="d:/SunEdge/CRM/CRM-/backend")
+    proc = subprocess.Popen(cmd, cwd="d:/Perioxia CRM/CRM-/backend")
     
     # Wait for it to start
     time.sleep(5)

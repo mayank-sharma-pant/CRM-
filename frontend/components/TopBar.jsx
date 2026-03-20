@@ -24,7 +24,7 @@ export default function TopBar() {
             {user?.role === 'md' ? (
                 <div className="flex items-center gap-4">
                     <h1 className="text-xl font-bold text-primary tracking-tight">
-                        Enterprise Corp
+                        Perioxia CRM
                     </h1>
                     <div className="h-5 w-px bg-border"></div>
                     <span className="text-xs font-bold uppercase tracking-wider text-accent">
@@ -34,7 +34,7 @@ export default function TopBar() {
             ) : user?.role === 'purchase' ? (
                 <div className="flex items-center gap-4">
                     <h1 className="text-xl font-bold text-primary tracking-tight">
-                        Enterprise Corp
+                        Perioxia CRM
                     </h1>
                     <div className="h-5 w-px bg-border"></div>
                     <span className="text-xs font-bold uppercase tracking-wider text-success">
@@ -70,7 +70,7 @@ export default function TopBar() {
                         className="flex items-center gap-2 p-1.5 rounded-md hover:bg-surface-elevated transition-colors"
                     >
                         <div className="w-8 h-8 bg-surface-elevated text-secondary rounded-full flex items-center justify-center font-medium text-sm">
-                            {user?.fullName?.charAt(0).toUpperCase() || 'U'}
+                            {(user?.fullName || user?.full_name)?.charAt(0).toUpperCase() || 'U'}
                         </div>
                         <ChevronDown size={14} className="text-muted" />
                     </button>
@@ -88,7 +88,7 @@ export default function TopBar() {
                                 {/* User info */}
                                 <div className="px-4 py-3 border-b border-border">
                                     <p className="text-sm font-medium text-primary">
-                                        {user?.fullName || 'User'}
+                                        {user?.fullName || user?.full_name || 'Profile'}
                                     </p>
                                     <p className="text-xs text-muted truncate">
                                         {user?.email}
@@ -99,7 +99,17 @@ export default function TopBar() {
                                 <div className="py-1">
                                     <button
                                         onClick={() => {
-                                            router.push('/settings');
+                                            router.push('/profile');
+                                            setDropdownOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-secondary hover:bg-surface-elevated transition-colors"
+                                    >
+                                        <User size={16} className="text-muted" />
+                                        My Profile
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            router.push('/settings/leave');
                                             setDropdownOpen(false);
                                         }}
                                         className="w-full flex items-center gap-3 px-4 py-2 text-sm text-secondary hover:bg-surface-elevated transition-colors"

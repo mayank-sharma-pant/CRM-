@@ -59,7 +59,7 @@ function Navbar({ user }) {
           <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
             <LayoutDashboard size={16} className="text-page" strokeWidth={2.5} />
           </div>
-          <span>LocalCRM</span>
+          <span>Perioxia CRM</span>
         </Link>
 
         {/* Desktop Nav */}
@@ -441,7 +441,7 @@ function Features() {
 function Testimonials() {
   const testimonials = [
     {
-      quote: "We stopped losing leads the first week. Revenue is up 40% since we started using LocalCRM.",
+      quote: "We stopped losing leads the first week. Revenue is up 40% since we started using Perioxia CRM.",
       author: "Mike Thompson",
       role: "Owner, Thompson HVAC",
     },
@@ -510,7 +510,7 @@ function FinalCTA({ user }) {
             Ready to take control of your business?
           </motion.h2>
           <motion.p variants={VARIANTS.fadeUp} className="body-lg mb-10 max-w-lg mx-auto">
-            Join hundreds of service businesses that use LocalCRM to capture more leads,
+            Join hundreds of service businesses that use Perioxia CRM to capture more leads,
             close more deals, and grow their revenue.
           </motion.p>
           <motion.div variants={VARIANTS.fadeUp} className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -558,7 +558,7 @@ function Footer() {
               <div className="w-8 h-8 bg-stone-900 rounded flex items-center justify-center">
                 <LayoutDashboard size={16} className="text-white" strokeWidth={2.5} />
               </div>
-              <span>LocalCRM</span>
+              <span>Perioxia CRM</span>
             </Link>
             <p className="text-sm text-stone-500 max-w-xs">
               The simple CRM for local service businesses. Stop losing leads, start growing revenue.
@@ -584,7 +584,7 @@ function Footer() {
 
         {/* Bottom */}
         <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-stone-400">© 2024 LocalCRM. All rights reserved.</p>
+          <p className="text-sm text-stone-400">© 2024 Perioxia CRM. All rights reserved.</p>
           <div className="flex items-center gap-6">
             <Link href="#" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">
               Twitter

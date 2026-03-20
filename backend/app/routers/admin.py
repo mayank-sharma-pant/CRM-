@@ -142,9 +142,16 @@ def list_users(
     result = []
     team_q = apply_company_scope(db.query(Team), Team, current_user)
     for user in users:
+        # Calculate rank within the company for a cleaner "EMP00X" ID
+        # This count remains stable even with pagination
+        company_rank = db.query(User).filter(
+            User.company_id == user.company_id,
+            User.id <= user.id
+        ).count()
+        
         team = team_q.filter(Team.id == user.team_id).first() if user.team_id else None
         result.append({
-            "id": f"EMP{user.id:03d}",
+            "id": f"EMP{company_rank:03d}",
             "user_id": user.id,
             "name": user.full_name,
             "email": user.email,

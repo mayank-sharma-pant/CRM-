@@ -44,7 +44,7 @@ export default function AdminUsersPage() {
             ]);
 
             const usersData = (usersRes.data.users || []).map(u => ({
-                id: `EMP${String(u.user_id ?? u.id ?? '').padStart(3, '0')}`,
+                id: u.id,
                 rawId: u.user_id ?? u.id,
                 name: u.name || u.full_name,
                 email: u.email,

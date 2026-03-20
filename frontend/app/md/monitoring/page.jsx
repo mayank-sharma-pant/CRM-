@@ -182,7 +182,7 @@ export default function MDMonitoringPage() {
                                 <Line
                                     type="monotone"
                                     dataKey="value"
-                                    stroke="var(--accent)"
+                                    stroke="var(--color-accent)"
                                     strokeWidth={3}
                                     dot={false}
                                 />
@@ -394,7 +394,7 @@ function AlertDrawer({ alert, onClose, riskTrend, router }) {
                         <div className="h-[60px] w-full bg-surface-elevated/20 rounded-md border border-border p-2">
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={riskTrend}>
-                                    <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={2} dot={false} />
+                                    <Line type="monotone" dataKey="value" stroke="var(--color-accent)" strokeWidth={2} dot={false} />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>

@@ -162,7 +162,7 @@ export default function MDDashboard() {
                                     <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="var(--color-border)" opacity={0.3} />
                                     <XAxis dataKey="date" stroke="var(--color-text-muted)" fontSize={10} tickLine={false} axisLine={false} dy={10} />
                                     <YAxis stroke="var(--color-text-muted)" fontSize={10} tickLine={false} axisLine={false} />
-                                    <Tooltip contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: '1px border var(--color-border)', borderRadius: '4px', fontSize: '11px' }} cursor={{ stroke: 'var(--color-accent)', strokeWidth: 1 }} />
+                                    <Tooltip contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '11px' }} cursor={{ stroke: 'var(--color-accent)', strokeWidth: 1 }} />
                                     <Line type="monotone" dataKey="revenue" stroke="var(--color-accent)" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
                                     <Line type="monotone" dataKey="sales" stroke="var(--color-success)" strokeWidth={2.5} dot={false} />
                                 </LineChart>

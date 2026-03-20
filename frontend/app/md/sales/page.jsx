@@ -128,20 +128,20 @@ export default function MDSalesPage() {
                     <div className="h-[280px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={data.salesTrend}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.3} />
-                                <XAxis dataKey="date" stroke="var(--muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} />
-                                <YAxis stroke="var(--muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={v => trendMode === 'revenue' ? `$${v / 1000}k` : v} />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.3} />
+                                <XAxis dataKey="date" stroke="var(--color-text-muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} />
+                                <YAxis stroke="var(--color-text-muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={v => trendMode === 'revenue' ? `$${v / 1000}k` : v} />
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}
-                                    cursor={{ stroke: 'var(--accent)', strokeWidth: 2 }}
+                                    contentStyle={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}
+                                    cursor={{ stroke: 'var(--color-accent)', strokeWidth: 2 }}
                                 />
                                 <Line
                                     type="monotone"
                                     dataKey={trendMode}
-                                    stroke="var(--accent)"
+                                    stroke="var(--color-accent)"
                                     strokeWidth={3}
                                     dot={false}
-                                    activeDot={{ r: 4, fill: 'var(--accent)', stroke: 'white', strokeWidth: 2 }}
+                                    activeDot={{ r: 4, fill: 'var(--color-accent)', stroke: 'white', strokeWidth: 2 }}
                                 />
                             </LineChart>
                         </ResponsiveContainer>
@@ -207,13 +207,13 @@ export default function MDSalesPage() {
                     <div className="h-[200px] w-full mb-6">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={data.teamComparison} barSize={32}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.3} />
-                                <XAxis dataKey="team" stroke="var(--muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} />
-                                <YAxis stroke="var(--muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} />
-                                <Tooltip cursor={{ fill: 'var(--surface-elevated)', opacity: 0.5 }} contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', fontSize: '11px', fontWeight: 'bold' }} />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.3} />
+                                <XAxis dataKey="team" stroke="var(--color-text-muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} />
+                                <YAxis stroke="var(--color-text-muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} />
+                                <Tooltip cursor={{ fill: 'var(--color-surface-elevated)', opacity: 0.5 }} contentStyle={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', fontSize: '11px', fontWeight: 'bold' }} />
                                 <Bar dataKey={comparisonMetric} radius={[2, 2, 0, 0]}>
                                     {data.teamComparison.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={index % 2 === 0 ? 'var(--accent)' : 'var(--secondary)'} />
+                                        <Cell key={`cell-${index}`} fill={index % 2 === 0 ? 'var(--color-accent)' : 'var(--color-text-secondary)'} />
                                     ))}
                                 </Bar>
                             </BarChart>

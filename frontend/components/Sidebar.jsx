@@ -86,7 +86,6 @@ const ROLE_NAVIGATION = {
         { name: 'Team Management', href: '/admin/teams', icon: 'GitBranch' },
         { name: 'Approvals', href: '/admin/approvals', icon: 'UserCheck' },
         { name: 'Audit Logs', href: '/admin/audit', icon: 'FileText' },
-        { name: 'Settings', href: '/admin/settings', icon: 'Settings' },
     ],
     md: [
         { name: 'Dashboard', href: '/md/dashboard', icon: 'LayoutDashboard' },

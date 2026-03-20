@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
-import { Settings, LogOut, ChevronDown } from 'lucide-react';
+import { Settings, LogOut, ChevronDown, User } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import SearchDropdown from './SearchDropdown';
 import NotificationDropdown from './NotificationDropdown';

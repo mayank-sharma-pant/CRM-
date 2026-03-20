@@ -8,6 +8,7 @@ import { financeService } from '../services/financeService';
 import {
     LayoutDashboard,
     Users,
+    User,
     Calendar,
     PieChart,
     Settings,

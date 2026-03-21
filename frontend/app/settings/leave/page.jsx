@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Layout from '../../../components/Layout';
+
 import { Calendar, Clock, FileText, CheckCircle, XCircle, AlertCircle, ChevronRight } from 'lucide-react';
 import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -318,7 +318,7 @@ export default function LeaveRequestsPage() {
     };
 
     return (
-        <Layout>
+
             <div className="h-full overflow-y-auto bg-slate-50 dark:bg-navy-950">
 
                 {/* Header Section */}
@@ -373,6 +373,6 @@ export default function LeaveRequestsPage() {
                     </div>
                 </div>
             </div>
-        </Layout>
+
     );
 }

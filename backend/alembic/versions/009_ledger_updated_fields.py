@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = "009_ledger_updated_fields"
-down_revision = "008_otp_codes_table"
+down_revision = "008_otp_codes"
 branch_labels = None
 depends_on = None
 

@@ -129,14 +129,20 @@ export default function AdminUsersPage() {
         }
     };
 
+    const [isUpdating, setIsUpdating] = useState(false);
+
     const handleUpdateUser = async (userId, data) => {
+        if (isUpdating) return;
         try {
+            setIsUpdating(true);
             await api.put(`/admin/users/${userId}`, data);
             fetchUsers();
         } catch (err) {
             console.error('Update user failed', err);
             const detail = err.response?.data?.detail;
             alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Failed to update user');
+        } finally {
+            setIsUpdating(false);
         }
     };
 
@@ -382,10 +388,10 @@ export default function AdminUsersPage() {
                             </button>
                             <button
                                 onClick={handleInvite}
-                                disabled={!inviteEmail || !inviteName || !inviteRole}
+                                disabled={!inviteEmail || !inviteName || !inviteRole || inviteLoading}
                                 className="flex-1 px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg font-medium text-sm hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Send Invite
+                                {inviteLoading ? 'Sending...' : 'Send Invite'}
                             </button>
                         </div>
                     </div>

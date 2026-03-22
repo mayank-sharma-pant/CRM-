@@ -27,6 +27,7 @@ export default function AdminTeamsPage() {
     const [newTeamName, setNewTeamName] = useState('');
     const [selectedNewMember, setSelectedNewMember] = useState('');
     const [selectedNewManager, setSelectedNewManager] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const fetchTeams = async () => {
         try {
@@ -71,7 +72,9 @@ export default function AdminTeamsPage() {
     };
 
     const confirmRemoveMember = async () => {
+        if (isSubmitting) return;
         try {
+            setIsSubmitting(true);
             await api.delete(`/admin/teams/${selectedTeam.id}/members/${memberToRemove.user_id || memberToRemove.id}`);
             fetchTeamDetail(selectedTeam.id);
             fetchTeams();
@@ -81,6 +84,8 @@ export default function AdminTeamsPage() {
             console.error('Remove member failed', err);
             const detail = err.response?.data?.detail;
             alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Removal failed');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -90,7 +95,9 @@ export default function AdminTeamsPage() {
             alert('Please select a valid member');
             return;
         }
+        if (isSubmitting) return;
         try {
+            setIsSubmitting(true);
             await api.post(`/admin/teams/${selectedTeam.id}/members`, { user_id: userId });
             fetchTeamDetail(selectedTeam.id);
             fetchTeams();
@@ -100,11 +107,15 @@ export default function AdminTeamsPage() {
             console.error('Add member failed', err);
             const detail = err.response?.data?.detail;
             alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Addition failed');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const confirmChangeManager = async () => {
+        if (isSubmitting) return;
         try {
+            setIsSubmitting(true);
             // Changing manager usually means adding them to team or updating team record
             // The backend admin.py uses PUT /admin/users/{user_id} to set team_id
             await api.put(`/admin/users/${selectedNewManager}`, { team_id: selectedTeam.id, role: 'manager' });
@@ -116,11 +127,15 @@ export default function AdminTeamsPage() {
             console.error('Change manager failed', err);
             const detail = err.response?.data?.detail;
             alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Update failed');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const confirmCreateTeam = async () => {
+        if (isSubmitting) return;
         try {
+            setIsSubmitting(true);
             await api.post('/admin/teams', { name: newTeamName });
             fetchTeams();
             setShowCreateTeamModal(false);
@@ -129,6 +144,8 @@ export default function AdminTeamsPage() {
             console.error('Create team failed', err);
             const detail = err.response?.data?.detail;
             alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Creation failed');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -269,7 +286,9 @@ export default function AdminTeamsPage() {
                     </div>
                     <div className="flex gap-3">
                         <button onClick={() => setShowCreateTeamModal(false)} className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg font-medium">Cancel</button>
-                        <button onClick={confirmCreateTeam} disabled={!newTeamName.trim()} className="flex-1 px-4 py-2.5 bg-indigo-500 text-white rounded-lg font-medium disabled:opacity-50">Create</button>
+                        <button onClick={confirmCreateTeam} disabled={!newTeamName.trim() || isSubmitting} className="flex-1 px-4 py-2.5 bg-indigo-500 text-white rounded-lg font-medium disabled:opacity-50">
+                            {isSubmitting ? 'Creating...' : 'Create'}
+                        </button>
                     </div>
                 </Modal>
             )}
@@ -292,7 +311,9 @@ export default function AdminTeamsPage() {
                     </div>
                     <div className="flex gap-3">
                         <button onClick={() => setShowAddMemberModal(false)} className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg font-medium">Cancel</button>
-                        <button onClick={confirmAddMember} disabled={!selectedNewMember} className="flex-1 px-4 py-2.5 bg-indigo-500 text-white rounded-lg font-medium disabled:opacity-50">Add</button>
+                        <button onClick={confirmAddMember} disabled={!selectedNewMember || isSubmitting} className="flex-1 px-4 py-2.5 bg-indigo-500 text-white rounded-lg font-medium disabled:opacity-50">
+                            {isSubmitting ? 'Adding...' : 'Add'}
+                        </button>
                     </div>
                 </Modal>
             )}
@@ -315,7 +336,9 @@ export default function AdminTeamsPage() {
                     </div>
                     <div className="flex gap-3">
                         <button onClick={() => setShowChangeManagerModal(false)} className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg font-medium">Cancel</button>
-                        <button onClick={confirmChangeManager} className="flex-1 px-4 py-2.5 bg-indigo-500 text-white rounded-lg font-medium">Save</button>
+                        <button onClick={confirmChangeManager} disabled={isSubmitting} className="flex-1 px-4 py-2.5 bg-indigo-500 text-white rounded-lg font-medium disabled:opacity-50">
+                            {isSubmitting ? 'Saving...' : 'Save'}
+                        </button>
                     </div>
                 </Modal>
             )}
@@ -328,7 +351,9 @@ export default function AdminTeamsPage() {
                     </p>
                     <div className="flex gap-3">
                         <button onClick={() => setShowRemoveMemberModal(false)} className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg font-medium">Cancel</button>
-                        <button onClick={confirmRemoveMember} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg font-medium">Remove</button>
+                        <button onClick={confirmRemoveMember} disabled={isSubmitting} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg font-medium disabled:opacity-50">
+                            {isSubmitting ? 'Removing...' : 'Remove'}
+                        </button>
                     </div>
                 </Modal>
             )}

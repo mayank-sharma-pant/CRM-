@@ -24,6 +24,7 @@ export default function AdminApprovalsPage() {
     const [assignedTeam, setAssignedTeam] = useState('');
     const [assignedManager, setAssignedManager] = useState('');
     const [rejectionReason, setRejectionReason] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [teams, setTeams] = useState([]);
 
@@ -67,7 +68,9 @@ export default function AdminApprovalsPage() {
     };
 
     const confirmApproval = async () => {
+        if (isSubmitting) return;
         try {
+            setIsSubmitting(true);
             const roleMap = {
                 'Sales Executive': 'sales',
                 'Manager': 'manager',
@@ -89,11 +92,15 @@ export default function AdminApprovalsPage() {
         } catch (err) {
             console.error('Approval failed', err);
             alert(err.response?.data?.detail || 'Failed to approve user');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const confirmRejection = async () => {
+        if (isSubmitting) return;
         try {
+            setIsSubmitting(true);
             await api.post(`/admin/approvals/${selectedUser.id}/reject`, { reason: rejectionReason });
             fetchApprovals();
             setShowRejectModal(false);
@@ -101,6 +108,8 @@ export default function AdminApprovalsPage() {
         } catch (err) {
             console.error('Rejection failed', err);
             alert(err.response?.data?.detail || 'Failed to reject user');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -257,10 +266,10 @@ export default function AdminApprovalsPage() {
                             </button>
                             <button
                                 onClick={confirmApproval}
-                                disabled={!assignedRole}
+                                disabled={!assignedRole || isSubmitting}
                                 className="flex-1 px-4 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Approve
+                                {isSubmitting ? 'Approving...' : 'Approve'}
                             </button>
                         </div>
                     </div>
@@ -295,9 +304,10 @@ export default function AdminApprovalsPage() {
                             </button>
                             <button
                                 onClick={confirmRejection}
-                                className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors"
+                                disabled={isSubmitting}
+                                className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Reject
+                                {isSubmitting ? 'Rejecting...' : 'Reject'}
                             </button>
                         </div>
                     </div>

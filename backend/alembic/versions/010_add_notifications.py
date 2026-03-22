@@ -9,7 +9,7 @@ import sqlalchemy as sa
 
 # revision identifiers
 revision = '010'
-down_revision = '009'
+down_revision = '009_ledger_updated_fields'
 branch_labels = None
 depends_on = None
 

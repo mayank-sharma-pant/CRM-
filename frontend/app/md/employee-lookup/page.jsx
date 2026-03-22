@@ -15,7 +15,9 @@ import {
     Info,
     Calendar,
     Target,
-    Zap
+    Zap,
+    Shuffle,
+    Check
 } from 'lucide-react';
 import api from '@/services/api';
 import {
@@ -49,6 +51,7 @@ function buildEmployeeView(employeePayload) {
             activity: [0, 0, 0, 0, 0, 0, 0],
         },
         signals: [],
+        raw_id: base.id // Store numeric ID for API calls
     };
 }
 
@@ -61,6 +64,11 @@ export default function MDEmployeeLookupPage() {
     const [mode, setMode] = useState('escalation'); // escalation | incentive
     const [selectedSignal, setSelectedSignal] = useState(null);
     const [trendTab, setTrendTab] = useState('sales');
+    const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+    const [allTeams, setAllTeams] = useState([]);
+    const [targetTeam, setTargetTeam] = useState('');
+    const [transferReason, setTransferReason] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleLookup = async () => {
         if (!employeeId.trim()) {
@@ -88,6 +96,11 @@ export default function MDEmployeeLookupPage() {
                 return;
             }
             setEmployee(built);
+            
+            // Fetch teams for transfer option
+            const teamsRes = await api.get('/admin/teams');
+            setAllTeams(teamsRes.data.teams || []);
+            
         } catch (err) {
             if (err?.response?.status === 404) {
                 setError('IDENTIFIER NOT FOUND IN CENTRAL REGISTRY');
@@ -96,6 +109,27 @@ export default function MDEmployeeLookupPage() {
             }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleTransferSubmit = async () => {
+        if (!targetTeam) return;
+        setIsSubmitting(true);
+        try {
+            await api.post('/md/transfer-request', {
+                user_id: employee.raw_id,
+                target_team_id: parseInt(targetTeam),
+                reason: transferReason
+            });
+            alert("Transfer request successfully logged in centralized approval queue.");
+            setIsTransferModalOpen(false);
+            setTargetTeam('');
+            setTransferReason('');
+        } catch (err) {
+            console.error("Transfer request failed", err);
+            alert(err.response?.data?.detail || "System Error: Transfer request rejected by validator.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -177,10 +211,20 @@ export default function MDEmployeeLookupPage() {
                                 </div>
                             </div>
                         </div>
-                        <div className="text-right border-l border-border pl-8">
+                        <div className="text-right border-l border-border pl-8 flex flex-col items-end">
                             <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-1">Structural Unit</div>
                             <div className="text-[14px] font-bold text-primary">{employee.team}</div>
-                            <div className="text-[11px] font-bold text-muted mt-0.5 italic">Supervisor: {employee.reportingTo}</div>
+                            <div className="text-[11px] font-bold text-muted mt-0.5 italic mb-3">Supervisor: {employee.reportingTo}</div>
+                            
+                            {(employee.role === 'MANAGER' || employee.role === 'SALES') && (
+                                <button 
+                                    onClick={() => setIsTransferModalOpen(true)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-elevated hover:bg-accent/10 border border-border hover:border-accent/40 rounded text-[10px] font-black text-muted hover:text-accent uppercase tracking-widest transition-all"
+                                >
+                                    <Shuffle size={12} />
+                                    Initiate Transfer
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -319,6 +363,84 @@ export default function MDEmployeeLookupPage() {
                                     <ArrowRight size={18} strokeWidth={2.5} />
                                 </button>
                             </section>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Transfer Modal - Cyberpunk Audit Style */}
+            {isTransferModalOpen && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-primary/40 backdrop-blur-sm">
+                    <div className="bg-surface border border-border w-full max-w-md rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+                        <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-surface-elevated/50">
+                            <h3 className="text-[11px] font-black text-primary uppercase tracking-[0.2em] flex items-center gap-2">
+                                <Shuffle size={14} className="text-accent" />
+                                Transfer Protocol Initialization
+                            </h3>
+                            <button onClick={() => setIsTransferModalOpen(false)} className="text-muted hover:text-primary transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-5">
+                            <div className="p-3 bg-surface-elevated/30 border border-border rounded flex items-center gap-4">
+                                <div className="w-10 h-10 rounded bg-accent/10 flex items-center justify-center text-accent font-black text-sm">
+                                    {employee.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <div className="text-[13px] font-black text-primary uppercase tracking-tight">{employee.name}</div>
+                                    <div className="text-[10px] font-bold text-muted uppercase tracking-widest">{employee.id} // {employee.role}</div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="block text-[9px] font-black text-muted uppercase tracking-[0.15em]">Deployment Target (Team)</label>
+                                <select 
+                                    value={targetTeam}
+                                    onChange={(e) => setTargetTeam(e.target.value)}
+                                    className="w-full bg-surface-elevated border border-border rounded px-4 py-2.5 text-[12px] font-bold text-primary focus:outline-none focus:ring-1 focus:ring-accent transition-all appearance-none cursor-pointer"
+                                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='Length 19 9l-7 7-7-7' /%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
+                                >
+                                    <option value="" className="bg-surface">SELECT OPERATION UNIT...</option>
+                                    {allTeams
+                                        .filter(t => t.name !== employee.team)
+                                        .map(t => (
+                                            <option key={t.id} value={t.id} className="bg-surface">{t.name.toUpperCase()}</option>
+                                        ))
+                                    }
+                                </select>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="block text-[9px] font-black text-muted uppercase tracking-[0.15em]">Justification Metadata</label>
+                                <textarea 
+                                    value={transferReason}
+                                    onChange={(e) => setTransferReason(e.target.value)}
+                                    placeholder="ENTER STRATEGIC JUSTIFICATION..."
+                                    rows={3}
+                                    className="w-full bg-surface-elevated border border-border rounded px-4 py-2.5 text-[12px] font-bold text-primary focus:outline-none focus:ring-1 focus:ring-accent transition-all resize-none placeholder:text-muted/30"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 bg-surface-elevated/50 border-t border-border flex gap-3">
+                            <button 
+                                onClick={() => setIsTransferModalOpen(false)}
+                                className="flex-1 px-4 py-2.5 text-[11px] font-black text-muted hover:text-primary transition-colors uppercase tracking-widest"
+                            >
+                                Abort
+                            </button>
+                            <button 
+                                onClick={handleTransferSubmit}
+                                disabled={!targetTeam || isSubmitting}
+                                className="flex-1 px-4 py-2.5 bg-accent text-white rounded text-[11px] font-black hover:bg-accent-hover transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 uppercase tracking-widest"
+                            >
+                                {isSubmitting ? 'PROCESSING...' : 'EXECUTE PLEA'}
+                                {!isSubmitting && <Check size={14} strokeWidth={3} />}
+                            </button>
+                        </div>
+                        <div className="h-1 w-full bg-accent/20">
+                            <div className={`h-full bg-accent transition-all duration-1000 ${isSubmitting ? 'w-full animate-pulse' : 'w-0'}`}></div>
                         </div>
                     </div>
                 </div>

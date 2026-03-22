@@ -8,22 +8,29 @@ import {
     ChevronRight,
     X,
     Check,
-    Search
+    Search,
+    Shuffle,
+    MessageSquare
 } from 'lucide-react';
 
 export default function AdminApprovalsPage() {
     const [loading, setLoading] = useState(true);
     const [approvals, setApprovals] = useState([]);
+    const [transferRequests, setTransferRequests] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
+    const [selectedTransfer, setSelectedTransfer] = useState(null);
     const [showApproveModal, setShowApproveModal] = useState(false);
     const [showRejectModal, setShowRejectModal] = useState(false);
+    const [showTransferModal, setShowTransferModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [activeTab, setActiveTab] = useState('registrations'); // registrations | transfers
 
     // Form state for approval
     const [assignedRole, setAssignedRole] = useState('');
     const [assignedTeam, setAssignedTeam] = useState('');
     const [assignedManager, setAssignedManager] = useState('');
     const [rejectionReason, setRejectionReason] = useState('');
+    const [adminComment, setAdminComment] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [teams, setTeams] = useState([]);
@@ -31,11 +38,13 @@ export default function AdminApprovalsPage() {
     const fetchApprovals = async () => {
         try {
             setLoading(true);
-            const [approvalsRes, teamsRes] = await Promise.all([
+            const [approvalsRes, transfersRes, teamsRes] = await Promise.all([
                 api.get('/admin/approvals'),
+                api.get('/admin/transfer-requests?status=pending'),
                 api.get('/admin/teams')
             ]);
             setApprovals(approvalsRes.data.approvals || []);
+            setTransferRequests(transfersRes.data.requests || []);
             setTeams(teamsRes.data.teams || []);
         } catch (err) {
             console.error('Failed to fetch approvals', err);
@@ -113,6 +122,31 @@ export default function AdminApprovalsPage() {
         }
     };
 
+    const handleTransferAction = (transfer, type) => {
+        setSelectedTransfer(transfer);
+        setAdminComment('');
+        setShowTransferModal(type); // 'approve' or 'reject'
+    };
+
+    const confirmTransfer = async (isApproval) => {
+        if (isSubmitting) return;
+        try {
+            setIsSubmitting(true);
+            const endpoint = isApproval ? 'approve' : 'reject';
+            await api.post(`/admin/transfer-requests/${selectedTransfer.id}/${endpoint}`, {
+                admin_comment: adminComment
+            });
+            fetchApprovals();
+            setShowTransferModal(false);
+            setSelectedTransfer(null);
+        } catch (err) {
+            console.error('Transfer action failed', err);
+            alert(err.response?.data?.detail || `Failed to ${isApproval ? 'approve' : 'reject'} transfer`);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     if (loading) return <ApprovalsSkeleton />;
 
     return (
@@ -125,8 +159,24 @@ export default function AdminApprovalsPage() {
                     <p className="text-[15px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Approve or reject new member registrations.</p>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                    <span className="text-[13px] font-semibold text-amber-700 dark:text-amber-400">{approvals.length} Pending</span>
+                    <span className="text-[13px] font-semibold text-amber-700 dark:text-amber-400">{approvals.length + transferRequests.length} Pending Actions</span>
                 </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-slate-200 dark:border-slate-700">
+                <button
+                    onClick={() => setActiveTab('registrations')}
+                    className={`px-6 py-3 text-[14px] font-bold transition-all border-b-2 ${activeTab === 'registrations' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                >
+                    New Registrations ({approvals.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('transfers')}
+                    className={`px-6 py-3 text-[14px] font-bold transition-all border-b-2 ${activeTab === 'transfers' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                >
+                    Team Transfers ({transferRequests.length})
+                </button>
             </div>
 
             {/* Search */}
@@ -141,68 +191,142 @@ export default function AdminApprovalsPage() {
                 />
             </div>
 
-            {/* Approvals Table */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-[13px] whitespace-nowrap">
-                        <thead>
-                            <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                                <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Name</th>
-                                <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Contact</th>
-                                <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Requested Role</th>
-                                <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Submitted</th>
-                                <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Status</th>
-                                <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px] text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                            {filteredApprovals.map((user) => (
-                                <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                    <td className="px-5 py-3.5 font-medium text-slate-800 dark:text-slate-200">{user.name}</td>
-                                    <td className="px-5 py-3.5">
-                                        <div className="text-slate-700 dark:text-slate-300">{user.email}</div>
-                                    </td>
-                                    <td className="px-5 py-3.5">
-                                        <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded text-[11px] font-medium">
-                                            {user.role}
-                                        </span>
-                                    </td>
-                                    <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{user.requested_at}</td>
-                                    <td className="px-5 py-3.5">
-                                        <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded text-[11px] font-bold uppercase">
-                                            Pending
-                                        </span>
-                                    </td>
-                                    <td className="px-5 py-3.5 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={() => handleApprove(user)}
-                                                className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
-                                                title="Approve"
-                                            >
-                                                <Check size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleReject(user)}
-                                                className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
-                                                title="Reject"
-                                            >
-                                                <X size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
+            {/* Registrations View */}
+            {activeTab === 'registrations' && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-[13px] whitespace-nowrap">
+                            <thead>
+                                <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                    <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Name</th>
+                                    <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Contact</th>
+                                    <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Requested Role</th>
+                                    <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Submitted</th>
+                                    <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Status</th>
+                                    <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px] text-right">Actions</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                {filteredApprovals.length === 0 && (
-                    <div className="flex items-center justify-center h-32 text-slate-500 dark:text-slate-400">
-                        No pending approvals.
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                {filteredApprovals.map((user) => (
+                                    <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                        <td className="px-5 py-3.5 font-medium text-slate-800 dark:text-slate-200">{user.name}</td>
+                                        <td className="px-5 py-3.5">
+                                            <div className="text-slate-700 dark:text-slate-300">{user.email}</div>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded text-[11px] font-medium">
+                                                {user.role}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{user.requested_at}</td>
+                                        <td className="px-5 py-3.5">
+                                            <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded text-[11px] font-bold uppercase">
+                                                Pending
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-3.5 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleApprove(user)}
+                                                    className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+                                                    title="Approve"
+                                                >
+                                                    <Check size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleReject(user)}
+                                                    className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+                                                    title="Reject"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
-                )}
-            </div>
+
+                    {filteredApprovals.length === 0 && (
+                        <div className="flex items-center justify-center h-32 text-slate-500 dark:text-slate-400">
+                            No pending registrations.
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Transfers View */}
+            {activeTab === 'transfers' && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-[13px] whitespace-nowrap">
+                            <thead>
+                                <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                    <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Employee</th>
+                                    <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">From → To</th>
+                                    <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Requested By</th>
+                                    <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Reason</th>
+                                    <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Submitted</th>
+                                    <th className="px-5 py-3 font-semibold text-slate-500 uppercase tracking-wide text-[10px] text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                {transferRequests.map((req) => (
+                                    <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                        <td className="px-5 py-3.5">
+                                            <div className="font-medium text-slate-800 dark:text-slate-200">{req.user?.full_name}</div>
+                                            <div className="text-[11px] text-slate-500 uppercase font-bold">{req.user?.role}</div>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-500">{req.current_team?.name || 'N/A'}</span>
+                                                <ChevronRight size={12} className="text-slate-300" />
+                                                <span className="font-bold text-indigo-600 dark:text-indigo-400">{req.target_team?.name}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-3.5 font-medium text-slate-700 dark:text-slate-300">
+                                            {req.requested_by?.full_name}
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <div className="max-w-xs truncate text-slate-600 dark:text-slate-400 italic" title={req.reason}>
+                                                "{req.reason}"
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">
+                                            {new Date(req.created_at).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-5 py-3.5 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleTransferAction(req, 'approve')}
+                                                    className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+                                                    title="Approve Transfer"
+                                                >
+                                                    <Check size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleTransferAction(req, 'reject')}
+                                                    className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+                                                    title="Reject Transfer"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {transferRequests.length === 0 && (
+                        <div className="flex items-center justify-center h-32 text-slate-500 dark:text-slate-400">
+                            No pending transfer requests.
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Approve Modal */}
             {showApproveModal && selectedUser && (

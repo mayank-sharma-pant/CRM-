@@ -24,13 +24,16 @@ from app.utils.email_service import send_invite_email
 from app.schemas.admin import (
     DashboardResponse,
     UserListResponse, UserUpdateRequest,
-    TeamListResponse, TeamCreate, TeamUpdate, TeamMemberAdd,
-    ApprovalListResponse, RejectRequest,
+    TeamCreate, TeamResponse, TeamListResponse, TeamUpdate, TeamMemberAdd,
+    ApprovalListResponse, HierarchyResponse,
+    ApproveRequest, RejectRequest,
     AuditLogResponse,
-    CompanySettingsResponse, CompanySettingsUpdate,
+    CompanySettingsUpdate, CompanySettingsResponse,
     InviteRequest,
 )
-from app.schemas.user import MessageResponse
+from app.schemas.user import UserResponse, UserCreate, UserUpdate, MessageResponse
+from app.schemas.transfer import TransferRequestResponse, TransferRequestUpdate, TransferRequestList
+from app.models.transfer_request import TeamTransferRequest
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
@@ -1150,4 +1153,101 @@ def get_invite(
         "created_at": invite.created_at.isoformat() if invite.created_at else None,
         "created_by": invite.created_by.full_name if invite.created_by else None
     }
+
+
+# ===============================
+# Transfer Request Management
+# ===============================
+
+@router.get("/transfer-requests", response_model=TransferRequestList)
+def list_transfer_requests(
+    status: Optional[str] = Query(None, enum=["pending", "approved", "rejected"]),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """List all team transfer requests for the company"""
+    query = db.query(TeamTransferRequest).filter(TeamTransferRequest.company_id == current_user.company_id)
+    
+    if status:
+        query = query.filter(TeamTransferRequest.status == status)
+    
+    requests = query.order_by(TeamTransferRequest.created_at.desc()).all()
+    
+    return {"requests": requests, "total": len(requests)}
+
+
+@router.post("/transfer-requests/{request_id}/approve", response_model=TransferRequestResponse)
+def approve_transfer_request(
+    request_id: int,
+    update: TransferRequestUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """Approve a team transfer request and update the user's team"""
+    request = db.query(TeamTransferRequest).filter(
+        TeamTransferRequest.id == request_id, 
+        TeamTransferRequest.company_id == current_user.company_id
+    ).first()
+    
+    if not request:
+        raise HTTPException(status_code=404, detail="Transfer request not found")
+    
+    if request.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Request is already {request.status}")
+    
+    # Perform the transfer
+    target_user = db.query(User).filter(User.id == request.user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Target user not found")
+    
+    old_team_id = target_user.team_id
+    target_user.team_id = request.target_team_id
+    
+    # Update request status
+    request.status = "approved"
+    request.admin_comment = update.admin_comment
+    request.updated_at = datetime.now()
+    
+    # Log the action
+    create_audit_log(
+        db, current_user, "user_transferred", "user",
+        entity_id=str(target_user.id), entity_name=target_user.full_name,
+        before_value={"team_id": old_team_id},
+        after_value={"team_id": request.target_team_id, "request_id": request.id}
+    )
+    
+    db.commit()
+    db.refresh(request)
+    
+    return request
+
+
+@router.post("/transfer-requests/{request_id}/reject", response_model=TransferRequestResponse)
+def reject_transfer_request(
+    request_id: int,
+    update: TransferRequestUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """Reject a team transfer request"""
+    request = db.query(TeamTransferRequest).filter(
+        TeamTransferRequest.id == request_id, 
+        TeamTransferRequest.company_id == current_user.company_id
+    ).first()
+    
+    if not request:
+        raise HTTPException(status_code=404, detail="Transfer request not found")
+    
+    if request.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Request is already {request.status}")
+    
+    # Update request status
+    request.status = "rejected"
+    request.admin_comment = update.admin_comment
+    request.updated_at = datetime.now()
+    
+    db.commit()
+    db.refresh(request)
+    
+    return request
 

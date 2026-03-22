@@ -3,14 +3,21 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import api from '../../../services/api';
-import { ChevronRight, User, Mail, Users, TrendingUp, AlertCircle } from 'lucide-react';
+import { ChevronRight, User, Mail, Users, TrendingUp, AlertCircle, Shuffle, X, Check } from 'lucide-react';
 
 export default function TeamListPage() {
     const [team, setTeam] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [allTeams, setAllTeams] = useState([]);
+    const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+    const [selectedMember, setSelectedMember] = useState(null);
+    const [targetTeam, setTargetTeam] = useState('');
+    const [transferReason, setTransferReason] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         fetchTeam();
+        fetchTeams();
     }, []);
 
     const fetchTeam = async () => {
@@ -21,6 +28,43 @@ export default function TeamListPage() {
             console.error("Failed to fetch team", err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchTeams = async () => {
+        try {
+            const res = await api.get('/admin/teams'); // Adjust if manager has a different endpoint
+            setAllTeams(res.data.teams || []);
+        } catch (err) {
+            console.error("Failed to fetch teams", err);
+        }
+    };
+
+    const handleTransferClick = (e, member) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedMember(member);
+        setIsTransferModalOpen(true);
+    };
+
+    const handleTransferSubmit = async () => {
+        if (!targetTeam) return;
+        setIsSubmitting(true);
+        try {
+            await api.post('/manager/transfer-request', {
+                user_id: selectedMember.id,
+                target_team_id: parseInt(targetTeam),
+                reason: transferReason
+            });
+            alert("Transfer request submitted for Admin approval.");
+            setIsTransferModalOpen(false);
+            setTargetTeam('');
+            setTransferReason('');
+        } catch (err) {
+            console.error("Transfer request failed", err);
+            alert(err.response?.data?.detail || "Failed to submit transfer request");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -115,6 +159,13 @@ export default function TeamListPage() {
                                                 {member.status}
                                             </span>
                                         </div>
+                                        <button
+                                            onClick={(e) => handleTransferClick(e, member)}
+                                            className="px-2 py-1 bg-surface-elevated text-muted hover:text-accent border border-border rounded flex items-center gap-1.5 transition-all text-[10px] font-bold uppercase"
+                                        >
+                                            <Shuffle size={12} />
+                                            Transfer
+                                        </button>
                                     </div>
 
                                     <div className="text-border group-hover:text-accent transition-all group-hover:translate-x-1">
@@ -126,6 +177,80 @@ export default function TeamListPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Transfer Modal */}
+            {isTransferModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-surface border border-border w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-surface-elevated/30">
+                            <h3 className="text-sm font-bold text-primary flex items-center gap-2">
+                                <Shuffle size={16} className="text-accent" />
+                                Request Team Transfer
+                            </h3>
+                            <button onClick={() => setIsTransferModalOpen(false)} className="text-muted hover:text-primary transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">Employee</label>
+                                <div className="p-3 bg-surface-elevated/50 rounded-lg border border-border flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent text-xs font-bold">
+                                        {selectedMember?.full_name?.charAt(0)}
+                                    </div>
+                                    <span className="text-sm font-medium text-primary">{selectedMember?.full_name}</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">Target Team</label>
+                                <select 
+                                    value={targetTeam}
+                                    onChange={(e) => setTargetTeam(e.target.value)}
+                                    className="w-full bg-surface-elevated border border-border rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
+                                >
+                                    <option value="">Select target team...</option>
+                                    {allTeams
+                                        .filter(t => t.id !== selectedMember?.team_id)
+                                        .map(t => (
+                                            <option key={t.id} value={t.id}>{t.name}</option>
+                                        ))
+                                    }
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">Reason for Transfer</label>
+                                <textarea 
+                                    value={transferReason}
+                                    onChange={(e) => setTransferReason(e.target.value)}
+                                    placeholder="Explain why this transfer is necessary..."
+                                    rows={3}
+                                    className="w-full bg-surface-elevated border border-border rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 bg-surface-elevated/30 border-t border-border flex gap-3">
+                            <button 
+                                onClick={() => setIsTransferModalOpen(false)}
+                                className="flex-1 px-4 py-2 text-sm font-bold text-muted hover:text-primary transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleTransferSubmit}
+                                disabled={!targetTeam || isSubmitting}
+                                className="flex-1 px-4 py-2 bg-accent text-white rounded-lg text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {isSubmitting ? 'Submitting...' : 'Submit Plea'}
+                                {!isSubmitting && <Check size={16} />}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -12,6 +12,8 @@ from app.models.client import Client
 from app.models.invoice import Invoice, InvoiceItem
 from app.models.task import Task
 from app.models.team import Team
+from app.schemas.transfer import TransferRequestCreate, TransferRequestResponse
+from app.models.transfer_request import TeamTransferRequest
 
 router = APIRouter()
 
@@ -821,3 +823,40 @@ def get_md_teams(
         })
 
     return {"teams": result, "total": len(result)}
+
+@router.post("/transfer-request", response_model=TransferRequestResponse)
+def create_md_transfer_request(
+    request_data: TransferRequestCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_md)
+):
+    """Request a team transfer for an employee (MD can request for any manager or sales)"""
+    target_user = db.query(User).filter(User.id == request_data.user_id, User.company_id == current_user.company_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Target user not found")
+    
+    # MD can request for manager or sales
+    if target_user.role not in ["manager", "sales"]:
+        raise HTTPException(status_code=403, detail="Can only request transfers for Managers or Sales executives")
+    
+    # Check if target team exists
+    target_team = db.query(Team).filter(Team.id == request_data.target_team_id, Team.company_id == current_user.company_id).first()
+    if not target_team:
+        raise HTTPException(status_code=404, detail="Target team not found")
+    
+    # Create the request
+    new_request = TeamTransferRequest(
+        company_id=current_user.company_id,
+        user_id=target_user.id,
+        requested_by_id=current_user.id,
+        current_team_id=target_user.team_id,
+        target_team_id=request_data.target_team_id,
+        reason=request_data.reason,
+        status="pending"
+    )
+    
+    db.add(new_request)
+    db.commit()
+    db.refresh(new_request)
+    
+    return new_request

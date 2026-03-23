@@ -304,6 +304,8 @@ def create_lead(
         assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == assigned_to_id).first()
         if not assignee:
             raise HTTPException(status_code=400, detail="Assigned user not found in your company")
+        if current_user.role == "manager" and assignee.team_id != current_user.team_id:
+            raise HTTPException(status_code=403, detail="Cannot assign lead outside your team")
             
     # Auto-assign team_id if current_user is a manager
     team_id = current_user.team_id if current_user.role == "manager" else None

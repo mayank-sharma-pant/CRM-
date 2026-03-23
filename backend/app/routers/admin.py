@@ -14,6 +14,7 @@ from app.utils.security import get_password_hash
 from app.models.user import User
 from app.models.team import Team
 from app.models.lead import Lead
+from app.models.client import Client
 from app.models.task import Task
 from app.models.audit import AuditLog
 from app.models.invite import Invite, InviteStatus
@@ -396,6 +397,11 @@ def delete_user(
         after_value=None
     )
     
+    # Safe Nullification of orphaned records without cascade constraints
+    apply_company_scope(db.query(Task), Task, current_user).filter(Task.assigned_to_id == user_id).update({"assigned_to_id": None}, synchronize_session="fetch")
+    apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.assigned_to_id == user_id).update({"assigned_to_id": None}, synchronize_session="fetch")
+    apply_company_scope(db.query(Client), Client, current_user).filter(Client.assigned_to_id == user_id).update({"assigned_to_id": None}, synchronize_session="fetch")
+    
     db.delete(user)
     db.commit()
     
@@ -550,6 +556,10 @@ def delete_team(
         before_value={"name": team_name, "member_count": member_count},
         after_value=None
     )
+    
+    # Safe Nullification of orphaned records
+    apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.team_id == team_id).update({"team_id": None}, synchronize_session="fetch")
+    apply_company_scope(db.query(Client), Client, current_user).filter(Client.team_id == team_id).update({"team_id": None}, synchronize_session="fetch")
     
     db.delete(team)
     db.commit()

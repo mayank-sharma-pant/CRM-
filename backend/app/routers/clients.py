@@ -164,6 +164,24 @@ def create_client(
         ).first()
         if existing:
             raise HTTPException(status_code=400, detail="This lead has already been converted to a client.")
+            
+    # Validate assigned_to_id
+    final_assigned_to = current_user.id
+    if body.assigned_to_id:
+        assignee = db.query(User).filter(
+            User.id == body.assigned_to_id, 
+            User.company_id == current_user.company_id
+        ).first()
+        if not assignee:
+            raise HTTPException(status_code=400, detail="Assigned user not found in your company")
+        if current_user.role == "manager" and assignee.team_id != current_user.team_id:
+            raise HTTPException(status_code=403, detail="Cannot assign client outside your team")
+        final_assigned_to = body.assigned_to_id
+
+    # Auto-assign team_id
+    final_team_id = current_user.team_id
+    if current_user.role in ["admin", "md"] and body.team_id:
+        final_team_id = body.team_id
     
     new_client = Client(
         company_id=current_user.company_id,
@@ -172,8 +190,8 @@ def create_client(
         phone=body.phone,
         company=body.company,
         address=body.address,
-        assigned_to_id=body.assigned_to_id or current_user.id,
-        team_id=body.team_id or current_user.team_id,
+        assigned_to_id=final_assigned_to,
+        team_id=final_team_id,
         converted_from_lead_id=body.converted_from_lead_id,
     )
     

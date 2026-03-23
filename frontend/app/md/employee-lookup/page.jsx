@@ -34,7 +34,7 @@ function buildEmployeeView(employeePayload) {
     const converted = employeePayload?.performance?.converted ?? 0;
 
     return {
-        id: `EMP${base.id.toString().padStart(3, '0')}`,
+        id: base.formatted_id || `EMP${base.id.toString().padStart(3, '0')}`,
         name: base.name,
         role: (base.role || '').toString().toUpperCase(),
         team: base.team || 'Unassigned',

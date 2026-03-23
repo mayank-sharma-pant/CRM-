@@ -63,10 +63,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     detail = str(exc) if not is_production else "Internal server error"
     return JSONResponse(status_code=500, content={"detail": detail})
 
-# CORS Configuration — allow all origins
+# CORS Configuration 
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

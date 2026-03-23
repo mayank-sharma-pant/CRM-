@@ -26,6 +26,7 @@ const ROLE_DASHBOARDS = {
 
 /** Pages that anyone can access (logged in or not) */
 const PUBLIC_PATHS = ['/', '/login', '/signup', '/platform', '/accept-invite'];
+const SHARED_PATHS = ['/profile', '/settings', '/finance', '/financial-ledgers', '/report-bug'];
 
 function isPublicPath(pathname) {
     return PUBLIC_PATHS.some(p =>
@@ -45,8 +46,7 @@ export default function RouteGuard({ children }) {
         if (isPublicPath(pathname)) return;
 
         // Shared pages anyone logged-in can access
-        const sharedPaths = ['/profile', '/settings', '/finance', '/financial-ledgers', '/report-bug'];
-        if (sharedPaths.some(p => pathname.startsWith(p))) {
+        if (SHARED_PATHS.some(p => pathname.startsWith(p))) {
             if (!user) {
                 router.replace('/login');
             }
@@ -75,6 +75,18 @@ export default function RouteGuard({ children }) {
                 <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
             </div>
         );
+    }
+    
+    // Defensive check: Do not render children if a redirect is imminent
+    if (!isPublicPath(pathname)) {
+        if (!user) return null; // Waiting for useEffect redirect
+        
+        if (!SHARED_PATHS.some(p => pathname.startsWith(p))) {
+            const rolePrefix = ROLE_ROUTES[user.role];
+            if (rolePrefix && !pathname.startsWith(rolePrefix)) {
+                return null; // Mismatched role, waiting for useEffect redirect
+            }
+        }
     }
 
     return children;

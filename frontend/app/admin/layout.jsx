@@ -4,18 +4,33 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '../../components/Sidebar';
 import ThemeToggle from '../../components/ThemeToggle';
-import { Bell, Search, LogOut, User, Settings } from 'lucide-react';
+import { Bell, Search, LogOut, User, Settings, Loader2 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function AdminLayout({ children }) {
     const router = useRouter();
+    const { user, loading, logout } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [showProfileMenu, setShowProfileMenu] = useState(false);
 
+    useEffect(() => {
+        if (!loading && (!user || user.role !== 'admin')) {
+            router.push('/login');
+        }
+    }, [user, loading, router]);
+
     const handleLogout = () => {
-        localStorage.removeItem('token');
-        router.push('/login');
+        logout();
     };
+
+    if (loading || !user || user.role !== 'admin') {
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-slate-50 dark:bg-slate-900">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden font-sans">

@@ -203,8 +203,19 @@ def get_user(
     
     team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == user.team_id).first() if user.team_id else None
     
+    # Calculate formatted_id
+    company_rank = db.query(User).filter(
+        User.company_id == user.company_id,
+        User.id <= user.id
+    ).count()
+    from app.models.company import Company
+    company = db.query(Company).filter(Company.id == user.company_id).first()
+    prefix = company.company_code if company and company.company_code else "EMP"
+    formatted_id = f"{prefix}{company_rank:03d}"
+    
     return {
         "id": user.id,
+        "formatted_id": formatted_id,
         "name": user.full_name,
         "email": user.email,
         "phone": user.phone,

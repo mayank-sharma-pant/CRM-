@@ -545,6 +545,16 @@ def get_employee_detail(
     
     team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == user.team_id).first() if user.team_id else None
     
+    # Calculate company rank and prefix
+    company_rank = db.query(User).filter(
+        User.company_id == user.company_id,
+        User.id <= user.id
+    ).count()
+    from app.models.company import Company
+    company = db.query(Company).filter(Company.id == user.company_id).first()
+    prefix = company.company_code if company and company.company_code else "EMP"
+    formatted_id = f"{prefix}{company_rank:03d}"
+    
     # Performance metrics (company-scoped)
     lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
     leads = lead_q.filter(Lead.assigned_to_id == user_id).count()
@@ -577,6 +587,7 @@ def get_employee_detail(
     return {
         "employee": {
             "id": user.id,
+            "formatted_id": formatted_id,
             "name": user.full_name,
             "email": user.email,
             "phone": user.phone,

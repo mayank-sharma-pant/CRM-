@@ -292,6 +292,11 @@ def create_invoice(
     count = apply_company_scope(db.query(Invoice), Invoice, current_user).count()
     inv_number = f"{prefix}-{current_user.company_id:03d}-{count + 1:04d}"
     
+    # Robust collision guard against concurrent creates or deleted invoices
+    while apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.invoice_number == inv_number).first():
+        count += 1
+        inv_number = f"{prefix}-{current_user.company_id:03d}-{count + 1:04d}"
+    
     # Calculate totals
     subtotal = Decimal(0)
     for item in body.items:

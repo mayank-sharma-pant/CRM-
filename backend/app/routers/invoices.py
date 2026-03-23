@@ -69,7 +69,11 @@ def create_invoice(
             raise HTTPException(status_code=400, detail="Invoice number already exists for this company")
     else:
         count = db.query(Invoice).filter(Invoice.company_id == company_id).count()
-        invoice_number = f"{prefix}-{company_id}-{count + 1}"
+        invoice_number = f"{prefix}-{company_id:03d}-{count + 1:04d}"
+        # Robust collision guard against concurrent creates or deleted invoices
+        while db.query(Invoice).filter(Invoice.company_id == company_id, Invoice.invoice_number == invoice_number).first():
+            count += 1
+            invoice_number = f"{prefix}-{company_id:03d}-{count + 1:04d}"
 
     subtotal = 0.0
     for it in body.items:
@@ -173,9 +177,18 @@ def list_invoices(
     client_q = apply_company_scope(db.query(Client), Client, current_user)
     user_q = apply_company_scope(db.query(User), User, current_user)
     items = []
+    
+    client_ids = {inv.client_id for inv in invoices if inv.client_id}
+    clients = client_q.filter(Client.id.in_(client_ids)).all() if client_ids else []
+    client_map = {c.id: c for c in clients}
+    
+    creator_ids = {inv.created_by_id for inv in invoices if getattr(inv, "created_by_id", None)}
+    creators = user_q.filter(User.id.in_(creator_ids)).all() if creator_ids else []
+    creator_map = {c.id: c for c in creators}
+
     for inv in invoices:
-        client = client_q.filter(Client.id == inv.client_id).first() if inv.client_id else None
-        creator = user_q.filter(User.id == inv.created_by_id).first() if getattr(inv, "created_by_id", None) else None
+        client = client_map.get(inv.client_id)
+        creator = creator_map.get(inv.created_by_id)
         
         items.append({
             "id": inv.id,
@@ -183,7 +196,7 @@ def list_invoices(
             "client": client.name if client else None,
             "client_id": inv.client_id,
             "sales_rep_id": inv.created_by_id,
-            "sales_rep_name": creator.name if creator else "System",
+            "sales_rep_name": creator.full_name if creator else "System",
             "subtotal": float(inv.subtotal or 0),
             "tax": float(inv.tax or 0),
             "discount": float(inv.discount or 0),

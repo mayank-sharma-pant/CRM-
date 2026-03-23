@@ -12,6 +12,7 @@ from app.models.client import Client
 from app.models.invoice import Invoice, InvoiceItem
 from app.models.task import Task
 from app.models.team import Team
+from app.models.company import Company
 from app.schemas.transfer import TransferRequestCreate, TransferRequestResponse
 from app.models.transfer_request import TeamTransferRequest
 
@@ -506,10 +507,20 @@ def employee_lookup(
     
     result = []
     team_q = apply_company_scope(db.query(Team), Team, current_user)
+    company_ids = {u.company_id for u in users if u.company_id}
+    companies = db.query(Company).filter(Company.id.in_(company_ids)).all() if company_ids else []
+    company_map = {c.id: c.company_code for c in companies}
+    
     for user in users:
+        company_rank = db.query(User).filter(
+            User.company_id == user.company_id,
+            User.id <= user.id
+        ).count()
+        prefix = company_map.get(user.company_id) or "EMP"
+        
         team_obj = team_q.filter(Team.id == user.team_id).first() if user.team_id else None
         result.append({
-            "id": f"EMP{user.id:03d}",
+            "id": f"{prefix}{company_rank:03d}",
             "user_id": user.id,
             "name": user.full_name,
             "email": user.email,
@@ -719,8 +730,18 @@ def get_performance_points(
 
     sales_users = user_q.filter(User.role.in_(["sales", "manager"])).all()
 
+    company_ids = {u.company_id for u in sales_users if u.company_id}
+    companies = db.query(Company).filter(Company.id.in_(company_ids)).all() if company_ids else []
+    company_map = {c.id: c.company_code for c in companies}
+
     performance = []
     for user in sales_users:
+        company_rank = db.query(User).filter(
+            User.company_id == user.company_id,
+            User.id <= user.id
+        ).count()
+        prefix = company_map.get(user.company_id) or "EMP"
+        
         total_leads = lead_q.filter(Lead.assigned_to_id == user.id).count()
         converted = lead_q.filter(Lead.assigned_to_id == user.id, Lead.status == "Converted").count()
         points = converted * 500 + (total_leads - converted) * 50
@@ -739,7 +760,7 @@ def get_performance_points(
         trend = "up" if converted > 0 else ("flat" if total_leads > 0 else "down")
 
         performance.append({
-            "id": f"EMP{user.id:03d}",
+            "id": f"{prefix}{company_rank:03d}",
             "user_id": user.id,
             "name": user.full_name,
             "role": user.role.title(),

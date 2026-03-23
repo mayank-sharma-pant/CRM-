@@ -238,7 +238,7 @@ def get_lead(
     ensure_company_access(lead, current_user)
     
     # Fetch tasks linked to this lead
-    tasks = db.query(Task).filter(Task.lead_id == lead_id).order_by(Task.created_at.desc()).all()
+    tasks = apply_company_scope(db.query(Task), Task, current_user).filter(Task.lead_id == lead_id).order_by(Task.created_at.desc()).all()
     tasks_list = [
         {
             "id": t.id,
@@ -253,7 +253,7 @@ def get_lead(
     ]
     
     # Fetch notes linked to this lead
-    notes = db.query(Note).filter(Note.lead_id == lead_id).order_by(Note.created_at.desc()).all()
+    notes = apply_company_scope(db.query(Note), Note, current_user).filter(Note.lead_id == lead_id).order_by(Note.created_at.desc()).all()
     notes_list = [
         {
             "id": n.id,
@@ -439,7 +439,7 @@ def list_lead_notes(
         raise HTTPException(status_code=404, detail="Lead not found")
     ensure_company_access(lead, current_user)
 
-    notes = db.query(Note).filter(Note.lead_id == lead_id).order_by(Note.created_at.desc()).all()
+    notes = apply_company_scope(db.query(Note), Note, current_user).filter(Note.lead_id == lead_id).order_by(Note.created_at.desc()).all()
     return [
         {
             "id": n.id,

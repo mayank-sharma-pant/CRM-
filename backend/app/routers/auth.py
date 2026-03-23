@@ -104,8 +104,12 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
 
     try:
         company_name = (user_data.company_name or "").strip() or f"{user_data.full_name}'s Company"
+        from app.utils.helpers import generate_company_code
+        company_code = generate_company_code(db)
+        
         new_company = Company(
             name=company_name,
+            company_code=company_code,
             status="pending",
         )
         db.add(new_company)

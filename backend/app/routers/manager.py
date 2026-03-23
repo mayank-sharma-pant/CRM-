@@ -415,9 +415,18 @@ def get_team_invoices(
     result = []
     client_q = apply_company_scope(db.query(Client), Client, current_user)
     user_q = apply_company_scope(db.query(User), User, current_user)
+    
+    client_ids = {inv.client_id for inv in invoices if inv.client_id}
+    clients = client_q.filter(Client.id.in_(client_ids)).all() if client_ids else []
+    client_map = {c.id: c for c in clients}
+    
+    creator_ids = {inv.created_by_id for inv in invoices if getattr(inv, "created_by_id", None)}
+    creators = user_q.filter(User.id.in_(creator_ids)).all() if creator_ids else []
+    creator_map = {c.id: c for c in creators}
+    
     for inv in invoices:
-        client = client_q.filter(Client.id == inv.client_id).first()
-        creator = user_q.filter(User.id == inv.created_by_id).first() if getattr(inv, "created_by_id", None) else None
+        client = client_map.get(inv.client_id)
+        creator = creator_map.get(inv.created_by_id)
         
         result.append({
             "id": inv.id,

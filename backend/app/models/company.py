@@ -10,6 +10,7 @@ class Company(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
+    company_code = Column(String(3), unique=True, index=True, nullable=True)
     status = Column(String(50), nullable=False, default="pending")  # pending, active, suspended, rejected
     plan = Column(String(50), nullable=True)  # free, pro, enterprise
     created_at = Column(DateTime(timezone=True), server_default=func.now())

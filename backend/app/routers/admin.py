@@ -144,17 +144,37 @@ def list_users(
     
     result = []
     team_q = apply_company_scope(db.query(Team), Team, current_user)
+    company_ids = {u.company_id for u in users if u.company_id}
+    companies = db.query(Company).filter(Company.id.in_(company_ids)).all() if company_ids else []
+    company_map = {c.id: c.company_code for c in companies}
+    
+    # Pre-fetch teams
+    team_ids = {u.team_id for u in users if u.team_id}
+    teams = team_q.filter(Team.id.in_(team_ids)).all() if team_ids else []
+    team_map = {t.id: t for t in teams}
+    
+    # Pre-fetch company ranks efficiently
+    user_ids = [u.id for u in users]
+    from sqlalchemy import func
+    rank_query = db.query(
+        User.id,
+        func.rank().over(
+            partition_by=User.company_id,
+            order_by=User.id
+        ).label('company_rank')
+    )
+    if current_user.company_id:
+        rank_query = rank_query.filter(User.company_id == current_user.company_id)
+    all_ranks = rank_query.all()
+    rank_map = {r.id: r.company_rank for r in all_ranks}
+    
     for user in users:
-        # Calculate rank within the company for a cleaner "EMP00X" ID
-        # This count remains stable even with pagination
-        company_rank = db.query(User).filter(
-            User.company_id == user.company_id,
-            User.id <= user.id
-        ).count()
+        company_rank = rank_map.get(user.id, 1)
         
-        team = team_q.filter(Team.id == user.team_id).first() if user.team_id else None
+        prefix = company_map.get(user.company_id) or "EMP"
+        team = team_map.get(user.team_id)
         result.append({
-            "id": f"EMP{company_rank:03d}",
+            "id": f"{prefix}{company_rank:03d}",
             "user_id": user.id,
             "name": user.full_name,
             "email": user.email,
@@ -389,13 +409,23 @@ def list_teams(
     
     result = []
     user_q = apply_company_scope(db.query(User), User, current_user)
+    team_ids = [t.id for t in teams]
+    
+    if not team_ids:
+        return {"teams": [], "total": total, "skip": skip, "limit": limit}
+        
+    counts = user_q.filter(User.team_id.in_(team_ids)).with_entities(User.team_id, func.count(User.id)).group_by(User.team_id).all()
+    count_map = {t_id: count for t_id, count in counts}
+    
+    managers = user_q.filter(User.team_id.in_(team_ids), User.role == "manager").all()
+    manager_map = {m.team_id: m for m in managers}
+    
     for team in teams:
-        member_count = user_q.filter(User.team_id == team.id).count()
-        manager = user_q.filter(User.team_id == team.id, User.role == "manager").first()
+        manager = manager_map.get(team.id)
         result.append({
             "id": team.id,
             "name": team.name,
-            "member_count": member_count,
+            "member_count": count_map.get(team.id, 0),
             "manager": {"id": manager.id, "name": manager.full_name} if manager else None,
             "created_at": team.created_at.strftime("%Y-%m-%d") if team.created_at else None
         })

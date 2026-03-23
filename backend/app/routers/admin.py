@@ -34,6 +34,7 @@ from app.schemas.admin import (
 from app.schemas.user import UserResponse, UserCreate, UserUpdate, MessageResponse
 from app.schemas.transfer import TransferRequestResponse, TransferRequestUpdate, TransferRequestList
 from app.models.transfer_request import TeamTransferRequest
+from app.utils.notify import send_notification, notify_role_users
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
@@ -684,6 +685,14 @@ def approve_user(
     
     db.commit()
     
+    # Notify the user that their account was approved
+    send_notification(db, user.id,
+        title="Account Approved!",
+        message="Your account has been approved. You now have full access.",
+        type="success",
+        link=f"/{user.role}/dashboard")
+    db.commit()
+    
     return {"message": f"User {user.full_name} approved"}
 
 
@@ -877,6 +886,7 @@ def update_settings(
             "address": settings.address,
             "invoice_prefix": settings.invoice_prefix,
             "tax_rate": settings.tax_rate,
+            "payment_terms": settings.payment_terms,
             "task_reminders_enabled": bool(settings.task_reminders_enabled),
             "followup_alerts_enabled": bool(settings.followup_alerts_enabled),
         }
@@ -895,6 +905,8 @@ def update_settings(
         settings.invoice_prefix = body.invoice_prefix
     if body.tax_rate is not None:
         settings.tax_rate = body.tax_rate
+    if body.payment_terms is not None:
+        settings.payment_terms = body.payment_terms
     if body.lead_stages is not None:
         settings.lead_stages = json.dumps(body.lead_stages)
     if body.lost_reasons is not None:
@@ -909,6 +921,7 @@ def update_settings(
         "address": settings.address,
         "invoice_prefix": settings.invoice_prefix,
         "tax_rate": settings.tax_rate,
+        "payment_terms": settings.payment_terms,
         "task_reminders_enabled": bool(settings.task_reminders_enabled),
         "followup_alerts_enabled": bool(settings.followup_alerts_enabled),
     }

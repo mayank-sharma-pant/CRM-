@@ -49,16 +49,24 @@ def get_manager_dashboard(
     team_members = user_query.filter(User.role == "sales").all()
     team_member_ids = [m.id for m in team_members]
     
+    from sqlalchemy import case
+    
+    lead_stats = apply_company_scope(db.query(
+        Lead.assigned_to_id,
+        func.sum(case((Lead.status == "Converted", 1), else_=0)).label("converted_count"),
+        func.sum(case((Lead.status.notin_(["Converted", "Lost"]), 1), else_=0)).label("active_count")
+    ), Lead, current_user).filter(Lead.team_id == current_user.team_id).group_by(Lead.assigned_to_id).all()
+    
+    stats_map = {row.assigned_to_id: {"active": row.active_count or 0, "converted": row.converted_count or 0} for row in lead_stats}
+    
     team_stats = []
     for member in team_members:
-        m_lead_query = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.team_id == current_user.team_id)
-        active = m_lead_query.filter(Lead.assigned_to_id == member.id, Lead.status.notin_(["Converted", "Lost"])).count()
-        converted = m_lead_query.filter(Lead.assigned_to_id == member.id, Lead.status == "Converted").count()
+        member_stat = stats_map.get(member.id, {"active": 0, "converted": 0})
         team_stats.append({
             "id": member.id,
             "name": member.full_name,
-            "leads_active": active,
-            "leads_converted": converted
+            "leads_active": member_stat["active"],
+            "leads_converted": member_stat["converted"]
         })
     
     # Get priority tasks
@@ -107,6 +115,16 @@ def get_team_monitoring(
     """Get team activity monitoring data"""
     team_members = apply_company_scope(db.query(User), User, current_user).filter(User.role == "sales", User.team_id == current_user.team_id).all()
     
+    team_member_ids = [m.id for m in team_members]
+    from sqlalchemy import case
+    task_stats = apply_company_scope(db.query(
+        Task.assigned_to_id,
+        func.sum(case((Task.status == "Pending", 1), else_=0)).label("pending_count"),
+        func.sum(case(((Task.due_date < datetime.now()) & (Task.status != "Completed"), 1), else_=0)).label("overdue_count")
+    ), Task, current_user).filter(Task.assigned_to_id.in_(team_member_ids)).group_by(Task.assigned_to_id).all()
+    
+    task_map = {row.assigned_to_id: {"pending": row.pending_count or 0, "overdue": row.overdue_count or 0} for row in task_stats}
+    
     members_data = []
     online_count = 0
     
@@ -121,13 +139,9 @@ def get_team_monitoring(
             is_online = False
             member_last_active = None
         
-        task_q = apply_company_scope(db.query(Task), Task, current_user)
-        pending = task_q.filter(Task.assigned_to_id == member.id, Task.status == "Pending").count()
-        overdue = task_q.filter(
-            Task.assigned_to_id == member.id,
-            Task.due_date < datetime.now(),
-            Task.status != "Completed"
-        ).count()
+        member_tasks = task_map.get(member.id, {"pending": 0, "overdue": 0})
+        pending = member_tasks["pending"]
+        overdue = member_tasks["overdue"]
         
         if is_online:
             online_count += 1
@@ -222,10 +236,12 @@ def get_team_leads(
         query = query.filter(Lead.assigned_to_id == member_id)
     total = query.count()
     leads = query.order_by(Lead.created_at.desc()).offset(skip).limit(limit).all()
+    assignee_ids = {lead.assigned_to_id for lead in leads if lead.assigned_to_id}
+    assignees = {u.id: u for u in apply_company_scope(db.query(User), User, current_user).filter(User.id.in_(assignee_ids)).all()} if assignee_ids else {}
+    
     result = []
-    user_query = apply_company_scope(db.query(User), User, current_user)
     for lead in leads:
-        assignee = user_query.filter(User.id == lead.assigned_to_id).first() if lead.assigned_to_id else None
+        assignee = assignees.get(lead.assigned_to_id)
         result.append({
             "id": lead.id,
             "name": lead.name,
@@ -369,17 +385,24 @@ def get_team_performance(
     revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
     
     # Member breakdown (team-scoped)
-    team_members = apply_company_scope(db.query(User), User, current_user).filter(User.role == "sales", User.team_id == current_user.team_id).all()
+    team_member_ids = [m.id for m in team_members]
+    from sqlalchemy import case
+    lead_perf = apply_company_scope(db.query(
+        Lead.assigned_to_id,
+        func.count(Lead.id).label("total"),
+        func.sum(case((Lead.status == "Converted", 1), else_=0)).label("converted")
+    ), Lead, current_user).filter(Lead.team_id == current_user.team_id, Lead.assigned_to_id.in_(team_member_ids)).group_by(Lead.assigned_to_id).all()
+    
+    perf_map = {row.assigned_to_id: {"total": row.total, "converted": row.converted or 0} for row in lead_perf}
+    
     member_breakdown = []
     for member in team_members:
-        m_lead_q = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.team_id == current_user.team_id)
-        m_leads = m_lead_q.filter(Lead.assigned_to_id == member.id).count()
-        m_converted = m_lead_q.filter(Lead.assigned_to_id == member.id, Lead.status == "Converted").count()
+        stats = perf_map.get(member.id, {"total": 0, "converted": 0})
         member_breakdown.append({
             "id": member.id,
             "name": member.full_name,
-            "leads": m_leads,
-            "converted": m_converted
+            "leads": stats["total"],
+            "converted": stats["converted"]
         })
     
     return {
@@ -484,20 +507,24 @@ def get_manager_team(
         User.role == "sales"
     ).all()
     
+    team_member_ids = [m.id for m in team_members]
+    
+    lead_counts = db.query(Lead.assigned_to_id, func.count(Lead.id)).filter(Lead.assigned_to_id.in_(team_member_ids)).group_by(Lead.assigned_to_id).all()
+    lead_map = {row[0]: row[1] for row in lead_counts}
+    
+    order_counts = db.query(Invoice.created_by_id, func.count(Invoice.id)).filter(Invoice.created_by_id.in_(team_member_ids)).group_by(Invoice.created_by_id).all()
+    order_map = {row[0]: row[1] for row in order_counts}
+    
     result = []
     for member in team_members:
-        # Get basic counts for each member
-        lead_count = db.query(Lead).filter(Lead.assigned_to_id == member.id).count()
-        order_count = db.query(Invoice).filter(Invoice.created_by_id == member.id).count()
-        
         result.append({
             "id": member.id,
             "full_name": member.full_name,
             "email": member.email,
             "role": member.role,
             "status": member.status,
-            "lead_count": lead_count,
-            "order_count": order_count,
+            "lead_count": lead_map.get(member.id, 0),
+            "order_count": order_map.get(member.id, 0),
             "last_active": member.last_active_at.isoformat() if member.last_active_at else None
         })
         

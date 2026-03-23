@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.routers import auth, users, leads, tasks, clients, admin, manager, follow_ups, md, purchase, ledgers, leaves, platform, invoices, export, search, notifications, timeline, bug_report
+from app.routers import auth, users, leads, tasks, clients, admin, manager, follow_ups, md, purchase, ledgers, leaves, platform, invoices, export, search, notifications, timeline, bug_report, documents, imports
 from app.config import settings
 import traceback
 import logging
@@ -93,11 +93,13 @@ app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(ledgers.router) # Prefix is defined in the router itself
 app.include_router(leaves.router, prefix="/api/leaves", tags=["Leaves"])
 app.include_router(platform.router, prefix="/platform", tags=["Platform"])
+app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 app.include_router(export.router, prefix="/api/export", tags=["Export"])
 app.include_router(search.router, prefix="/api/search", tags=["Search"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
 app.include_router(timeline.router, prefix="/api/timeline", tags=["Timeline"])
 app.include_router(bug_report.router, prefix="/api/bug-report", tags=["Bug Reports"])
+app.include_router(imports.router, prefix="/api/import", tags=["Import"])
 
 @app.get("/")
 def root():

@@ -8,6 +8,7 @@ from app.models.leave_request import LeaveRequest
 from app.models.user import User
 from app.utils.dependencies import get_current_user, apply_company_scope
 from app.schemas.user import MessageResponse
+from app.utils.notify import send_notification, notify_role_users
 
 router = APIRouter()
 
@@ -113,6 +114,14 @@ def approve_leave(
     leave.status = normalized
     leave.approved_by_id = current_user.id
     leave.approved_at = datetime.now()
+    
+    # Notify the employee about their leave decision
+    send_notification(db, leave.user_id,
+        title=f"Leave {normalized}",
+        message=f"Your leave request was {normalized.lower()} by {current_user.full_name}.",
+        type="success" if normalized == "Approved" else "warning",
+        link="/settings/leave")
+    
     db.commit()
 
     return MessageResponse(message=f"Leave request {normalized.lower()}")

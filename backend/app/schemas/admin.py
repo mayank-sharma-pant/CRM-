@@ -71,7 +71,7 @@ class UserUpdateRequest(BaseModel):
 class InviteRequest(BaseModel):
     email: EmailStr
     full_name: str
-    phone: Optional[str] = None
+    phone: str
     role: str
     team_id: Optional[int] = None
     manager_id: Optional[int] = None

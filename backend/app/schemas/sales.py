@@ -33,6 +33,10 @@ class LeadUpdate(BaseModel):
     assigned_to_id: Optional[int] = None
 
 
+class LeadStatusUpdate(BaseModel):
+    status: str
+
+
 class LeadResponse(LeadBase):
     id: int
     status: str = "New"

@@ -66,12 +66,16 @@ def get_purchase_dashboard(
     # Get recent pending invoices
     pending_invoices = inv_q.filter(Invoice.status == "Pending").order_by(Invoice.created_at.desc()).limit(5).all()
     
+    client_ids = {inv.client_id for inv in pending_invoices if inv.client_id}
+    creator_ids = {inv.created_by_id for inv in pending_invoices if inv.created_by_id}
+    
+    clients = {c.id: c for c in apply_company_scope(db.query(Client), Client, current_user).filter(Client.id.in_(client_ids)).all()} if client_ids else {}
+    creators = {u.id: u for u in apply_company_scope(db.query(User), User, current_user).filter(User.id.in_(creator_ids)).all()} if creator_ids else {}
+
     approval_queue = []
-    client_q = apply_company_scope(db.query(Client), Client, current_user)
-    user_q = apply_company_scope(db.query(User), User, current_user)
     for inv in pending_invoices:
-        client = client_q.filter(Client.id == inv.client_id).first()
-        creator = user_q.filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
+        client = clients.get(inv.client_id)
+        creator = creators.get(inv.created_by_id)
         approval_queue.append({
             "id": inv.id,
             "client": client.name if client else "Unknown",
@@ -121,12 +125,16 @@ def list_sales_for_approval(
     total = query.count()
     invoices = query.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()
     
+    client_ids = {inv.client_id for inv in invoices if inv.client_id}
+    creator_ids = {inv.created_by_id for inv in invoices if inv.created_by_id}
+    
+    clients = {c.id: c for c in apply_company_scope(db.query(Client), Client, current_user).filter(Client.id.in_(client_ids)).all()} if client_ids else {}
+    creators = {u.id: u for u in apply_company_scope(db.query(User), User, current_user).filter(User.id.in_(creator_ids)).all()} if creator_ids else {}
+
     result = []
-    client_q = apply_company_scope(db.query(Client), Client, current_user)
-    user_q = apply_company_scope(db.query(User), User, current_user)
     for inv in invoices:
-        client = client_q.filter(Client.id == inv.client_id).first()
-        creator = user_q.filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
+        client = clients.get(inv.client_id)
+        creator = creators.get(inv.created_by_id)
         result.append({
             "id": inv.id,
             "client": client.name if client else "Unknown",
@@ -242,10 +250,16 @@ def list_invoices(
     total = filtered_query.count()
     invoices = filtered_query.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()
     
+    client_ids = {inv.client_id for inv in invoices if inv.client_id}
+    creator_ids = {inv.created_by_id for inv in invoices if inv.created_by_id}
+    
+    clients = {c.id: c for c in apply_company_scope(db.query(Client), Client, current_user).filter(Client.id.in_(client_ids)).all()} if client_ids else {}
+    creators = {u.id: u for u in apply_company_scope(db.query(User), User, current_user).filter(User.id.in_(creator_ids)).all()} if creator_ids else {}
+
     result = []
     for inv in invoices:
-        client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == inv.client_id).first()
-        creator = apply_company_scope(db.query(User), User, current_user).filter(User.id == inv.created_by_id).first() if inv.created_by_id else None
+        client = clients.get(inv.client_id)
+        creator = creators.get(inv.created_by_id)
         result.append({
             "id": inv.id,
             "number": inv.invoice_number,

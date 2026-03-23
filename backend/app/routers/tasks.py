@@ -75,12 +75,18 @@ def get_tasks_list(
         else:
             return task.due_date.strftime("%a, %b %d")
     
+    lead_ids = {t.lead_id for t in tasks if t.lead_id}
+    client_ids = {t.client_id for t in tasks if t.client_id}
+    
+    leads = {l.id: l for l in apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id.in_(lead_ids)).all()} if lead_ids else {}
+    clients = {c.id: c for c in apply_company_scope(db.query(Client), Client, current_user).filter(Client.id.in_(client_ids)).all()} if client_ids else {}
+
     def get_entity_info(task):
         if task.lead_id:
-            lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == task.lead_id).first()
+            lead = leads.get(task.lead_id)
             return (lead.name if lead else "Unknown Lead", "Lead")
         elif task.client_id:
-            client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == task.client_id).first()
+            client = clients.get(task.client_id)
             return (client.name if client else "Unknown Client", "Client")
         return ("Internal", "System")
     

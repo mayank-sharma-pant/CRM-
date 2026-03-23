@@ -95,6 +95,7 @@ const ROLE_NAVIGATION = {
         { name: 'Leads', href: '/md/leads', icon: 'Target' },
         { name: 'Clients', href: '/md/clients', icon: 'Briefcase' },
         { name: 'Invoices', href: '/md/invoices', icon: 'Receipt' },
+        { name: 'Reports', href: '/md/reports', icon: 'PieChart' },
     ],
     purchase: [
         { name: 'Dashboard', href: '/purchase/dashboard', icon: 'LayoutDashboard' },

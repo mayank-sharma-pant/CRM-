@@ -1,204 +1,404 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams, usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { formatDistanceToNow, parseISO, differenceInDays } from 'date-fns';
 import api from '../../../services/api';
 import { downloadCSV } from '../../../services/export';
+import LeadModal from '../../../components/leads/LeadModal';
 import {
-    ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, Legend
-} from 'recharts';
-import {
-    TrendingUp, Users, Filter, Calendar, ChevronRight, Download, Activity
+  Plus, ChevronRight, Filter, Briefcase, LayoutList, LayoutGrid, Download, Upload
 } from 'lucide-react';
 
-export default function MDLeadsPage() {
-    const router = useRouter();
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
+const TABS = [
+  { id: 'all', label: 'All Leads' },
+  { id: 'active', label: 'Active' },
+  { id: 'New', label: 'New' },
+  { id: 'Contacted', label: 'Contacted' },
+  { id: 'Qualified', label: 'Follow-up' },
+  { id: 'Closed', label: 'Closed' }
+];
 
-    useEffect(() => {
-        const fetchLeads = async () => {
-            try {
-                setLoading(true);
-                const res = await api.get('/md/leads');
-                const apiData = res.data;
+const BOARD_COLUMNS = ['New', 'Contacted', 'Qualified', 'Proposal', 'Converted', 'Lost'];
 
-                const enrichedData = {
-                    kpis: [
-                        { label: 'Aggregate Inflow', value: apiData.total || 0, sub: 'Lifetime Volume' },
-                        { label: 'Yield Index', value: `${apiData.conversionRate || 0}%`, sub: 'Conversion' },
-                        { label: 'Pipeline depth', value: apiData.total || 0, sub: 'Active Signals' }
-                    ],
-                    funnel: apiData.funnel || [],
-                    sourceBreakdown: apiData.sourceBreakdown || [],
-                    leads: apiData.leads || []
-                };
-                setData(enrichedData);
-            } catch (err) {
-                console.error("Failed to fetch MD leads", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchLeads();
-    }, []);
+const STATUS_STYLES = {
+  'New': 'bg-slate-100 text-slate-600 border-slate-200',
+  'Contacted': 'bg-blue-50 text-blue-700 border-blue-200',
+  'Qualified': 'bg-violet-50 text-violet-700 border-violet-200',
+  'Proposal': 'bg-amber-50 text-amber-700 border-amber-200',
+  'Converted': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'Lost': 'bg-gray-50 text-gray-500 border-gray-200',
+  'Lost Client': 'bg-red-50 text-red-700 border-red-200'
+};
 
-    if (loading) return <LeadsSkeleton />;
-    if (!data) return <div className="p-12 text-center text-muted">No lead data available.</div>;
+export default function Leads() {
+  const [viewMode, setViewMode] = useState('board'); // 'list' | 'board'
+  const [activeTab, setActiveTab] = useState('active');
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [error, setError] = useState(null);
+  const fileInputRef = useRef(null);
+  
+  const searchParams = useSearchParams();
+  const basePath = usePathname(); // e.g., '/sales/leads'
 
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setIsModalOpen(true);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    fetchLeads();
+  }, [activeTab]);
+
+  const fetchLeads = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let url = '/leads';
+      const params = {};
+
+      if (activeTab !== 'all' && activeTab !== 'active' && activeTab !== 'Closed') {
+        params.status = activeTab;
+      }
+
+      const response = await api.get(url, { params });
+      const raw = response.data?.items ?? response.data;
+      let data = Array.isArray(raw) ? raw : [];
+
+      if (activeTab === 'active') {
+        data = data.filter(l => ['New', 'Contacted', 'Qualified', 'Proposal'].includes(l.status));
+      } else if (activeTab === 'Closed') {
+        data = data.filter(l => ['Converted', 'Lost', 'Lost Client'].includes(l.status));
+      }
+
+      setLeads(data);
+    } catch (err) {
+      console.error("Failed to fetch leads", err);
+      setError('Unable to load leads. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDragStart = (e, leadId) => {
+    e.dataTransfer.setData('leadId', leadId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e, newStatus) => {
+    e.preventDefault();
+    const leadId = e.dataTransfer.getData('leadId');
+    if (!leadId) return;
+
+    const leadToUpdate = leads.find(l => l.id.toString() === leadId);
+    if (!leadToUpdate || leadToUpdate.status === newStatus) return;
+
+    // Optimistic UI update
+    const previousLeads = [...leads];
+    setLeads(prev => prev.map(l => l.id.toString() === leadId ? { ...l, status: newStatus } : l));
+
+    try {
+      await api.patch(`/leads/${leadId}/status`, { status: newStatus });
+    } catch (err) {
+      console.error(err);
+      setLeads(previousLeads); // Revert on failure
+      alert('Failed to update lead status.');
+    }
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setLoading(true);
+    try {
+      const response = await api.post('/import/leads', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      alert(response.data.message);
+      fetchLeads();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Failed to import CSV');
+    } finally {
+      setLoading(false);
+      e.target.value = null; // reset input
+    }
+  };
+
+  const filteredLeads = leads;
+
+  const safeParseISO = (s) => {
+    if (!s || typeof s !== 'string') return null;
+    try {
+      const d = parseISO(s);
+      return isNaN(d.getTime()) ? null : d;
+    } catch {
+      return null;
+    }
+  };
+
+  const getEngagementSignal = (lead) => {
+    const NOW = new Date();
+    const nextTaskDate = safeParseISO(lead.next_task);
+    if (nextTaskDate) {
+      const daysDiff = differenceInDays(nextTaskDate, NOW);
+      if (daysDiff < 0) return { text: 'Follow-up overdue', color: 'text-red-600 font-semibold' };
+      if (daysDiff === 0) return { text: 'Follow-up today', color: 'text-emerald-600 font-semibold' };
+    }
+    const lastResp = safeParseISO(lead.last_response_at);
+    if (lastResp) return { text: `Responded ${formatDistanceToNow(lastResp, { addSuffix: true })}`, color: 'text-blue-600 font-medium' };
+    const lastContact = safeParseISO(lead.last_contacted_at);
+    if (lastContact) {
+      const daysSinceContact = differenceInDays(NOW, lastContact);
+      if (daysSinceContact > 2) return { text: 'Awaiting response', color: 'text-amber-600 font-medium' };
+      return { text: `Contacted ${daysSinceContact === 0 ? 'today' : daysSinceContact + ' days ago'}`, color: 'text-slate-500' };
+    }
+    return { text: '', color: '' };
+  };
+
+  if (loading) {
     return (
-        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
-
-            {/* Header: Lead Operations Cockpit */}
-            <div className="flex items-center justify-between py-4 border-b border-border">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-primary">Lead Inflow Matrix</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Aggregate Pipeline & Conversion Analytics</p>
-                </div>
-                <div className="flex items-center gap-2.5">
-                    <button className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-md text-secondary text-[12px] font-bold uppercase tracking-tight hover:bg-surface-elevated shadow-sm transition-all">
-                        <Calendar size={14} className="text-muted" strokeWidth={2.5} />
-                        <span>Filter Matrix</span>
-                    </button>
-                    <div className="h-6 w-px bg-border mx-1"></div>
-                    <button onClick={() => downloadCSV('/export/leads', {}, 'leads_export.csv')} className="p-1.5 text-muted hover:text-primary transition-colors" title="Export CSV">
-                        <Download size={20} strokeWidth={2.5} />
-                    </button>
-                </div>
-            </div>
-
-            {/* SECTION 1: KPI STRIP */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {data.kpis.map((kpi, i) => (
-                    <KPIMini key={i} label={kpi.label} value={kpi.value} sub={kpi.sub} />
-                ))}
-            </div>
-
-            {/* SECTION 2: CHARTS (6 + 6) */}
-            <div className="grid grid-cols-12 gap-5">
-                <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-border shadow-sm p-5">
-                    <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight mb-8">Funnel Stage Yield</h3>
-                    <div className="h-[280px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data.funnel} layout="vertical" margin={{ left: 0, right: 30 }}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--border)" opacity={0.3} />
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" stroke="var(--muted)" fontSize={11} fontWeight="bold" width={80} tickLine={false} axisLine={false} />
-                                <Tooltip cursor={{ fill: 'var(--surface-elevated)', opacity: 0.5 }} contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', fontSize: '11px', fontWeight: 'bold' }} />
-                                <Bar dataKey="value" radius={[0, 2, 2, 0]} barSize={24}>
-                                    {data.funnel.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={index === 0 ? 'var(--accent)' : index === 1 ? 'var(--secondary)' : 'var(--primary)'} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-border shadow-sm p-5">
-                    <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight mb-8">Lead Source Distribution</h3>
-                    <div className="h-[280px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie data={data.sourceBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={90} stroke="var(--surface)" strokeWidth={4}>
-                                    {data.sourceBreakdown.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Pie>
-                                <Tooltip contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }} />
-                                <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'black', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-            </div>
-
-            {/* SECTION 3: DATA TABLE */}
-            <div className="bg-surface rounded-md border border-border shadow-sm overflow-hidden mt-6">
-                <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-surface-elevated/30">
-                    <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight flex items-center gap-2">
-                        <Users size={16} className="text-secondary" />
-                        Comprehensive Lead Roster
-                    </h3>
-                    <span className="text-[11px] font-black text-muted uppercase tracking-widest bg-surface border border-border px-2 py-0.5 rounded shadow-sm">{data.leads.length} Records</span>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left whitespace-nowrap">
-                        <thead>
-                            <tr className="border-b border-border bg-surface-elevated/10">
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent">Identification</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent">Organization</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent">Status</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent">Structural Unit</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent">Assigned Agent</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest bg-transparent text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/50">
-                            {data.leads.length > 0 ? (
-                                data.leads.map((lead, idx) => (
-                                    <tr 
-                                        key={lead.id} 
-                                        onClick={() => router.push(`/md/leads/${lead.id}`)}
-                                        className={`group hover:bg-surface-elevated/30 cursor-pointer transition-colors ${idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}`}
-                                    >
-                                        <td className="py-3.5 px-5 font-bold text-[13px] text-primary">{lead.name}</td>
-                                        <td className="py-3.5 px-5 font-medium text-[12px] text-secondary">{lead.company}</td>
-                                        <td className="py-3.5 px-5">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-[4px] border text-[10px] font-black uppercase tracking-widest 
-                                                ${lead.status === 'Converted' ? 'bg-success/10 text-success border-success/20' : 
-                                                  lead.status === 'Lost' ? 'bg-error/10 text-error border-error/20' : 
-                                                  'bg-info/10 text-info border-info/20'}`}>
-                                                {lead.status}
-                                            </span>
-                                        </td>
-                                        <td className="py-3.5 px-5 text-[12px] font-bold text-muted uppercase tracking-tight">{lead.team || '—'}</td>
-                                        <td className="py-3.5 px-5 text-[12px] font-medium text-secondary">{lead.owner || '—'}</td>
-                                        <td className="py-3.5 px-5 text-right w-10">
-                                            <ChevronRight size={14} className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all inline-block" />
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={6} className="py-8 text-center text-[12px] font-bold text-muted uppercase tracking-widest">No active leads in registry</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+      <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
+        <div className="text-[13px] text-muted font-bold uppercase tracking-widest animate-pulse">Synchronizing leads...</div>
+      </div>
     );
-}
+  }
 
-// --- SUBCOMPONENTS ---
-
-function KPIMini({ label, value, sub }) {
+  if (error) {
     return (
-        <div className="bg-surface rounded-md border border-border p-5 shadow-sm hover:bg-surface-elevated transition-colors group">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted group-hover:text-secondary">{label}</span>
-            <div className="mt-1 flex items-baseline gap-2">
-                <span className="text-[28px] font-black tracking-tighter tabular-nums leading-none text-primary">{value}</span>
-                <span className="text-[11px] font-bold text-muted uppercase tracking-tight opacity-70">{sub}</span>
-            </div>
+      <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
+        <div className="flex flex-col items-center gap-3">
+          <div className="text-[13px] text-error font-bold uppercase tracking-widest">{error}</div>
+          <button onClick={fetchLeads} className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight">Retry</button>
         </div>
+      </div>
     );
-}
+  }
 
-function LeadsSkeleton() {
-    return (
-        <div className="mx-auto max-w-[1440px] px-6 py-4 space-y-6 animate-pulse bg-page min-h-screen">
-            <div className="flex justify-between py-4 border-b border-border">
-                <div className="h-10 w-48 bg-surface rounded"></div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-                {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-surface rounded-md"></div>)}
-            </div>
-            <div className="grid grid-cols-2 gap-5 h-[320px]">
-                <div className="bg-surface border border-border rounded-md"></div>
-                <div className="bg-surface border border-border rounded-md"></div>
-            </div>
+  // --- RENDERING VIEWS ---
+
+  const renderListView = () => (
+    <div className="max-w-[1400px] mx-auto px-6 py-4">
+      <div className="bg-surface rounded border border-border overflow-hidden shadow-sm">
+        <div className="hidden lg:flex items-center gap-4 px-5 py-2.5 bg-surface-elevated/50 border-b border-border">
+          <div className="w-[30%] text-[10px] font-black text-muted uppercase tracking-widest">Lead Entity</div>
+          <div className="w-[20%] text-[10px] font-black text-muted uppercase tracking-widest text-center">Status</div>
+          <div className="flex-1 text-[10px] font-black text-muted uppercase tracking-widest">Next Engagement</div>
+          <div className="w-8"></div>
         </div>
-    );
+        <div className="divide-y divide-border/50">
+          {filteredLeads.length === 0 ? (
+            <div className="p-12 text-center text-muted text-[13px] font-medium italic">No leads found in this view.</div>
+          ) : (
+            filteredLeads.map((lead, idx) => {
+              const signal = getEngagementSignal(lead);
+              const isMuted = ['Converted', 'Lost', 'Lost Client'].includes(lead.status);
+
+              return (
+                <Link key={lead.id} href={`${basePath}/${lead.id}`} className={`flex items-center gap-4 px-5 py-2.5 hover:bg-surface-elevated/30 transition-all group ${isMuted ? 'opacity-50' : ''} ${idx % 2 !== 0 ? 'bg-surface-elevated/10' : ''}`}>
+                  <div className="w-[30%] min-w-[180px]">
+                    <p className={`text-[13px] font-bold truncate ${isMuted ? 'text-muted' : 'text-primary'}`}>{lead.name}</p>
+                    {lead.company && (
+                      <p className="text-[11px] text-muted font-bold truncate flex items-center gap-1 opacity-70 uppercase tracking-tight">
+                        <Briefcase size={10} strokeWidth={2.5} /> {lead.company}
+                      </p>
+                    )}
+                  </div>
+                  <div className="w-[20%] flex justify-center">
+                    <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${STATUS_STYLES[lead.status] || STATUS_STYLES['New']}`}>
+                      {lead.status === 'Qualified' ? 'Follow-up' : lead.status}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {signal.text && (
+                      <span className={`text-[12px] font-bold ${isMuted ? 'text-muted' : signal.color.replace('font-semibold', '').replace('font-medium', '')} truncate block`}>
+                        {signal.text}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-muted group-hover:text-accent transition-all translate-x-0 group-hover:translate-x-1">
+                    <ChevronRight size={14} strokeWidth={2.5} />
+                  </div>
+                </Link>
+              )
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderBoardView = () => (
+    <div className="max-w-[1400px] mx-auto px-6 py-4 flex flex-1 overflow-x-auto gap-4 items-start min-h-[500px] no-scrollbar">
+      {BOARD_COLUMNS.map(colStatus => {
+        const colLeads = filteredLeads.filter(l => {
+          if (colStatus === 'Lost') return l.status === 'Lost' || l.status === 'Lost Client';
+          return l.status === colStatus;
+        });
+
+        return (
+          <div 
+            key={colStatus} 
+            className="flex-shrink-0 w-[280px] bg-surface-elevated/50 rounded-lg border border-border p-3 flex flex-col max-h-[80vh]"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, colStatus)}
+          >
+            <div className="flex items-center justify-between mb-3 px-1">
+              <h3 className="text-[12px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                {colStatus === 'Qualified' ? 'Follow-up' : colStatus}
+                <span className="text-[10px] bg-surface text-muted px-1.5 py-0.5 rounded border border-border">{colLeads.length}</span>
+              </h3>
+            </div>
+            
+            <div className="flex flex-col gap-2 overflow-y-auto pr-1 pb-2 min-h-[100px] no-scrollbar">
+              {colLeads.map(lead => {
+                const signal = getEngagementSignal(lead);
+                const isMuted = ['Converted', 'Lost', 'Lost Client'].includes(lead.status);
+
+                return (
+                  <div 
+                    key={lead.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, lead.id)}
+                    className={`bg-surface border border-border rounded shadow-sm p-3 cursor-grab active:cursor-grabbing hover:border-accent/50 transition-all ${isMuted ? 'opacity-70' : ''}`}
+                  >
+                    <Link href={`${basePath}/${lead.id}`} className="block">
+                      <div className="flex justify-between items-start mb-1.5">
+                        <p className={`text-[13px] font-bold ${isMuted ? 'text-muted' : 'text-primary'} leading-tight`}>{lead.name}</p>
+                      </div>
+                      
+                      {lead.company && (
+                        <p className="text-[11px] text-muted font-bold truncate flex items-center gap-1 opacity-70 uppercase tracking-tight mb-2">
+                          <Briefcase size={10} strokeWidth={2.5} /> {lead.company}
+                        </p>
+                      )}
+
+                      {signal.text && (
+                        <div className={`mt-2 text-[10px] font-bold ${isMuted ? 'text-muted' : signal.color.replace('font-semibold', '').replace('font-medium', '')} bg-surface-elevated/50 px-2 py-1 rounded w-fit`}>
+                          {signal.text}
+                        </div>
+                      )}
+                    </Link>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="min-h-[calc(100vh-56px)] bg-page flex flex-col">
+      <div className="bg-surface border-b border-border px-6 py-4">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-primary tracking-tight">Leads Pipeline</h1>
+            <p className="text-[12px] text-muted font-medium mt-0.5 opacity-80 uppercase tracking-wider">Drag & Drop Pipeline Management</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex bg-surface-elevated/50 border border-border rounded-md p-1 shadow-inner h-8">
+              <button 
+                onClick={() => setViewMode('list')} 
+                className={`p-1 rounded flex items-center justify-center transition-all ${viewMode === 'list' ? 'bg-surface shadow-sm text-primary' : 'text-muted hover:text-primary'}`}
+                title="List View"
+              >
+                <LayoutList size={14} strokeWidth={2.5} />
+              </button>
+              <button 
+                onClick={() => setViewMode('board')} 
+                className={`p-1 rounded flex items-center justify-center transition-all ${viewMode === 'board' ? 'bg-surface shadow-sm text-primary' : 'text-muted hover:text-primary'}`}
+                title="Board View"
+              >
+                <LayoutGrid size={14} strokeWidth={2.5} />
+              </button>
+            </div>
+            
+            <input 
+              type="file" 
+              accept=".csv" 
+              className="hidden" 
+              ref={fileInputRef} 
+              onChange={handleImport} 
+            />
+
+            <button
+              onClick={() => downloadCSV('/export/leads', {}, 'leads_export.csv')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-surface-elevated text-muted hover:text-primary border border-border rounded-md text-[12px] font-bold uppercase tracking-tight transition-all shadow-sm"
+              title="Export CSV"
+            >
+              <Download size={14} strokeWidth={2.5} /> Export
+            </button>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-surface-elevated text-muted hover:text-primary border border-border rounded-md text-[12px] font-bold uppercase tracking-tight transition-all shadow-sm"
+              title="Import CSV"
+            >
+              <Upload size={14} strokeWidth={2.5} /> Import
+            </button>
+
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-bold uppercase tracking-tight transition-all shadow-sm shadow-accent/10"
+            >
+              <Plus size={14} strokeWidth={2.5} /> Add Lead
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-surface/80 backdrop-blur border-b border-border sticky top-0 z-10">
+        <div className="max-w-[1400px] mx-auto px-6 py-1.5 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <Filter size={12} strokeWidth={2.5} className="text-muted mr-1.5 flex-shrink-0" />
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3 py-1 text-[11px] font-bold uppercase tracking-tight rounded transition-all whitespace-nowrap ${activeTab === tab.id
+                  ? 'bg-accent text-white shadow-sm'
+                  : 'text-muted hover:bg-surface-elevated hover:text-primary'
+                  }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {viewMode === 'board' ? renderBoardView() : renderListView()}
+
+      {viewMode === 'list' && (
+        <div className="max-w-[1400px] mx-auto px-7 mt-3 flex items-center justify-between pb-6">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></div>
+           <span className="text-[10px] font-black text-muted uppercase tracking-widest">Real-time Pipeline Synchronized</span>
+          </div>
+          <span className="text-[10px] font-black text-muted uppercase tracking-widest tabular-nums">{filteredLeads.length} Items Indexed</span>
+        </div>
+      )}
+
+      <LeadModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onRefresh={fetchLeads}
+      />
+    </div>
+  );
 }

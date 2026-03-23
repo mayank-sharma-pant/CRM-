@@ -25,6 +25,7 @@ import {
 import TaskModal from '../../../../components/leads/TaskModal';
 import NoteModal from '../../../../components/leads/NoteModal';
 import CreateOrderModal from '../../../../components/shared/CreateOrderModal';
+import DocumentsList from '../../../../components/documents/DocumentsList';
 
 export default function ClientDetailPage() {
     const params = useParams();
@@ -356,6 +357,14 @@ export default function ClientDetailPage() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Section: Documents */}
+                        <DocumentsList 
+                            entityType="client" 
+                            entityId={params.id} 
+                            canDelete={true} 
+                            canUpload={true} 
+                        />
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 

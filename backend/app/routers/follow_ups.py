@@ -59,10 +59,12 @@ def list_follow_ups(
         query = query.filter(FollowUp.lead_id == lead_id)
     total = query.count()
     follow_ups = query.order_by(FollowUp.scheduled_date.asc()).offset(skip).limit(limit).all()
+    lead_ids = {fu.lead_id for fu in follow_ups if fu.lead_id}
+    leads = {l.id: l for l in apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id.in_(lead_ids)).all()} if lead_ids else {}
+    
     result = []
-    lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
     for fu in follow_ups:
-        lead = lead_query.filter(Lead.id == fu.lead_id).first()
+        lead = leads.get(fu.lead_id)
         lead_name = f"{lead.name} - {lead.company}" if lead else "Unknown Lead"
         result.append({
             "id": fu.id,
@@ -96,10 +98,12 @@ def get_todays_follow_ups(
         FollowUp.status == "Pending"
     ).all()
     
+    lead_ids = {fu.lead_id for fu in follow_ups if fu.lead_id}
+    leads = {l.id: l for l in apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id.in_(lead_ids)).all()} if lead_ids else {}
+    
     result = []
-    lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
     for fu in follow_ups:
-        lead = lead_query.filter(Lead.id == fu.lead_id).first()
+        lead = leads.get(fu.lead_id)
         result.append({
             "id": fu.id,
             "lead_name": lead.name if lead else "Unknown",
@@ -136,10 +140,12 @@ def get_overdue_follow_ups(
         FollowUp.status == "Pending"
     ).all()
     
+    lead_ids = {fu.lead_id for fu in follow_ups if fu.lead_id}
+    leads = {l.id: l for l in apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id.in_(lead_ids)).all()} if lead_ids else {}
+    
     result = []
-    lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
     for fu in follow_ups:
-        lead = lead_query.filter(Lead.id == fu.lead_id).first()
+        lead = leads.get(fu.lead_id)
         days_overdue = (today - fu.scheduled_date).days if fu.scheduled_date else 0
         result.append({
             "id": fu.id,

@@ -24,6 +24,7 @@ import api from '../../../../services/api';
 import TaskModal from '../../../../components/leads/TaskModal';
 import NoteModal from '../../../../components/leads/NoteModal';
 import ReassignModal from '../../../../components/leads/ReassignModal';
+import DocumentsList from '../../../../components/documents/DocumentsList';
 
 export default function LeadDetailPage() {
   const router = useRouter();
@@ -104,20 +105,37 @@ export default function LeadDetailPage() {
         const timelineRes = await api.get(`/timeline/lead/${id}`);
         const events = timelineRes.data?.events || [];
         events.forEach(ev => {
-          // Skip 'created' action — we already have the creation entry
           if (ev.action === 'created') return;
-          const actionLabel = ev.action === 'status_changed' ? `Status: ${ev.before_value} → ${ev.after_value}`
-            : ev.action === 'converted' ? `Converted to Client`
-              : ev.action === 'updated' ? 'Lead Updated'
-                : ev.action;
+          
+          let actionLabel = ev.action;
+          let desc = `by ${ev.admin_name || 'System'}`;
+          let color = 'text-gray-600 bg-gray-100';
+          
+          if (ev.action === 'status_changed') {
+            actionLabel = `Status: ${ev.before_value} → ${ev.after_value}`;
+            color = 'text-blue-600 bg-blue-100';
+          } else if (ev.action === 'converted') {
+            actionLabel = 'Converted to Client';
+            color = 'text-emerald-600 bg-emerald-100';
+          } else if (ev.action === 'reassigned') {
+            actionLabel = 'Owner Reassigned';
+            desc = `${ev.before_value} → ${ev.after_value} (by ${ev.admin_name})`;
+            color = 'text-purple-600 bg-purple-100';
+          } else if (ev.action === 'updated') {
+            actionLabel = ev.after_value || 'Lead Updated';
+          } else if (ev.action === 'deleted') {
+            actionLabel = 'Deleted';
+            color = 'text-red-600 bg-red-100';
+          }
+
           timeline.push({
             id: `audit-${ev.id}`,
             type: 'activity',
             title: actionLabel,
-            description: `by ${ev.admin_name || 'System'}`,
+            description: desc,
             timestamp: ev.timestamp,
             icon: History,
-            color: ev.action === 'converted' ? 'text-blue-600 bg-blue-100' : 'text-gray-600 bg-gray-100'
+            color: color
           });
         });
       } catch { /* timeline fetch is non-critical */ }
@@ -424,6 +442,14 @@ export default function LeadDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Section: Documents */}
+          <DocumentsList 
+            entityType="lead" 
+            entityId={id} 
+            canDelete={true} 
+            canUpload={true} 
+          />
 
           {/* Section 5: Lead Details (Collapsible) */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">

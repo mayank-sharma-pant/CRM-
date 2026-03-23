@@ -892,3 +892,149 @@ def create_md_transfer_request(
     db.refresh(new_request)
     
     return new_request
+
+# ===============================
+# Custom Report Builder
+# ===============================
+
+@router.get("/reports/custom")
+def get_custom_report(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    source: Optional[str] = Query(None),
+    service_type: Optional[str] = Query(None),
+    group_by: Optional[str] = Query("date"), # 'date', 'source', 'service_type'
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_md)
+):
+    """Generate dynamic custom reports combining Leads and Invoices"""
+    from sqlalchemy import cast, Date as SqlDate
+    
+    # 1. Base Queries
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+    
+    inv_q = apply_company_scope(db.query(Invoice, Lead.source, Lead.service_type), Invoice, current_user)
+    inv_q = inv_q.outerjoin(Client, Invoice.client_id == Client.id).outerjoin(Lead, Client.converted_from_lead_id == Lead.id)
+    
+    # Base Sum and Count Queries for Invoices
+    inv_sum_q = apply_company_scope(db.query(func.sum(Invoice.total)), Invoice, current_user)
+    inv_sum_q = inv_sum_q.outerjoin(Client, Invoice.client_id == Client.id).outerjoin(Lead, Client.converted_from_lead_id == Lead.id)
+    
+    inv_count_q = apply_company_scope(db.query(func.count(Invoice.id)), Invoice, current_user)
+    inv_count_q = inv_count_q.outerjoin(Client, Invoice.client_id == Client.id).outerjoin(Lead, Client.converted_from_lead_id == Lead.id)
+    
+    # 2. Apply Filters
+    if start_date:
+        dt_start = datetime.strptime(start_date, "%Y-%m-%d")
+        lead_q = lead_q.filter(Lead.created_at >= dt_start)
+        inv_q = inv_q.filter(Invoice.created_at >= dt_start)
+        inv_sum_q = inv_sum_q.filter(Invoice.created_at >= dt_start)
+        inv_count_q = inv_count_q.filter(Invoice.created_at >= dt_start)
+        
+    if end_date:
+        dt_end = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        lead_q = lead_q.filter(Lead.created_at < dt_end)
+        inv_q = inv_q.filter(Invoice.created_at < dt_end)
+        inv_sum_q = inv_sum_q.filter(Invoice.created_at < dt_end)
+        inv_count_q = inv_count_q.filter(Invoice.created_at < dt_end)
+        
+    if source and source != "All":
+        lead_q = lead_q.filter(Lead.source == source)
+        inv_q = inv_q.filter(Lead.source == source)
+        inv_sum_q = inv_sum_q.filter(Lead.source == source)
+        inv_count_q = inv_count_q.filter(Lead.source == source)
+        
+    if service_type and service_type != "All":
+        lead_q = lead_q.filter(Lead.service_type == service_type)
+        inv_q = inv_q.filter(Lead.service_type == service_type)
+        inv_sum_q = inv_sum_q.filter(Lead.service_type == service_type)
+        inv_count_q = inv_count_q.filter(Lead.service_type == service_type)
+        
+    # 3. Aggregations
+    total_leads = lead_q.count()
+    converted_leads = lead_q.filter(Lead.status == "Converted").count()
+    total_revenue = inv_sum_q.filter(Invoice.status != "Cancelled").scalar() or 0
+    total_invoices = inv_count_q.scalar() or 0
+    
+    # 4. Grouping Data (Chart Data)
+    chart_data = {}
+    
+    if group_by == "source":
+        # Group leads by source
+        lead_groups = lead_q.with_entities(Lead.source, func.count(Lead.id)).group_by(Lead.source).all()
+        for src, cnt in lead_groups:
+            name = src or "Unknown"
+            chart_data[name] = {"name": name, "leads": cnt, "revenue": 0}
+            
+        # Group revenue by source
+        inv_groups = inv_sum_q.with_entities(Lead.source, func.sum(Invoice.total)).filter(Invoice.status != "Cancelled").group_by(Lead.source).all()
+        for src, rev in inv_groups:
+            name = src or "Unknown"
+            if name not in chart_data:
+                chart_data[name] = {"name": name, "leads": 0, "revenue": 0}
+            chart_data[name]["revenue"] = float(rev or 0)
+            
+    elif group_by == "service_type":
+        # Group leads by service type
+        lead_groups = lead_q.with_entities(Lead.service_type, func.count(Lead.id)).group_by(Lead.service_type).all()
+        for srv, cnt in lead_groups:
+            name = srv or "Unknown"
+            chart_data[name] = {"name": name, "leads": cnt, "revenue": 0}
+            
+        # Group inv by service type
+        inv_groups = inv_sum_q.with_entities(Lead.service_type, func.sum(Invoice.total)).filter(Invoice.status != "Cancelled").group_by(Lead.service_type).all()
+        for srv, rev in inv_groups:
+            name = srv or "Unknown"
+            if name not in chart_data:
+                chart_data[name] = {"name": name, "leads": 0, "revenue": 0}
+            chart_data[name]["revenue"] = float(rev or 0)
+            
+    else: # date
+        lead_groups = lead_q.with_entities(cast(Lead.created_at, SqlDate), func.count(Lead.id)).group_by(cast(Lead.created_at, SqlDate)).all()
+        for dt, cnt in lead_groups:
+            name = dt.strftime("%Y-%m-%d") if dt else "Unknown"
+            chart_data[name] = {"name": name, "leads": cnt, "revenue": 0}
+            
+        inv_groups = inv_sum_q.with_entities(cast(Invoice.created_at, SqlDate), func.sum(Invoice.total)).filter(Invoice.status != "Cancelled").group_by(cast(Invoice.created_at, SqlDate)).all()
+        for dt, rev in inv_groups:
+            name = dt.strftime("%Y-%m-%d") if dt else "Unknown"
+            if name not in chart_data:
+                chart_data[name] = {"name": name, "leads": 0, "revenue": 0}
+            chart_data[name]["revenue"] = float(rev or 0)
+
+    # 5. Data Grid (Top 50 matches)
+    grid_results = inv_q.order_by(Invoice.created_at.desc()).limit(50).all()
+    grid_data = []
+    
+    # client lookup
+    client_ids = [inv.client_id for inv, _, _ in grid_results]
+    clients = db.query(Client).filter(Client.id.in_(client_ids)).all() if client_ids else []
+    client_map = {c.id: c.name for c in clients}
+    
+    for inv, l_src, l_stype in grid_results:
+        grid_data.append({
+            "id": f"INV-{inv.id:04d}",
+            "client": client_map.get(inv.client_id, "Unknown"),
+            "amount": float(inv.total or 0),
+            "status": inv.status,
+            "source": l_src or "Unknown",
+            "service_type": l_stype or "Unknown",
+            "date": inv.created_at.strftime("%Y-%m-%d") if inv.created_at else ""
+        })
+        
+    chart_list = list(chart_data.values())
+    if group_by == "date":
+        chart_list.sort(key=lambda x: x["name"]) # Sort chronologically
+    else:
+        chart_list.sort(key=lambda x: x["revenue"], reverse=True) # Sort by revenue descending
+        
+    return {
+        "kpis": {
+            "totalRevenue": float(total_revenue),
+            "totalInvoices": total_invoices,
+            "totalLeads": total_leads,
+            "convertedLeads": converted_leads
+        },
+        "chartData": chart_list,
+        "gridData": grid_data
+    }

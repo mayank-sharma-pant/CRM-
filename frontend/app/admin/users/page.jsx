@@ -101,7 +101,7 @@ export default function AdminUsersPage() {
                 role: mappedRole
             };
 
-            if (invitePhone) params.phone = invitePhone;
+            params.phone = invitePhone;
             
             // Only attach team_id for sales and managers
             if (['sales', 'manager'].includes(mappedRole)) {
@@ -338,7 +338,7 @@ export default function AdminUsersPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Phone</label>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Phone *</label>
                                 <input
                                     type="tel"
                                     value={invitePhone}
@@ -388,7 +388,7 @@ export default function AdminUsersPage() {
                             </button>
                             <button
                                 onClick={handleInvite}
-                                disabled={!inviteEmail || !inviteName || !inviteRole || inviteLoading}
+                                disabled={!inviteEmail || !inviteName || !invitePhone || !inviteRole || inviteLoading}
                                 className="flex-1 px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg font-medium text-sm hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {inviteLoading ? 'Sending...' : 'Send Invite'}

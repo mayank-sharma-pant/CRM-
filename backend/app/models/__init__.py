@@ -16,3 +16,4 @@ from app.models.leave_request import LeaveRequest
 from app.models.otp import OTPCode
 from app.models.notification import Notification
 from app.models.transfer_request import TeamTransferRequest
+from app.models.document import Document

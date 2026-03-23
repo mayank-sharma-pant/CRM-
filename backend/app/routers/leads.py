@@ -12,9 +12,10 @@ from app.models.client import Client
 from app.models.invoice import Invoice
 from app.models.note import Note
 from app.utils.audit import log_activity
+from app.utils.notify import send_notification
 from sqlalchemy import func as sa_func
 from app.schemas.sales import (
-    LeadResponse, LeadListResponse, LeadCreate, LeadUpdate,
+    LeadResponse, LeadListResponse, LeadCreate, LeadUpdate, LeadStatusUpdate,
     SalesDashboardResponse, SalesDashboardMetrics, SalesDashboardTask,
 )
 from app.schemas.user import MessageResponse
@@ -361,21 +362,30 @@ def update_lead(
         raise HTTPException(status_code=403, detail="You cannot edit a lead outside your team")
     
     old_status = lead.status
+    old_assigned_to = lead.assigned_to_id
+    
     # Update fields if provided
-    if lead_data.name is not None:
+    info_edited = False
+    if lead_data.name is not None and lead_data.name != lead.name:
         lead.name = lead_data.name
-    if lead_data.email is not None:
+        info_edited = True
+    if lead_data.email is not None and lead_data.email != lead.email:
         lead.email = lead_data.email
-    if lead_data.phone is not None:
+        info_edited = True
+    if lead_data.phone is not None and lead_data.phone != lead.phone:
         lead.phone = lead_data.phone
-    if lead_data.company is not None:
+        info_edited = True
+    if lead_data.company is not None and lead_data.company != lead.company:
         lead.company = lead_data.company
+        info_edited = True
     if lead_data.status is not None:
         lead.status = lead_data.status
-    if lead_data.source is not None:
+    if lead_data.source is not None and lead_data.source != lead.source:
         lead.source = lead_data.source
-    if lead_data.notes is not None:
+        info_edited = True
+    if lead_data.notes is not None and lead_data.notes != lead.notes:
         lead.notes = lead_data.notes
+        info_edited = True
         
     if getattr(lead_data, "assigned_to_id", None) is not None:
         if current_user.role == "sales":
@@ -390,12 +400,33 @@ def update_lead(
         lead.assigned_to_id = lead_data.assigned_to_id
     
     # Log activity
+    actions_logged = False
     if lead_data.status is not None and lead_data.status != old_status:
         log_activity(db, user=current_user, action='status_changed', entity_type='lead',
                      entity_id=lead.id, entity_name=lead.name, before=old_status, after=lead_data.status)
-    else:
+        actions_logged = True
+        
+    if getattr(lead_data, "assigned_to_id", None) is not None and lead_data.assigned_to_id != old_assigned_to:
+        old_user = db.query(User).filter(User.id == old_assigned_to).first() if old_assigned_to else None
+        new_user = db.query(User).filter(User.id == lead_data.assigned_to_id).first()
+        old_name = old_user.full_name if old_user else "Unassigned"
+        new_name = new_user.full_name if new_user else "Unassigned"
+        
+        log_activity(db, user=current_user, action='reassigned', entity_type='lead',
+                     entity_id=lead.id, entity_name=lead.name, before=old_name, after=new_name)
+        actions_logged = True
+        
+        # Notify the new assignee
+        if lead_data.assigned_to_id:
+            send_notification(db, lead_data.assigned_to_id,
+                title=f"Lead Assigned: {lead.name}",
+                message=f"{current_user.full_name} assigned you a new lead.",
+                type="info",
+                link=f"/{current_user.role}/leads/{lead.id}")
+        
+    if info_edited and not actions_logged:
         log_activity(db, user=current_user, action='updated', entity_type='lead',
-                     entity_id=lead.id, entity_name=lead.name)
+                     entity_id=lead.id, entity_name=lead.name, after="Contact details updated")
     
     db.commit()
     db.refresh(lead)
@@ -407,6 +438,44 @@ def update_lead(
         "status": lead.status,
         "message": "Lead updated successfully"
     }
+
+
+@router.patch("/{lead_id}/status")
+def update_lead_status(
+    lead_id: int,
+    status_data: LeadStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Quickly update lead status (used by Kanban board)"""
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    ensure_company_access(lead, current_user)
+    
+    if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You cannot edit a lead you do not own")
+    if current_user.role == "manager" and lead.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="You cannot edit a lead outside your team")
+        
+    old_status = lead.status
+    lead.status = status_data.status
+    
+    if old_status != status_data.status:
+        log_activity(db, user=current_user, action='status_changed', entity_type='lead',
+                     entity_id=lead.id, entity_name=lead.name, before=old_status, after=status_data.status)
+        
+        # Notify the lead owner about the status change (if someone else changed it)
+        if lead.assigned_to_id and lead.assigned_to_id != current_user.id:
+            send_notification(db, lead.assigned_to_id,
+                title=f"Lead Status Changed: {lead.name}",
+                message=f"{old_status} → {status_data.status} (by {current_user.full_name})",
+                type="info",
+                link=f"/sales/leads/{lead.id}")
+        
+        db.commit()
+    
+    return {"message": "Status updated successfully", "status": lead.status}
 
 
 @router.delete("/{lead_id}", response_model=MessageResponse)
@@ -425,6 +494,16 @@ def delete_lead(
         raise HTTPException(status_code=403, detail="You can only delete your own leads")
     elif current_user.role == "manager" and lead.team_id != current_user.team_id:
         raise HTTPException(status_code=403, detail="You can only delete leads in your team")
+    
+    # Invoice safeguard: Check if converted to a client with invoices
+    client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.converted_from_lead_id == lead.id).first()
+    if client:
+        invoice_count = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.client_id == client.id).count()
+        if invoice_count > 0:
+            raise HTTPException(status_code=400, detail="Cannot delete lead: This lead was converted to a client that has active invoices.")
+        else:
+            client.converted_from_lead_id = None
+            db.add(client)
     
     db.delete(lead)
     db.commit()

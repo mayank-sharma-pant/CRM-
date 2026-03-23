@@ -46,6 +46,13 @@ def list_follow_ups(
 ):
     """List follow-ups for the current user (paginated)."""
     query = apply_company_scope(db.query(FollowUp), FollowUp, current_user)
+    # Role-based scoping: sales users only see follow-ups on their own leads
+    if current_user.role == "sales":
+        own_lead_ids = [l.id for l in db.query(Lead.id).filter(Lead.assigned_to_id == current_user.id).all()]
+        query = query.filter(FollowUp.lead_id.in_(own_lead_ids)) if own_lead_ids else query.filter(False)
+    elif current_user.role == "manager":
+        team_lead_ids = [l.id for l in db.query(Lead.id).filter(Lead.team_id == current_user.team_id).all()]
+        query = query.filter(FollowUp.lead_id.in_(team_lead_ids)) if team_lead_ids else query.filter(False)
     if status:
         query = query.filter(FollowUp.status == status)
     if lead_id:
@@ -77,6 +84,13 @@ def get_todays_follow_ups(
     """Get follow-ups scheduled for today"""
     today = date.today()
     fu_query = apply_company_scope(db.query(FollowUp), FollowUp, current_user)
+    # Role-based scoping
+    if current_user.role == "sales":
+        own_lead_ids = [l.id for l in db.query(Lead.id).filter(Lead.assigned_to_id == current_user.id).all()]
+        fu_query = fu_query.filter(FollowUp.lead_id.in_(own_lead_ids)) if own_lead_ids else fu_query.filter(False)
+    elif current_user.role == "manager":
+        team_lead_ids = [l.id for l in db.query(Lead.id).filter(Lead.team_id == current_user.team_id).all()]
+        fu_query = fu_query.filter(FollowUp.lead_id.in_(team_lead_ids)) if team_lead_ids else fu_query.filter(False)
     follow_ups = fu_query.filter(
         FollowUp.scheduled_date == today,
         FollowUp.status == "Pending"
@@ -110,6 +124,13 @@ def get_overdue_follow_ups(
     """Get overdue follow-ups"""
     today = date.today()
     fu_query = apply_company_scope(db.query(FollowUp), FollowUp, current_user)
+    # Role-based scoping
+    if current_user.role == "sales":
+        own_lead_ids = [l.id for l in db.query(Lead.id).filter(Lead.assigned_to_id == current_user.id).all()]
+        fu_query = fu_query.filter(FollowUp.lead_id.in_(own_lead_ids)) if own_lead_ids else fu_query.filter(False)
+    elif current_user.role == "manager":
+        team_lead_ids = [l.id for l in db.query(Lead.id).filter(Lead.team_id == current_user.team_id).all()]
+        fu_query = fu_query.filter(FollowUp.lead_id.in_(team_lead_ids)) if team_lead_ids else fu_query.filter(False)
     follow_ups = fu_query.filter(
         FollowUp.scheduled_date < today,
         FollowUp.status == "Pending"
@@ -284,6 +305,12 @@ def delete_follow_up(
     if not fu:
         raise HTTPException(status_code=404, detail="Follow-up not found")
     ensure_company_access(fu, current_user)
+
+    # Role-based delete permission
+    if current_user.role == "sales":
+        lead = db.query(Lead).filter(Lead.id == fu.lead_id).first()
+        if lead and lead.assigned_to_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You can only delete follow-ups for your own leads")
     
     db.delete(fu)
     db.commit()

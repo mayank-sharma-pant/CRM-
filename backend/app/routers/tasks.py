@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
@@ -64,7 +64,7 @@ def get_tasks_list(
     def get_due_label(task):
         if not task.due_date:
             return "No date"
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         diff = task.due_date - now
         if diff.days < 0:
             return f"{abs(diff.days)} days ago"
@@ -107,7 +107,7 @@ def get_priority_tasks(
     current_user: User = Depends(get_current_user)
 ):
     """Get priority tasks for dashboard (overdue and due today)"""
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     today_start = datetime(now.year, now.month, now.day)
     today_end = today_start + timedelta(days=1)
     
@@ -258,7 +258,7 @@ def update_task(
     if body.status is not None:
         task.status = body.status
         if body.status == "Completed":
-            task.completed_at = datetime.now()
+            task.completed_at = datetime.now(timezone.utc)
     if body.priority is not None:
         task.priority = body.priority
     
@@ -281,7 +281,7 @@ def complete_task(
     ensure_company_access(task, current_user)
     
     task.status = "Completed"
-    task.completed_at = datetime.now()
+    task.completed_at = datetime.now(timezone.utc)
     
     db.commit()
     
@@ -299,6 +299,15 @@ def delete_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     ensure_company_access(task, current_user)
+
+    # Role-based delete permission
+    if current_user.role == "sales":
+        if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You can only delete your own tasks")
+    elif current_user.role == "manager":
+        assignee = db.query(User).filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
+        if assignee and assignee.team_id != current_user.team_id and task.assigned_by_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You can only delete tasks in your team")
     
     db.delete(task)
     db.commit()

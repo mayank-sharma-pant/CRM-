@@ -90,11 +90,11 @@ def get_client(
     inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
     invoices = inv_query.filter(Invoice.client_id == client_id).all()
     
-    # Get client notes
-    notes = db.query(Note).filter(Note.client_id == client_id).order_by(Note.created_at.desc()).all()
+    # Get client notes (company-scoped)
+    notes = apply_company_scope(db.query(Note), Note, current_user).filter(Note.client_id == client_id).order_by(Note.created_at.desc()).all()
     
-    # Get client tasks
-    tasks = db.query(Task).filter(Task.client_id == client_id).order_by(Task.due_date.asc()).all()
+    # Get client tasks (company-scoped)
+    tasks = apply_company_scope(db.query(Task), Task, current_user).filter(Task.client_id == client_id).order_by(Task.due_date.asc()).all()
     
     # Look up assignee name
     assignee_name = "Unassigned"
@@ -248,6 +248,12 @@ def delete_client(
         raise HTTPException(status_code=404, detail="Client not found")
     ensure_company_access(client, current_user)
     
+    # Role-based delete permission
+    if current_user.role == "sales" and client.assigned_to_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only delete your own clients")
+    elif current_user.role == "manager" and client.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="You can only delete clients in your team")
+    
     db.delete(client)
     db.commit()
     
@@ -301,10 +307,10 @@ def add_client_note(
     ensure_company_access(client, current_user)
     
     new_note = Note(
+        company_id=client.company_id,
         client_id=client_id,
         content=content,
-        author_id=current_user.id,
-        author_name=current_user.full_name
+        created_by_id=current_user.id,
     )
     db.add(new_note)
     
@@ -327,7 +333,7 @@ def add_client_note(
     return {
         "id": new_note.id,
         "content": new_note.content,
-        "author": new_note.author_name,
+        "author": current_user.full_name,
         "date": new_note.created_at.strftime("%b %d, %Y") if new_note.created_at else None
     }
 

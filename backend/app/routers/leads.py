@@ -308,7 +308,7 @@ def create_lead(
             raise HTTPException(status_code=403, detail="Cannot assign lead outside your team")
             
     # Auto-assign team_id if current_user is a manager
-    team_id = current_user.team_id if current_user.role == "manager" else None
+    team_id = current_user.team_id  # Use team for all users who have one
     
     new_lead = Lead(
         company_id=current_user.company_id,
@@ -351,9 +351,7 @@ def update_lead(
     current_user: User = Depends(get_current_user)
 ):
     """Update lead details"""
-    lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
     ensure_company_access(lead, current_user)
     
     # Apply role-based scoping
@@ -418,10 +416,15 @@ def delete_lead(
     current_user: User = Depends(get_current_user)
 ):
     """Delete a lead"""
-    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-    ensure_company_access(lead, current_user)
+
+    # Role-based delete permission
+    if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only delete your own leads")
+    elif current_user.role == "manager" and lead.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="You can only delete leads in your team")
     
     db.delete(lead)
     db.commit()

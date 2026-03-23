@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from sqlalchemy import func as sa_func
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -57,7 +58,7 @@ def _create_platform_audit(db: Session, admin: User, action: str, company_id: in
 
 @router.post("/auth/login")
 def platform_login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == form_data.username).first()
+    user = db.query(User).filter(sa_func.lower(User.email) == form_data.username.lower()).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     if not (user.role == "admin" and user.company_id is None):
@@ -279,6 +280,7 @@ def get_platform_logs(
         .limit(limit)
         .all()
     )
+    total = db.query(AuditLog).filter(AuditLog.timestamp >= since).count()
     return {
         "logs": [
             {
@@ -290,5 +292,6 @@ def get_platform_logs(
                 "ip_address": None,
             }
             for log in logs
-        ]
+        ],
+        "total": total,
     }

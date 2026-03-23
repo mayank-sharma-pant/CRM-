@@ -41,7 +41,7 @@ def get_manager_dashboard(
     # Get real counts (company-scoped and team-scoped)
     lead_query = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.team_id == current_user.team_id)
     total_leads = lead_query.count()
-    closed_leads = lead_query.filter(Lead.status.in_(["Converted", "Lost"])).count()
+    closed_leads = lead_query.filter(Lead.status == "Converted").count()
     conversion_rate = int((closed_leads / total_leads * 100)) if total_leads > 0 else 0
     
     # Get team members (sales users, team-scoped)
@@ -62,7 +62,7 @@ def get_manager_dashboard(
         })
     
     # Get priority tasks
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     today_start = datetime(now.year, now.month, now.day)
     
     task_query = apply_company_scope(db.query(Task), Task, current_user)
@@ -283,6 +283,9 @@ def get_team_tasks(
 ):
     """Get tasks for the team (paginated)."""
     query = apply_company_scope(db.query(Task), Task, current_user)
+    # Default team scoping for managers
+    team_member_ids = [m.id for m in apply_company_scope(db.query(User.id), User, current_user).filter(User.team_id == current_user.team_id).all()]
+    query = query.filter((Task.assigned_to_id.in_(team_member_ids)) | (Task.assigned_by_id == current_user.id))
     if status:
         query = query.filter(Task.status == status)
     if member_id:
@@ -323,6 +326,7 @@ def create_team_task(
         company_id=current_user.company_id,
         title=title,
         assigned_to_id=assignee_id,
+        assigned_by_id=current_user.id,
         due_date=datetime.strptime(due_date, "%Y-%m-%d"),
         priority=priority,
         status="Pending",
@@ -360,15 +364,15 @@ def get_team_performance(
     leads_converted = lead_q.filter(Lead.status == "Converted").count()
     conversion_rate = round((leads_converted / leads_total * 100), 1) if leads_total > 0 else 0
     
-    # Get revenue from paid invoices (company-scoped)
+    # Get revenue from paid invoices (company + team scoped)
     inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
     revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
     
-    # Member breakdown
-    team_members = apply_company_scope(db.query(User), User, current_user).filter(User.role == "sales").all()
+    # Member breakdown (team-scoped)
+    team_members = apply_company_scope(db.query(User), User, current_user).filter(User.role == "sales", User.team_id == current_user.team_id).all()
     member_breakdown = []
     for member in team_members:
-        m_lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+        m_lead_q = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.team_id == current_user.team_id)
         m_leads = m_lead_q.filter(Lead.assigned_to_id == member.id).count()
         m_converted = m_lead_q.filter(Lead.assigned_to_id == member.id, Lead.status == "Converted").count()
         member_breakdown.append({

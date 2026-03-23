@@ -139,9 +139,6 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
         }
     except Exception as e:
         db.rollback()
-        import traceback
-        with open("error_log.txt", "a") as f:
-            f.write(f"SIGNUP ERROR for {user_data.email}:\n{traceback.format_exc()}\n")
         logger.error(f"SIGNUP ERROR: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
@@ -210,8 +207,9 @@ def request_otp(payload: OTPRequest, db: Session = Depends(get_db)):
     otp_code = f"{secrets.randbelow(1000000):06d}"
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
 
-    db.query(OTPCode).filter(OTPCode.email == payload.email).delete()
-    db.add(OTPCode(email=payload.email, code=otp_code, expires_at=expires_at))
+    normalized_email = payload.email.lower()
+    db.query(OTPCode).filter(OTPCode.email == normalized_email).delete()
+    db.add(OTPCode(email=normalized_email, code=otp_code, expires_at=expires_at))
     db.commit()
 
     sent = send_otp_email(payload.email, otp_code, OTP_EXPIRY_MINUTES)
@@ -226,13 +224,13 @@ def login_otp(payload: OTPLoginRequest, db: Session = Depends(get_db)):
     key = f"login_otp_email:{payload.email.lower()}"
     _check_rate_limit(key, _RATE_LIMITS["login_otp_email"])
 
-    record = db.query(OTPCode).filter(OTPCode.email == payload.email).first()
+    record = db.query(OTPCode).filter(OTPCode.email == payload.email.lower()).first()
     if not record:
         raise HTTPException(status_code=400, detail="OTP not requested or expired")
 
     now = datetime.now(timezone.utc)
     if now > record.expires_at:
-        db.query(OTPCode).filter(OTPCode.email == payload.email).delete()
+        db.query(OTPCode).filter(OTPCode.email == payload.email.lower()).delete()
         db.commit()
         raise HTTPException(status_code=400, detail="OTP expired")
 
@@ -247,7 +245,7 @@ def login_otp(payload: OTPLoginRequest, db: Session = Depends(get_db)):
     _check_company_status(user, db)
 
     user.last_active_at = datetime.now(timezone.utc)
-    db.query(OTPCode).filter(OTPCode.email == payload.email).delete()
+    db.query(OTPCode).filter(OTPCode.email == payload.email.lower()).delete()
     db.commit()
 
     access_token = create_access_token(data={"sub": user.email, "role": user.role})
@@ -425,9 +423,6 @@ def accept_invite(
         }
     except Exception as e:
         db.rollback()
-        import traceback
-        with open("error_log.txt", "a") as f:
-            f.write(f"ACCEPT INVITE ERROR for {invite.email}:\n{traceback.format_exc()}\n")
         logger.error(f"ACCEPT INVITE ERROR: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
@@ -463,8 +458,9 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
     otp_code = f"{secrets.randbelow(1000000):06d}"
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
 
-    db.query(OTPCode).filter(OTPCode.email == user.email).delete()
-    db.add(OTPCode(email=user.email, code=otp_code, expires_at=expires_at))
+    normalized_email = user.email.lower()
+    db.query(OTPCode).filter(OTPCode.email == normalized_email).delete()
+    db.add(OTPCode(email=normalized_email, code=otp_code, expires_at=expires_at))
     db.commit()
 
     from app.utils.email_service import send_email
@@ -503,7 +499,7 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
 
     record = (
         db.query(OTPCode)
-        .filter(OTPCode.email == user.email)
+        .filter(OTPCode.email == user.email.lower())
         .order_by(OTPCode.created_at.desc())
         .first()
     )

@@ -20,7 +20,6 @@ from app.models.audit import AuditLog
 from app.models.invite import Invite, InviteStatus
 from app.models.company_settings import CompanySettings
 from app.models.company import Company
-from app.utils.security import get_password_hash
 from app.utils.email_service import send_invite_email
 from app.schemas.admin import (
     DashboardResponse,
@@ -1112,6 +1111,9 @@ def resend_invite(
 
     chars = string.ascii_letters + string.digits + "!@#$%"
     temporary_password = "".join(secrets.choice(chars) for _ in range(12))
+
+    # Update the stored hashed_password so the new temp password works
+    invite.hashed_password = get_password_hash(temporary_password)
 
     create_audit_log(
         db, current_user, "invite_resent", "invite",

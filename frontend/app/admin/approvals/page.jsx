@@ -437,6 +437,56 @@ export default function AdminApprovalsPage() {
                     </div>
                 </div>
             )}
+
+            {/* Transfer Modal */}
+            {showTransferModal && selectedTransfer && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowTransferModal(false)}></div>
+                    <div className="relative bg-white dark:bg-slate-900 rounded-xl shadow-xl p-6 w-full max-w-md" style={{ animation: 'fadeInUp 200ms ease-out forwards' }}>
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className={`p-2 rounded-lg ${showTransferModal === 'approve' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                <Shuffle size={20} />
+                            </div>
+                            <h3 className="text-[18px] font-semibold text-slate-900 dark:text-white capitalize">
+                                {showTransferModal} Transfer
+                            </h3>
+                        </div>
+                        <p className="text-[14px] text-slate-600 dark:text-slate-400 mb-4">
+                            {showTransferModal === 'approve' 
+                                ? `Confirming transfer for ${selectedTransfer.user?.full_name} to ${selectedTransfer.target_team?.name}.`
+                                : `Rejecting transfer request for ${selectedTransfer.user?.full_name}.`
+                            }
+                        </p>
+
+                        <div className="mb-6">
+                            <label className="block text-[12px] font-medium text-slate-600 dark:text-slate-400 mb-1">Admin Comment (optional)</label>
+                            <textarea
+                                value={adminComment}
+                                onChange={(e) => setAdminComment(e.target.value)}
+                                className={`w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-[14px] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 ${showTransferModal === 'approve' ? 'focus:ring-emerald-500' : 'focus:ring-red-500'}`}
+                                rows={3}
+                                placeholder="Enter your comments..."
+                            />
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowTransferModal(false)}
+                                className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => confirmTransfer(showTransferModal === 'approve')}
+                                disabled={isSubmitting}
+                                className={`flex-1 px-4 py-2.5 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${showTransferModal === 'approve' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}`}
+                            >
+                                {isSubmitting ? 'Processing...' : showTransferModal === 'approve' ? 'Confirm Approve' : 'Confirm Reject'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

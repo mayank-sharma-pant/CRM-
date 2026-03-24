@@ -97,8 +97,8 @@ export default function MDEmployeeLookupPage() {
             }
             setEmployee(built);
             
-            // Fetch teams for transfer option
-            const teamsRes = await api.get('/admin/teams');
+            // Fetch teams for transfer option (use MD endpoint, not admin)
+            const teamsRes = await api.get('/md/teams');
             setAllTeams(teamsRes.data.teams || []);
             
         } catch (err) {

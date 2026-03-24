@@ -55,7 +55,9 @@ const ICON_MAP = {
     GitBranch,
     FileText,
     BookOpen,
-    Bug
+    Bug,
+    Target,
+    TrendingUp
 };
 
 const ROLE_NAVIGATION = {
@@ -92,6 +94,9 @@ const ROLE_NAVIGATION = {
         { name: 'Revenue', href: '/md/revenue', icon: 'DollarSign' },
         { name: 'Sales', href: '/md/sales', icon: 'TrendingUp' },
         { name: 'Teams', href: '/md/teams', icon: 'Users' },
+        { name: 'Employee Lookup', href: '/md/employee-lookup', icon: 'UserSearch' },
+        { name: 'Performance', href: '/md/points', icon: 'Award' },
+        { name: 'Monitoring', href: '/md/monitoring', icon: 'Activity' },
         { name: 'Leads', href: '/md/leads', icon: 'Target' },
         { name: 'Clients', href: '/md/clients', icon: 'Briefcase' },
         { name: 'Invoices', href: '/md/invoices', icon: 'Receipt' },

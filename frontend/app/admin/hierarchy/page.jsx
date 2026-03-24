@@ -25,7 +25,7 @@ export default function AdminHierarchyPage() {
         try {
             setLoading(true);
             const res = await api.get('/admin/hierarchy');
-            const data = res.data.hierarchy || [];
+            const data = res.data.teams || [];
             setHierarchy(data);
 
             // Expand all by default
@@ -71,12 +71,12 @@ export default function AdminHierarchyPage() {
     };
 
     const teams = hierarchy.map(t => ({ id: t.id, name: t.name }));
-    const managers = hierarchy.map(t => t.manager);
+    const managers = hierarchy.map(t => t.manager).filter(Boolean);
 
     if (loading) return <HierarchySkeleton />;
 
     const totalMembers = hierarchy.reduce((sum, t) => sum + t.members.length, 0);
-    const totalManagers = hierarchy.length;
+    const totalManagers = managers.length;
 
     return (
         <div className="mx-auto max-w-[1360px] space-y-6 pb-12 font-sans text-slate-900 dark:text-slate-100">
@@ -131,7 +131,7 @@ export default function AdminHierarchyPage() {
                                 </div>
                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                                     <Shield size={14} className="text-purple-600 dark:text-purple-400" />
-                                    <span className="text-[12px] font-medium text-purple-700 dark:text-purple-400">{team.manager.name}</span>
+                                    <span className="text-[12px] font-medium text-purple-700 dark:text-purple-400">{team.manager ? team.manager.name : 'Unassigned'}</span>
                                 </div>
                             </div>
 
@@ -204,7 +204,7 @@ export default function AdminHierarchyPage() {
                                     className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-[14px] bg-white dark:bg-slate-800"
                                 >
                                     <option value="">Select manager...</option>
-                                    {hierarchy.map(t => (
+                                    {hierarchy.filter(t => t.manager).map(t => (
                                         <option key={t.manager.id} value={t.manager.id}>{t.manager.name}</option>
                                     ))}
                                 </select>

@@ -294,7 +294,7 @@ export default function LeaveRequestsPage() {
             const payload = {
                 from_date: new Date(formData.start).toISOString(),
                 to_date: new Date(formData.end).toISOString(),
-                reason: formData.reason || formData.type
+                reason: formData.reason ? `${formData.type}: ${formData.reason}` : formData.type
             };
             await api.post('/leaves', payload);
             fetchData();

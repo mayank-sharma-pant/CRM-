@@ -44,8 +44,7 @@ export default function PlatformLoginPage() {
                 throw new Error(detail);
             }
 
-            const data = await response.json();
-            localStorage.setItem('platform_token', data.access_token);
+            // No longer storing token in localStorage as backend uses httpOnly cookies
             router.push('/platform/dashboard');
         } catch (err) {
             setError(err.message);

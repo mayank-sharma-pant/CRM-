@@ -38,11 +38,13 @@ export default function Leads() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState(null);
+  const [now, setNow] = useState(null);
   
   const searchParams = useSearchParams();
   const basePath = usePathname(); // e.g., '/sales/leads'
 
   useEffect(() => {
+    setNow(new Date());
     if (searchParams.get('action') === 'new') {
       setIsModalOpen(true);
     }
@@ -126,10 +128,10 @@ export default function Leads() {
   };
 
   const getEngagementSignal = (lead) => {
-    const NOW = new Date();
+    if (!now) return { text: '', color: '' };
     const nextTaskDate = safeParseISO(lead.next_task);
     if (nextTaskDate) {
-      const daysDiff = differenceInDays(nextTaskDate, NOW);
+      const daysDiff = differenceInDays(nextTaskDate, now);
       if (daysDiff < 0) return { text: 'Follow-up overdue', color: 'text-red-600 font-semibold' };
       if (daysDiff === 0) return { text: 'Follow-up today', color: 'text-emerald-600 font-semibold' };
     }
@@ -137,7 +139,7 @@ export default function Leads() {
     if (lastResp) return { text: `Responded ${formatDistanceToNow(lastResp, { addSuffix: true })}`, color: 'text-blue-600 font-medium' };
     const lastContact = safeParseISO(lead.last_contacted_at);
     if (lastContact) {
-      const daysSinceContact = differenceInDays(NOW, lastContact);
+      const daysSinceContact = differenceInDays(now, lastContact);
       if (daysSinceContact > 2) return { text: 'Awaiting response', color: 'text-amber-600 font-medium' };
       return { text: `Contacted ${daysSinceContact === 0 ? 'today' : daysSinceContact + ' days ago'}`, color: 'text-slate-500' };
     }

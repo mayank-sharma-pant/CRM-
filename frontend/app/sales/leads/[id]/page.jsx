@@ -474,7 +474,9 @@ export default function LeadDetailPage() {
                   </div>
                   <div>
                     <span className="block text-[10px] text-slate-400 uppercase">Created On</span>
-                    <span className="text-sm text-slate-700 dark:text-slate-300">{new Date(lead.created_at).toLocaleDateString()}</span>
+                    <span className="text-sm text-slate-700 dark:text-slate-300">
+                      {lead.created_at ? new Date(lead.created_at).toLocaleDateString() : '—'}
+                    </span>
                   </div>
                 </div>
               </div>

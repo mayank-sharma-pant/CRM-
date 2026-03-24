@@ -28,36 +28,15 @@ router = APIRouter()
 OTP_EXPIRY_MINUTES = 10
 
 
-class _RateLimitConfig(BaseModel):
-    max_attempts: int
-    window_seconds: int
-
-
-_rate_limit_buckets: dict[str, deque] = defaultdict(deque)
+from app.utils.rate_limit import auth_limiter
 
 _RATE_LIMITS = {
-    "login_email": _RateLimitConfig(max_attempts=10, window_seconds=300),       # 10 attempts / 5 minutes
-    "signup_email": _RateLimitConfig(max_attempts=5, window_seconds=3600),     # 5 attempts / hour
-    "request_otp_email": _RateLimitConfig(max_attempts=5, window_seconds=600), # 5 OTPs / 10 minutes
-    "login_otp_email": _RateLimitConfig(max_attempts=10, window_seconds=600),  # 10 OTP verifications / 10 minutes
+    "login": {"max_attempts": 10, "window_seconds": 300},        # 10 attempts / 5 minutes
+    "signup": {"max_attempts": 5, "window_seconds": 3600},      # 5 attempts / hour
+    "request_otp": {"max_attempts": 5, "window_seconds": 600},  # 5 OTPs / 10 minutes
+    "verify_otp": {"max_attempts": 10, "window_seconds": 600},  # 10 OTP verifications / 10 minutes
+    "forgot_pw": {"max_attempts": 5, "window_seconds": 600},    # 5 attempts / 10 minutes
 }
-
-
-def _check_rate_limit(request: Request, identifier: str, cfg: _RateLimitConfig) -> None:
-    """Simple in-memory sliding-window rate limiter by identifier + IP."""
-    now = time()
-    ip = request.client.host if request.client else "unknown"
-    bucket_key = f"{identifier}:{ip}"
-    bucket = _rate_limit_buckets[bucket_key]
-    cutoff = now - cfg.window_seconds
-    while bucket and bucket[0] < cutoff:
-        bucket.popleft()
-    if len(bucket) >= cfg.max_attempts:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many attempts. Please try again later.",
-        )
-    bucket.append(now)
 
 
 def _set_auth_cookie(response: Response, token: str):
@@ -106,7 +85,7 @@ def _check_company_status(user: User, db: Session) -> None:
 def signup(request: Request, response: Response, user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user and create a company (pending approval)."""
     # Rate limit by email to prevent abuse
-    _check_rate_limit(request, f"signup_email:{user_data.email.lower()}", _RATE_LIMITS["signup_email"])
+    auth_limiter.check(request, f"signup:{user_data.email.lower()}", **_RATE_LIMITS["signup"])
     existing_user = db.query(User).filter(sa_func.lower(User.email) == user_data.email.lower()).first()
     if existing_user:
         raise HTTPException(
@@ -176,7 +155,7 @@ def login(request: Request, response: Response, form_data: OAuth2PasswordRequest
     """Login and get access token"""
     # Rate limit by email/username
     email = form_data.username.lower()
-    _check_rate_limit(request, f"login_email:{email}", _RATE_LIMITS["login_email"])
+    auth_limiter.check(request, f"login:{email}", **_RATE_LIMITS["login"])
     user = db.query(User).filter(sa_func.lower(User.email) == form_data.username.lower()).first()
 
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -220,7 +199,7 @@ def login(request: Request, response: Response, form_data: OAuth2PasswordRequest
 def request_otp(request: Request, payload: OTPRequest, db: Session = Depends(get_db)):
     """Generate OTP and store in DB (multi-worker safe). Logged in dev."""
     # Rate limit OTP requests per email
-    _check_rate_limit(request, f"request_otp_email:{payload.email.lower()}", _RATE_LIMITS["request_otp_email"])
+    auth_limiter.check(request, f"request_otp:{payload.email.lower()}", **_RATE_LIMITS["request_otp"])
     user = db.query(User).filter(sa_func.lower(User.email) == payload.email.lower()).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -245,7 +224,7 @@ def request_otp(request: Request, payload: OTPRequest, db: Session = Depends(get
 @router.post("/login-otp", response_model=LoginResponse)
 def login_otp(request: Request, response: Response, payload: OTPLoginRequest, db: Session = Depends(get_db)):
     # Rate limit OTP verification attempts per email
-    _check_rate_limit(request, f"login_otp_email:{payload.email.lower()}", _RATE_LIMITS["login_otp_email"])
+    auth_limiter.check(request, f"verify_otp:{payload.email.lower()}", **_RATE_LIMITS["verify_otp"])
 
     record = db.query(OTPCode).filter(OTPCode.email == payload.email.lower()).first()
     if not record:
@@ -486,7 +465,7 @@ class ResetPasswordRequest(BaseModel):
 @router.post("/forgot-password")
 def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
     """Send an OTP to the user's email for password reset."""
-    _check_rate_limit(request, f"forgot_pw:{payload.email.lower()}", _RATE_LIMITS["request_otp_email"])
+    auth_limiter.check(request, f"forgot_pw:{payload.email.lower()}", **_RATE_LIMITS["forgot_pw"])
 
     user = db.query(User).filter(sa_func.lower(User.email) == payload.email.lower()).first()
     if not user:
@@ -528,7 +507,7 @@ def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Sessio
 @router.post("/reset-password")
 def reset_password(request: Request, payload: ResetPasswordRequest, db: Session = Depends(get_db)):
     """Verify OTP and set a new password."""
-    _check_rate_limit(request, f"reset_pw:{payload.email.lower()}", _RATE_LIMITS["login_otp_email"])
+    auth_limiter.check(request, f"reset_pw:{payload.email.lower()}", **_RATE_LIMITS["verify_otp"])
 
     user = db.query(User).filter(sa_func.lower(User.email) == payload.email.lower()).first()
     if not user:

@@ -59,12 +59,28 @@ async def upload_document(
         entity = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
         if not entity:
             raise HTTPException(status_code=404, detail="Lead not found or access denied")
+        
+        # Scoping: Sales must own the lead
+        if current_user.role == "sales" and entity.assigned_to_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You can only upload documents to your own leads")
+        # Scoping: Manager must manage the lead's team
+        if current_user.role == "manager" and entity.team_id != current_user.team_id:
+            raise HTTPException(status_code=403, detail="You can only upload documents to your team's leads")
+            
         entity_name = entity.name
         entity_type = "lead"
     elif client_id:
         entity = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == client_id).first()
         if not entity:
             raise HTTPException(status_code=404, detail="Client not found or access denied")
+            
+        # Scoping: Sales must own the client
+        if current_user.role == "sales" and entity.assigned_to_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You can only upload documents to your own clients")
+        # Scoping: Manager must manage the client's team
+        if current_user.role == "manager" and entity.team_id != current_user.team_id:
+            raise HTTPException(status_code=403, detail="You can only upload documents to your team's clients")
+            
         entity_name = entity.name
         entity_type = "client"
 
@@ -92,7 +108,7 @@ async def upload_document(
     db.refresh(new_doc)
 
     log_activity(db, user=current_user, action='uploaded_document', entity_type=entity_type, 
-                 entity_id=entity.id, entity_name=entity_name, after=file.filename)
+                 entity_id=getattr(entity, 'id', 0), entity_name=entity_name, after=file.filename)
     db.commit()
 
     return {
@@ -124,12 +140,26 @@ def get_documents(
         lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == entity_id).first()
         if not lead:
             raise HTTPException(status_code=404, detail="Lead not found")
+            
+        # Scoping checks
+        if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied to these documents")
+        if current_user.role == "manager" and lead.team_id != current_user.team_id:
+            raise HTTPException(status_code=403, detail="Access denied to another team's documents")
+            
         query = query.filter(Document.lead_id == entity_id)
     else:
         # Check client access
         client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == entity_id).first()
         if not client:
             raise HTTPException(status_code=404, detail="Client not found")
+            
+        # Scoping checks
+        if current_user.role == "sales" and client.assigned_to_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied to these documents")
+        if current_user.role == "manager" and client.team_id != current_user.team_id:
+            raise HTTPException(status_code=403, detail="Access denied to another team's documents")
+            
         query = query.filter(Document.client_id == entity_id)
 
     docs = query.order_by(Document.created_at.desc()).all()
@@ -159,6 +189,22 @@ def download_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
         
+    # Scoping checks on parent entity
+    if doc.lead_id:
+        parent = db.query(Lead).filter(Lead.id == doc.lead_id).first()
+        if parent:
+            if current_user.role == "sales" and parent.assigned_to_id != current_user.id:
+                raise HTTPException(status_code=403, detail="Access denied to this document")
+            if current_user.role == "manager" and parent.team_id != current_user.team_id:
+                raise HTTPException(status_code=403, detail="Access denied to another team's document")
+    elif doc.client_id:
+        parent = db.query(Client).filter(Client.id == doc.client_id).first()
+        if parent:
+            if current_user.role == "sales" and parent.assigned_to_id != current_user.id:
+                raise HTTPException(status_code=403, detail="Access denied to this document")
+            if current_user.role == "manager" and parent.team_id != current_user.team_id:
+                raise HTTPException(status_code=403, detail="Access denied to another team's document")
+
     if not os.path.exists(doc.file_path):
         raise HTTPException(status_code=404, detail="File physical path not found")
 

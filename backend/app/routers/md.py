@@ -15,6 +15,7 @@ from app.models.team import Team
 from app.models.company import Company
 from app.schemas.transfer import TransferRequestCreate, TransferRequestResponse
 from app.models.transfer_request import TeamTransferRequest
+from app.utils.notify import notify_role_users
 
 router = APIRouter()
 
@@ -296,17 +297,17 @@ def get_company_sales(
     """Get company-wide sales analytics"""
     lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
     total = lead_q.count()
-    won = lead_q.filter(Lead.status == "Converted").count()
-    lost = lead_q.filter(Lead.status == "Lost").count()
-    active = total - won - lost
-    win_rate = int((won / (won + lost) * 100)) if (won + lost) > 0 else 0
+    won_leads = lead_q.filter(Lead.status == "Converted").count()
+    lost_leads = lead_q.filter(Lead.status == "Lost").count()
+    active_leads = total - won_leads - lost_leads
+    win_rate = int((won_leads / (won_leads + lost_leads) * 100)) if (won_leads + lost_leads) > 0 else 0
     
     # Team performance (company-scoped)
     teams = apply_company_scope(db.query(Team), Team, current_user).all()
     team_performance = []
     for team in teams:
-        team_leads = lead_q.filter(Lead.team_id == team.id).count()
-        team_won = lead_q.filter(Lead.team_id == team.id, Lead.status == "Converted").count()
+        team_leads = lead_q.filter(Lead.team_id == team.id, Lead.company_id == current_user.company_id).count()
+        team_won = lead_q.filter(Lead.team_id == team.id, Lead.status == "Converted", Lead.company_id == current_user.company_id).count()
         team_performance.append({
             "team": team.name,
             "leads": team_leads,
@@ -335,8 +336,8 @@ def get_company_sales(
     funnel = {
         "stages": [
             {"name": "Total Deals", "value": total, "color": "var(--accent)"},
-            {"name": "Active", "value": active, "color": "var(--secondary)"},
-            {"name": "Won", "value": won, "color": "var(--primary)"}
+            {"name": "Active", "value": active_leads, "color": "var(--secondary)"},
+            {"name": "Won", "value": won_leads, "color": "var(--primary)"}
         ],
         "signals": [
             {"label": "Conversion", "value": f"{win_rate}%", "metric": "Target 25%", "status": "positive" if win_rate >= 25 else "warning"}
@@ -348,17 +349,17 @@ def get_company_sales(
     avg_velocity = 14  # placeholder for lead age tracking
     if win_rate < 20:
         ai_insights.append({"tag": "Critical", "title": "Conversion Drop", "evidence": [f"Win rate at {win_rate}%"], "link": "/md/monitoring"})
-    elif active > (won + lost) * 2:
-        ai_insights.append({"tag": "Bottleneck", "title": "Pipeline Congestion", "evidence": [f"{active} active deals aging"], "link": "/md/monitoring"})
+    elif active_leads > (won_leads + lost_leads) * 2:
+        ai_insights.append({"tag": "Bottleneck", "title": "Pipeline Congestion", "evidence": [f"{active_leads} active deals aging"], "link": "/md/monitoring"})
     else:
         ai_insights.append({"tag": "Performance", "title": "Pipeline Velocity", "evidence": [f"Avg {avg_velocity} days"], "link": "/md/monitoring"})
 
     return {
         "summary": {
             "total_deals": total,
-            "won": won,
-            "lost": lost,
-            "active": active,
+            "won": won_leads,
+            "lost": lost_leads,
+            "active": active_leads,
             "win_rate": win_rate
         },
         "team_performance": team_performance,
@@ -550,7 +551,6 @@ def get_employee_detail(
         User.company_id == user.company_id,
         User.id <= user.id
     ).count()
-    from app.models.company import Company
     company = db.query(Company).filter(Company.id == user.company_id).first()
     prefix = company.company_code if company and company.company_code else "EMP"
     formatted_id = f"{prefix}{company_rank:03d}"
@@ -575,9 +575,9 @@ def get_employee_detail(
     # Team performance context
     team_metrics = {"leads": 0, "converted": 0, "avg_leads_per_member": 0}
     if team:
-        team_members_count = db.query(User).filter(User.team_id == team.id).count()
-        team_leads = lead_q.filter(Lead.team_id == team.id).count()
-        team_converted = lead_q.filter(Lead.team_id == team.id, Lead.status == "Converted").count()
+        team_members_count = apply_company_scope(db.query(User), User, current_user).filter(User.team_id == team.id).count()
+        team_leads = lead_q.filter(Lead.team_id == team.id, Lead.company_id == current_user.company_id).count()
+        team_converted = lead_q.filter(Lead.team_id == team.id, Lead.status == "Converted", Lead.company_id == current_user.company_id).count()
         team_metrics = {
             "leads": team_leads,
             "converted": team_converted,
@@ -622,7 +622,7 @@ def get_company_monitoring(
     team_status = []
     lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
     for team in teams:
-        team_leads = lead_q.filter(Lead.team_id == team.id).count()
+        team_leads = lead_q.filter(Lead.team_id == team.id, Lead.company_id == current_user.company_id).count()
         team_status.append({
             "team": team.name,
             "status": "healthy",
@@ -890,6 +890,13 @@ def create_md_transfer_request(
     db.add(new_request)
     db.commit()
     db.refresh(new_request)
+    
+    # Notify Company Admins about the transfer request
+    notify_role_users(db, current_user.company_id, role="admin",
+        title="New Transfer Request (MD)",
+        message=f"MD {current_user.full_name} requested to transfer {target_user.full_name} to {target_team.name}.",
+        type="info",
+        link="/admin/approvals")
     
     return new_request
 

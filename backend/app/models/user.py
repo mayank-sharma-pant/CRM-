@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.models.enums import UserRole, UserStatus
 
 
 class User(Base):
@@ -11,8 +12,8 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     full_name = Column(String(255), nullable=False)
     hashed_password = Column(String(255), nullable=False)
-    role = Column(String(50), nullable=False, default="sales")  # sales, manager, md, purchase, admin
-    status = Column(String(20), nullable=False, default="pending")  # active, disabled, pending
+    role = Column(Enum(UserRole, values_callable=lambda x: [e.value for e in x], native_enum=False), nullable=False, default=UserRole.SALES)
+    status = Column(Enum(UserStatus, values_callable=lambda x: [e.value for e in x], native_enum=False), nullable=False, default=UserStatus.PENDING)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)  # NULL for Platform Admin
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     manager_id = Column(Integer, ForeignKey("users.id"), nullable=True)

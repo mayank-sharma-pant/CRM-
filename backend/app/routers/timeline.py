@@ -28,14 +28,10 @@ def get_timeline(
     if entity_type not in ("lead", "client", "invoice", "task", "user"):
         raise HTTPException(status_code=400, detail="Invalid entity type")
 
-    query = db.query(AuditLog).filter(
+    query = apply_company_scope(db.query(AuditLog), AuditLog, current_user).filter(
         AuditLog.entity_type == entity_type,
         AuditLog.entity_id == str(entity_id)
     )
-    
-    # Company scoping
-    if current_user.company_id:
-        query = query.filter(AuditLog.company_id == current_user.company_id)
     
     total = query.count()
     events = query.order_by(AuditLog.timestamp.desc()).offset(skip).limit(limit).all()

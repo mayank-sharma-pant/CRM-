@@ -22,6 +22,7 @@ from app.utils.email_service import send_otp_email
 from sqlalchemy import func as sa_func
 from app.models.invite import Invite, InviteStatus
 from app.models.team import Team
+from app.utils.notify import notify_platform_admins
 
 router = APIRouter()
 
@@ -125,6 +126,13 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
+
+        # Notify Platform Admins about new company signup
+        notify_platform_admins(db, 
+            title=f"New Company: {new_company.name}",
+            message=f"Signup by {db_user.full_name} ({db_user.email}). Status: Pending.",
+            type="info",
+            link="/platform/companies")
 
         access_token = create_access_token(data={"sub": db_user.email, "role": db_user.role})
         _set_auth_cookie(response, access_token)

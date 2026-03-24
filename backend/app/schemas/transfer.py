@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
+from app.models.enums import TransferRequestStatus
 
 class TransferRequestBase(BaseModel):
     user_id: int
@@ -11,7 +12,7 @@ class TransferRequestCreate(TransferRequestBase):
     pass
 
 class TransferRequestUpdate(BaseModel):
-    status: str  # approved, rejected
+    status: TransferRequestStatus
     admin_comment: Optional[str] = None
 
 class UserMin(BaseModel):
@@ -37,7 +38,7 @@ class TransferRequestResponse(BaseModel):
     current_team_id: Optional[int]
     target_team_id: int
     reason: Optional[str]
-    status: str
+    status: TransferRequestStatus
     admin_comment: Optional[str]
     created_at: datetime
     updated_at: Optional[datetime]

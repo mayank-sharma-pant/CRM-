@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
+from app.models.enums import LeadStatus, TaskStatus, TaskPriority
 
 
 # ===============================
@@ -26,7 +27,7 @@ class LeadUpdate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[LeadStatus] = None
     source: Optional[str] = None
     service_type: Optional[str] = None
     notes: Optional[str] = None
@@ -34,12 +35,12 @@ class LeadUpdate(BaseModel):
 
 
 class LeadStatusUpdate(BaseModel):
-    status: str
+    status: LeadStatus
 
 
 class LeadResponse(LeadBase):
     id: int
-    status: str = "New"
+    status: LeadStatus = LeadStatus.NEW
     created_at: Optional[str] = None
     last_contacted_at: Optional[str] = None
     last_response_at: Optional[str] = None
@@ -79,7 +80,7 @@ class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     due_date: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[TaskStatus] = None
 
 
 class TaskResponse(BaseModel):
@@ -87,8 +88,8 @@ class TaskResponse(BaseModel):
     title: str
     description: Optional[str] = None
     dueDate: str
-    status: str = "Pending"
-    priority: Optional[str] = None
+    status: TaskStatus = TaskStatus.PENDING
+    priority: Optional[TaskPriority] = None
     entity: Optional[str] = None
     entityType: Optional[str] = None
     assignedBy: Optional[str] = None
@@ -167,7 +168,7 @@ class FollowUpResponse(BaseModel):
     lead_name: str
     scheduled_date: str
     scheduled_time: Optional[str] = None
-    status: str = "Pending"
+    status: TaskStatus = TaskStatus.PENDING
     notes: Optional[str] = None
 
     class Config:

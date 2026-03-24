@@ -52,8 +52,12 @@ def get_tasks_list(
     if current_user.role == "sales":
         query = query.filter((Task.assigned_to_id == current_user.id) | (Task.assigned_by_id == current_user.id))
     elif current_user.role == "manager":
-        # Managers see tasks assigned to anyone in their team or created by them
-        team_members = db.query(User.id).filter(User.team_id == current_user.team_id).all()
+        # Managers see tasks assigned to anyone in their team or created by them.
+        # MUST scope by company_id to avoid ID collision across companies.
+        team_members = db.query(User.id).filter(
+            User.team_id == current_user.team_id,
+            User.company_id == current_user.company_id
+        ).all()
         team_member_ids = [m[0] for m in team_members]
         query = query.filter((Task.assigned_to_id.in_(team_member_ids)) | (Task.assigned_by_id == current_user.id))
     
@@ -124,7 +128,10 @@ def get_priority_tasks(
     if current_user.role == "sales":
         task_query = task_query.filter((Task.assigned_to_id == current_user.id) | (Task.assigned_by_id == current_user.id))
     elif current_user.role == "manager":
-        team_members = db.query(User.id).filter(User.team_id == current_user.team_id).all()
+        team_members = db.query(User.id).filter(
+            User.team_id == current_user.team_id,
+            User.company_id == current_user.company_id
+        ).all()
         team_member_ids = [m[0] for m in team_members]
         task_query = task_query.filter((Task.assigned_to_id.in_(team_member_ids)) | (Task.assigned_by_id == current_user.id))
         
@@ -167,7 +174,7 @@ def get_task(
     current_user: User = Depends(get_current_user)
 ):
     """Get task details by ID"""
-    task = db.query(Task).filter(Task.id == task_id).first()
+    task = apply_company_scope(db.query(Task), Task, current_user).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     ensure_company_access(task, current_user)
@@ -178,7 +185,12 @@ def get_task(
             raise HTTPException(status_code=403, detail="You do not have access to this task")
     elif current_user.role == "manager":
         # Check if the assignee belongs to the manager's team
-        assignee = db.query(User).filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
+        # Added explicit company scoping to User lookup
+        assignee = db.query(User).filter(
+            User.id == task.assigned_to_id,
+            User.company_id == current_user.company_id
+        ).first() if task.assigned_to_id else None
+        
         if assignee and assignee.team_id != current_user.team_id and task.assigned_by_id != current_user.id:
             raise HTTPException(status_code=403, detail="You do not have access to this team's task")
     
@@ -213,6 +225,14 @@ def create_task(
         except ValueError:
             pass
 
+    # Security: Verify Lead/Client belong to this company before linking
+    if body.lead_id:
+        lead = db.query(Lead).filter(Lead.id == body.lead_id).first()
+        ensure_company_access(lead, current_user)
+    if body.client_id:
+        client = db.query(Client).filter(Client.id == body.client_id).first()
+        ensure_company_access(client, current_user)
+
     new_task = Task(
         company_id=current_user.company_id,
         title=body.title,
@@ -246,7 +266,7 @@ def update_task(
     current_user: User = Depends(get_current_user)
 ):
     """Update a task"""
-    task = db.query(Task).filter(Task.id == task_id).first()
+    task = apply_company_scope(db.query(Task), Task, current_user).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     ensure_company_access(task, current_user)
@@ -256,7 +276,11 @@ def update_task(
         if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
             raise HTTPException(status_code=403, detail="You cannot edit someone else's task")
     elif current_user.role == "manager":
-        assignee = db.query(User).filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
+        assignee = db.query(User).filter(
+            User.id == task.assigned_to_id,
+            User.company_id == current_user.company_id
+        ).first() if task.assigned_to_id else None
+        
         if assignee and assignee.team_id != current_user.team_id and task.assigned_by_id != current_user.id:
             raise HTTPException(status_code=403, detail="You cannot edit a task outside your team")
     
@@ -282,10 +306,23 @@ def complete_task(
     current_user: User = Depends(get_current_user)
 ):
     """Mark task as completed"""
-    task = db.query(Task).filter(Task.id == task_id).first()
+    task = apply_company_scope(db.query(Task), Task, current_user).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     ensure_company_access(task, current_user)
+    
+    # Role-based scoping
+    if current_user.role == "sales":
+        if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You do not have permission to complete this task")
+    elif current_user.role == "manager":
+        assignee = db.query(User).filter(
+            User.id == task.assigned_to_id,
+            User.company_id == current_user.company_id
+        ).first() if task.assigned_to_id else None
+        
+        if assignee and assignee.team_id != current_user.team_id and task.assigned_by_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You do not have permission to complete tasks outside your team")
     
     task.status = TaskStatus.COMPLETED
     task.completed_at = datetime.now(timezone.utc)
@@ -302,7 +339,7 @@ def delete_task(
     current_user: User = Depends(get_current_user)
 ):
     """Delete a task"""
-    task = db.query(Task).filter(Task.id == task_id).first()
+    task = apply_company_scope(db.query(Task), Task, current_user).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     ensure_company_access(task, current_user)
@@ -312,7 +349,11 @@ def delete_task(
         if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
             raise HTTPException(status_code=403, detail="You can only delete your own tasks")
     elif current_user.role == "manager":
-        assignee = db.query(User).filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
+        assignee = db.query(User).filter(
+            User.id == task.assigned_to_id,
+            User.company_id == current_user.company_id
+        ).first() if task.assigned_to_id else None
+        
         if assignee and assignee.team_id != current_user.team_id and task.assigned_by_id != current_user.id:
             raise HTTPException(status_code=403, detail="You can only delete tasks in your team")
     

@@ -84,6 +84,21 @@ def create_leave(
     db.commit()
     db.refresh(leave)
 
+    # Notify Manager or Admins about the new leave request
+    if current_user.manager_id:
+        send_notification(db, current_user.manager_id,
+            title="New Leave Request",
+            message=f"{current_user.full_name} requested leave from {payload.from_date.date()} to {payload.to_date.date()}.",
+            type="info",
+            link="/manager/leaves")
+    else:
+        # Fallback to Company Admins if no direct manager is assigned
+        notify_role_users(db, current_user.company_id, role="admin",
+            title="New Leave Request",
+            message=f"{current_user.full_name} has requested leave. Please review.",
+            type="info",
+            link="/settings/leave")
+
     return {"id": leave.id, "message": "Leave request created"}
 
 

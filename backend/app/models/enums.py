@@ -21,11 +21,34 @@ class TaskStatus(str, enum.Enum):
     COMPLETED = "Completed"
 
 
+class TaskPriority(str, enum.Enum):
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+
+
 class UserRole(str, enum.Enum):
     SALES = "sales"
     MANAGER = "manager"
     ADMIN = "admin"
     MD = "md"
+    PURCHASE = "purchase"
+
+
+class UserStatus(str, enum.Enum):
+    ACTIVE = "active"
+    PENDING = "pending"
+    DISABLED = "disabled"
+
+
+class LeadStatus(str, enum.Enum):
+    NEW = "New"
+    CONTACTED = "Contacted"
+    QUALIFIED = "Qualified"
+    PROPOSAL = "Proposal"
+    CONVERTED = "Converted"
+    LOST = "Lost"
+    LOST_CLIENT = "Lost Client"
 
 
 class CompanyStatus(str, enum.Enum):

@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.models.enums import LeaveStatus
 
 
 class LeaveRequest(Base):
@@ -13,7 +14,7 @@ class LeaveRequest(Base):
     from_date = Column(DateTime(timezone=True), nullable=False)
     to_date = Column(DateTime(timezone=True), nullable=False)
     reason = Column(String(500), nullable=True)
-    status = Column(String(20), nullable=False, default="Pending", index=True)  # Pending, Approved, Rejected
+    status = Column(Enum(LeaveStatus, values_callable=lambda x: [e.value for e in x], native_enum=False), nullable=False, default=LeaveStatus.PENDING, index=True)  # Pending, Approved, Rejected
     approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

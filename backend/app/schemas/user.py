@@ -1,12 +1,13 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
+from app.models.enums import UserRole, UserStatus
 
 
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
-    role: str = "sales"
+    role: UserRole = UserRole.SALES
     team: Optional[str] = None
     phone: Optional[str] = None
 
@@ -60,8 +61,8 @@ class MeResponse(BaseModel):
     id: int
     email: str
     full_name: str
-    role: str
-    status: str
+    role: UserRole
+    status: UserStatus
     phone: Optional[str] = None
     team_id: Optional[int] = None
     company_id: Optional[int] = None

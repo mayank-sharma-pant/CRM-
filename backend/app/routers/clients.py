@@ -86,6 +86,12 @@ def get_client(
         raise HTTPException(status_code=404, detail="Client not found")
     ensure_company_access(client, current_user)
     
+    # Role-based scoping
+    if current_user.role == "sales" and client.assigned_to_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not have access to this client")
+    if current_user.role == "manager" and client.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="You do not have access to this team's client")
+    
     # Get client invoices (company-scoped)
     inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
     invoices = inv_query.filter(Invoice.client_id == client_id).all()
@@ -219,6 +225,12 @@ def update_client(
         raise HTTPException(status_code=404, detail="Client not found")
     ensure_company_access(client, current_user)
     
+    # Role-based scoping
+    if current_user.role == "sales" and client.assigned_to_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You cannot edit a client you do not own")
+    if current_user.role == "manager" and client.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="You cannot edit a client outside your team")
+    
     if body.name is not None:
         client.name = body.name
     if body.email is not None:
@@ -276,6 +288,12 @@ def get_client_invoices(
         raise HTTPException(status_code=404, detail="Client not found")
     ensure_company_access(client, current_user)
     
+    # Role-based scoping
+    if current_user.role == "sales" and client.assigned_to_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not have access to this client's invoices")
+    if current_user.role == "manager" and client.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="You do not have access to this team's client invoices")
+    
     inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
     invoices = inv_query.filter(Invoice.client_id == client_id).all()
     
@@ -305,6 +323,12 @@ def add_client_note(
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     ensure_company_access(client, current_user)
+    
+    # Role-based scoping
+    if current_user.role == "sales" and client.assigned_to_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You cannot add notes to a client you do not own")
+    if current_user.role == "manager" and client.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="You cannot add notes to a client outside your team")
     
     new_note = Note(
         company_id=client.company_id,

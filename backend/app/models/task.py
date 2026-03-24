@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Date
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Date, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.models.enums import TaskStatus, TaskPriority
 
 
 class Task(Base):
@@ -12,8 +13,8 @@ class Task(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     
-    status = Column(String(50), default="Pending")  # Pending, In Progress, Completed
-    priority = Column(String(20), default="medium")  # low, medium, high
+    status = Column(Enum(TaskStatus, values_callable=lambda x: [e.value for e in x], native_enum=False), default=TaskStatus.PENDING)
+    priority = Column(Enum(TaskPriority, values_callable=lambda x: [e.value for e in x], native_enum=False), default=TaskPriority.MEDIUM)
     
     # Due date
     due_date = Column(DateTime, nullable=True)

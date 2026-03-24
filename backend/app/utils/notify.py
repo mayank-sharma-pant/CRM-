@@ -10,9 +10,9 @@ def send_notification(
     db: Session,
     user_id: int,
     title: str,
-    message: str = None,
+    message: str | None = None,
     type: str = "info",
-    link: str = None
+    link: str | None = None
 ):
     """Insert a notification row for a specific user."""
     notif = Notification(
@@ -31,9 +31,9 @@ def notify_role_users(
     company_id: int,
     role: str,
     title: str,
-    message: str = None,
+    message: str | None = None,
     type: str = "info",
-    link: str = None
+    link: str | None = None
 ):
     """Send a notification to all users of a given role within a company."""
     from app.models.user import User
@@ -44,3 +44,21 @@ def notify_role_users(
     ).all()
     for u in users:
         send_notification(db, u.id, title, message, type, link)
+
+
+def notify_platform_admins(
+    db: Session,
+    title: str,
+    message: str | None = None,
+    type: str = "info",
+    link: str | None = None
+):
+    """Send a notification to all platform administrators (role='admin' and company_id is None)."""
+    from app.models.user import User
+    admins = db.query(User).filter(
+        User.role == "admin",
+        User.company_id == None,
+        User.is_active == True
+    ).all()
+    for admin in admins:
+        send_notification(db, admin.id, title, message, type, link)

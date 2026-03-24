@@ -2,17 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Floa
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
-import enum
-
-
-class LeadStatus(str, enum.Enum):
-    NEW = "New"
-    CONTACTED = "Contacted"
-    QUALIFIED = "Qualified"
-    PROPOSAL = "Proposal"
-    CONVERTED = "Converted"
-    LOST = "Lost"
-    LOST_CLIENT = "Lost Client"
+from app.models.enums import LeadStatus
 
 
 class Lead(Base):
@@ -25,7 +15,7 @@ class Lead(Base):
     phone = Column(String(50), nullable=True)
     company = Column(String(255), nullable=True)
     
-    status = Column(String(50), default="New")
+    status = Column(Enum(LeadStatus, values_callable=lambda x: [e.value for e in x], native_enum=False), default=LeadStatus.NEW)
     source = Column(String(100), nullable=True)  # Website, Referral, Cold Call, etc.
     service_type = Column(String(100), nullable=True)
     

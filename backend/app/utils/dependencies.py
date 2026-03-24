@@ -109,39 +109,3 @@ async def require_admin_or_md(
             detail="Admin or MD access required"
         )
     return current_user
-
-
-def require_company_user(
-    current_user: User = Depends(get_current_user)
-) -> User:
-    """Ensure user belongs to a company (not Platform Admin). Used when company_id is required."""
-    if current_user.role == "admin" and current_user.company_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Platform Admin cannot perform this company-scoped action"
-        )
-    if current_user.company_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User must be assigned to a company"
-        )
-    return current_user
-
-
-def get_optional_current_user(
-    token: Optional[str] = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
-) -> Optional[User]:
-    """Get current user if token provided, otherwise return None"""
-    if token is None:
-        return None
-    
-    payload = decode_access_token(token)
-    if payload is None:
-        return None
-    
-    email: str = payload.get("sub")
-    if email is None:
-        return None
-    
-    return db.query(User).filter(sa_func.lower(User.email) == email.lower()).first()

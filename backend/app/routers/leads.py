@@ -56,7 +56,10 @@ def get_sales_dashboard(
     if current_user.role == "sales":
         task_query = task_query.filter((Task.assigned_to_id == current_user.id) | (Task.assigned_by_id == current_user.id))
     elif current_user.role == "manager":
-        team_members = db.query(User.id).filter(User.team_id == current_user.team_id).all()
+        team_members = db.query(User.id).filter(
+            User.team_id == current_user.team_id,
+            User.company_id == current_user.company_id
+        ).all()
         team_member_ids = [m[0] for m in team_members]
         task_query = task_query.filter((Task.assigned_to_id.in_(team_member_ids)) | (Task.assigned_by_id == current_user.id))
     overdue_tasks = task_query.filter(
@@ -112,11 +115,11 @@ def get_sales_dashboard(
         my_orders_revenue = sales_inv_query.filter(Invoice.status != "Cancelled").with_entities(sa_func.sum(Invoice.total)).scalar() or 0.0
         
         # Original client ledger scoping
-        client_ids = db.query(Client.id).filter(Client.assigned_to_id == current_user.id).all()
+        client_ids = apply_company_scope(db.query(Client.id), Client, current_user).filter(Client.assigned_to_id == current_user.id).all()
         client_ids = [c[0] for c in client_ids]
         inv_query = inv_query.filter(Invoice.client_id.in_(client_ids))
     elif current_user.role == "manager":
-        team_client_ids = db.query(Client.id).filter(Client.team_id == current_user.team_id).all()
+        team_client_ids = apply_company_scope(db.query(Client.id), Client, current_user).filter(Client.team_id == current_user.team_id).all()
         team_client_ids = [c[0] for c in team_client_ids]
         inv_query = inv_query.filter(Invoice.client_id.in_(team_client_ids))
 
@@ -524,6 +527,12 @@ def list_lead_notes(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     ensure_company_access(lead, current_user)
+    
+    # Role-based scoping
+    if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not have access to this lead's notes")
+    if current_user.role == "manager" and lead.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="You do not have access to this team's lead notes")
 
     notes = apply_company_scope(db.query(Note), Note, current_user).filter(Note.lead_id == lead_id).order_by(Note.created_at.desc()).all()
     return [
@@ -550,6 +559,12 @@ def add_lead_note(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     ensure_company_access(lead, current_user)
+    
+    # Role-based scoping
+    if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You cannot add notes to a lead you do not own")
+    if current_user.role == "manager" and lead.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="You cannot add notes to a lead outside your team")
 
     note = Note(
         company_id=current_user.company_id,
@@ -581,6 +596,12 @@ def convert_lead(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     ensure_company_access(lead, current_user)
+    
+    # Role-based scoping
+    if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only convert leads you own")
+    if current_user.role == "manager" and lead.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="You can only convert leads in your team")
     
     # Create client from lead
     new_client = Client(

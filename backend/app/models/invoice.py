@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Numeric, Date, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Numeric, Date, UniqueConstraint, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.models.enums import InvoiceStatus
 
 
 class Invoice(Base):
@@ -21,7 +22,7 @@ class Invoice(Base):
     discount = Column(Numeric(12, 2), default=0)
     total = Column(Numeric(12, 2), default=0)
     
-    status = Column(String(50), default="Draft")  # Draft, Pending, Paid, Overdue, Cancelled
+    status = Column(Enum(InvoiceStatus, values_callable=lambda x: [e.value for e in x], native_enum=False), default=InvoiceStatus.DRAFT)
     
     # Dates
     issued_date = Column(Date, nullable=True)

@@ -12,6 +12,7 @@ from app.models.task import Task
 from app.models.client import Client
 from app.models.invoice import Invoice
 from app.schemas.user import MessageResponse
+from app.utils.notify import notify_role_users
 from app.schemas.transfer import TransferRequestCreate, TransferRequestResponse
 from app.models.transfer_request import TeamTransferRequest
 from app.models.enums import InvoiceStatus
@@ -335,9 +336,12 @@ def create_team_task(
     current_user: User = Depends(require_manager)
 ):
     """Create and assign a task to a team member"""
-    assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == assignee_id).first()
+    assignee = apply_company_scope(db.query(User), User, current_user).filter(
+        User.id == assignee_id,
+        User.team_id == current_user.team_id
+    ).first()
     if not assignee:
-        raise HTTPException(status_code=404, detail="Assignee not found")
+        raise HTTPException(status_code=404, detail="Assignee not found or not in your team")
     
     new_task = Task(
         company_id=current_user.company_id,
@@ -376,13 +380,17 @@ def get_team_performance(
     current_user: User = Depends(require_manager)
 ):
     """Get team performance report"""
-    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.team_id == current_user.team_id)
     leads_total = lead_q.count()
     leads_converted = lead_q.filter(Lead.status == "Converted").count()
     conversion_rate = round((leads_converted / leads_total * 100), 1) if leads_total > 0 else 0
     
-    # Get revenue from paid invoices (company + team scoped)
-    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    # Get revenue from paid invoices (team-scoped via creator)
+    team_members_for_inv = apply_company_scope(db.query(User.id), User, current_user).filter(
+        User.team_id == current_user.team_id
+    ).all()
+    team_inv_ids = [m.id for m in team_members_for_inv]
+    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.created_by_id.in_(team_inv_ids)) if team_inv_ids else apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id < 0)
     revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
     
     # Member breakdown (team-scoped)
@@ -632,5 +640,12 @@ def create_transfer_request(
     db.add(new_request)
     db.commit()
     db.refresh(new_request)
+    
+    # Notify Company Admins about the transfer request
+    notify_role_users(db, current_user.company_id, role="admin",
+        title="New Transfer Request",
+        message=f"Manager {current_user.full_name} requested to transfer {target_user.full_name} to {target_team.name}.",
+        type="info",
+        link="/admin/approvals")
     
     return new_request

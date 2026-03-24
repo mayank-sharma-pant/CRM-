@@ -49,6 +49,13 @@ def create_invoice(
         raise HTTPException(status_code=404, detail="Client not found")
     ensure_company_access(client, current_user)
 
+    # Scoping: Sales must own the client to bill them
+    if current_user.role == "sales" and client.assigned_to_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only create invoices for your own clients")
+    # Scoping: Manager must manage the client's team
+    if current_user.role == "manager" and client.team_id != current_user.team_id:
+        raise HTTPException(status_code=403, detail="You can only create invoices for your team's clients")
+
     company_id = current_user.company_id
     settings = db.query(CompanySettings).filter(CompanySettings.company_id == company_id).first()
     
@@ -157,9 +164,17 @@ def list_invoices(
 
     query = apply_company_scope(db.query(Invoice), Invoice, current_user)
     
-    # If Sales, restrict to their own generated invoices
+    # Scoping: Sales restrict to self, Manager restrict to team
     if getattr(current_user, "role", "") == "sales":
         query = query.filter(Invoice.created_by_id == current_user.id)
+    elif getattr(current_user, "role", "") == "manager":
+        # Managers see invoices created by their team members
+        team_member_ids = db.query(User.id).filter(
+            User.team_id == current_user.team_id,
+            User.company_id == current_user.company_id
+        ).all()
+        team_member_ids = [uid[0] for uid in team_member_ids]
+        query = query.filter(Invoice.created_by_id.in_(team_member_ids))
 
     if status and status != "All":
         query = query.filter(Invoice.status == status)
@@ -228,8 +243,15 @@ def get_invoice(
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
         
+    # Scoping checks
+    if current_user.role == "sales" and invoice.created_by_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied to this invoice")
+    if current_user.role == "manager":
+        creator = db.query(User).filter(User.id == invoice.created_by_id).first()
+        if creator and creator.team_id != current_user.team_id:
+            raise HTTPException(status_code=403, detail="Access denied to another team's invoice")
+
     client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == invoice.client_id).first()
-    ensure_company_access(client, current_user)
 
     items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice.id).all()
     

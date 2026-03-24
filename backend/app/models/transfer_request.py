@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.models.enums import TransferRequestStatus
 
 class TeamTransferRequest(Base):
     __tablename__ = "team_transfer_requests"
@@ -13,7 +14,7 @@ class TeamTransferRequest(Base):
     current_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True, index=True)
     target_team_id = Column(Integer, ForeignKey("teams.id"), nullable=False, index=True)
     reason = Column(String(500), nullable=True)
-    status = Column(String(20), nullable=False, default="pending", index=True)  # pending, approved, rejected
+    status = Column(Enum(TransferRequestStatus, values_callable=lambda x: [e.value for e in x], native_enum=False), nullable=False, default=TransferRequestStatus.PENDING, index=True)  # pending, approved, rejected
     admin_comment = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

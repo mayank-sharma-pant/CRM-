@@ -155,7 +155,7 @@ def get_sale_detail(
     current_user: User = Depends(require_purchase)
 ):
     """Get detailed sale/invoice information for approval"""
-    invoice = db.query(Invoice).filter(Invoice.id == sale_id).first()
+    invoice = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id == sale_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Sale not found")
     ensure_company_access(invoice, current_user)
@@ -191,7 +191,7 @@ def approve_sale(
     current_user: User = Depends(require_purchase)
 ):
     """Approve a sale/invoice"""
-    invoice = db.query(Invoice).filter(Invoice.id == sale_id).first()
+    invoice = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id == sale_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Sale not found")
     ensure_company_access(invoice, current_user)
@@ -214,7 +214,7 @@ def reject_sale(
     current_user: User = Depends(require_purchase)
 ):
     """Reject a sale/invoice"""
-    invoice = db.query(Invoice).filter(Invoice.id == sale_id).first()
+    invoice = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id == sale_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Sale not found")
     ensure_company_access(invoice, current_user)
@@ -372,7 +372,7 @@ def get_invoice_detail(
     current_user: User = Depends(require_purchase)
 ):
     """Get detailed invoice information"""
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    invoice = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     ensure_company_access(invoice, current_user)
@@ -408,7 +408,7 @@ def send_invoice(
     current_user: User = Depends(require_purchase)
 ):
     """Send invoice to client"""
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    invoice = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     ensure_company_access(invoice, current_user)
@@ -430,7 +430,7 @@ def mark_invoice_paid(
     current_user: User = Depends(require_purchase)
 ):
     """Mark invoice as paid"""
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    invoice = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     ensure_company_access(invoice, current_user)
@@ -449,7 +449,7 @@ def send_payment_reminder(
     current_user: User = Depends(require_purchase)
 ):
     """Send payment reminder for invoice"""
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    invoice = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     ensure_company_access(invoice, current_user)

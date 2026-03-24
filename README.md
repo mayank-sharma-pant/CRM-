@@ -24,21 +24,21 @@ A production-grade, multi-tenant CRM system built for service businesses, agenci
 
 ```
 CRM-/
-├── backend/                # FastAPI application
+├── backend/                # FastAPI application (Domain-Driven Architecture)
 │   ├── app/
-│   │   ├── main.py         # App entry point, router registration
+│   │   ├── main.py         # App entry point, centralized router registration
 │   │   ├── config.py       # Settings (env-driven)
 │   │   ├── database.py     # SQLAlchemy engine & session
-│   │   ├── models/         # ORM models (16 tables)
-│   │   ├── routers/        # API route handlers (13 routers, 118+ endpoints)
-│   │   ├── schemas/        # Pydantic validation models
-│   │   └── utils/          # Auth dependencies, security helpers
+│   │   ├── models/         # Domain-grouped ORM models (core, sales, finance, hr, ops)
+│   │   ├── routers/        # Domain-grouped API handlers (auth, sales, finance, admin, ops, management)
+│   │   ├── schemas/        # Domain-grouped Pydantic validation models
+│   │   └── utils/          # Auth dependencies, multi-tenant security helpers (apply_company_scope)
 │   ├── alembic/            # Migration scripts
 │   └── requirements.txt
-├── frontend/               # Next.js application
-│   ├── app/                # App Router pages (62 pages across 6 roles)
-│   ├── contexts/           # React context (AuthContext)
-│   └── services/           # API client (axios)
+├── frontend/               # Next.js application (App Router)
+│   ├── app/                # UI pages (62 pages across 6 roles)
+│   ├── contexts/           # Global React state (AuthContext)
+│   └── services/           # Secured API client (axios)
 ├── database/               # SQL schema & docs
 └── docker-compose.yml
 ```
@@ -110,7 +110,19 @@ Every business entity (leads, clients, tasks, invoices, etc.) is scoped by `comp
 - **Platform Admin** must approve the company before users can log in
 - **Company Admin** manages users, teams, roles, and invites within their company
 - **Platform Admin** (`role=admin`, `company_id=NULL`) can view all companies but cannot perform CRM operations
-- Cross-company data access returns 404 (not 403) to prevent enumeration
+- **Strict Isolation**: Cross-company data access is prevented at the database level using the `apply_company_scope` helper, returning 404 (not 403) to prevent resource enumeration.
+
+## Backend Architecture
+
+The backend follows a **Domain-Driven Design (DDD)** approach, grouping logic into functional modules:
+
+- **Core**: Authentication, User Management, Audit Logs, and Company Infrastructure.
+- **Sales**: Leads, Clients, Tasks, Follow-ups, and Search.
+- **Finance**: Invoices, Purchase Orders, and Ledgers.
+- **HR**: Leave and Transfer requests.
+- **Ops**: Document Management, Bulk Imports, and Monitoring.
+
+Each domain maintains its own models, routers, and schemas, re-exported through a centralized registration layer in `app/main.py`.
 
 ## API Documentation
 

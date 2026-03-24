@@ -1,147 +1,138 @@
 # Multi-Tenant SaaS CRM Platform
 
-A production-grade, multi-tenant CRM system built for service businesses, agencies, and teams. Features company-level isolation, role-based access, financial ledgers, and a platform admin layer for managing tenants.
+A production-grade, multi-tenant CRM system built for service businesses, agencies, and teams. The platform features robust company-level isolation, a sophisticated role-based access control (RBAC) system, financial ledgers, and a comprehensive platform administration layer.
 
-## Tech Stack
+## 🚀 Key Features
+
+- **Kanban Pipeline Board**: Drag-and-drop lead management for sales teams.
+- **Lead Activity Timeline**: Full audit history of interactions, status changes, and notes for every lead.
+- **Bulk CSV Operations**: High-performance bulk lead import and export for managers and MDs.
+- **Document Management**: Secure file storage for leads and clients with ownership-based access.
+- **Financial Suite**: Professional invoice generation, sales approvals, and automated financial ledgers.
+- **Smart Notifications**: Real-time in-app bell notifications for assignments, status updates, and administrative approvals.
+- **Custom Report Builder**: Dynamic data visualization for Managing Directors with team-level performance metrics.
+
+## 🛠️ Tech Stack
 
 ### Frontend
 - **Next.js 16** (React 19, App Router)
-- **Tailwind CSS** (utility-first styling)
-- **Axios** (API client)
-- **Recharts** (data visualization)
-- **Lucide React** (icons)
-- **date-fns** (date formatting)
+- **Tailwind CSS** (Modern utility-first styling)
+- **Axios** (Typescript-safe API client)
+- **Recharts** (Dynamic data visualization)
+- **Lucide React** (Consistent iconography)
 
 ### Backend
-- **Python / FastAPI** (async REST API)
-- **SQLAlchemy 2.x** (ORM)
-- **Alembic** (database migrations)
-- **PostgreSQL** (primary database)
-- **JWT** (authentication via python-jose)
-- **Pydantic** (request/response validation)
+- **Python / FastAPI** (High-performance async REST API)
+- **SQLAlchemy 2.x** (Modern ORM with typed mapping)
+- **Alembic** (Reliable database migrations)
+- **PostgreSQL** (Primary relational database)
+- **JWT** (Stateless authentication via python-jose)
+- **Pydantic v2** (Strict request/response validation)
 
-## Project Structure
+## 🏗️ Technical Architecture
 
-```
+### Domain-Driven Design (DDD)
+The backend is organized into functional domains to maximize maintainability and prevent circular dependencies:
+- **`core/`**: Authentication, User Management, Audit Logs, and Company Infrastructure.
+- **`sales/`**: Leads, Clients, Tasks, Follow-ups, and Kanban logic.
+- **`finance/`**: Invoices, Sales Approvals, and Ledgers.
+- **`hr/`**: Employee Leave and Transfer requests.
+- **`ops/`**: Document Management, Bulk Processing, and System Monitoring.
+
+### Multi-Tenancy & Security
+- **Strict Row-Level Isolation**: Every entity is scoped by `company_id`.
+- **`apply_company_scope` Helper**: A centralized security utility that automatically injects company filters into SQL queries, preventing cross-tenant data leaks.
+- **Secure ID Policy**: Cross-tenant resource requests return 404 (Not Found) instead of 403 (Forbidden) to prevent resource enumeration attacks.
+
+## 👥 Roles & Permissions
+
+| Role | Responsibility | Key Features |
+|:---|:---|:---|
+| **Sales Executive** | Daily lead conversion | Access to assigned leads, tasks, and follow-ups. |
+| **Team Manager** | Oversight & Quality | Full team visibility, task assignment, and performance reports. |
+| **Managing Director** | Strategic Analysis | Company-wide analytics, revenue reports, and custom builders. |
+| **Purchase Head** | Financial Operations | Sales approval workflow and invoice management. |
+| **Company Admin** | Organization Setup | Team management, user invites, and company settings. |
+| **Platform Admin** | System Oversight | Tenant approval, system logs, and global monitoring. |
+
+## 📁 Project Structure
+
+```text
 CRM-/
-├── backend/                # FastAPI application (Domain-Driven Architecture)
+├── backend/                # FastAPI Application
 │   ├── app/
-│   │   ├── main.py         # App entry point, centralized router registration
-│   │   ├── config.py       # Settings (env-driven)
-│   │   ├── database.py     # SQLAlchemy engine & session
-│   │   ├── models/         # Domain-grouped ORM models (core, sales, finance, hr, ops)
-│   │   ├── routers/        # Domain-grouped API handlers (auth, sales, finance, admin, ops, management)
-│   │   ├── schemas/        # Domain-grouped Pydantic validation models
-│   │   └── utils/          # Auth dependencies, multi-tenant security helpers (apply_company_scope)
-│   ├── alembic/            # Migration scripts
-│   └── requirements.txt
-├── frontend/               # Next.js application (App Router)
-│   ├── app/                # UI pages (62 pages across 6 roles)
-│   ├── contexts/           # Global React state (AuthContext)
-│   └── services/           # Secured API client (axios)
-├── database/               # SQL schema & docs
-└── docker-compose.yml
+│   │   ├── models/         # SQLAlchemy Models (Domain-grouped)
+│   │   ├── routers/        # API Endpoints (Domain-grouped)
+│   │   ├── schemas/        # Pydantic Models (Domain-grouped)
+│   │   ├── utils/          # Security & Notification helpers
+│   │   └── database.py     # Session management
+│   ├── alembic/            # Database version control
+│   └── tests/              # Pytest suite
+├── frontend/               # Next.js Application
+│   ├── app/                # Layouts & Pages (App Router)
+│   ├── components/         # Reusable UI primitives
+│   ├── contexts/           # Auth & Theme states
+│   └── services/           # API integration Layer
+└── database/               # Relational Schema Design
 ```
 
-## Roles & Modules
+## ⚙️ Configuration (.env)
 
-| Role | Dashboard | Leads | Tasks | Clients | Follow-ups | Invoices | Ledgers | Monitoring | Admin |
-|------|:---------:|:-----:|:-----:|:-------:|:----------:|:--------:|:-------:|:----------:|:-----:|
-| Sales | ✓ | ✓ | ✓ | ✓ | ✓ | — | Partial | — | — |
-| Manager | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
-| MD | ✓ | ✓ | — | ✓ | — | ✓ | View | ✓ | — |
-| Purchase | ✓ | — | — | — | — | ✓ | Partial | ✓ | — |
-| Company Admin | — | — | — | — | — | — | — | — | ✓ |
-| Platform Admin | ✓ | — | — | — | — | — | — | — | ✓ |
+| Variable | Description | Default |
+|:---|:---|:---|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://...` |
+| `SECRET_KEY` | JWT signing key | *Required* |
+| `ALGORITHM` | Token hashing algorithm | `HS256` |
+| `CORS_ORIGINS` | Allowed frontend domains | `http://localhost:3000` |
+| `MAIL_SERVER` | SMTP server for notifications | `smtp.gmail.com` |
 
-## Getting Started
+## 🏁 Getting Started
 
 ### Prerequisites
 - Python 3.11+
 - PostgreSQL 14+
-- Node.js 18+ / npm
+- Node.js 18+
 
-### Backend Setup
-
+### 1. Backend Setup
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate        # Linux/Mac
+source venv/bin/activate  # (or venv\Scripts\activate on Windows)
 pip install -r requirements.txt
 
-# Configure environment
+# Environment Configuration
 cp .env.example .env
-# Edit .env: set DATABASE_URL, generate SECRET_KEY (python -c "import secrets; print(secrets.token_urlsafe(48))")
+# python -c "import secrets; print(secrets.token_urlsafe(48))"
 
-# Create database and run migrations
+# Migrations & Database
 createdb local_service_crm
 alembic upgrade head
-
-# Start server (development only — do not use in production)
-uvicorn app.main:app --reload --port 8000
 ```
 
-**Production (e.g. AWS EC2):** Do not use `uvicorn --reload`. Use Gunicorn with Uvicorn workers; see [backend/README.md](backend/README.md#production-aws-ec2) for the production command and optional systemd example.
-
-### Frontend Setup
-
+### 2. Frontend Setup
 ```bash
 cd frontend
 npm install
 npm run dev
-# Open http://localhost:3000
 ```
 
-### Environment Variables (backend/.env)
+## 🚀 Deployment
 
-```
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/local_service_crm
-SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_urlsafe(48))">
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-```
-
-## Multi-Tenancy
-
-Every business entity (leads, clients, tasks, invoices, etc.) is scoped by `company_id`. Key behaviors:
-
-- **Signup** creates a new company with `status=pending`
-- **Platform Admin** must approve the company before users can log in
-- **Company Admin** manages users, teams, roles, and invites within their company
-- **Platform Admin** (`role=admin`, `company_id=NULL`) can view all companies but cannot perform CRM operations
-- **Strict Isolation**: Cross-company data access is prevented at the database level using the `apply_company_scope` helper, returning 404 (not 403) to prevent resource enumeration.
-
-## Backend Architecture
-
-The backend follows a **Domain-Driven Design (DDD)** approach, grouping logic into functional modules:
-
-- **Core**: Authentication, User Management, Audit Logs, and Company Infrastructure.
-- **Sales**: Leads, Clients, Tasks, Follow-ups, and Search.
-- **Finance**: Invoices, Purchase Orders, and Ledgers.
-- **HR**: Leave and Transfer requests.
-- **Ops**: Document Management, Bulk Imports, and Monitoring.
-
-Each domain maintains its own models, routers, and schemas, re-exported through a centralized registration layer in `app/main.py`.
-
-## API Documentation
-
-Start the backend and visit: **http://localhost:8000/docs** (Swagger UI)
-
-## Database Migrations
+**Production Recommendation:**
+- **Backend**: Use Gunicorn with Uvicorn workers behind an Nginx reverse proxy.
+- **Frontend**: Deploy via Vercel or a standalone Node.js server.
+- **Database**: Managed PostgreSQL (e.g., AWS RDS or Supabase).
 
 ```bash
-cd backend
-
-# Apply all migrations
-alembic upgrade head
-
-# Create a new migration after model changes
-alembic revision --autogenerate -m "description"
+# Production execution example
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app
 ```
 
-Migration chain: `001_initial` → … → `009_ledger_updated_fields`. Run `alembic upgrade head` to apply all.
+## 📚 API Documentation
 
-## License
+FastAPI provides interactive Swagger documentation. Start the backend and visit:
+**`http://localhost:8000/docs`**
 
-MIT
+## 📜 License
+
+MIT License - Built for professional SaaS deployments.

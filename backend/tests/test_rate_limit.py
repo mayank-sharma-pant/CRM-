@@ -3,7 +3,7 @@ from time import sleep
 
 def test_login_rate_limiting(client, db):
     # Setup: Create a user
-    from app.models.user import User
+    from app.models import User
     from app.utils.security import get_password_hash
     from app.utils.rate_limit import auth_limiter
     

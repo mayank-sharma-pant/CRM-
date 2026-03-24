@@ -1,11 +1,6 @@
 import pytest
 from datetime import datetime, timezone
-from app.models.user import User
-from app.models.lead import Lead
-from app.models.company import Company
-from app.models.client import Client
-from app.models.task import Task
-from app.models.invoice import Invoice
+from app.models import User, Lead, Company, Client, Task, Invoice
 from app.utils.security import get_password_hash
 
 def login_user(client, email):

@@ -1,7 +1,5 @@
 import pytest
-from app.models.user import User
-from app.models.lead import Lead
-from app.models.company import Company
+from app.models import User, Lead, Company
 from app.utils.security import get_password_hash
 
 def login_user(client, email):

@@ -1,5 +1,5 @@
 import pytest
-from app.models.user import User
+from app.models import User
 from app.utils.security import get_password_hash
 
 def test_login_success(client, db):

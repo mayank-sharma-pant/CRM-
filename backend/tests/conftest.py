@@ -27,15 +27,14 @@ def db_engine():
 
 @pytest.fixture(scope="function")
 def db(db_engine):
-    connection = db_engine.connect()
-    transaction = connection.begin()
-    session = TestingSessionLocal(bind=connection)
-
+    session = TestingSessionLocal()
     yield session
-
     session.close()
-    transaction.rollback()
-    connection.close()
+    # Clean up data after each test for isolation
+    with db_engine.connect() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            conn.execute(table.delete())
+        conn.commit()
 
 
 @pytest.fixture(scope="function")

@@ -69,7 +69,7 @@ def _set_auth_cookie(response: Response, token: str):
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         expires=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         samesite="lax",
-        secure=True, # Should be True in production (main.py assumes https)
+        secure=settings.ENVIRONMENT == "production",
     )
 
 

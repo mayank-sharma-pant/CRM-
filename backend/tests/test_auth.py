@@ -26,6 +26,11 @@ def test_login_success(client, db):
     assert response.status_code == 200
     assert "access_token" in response.cookies
     assert response.json()["user"]["email"] == "test@example.com"
+    
+    # NEW: Verify session persistence
+    me_response = client.get("/api/users/me")
+    assert me_response.status_code == 200
+    assert me_response.json()["email"] == "test@example.com"
 
 def test_login_invalid_credentials(client, db):
     # Action: Attempt login with wrong password

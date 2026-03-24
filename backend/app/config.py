@@ -6,6 +6,7 @@ _INSECURE_KEY_PREFIX = "your-secret-key"
 
 
 class Settings(BaseSettings):
+    ENVIRONMENT: str = "development"
     DATABASE_URL: str = "sqlite:///./crm.db"
 
     def get_database_url(self) -> str:

@@ -1,7 +1,7 @@
 import string
 import random
 from sqlalchemy.orm import Session
-from app.models.company import Company
+from app.models.core.company import Company
 
 def generate_company_code(db: Session, length: int = 3) -> str:
     """Generate a unique alphanumeric code for a company."""
@@ -25,7 +25,7 @@ def next_employee_num(db: Session, company_id: int) -> int:
     Uses MAX(employee_num) + 1 so the value is stable even if users are deleted.
     """
     from sqlalchemy import func as sa_func
-    from app.models.user import User
+    from app.models.core.user import User
 
     current_max = (
         db.query(sa_func.max(User.employee_num))

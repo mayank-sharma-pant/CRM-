@@ -2,7 +2,7 @@
 Audit logging helper.
 Use log_activity() to record actions on any entity.
 """
-from app.models.audit import AuditLog
+from app.models.sales.audit import AuditLog
 
 
 def log_activity(db, *, user, action, entity_type, entity_id, entity_name=None, before=None, after=None):

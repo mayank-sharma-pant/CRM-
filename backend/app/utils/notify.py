@@ -3,7 +3,7 @@ Notification Helper
 Creates in-app notification records for users.
 """
 from sqlalchemy.orm import Session
-from app.models.notification import Notification
+from app.models.sales.notification import Notification
 
 
 def send_notification(
@@ -36,7 +36,7 @@ def notify_role_users(
     link: str | None = None
 ):
     """Send a notification to all users of a given role within a company."""
-    from app.models.user import User
+    from app.models.core.user import User
     users = db.query(User).filter(
         User.company_id == company_id,
         User.role == role,
@@ -54,7 +54,7 @@ def notify_platform_admins(
     link: str | None = None
 ):
     """Send a notification to all platform administrators (role='admin' and company_id is None)."""
-    from app.models.user import User
+    from app.models.core.user import User
     admins = db.query(User).filter(
         User.role == "admin",
         User.company_id == None,

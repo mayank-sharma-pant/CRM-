@@ -1,7 +1,12 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.routers import auth, users, leads, tasks, clients, admin, manager, follow_ups, md, purchase, ledgers, leaves, platform, invoices, export, search, notifications, timeline, bug_report, documents, imports
+from app.routers.auth import auth
+from app.routers.admin import users, admin, platform, notifications
+from app.routers.sales import leads, tasks, clients, follow_ups, search, timeline
+from app.routers.finance import invoices, purchase, ledgers, export
+from app.routers.ops import leaves, documents, bug_report, imports
+from app.routers.management import md, manager
 from app.config import settings
 import traceback
 import logging

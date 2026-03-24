@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import func as sa_func
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -203,7 +203,7 @@ def approve_company(
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
     company.status = "active"
-    company.updated_at = datetime.now()
+    company.updated_at = datetime.now(timezone.utc)
     # Also activate all pending users in this company
     db.query(User).filter(User.company_id == company_id, User.status == "pending").update({"status": "active", "is_active": True})
     
@@ -272,7 +272,7 @@ def get_platform_logs(
     current_user: User = Depends(get_current_platform_admin),
     db: Session = Depends(get_db),
 ):
-    since = datetime.now() - timedelta(days=days)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
     logs = (
         db.query(AuditLog)
         .filter(AuditLog.timestamp >= since)

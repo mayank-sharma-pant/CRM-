@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sa_func
@@ -36,19 +36,30 @@ def ensure_company_access(entity: Any, current_user: User, company_id_attr: str 
     if getattr(entity, company_id_attr) != current_user.company_id:
         raise HTTPException(status_code=404, detail="Not found")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+class OAuth2PasswordBearerWithCookie(OAuth2PasswordBearer):
+    async def __call__(self, request: Request) -> Optional[str]:
+        # Priority: 1. Authorization Header, 2. Cookie
+        authorization = await super().__call__(request)
+        if not authorization:
+            authorization = request.cookies.get("access_token")
+        return authorization
+
+oauth2_scheme = OAuth2PasswordBearerWithCookie(tokenUrl="/api/auth/login", auto_error=False)
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ) -> User:
-    """Extract and validate the current user from JWT token, enforce company status."""
+    """Extract and validate the current user from JWT token (header or cookie), enforce company status."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    if token is None:
+        raise credentials_exception
 
     payload = decode_access_token(token)
     if payload is None:

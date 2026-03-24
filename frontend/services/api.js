@@ -9,17 +9,6 @@ const api = axios.create({
   },
 });
 
-// Request interceptor: attach token fresh on every request
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
-});
-
 // Response interceptor: handle 401 globally
 api.interceptors.response.use(
   (response) => response,
@@ -30,8 +19,6 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        
         // Do not force redirect if we are already on a public auth page
         const publicPaths = ['/login', '/signup', '/accept-invite', '/forgot-password', '/reset-password'];
         const isPublicPath = window.location.pathname === '/' || publicPaths.some(p => window.location.pathname.startsWith(p));

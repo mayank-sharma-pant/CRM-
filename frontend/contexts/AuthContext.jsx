@@ -12,13 +12,7 @@ export function AuthProvider({ children }) {
     const router = useRouter();
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-            fetchUser();
-        } else {
-            setLoading(false);
-        }
+        fetchUser();
     }, []);
 
     const fetchUser = async () => {
@@ -26,8 +20,7 @@ export function AuthProvider({ children }) {
             const response = await api.get('/auth/me');
             setUser(response.data);
         } catch (error) {
-            localStorage.removeItem('token');
-            delete api.defaults.headers.common['Authorization'];
+            setUser(null);
         } finally {
             setLoading(false);
         }
@@ -46,10 +39,7 @@ export function AuthProvider({ children }) {
             }
         });
 
-        const { access_token, user: userData } = response.data;
-        localStorage.setItem('token', access_token);
-        api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-        setUser(userData);
+        await fetchUser();
         return response.data;
     };
 
@@ -60,10 +50,7 @@ export function AuthProvider({ children }) {
 
     const loginOTP = async (email, otp_code) => {
         const response = await api.post('/auth/login-otp', { email, otp_code });
-        const { access_token, user: userData } = response.data;
-        localStorage.setItem('token', access_token);
-        api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-        setUser(userData);
+        await fetchUser();
         return response.data;
     };
 
@@ -81,9 +68,12 @@ export function AuthProvider({ children }) {
         return response.data;
     };
 
-    const logout = () => {
-        localStorage.removeItem('token');
-        delete api.defaults.headers.common['Authorization'];
+    const logout = async () => {
+        try {
+            await api.post('/auth/logout');
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
         setUser(null);
         router.push('/login');
     };

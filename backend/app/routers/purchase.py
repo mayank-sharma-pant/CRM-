@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel
 from decimal import Decimal
 
@@ -14,6 +14,7 @@ from app.models.invoice import Invoice, InvoiceItem
 from app.models.company_settings import CompanySettings
 from app.models.lead import Lead
 from app.schemas.user import MessageResponse
+from app.models.enums import InvoiceStatus
 
 router = APIRouter()
 
@@ -120,7 +121,7 @@ def list_sales_for_approval(
     if status:
         query = query.filter(Invoice.status == status.title())
     else:
-        query = query.filter(Invoice.status.in_(["Draft", "Pending"]))
+        query = query.filter(Invoice.status.in_([InvoiceStatus.DRAFT, InvoiceStatus.PENDING]))
     
     total = query.count()
     invoices = query.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()
@@ -195,13 +196,13 @@ def approve_sale(
         raise HTTPException(status_code=404, detail="Sale not found")
     ensure_company_access(invoice, current_user)
     
-    invoice.status = "Pending"  # Move from Draft to Pending (sent to client)
+    invoice.status = InvoiceStatus.PENDING  # Move from Draft to Pending (sent to client)
     db.commit()
     
     return {
         "message": f"Sale {sale_id} approved successfully",
         "status": "Pending",
-        "approved_at": datetime.now().isoformat()
+        "approved_at": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -218,13 +219,13 @@ def reject_sale(
         raise HTTPException(status_code=404, detail="Sale not found")
     ensure_company_access(invoice, current_user)
     
-    invoice.status = "Rejected"
+    invoice.status = "Rejected"  # Not in InvoiceStatus enum — intentional one-off
     db.commit()
     
     return {
         "message": f"Sale {sale_id} rejected",
         "reason": reason,
-        "rejected_at": datetime.now().isoformat()
+        "rejected_at": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -320,7 +321,7 @@ def create_invoice(
     discount_amount = Decimal(str(body.discount))
     total = subtotal + tax_amount - discount_amount
     
-    today = datetime.now().date()
+    today = datetime.now(timezone.utc).date()
     due_date = today + timedelta(days=body.due_days)
     
     invoice = Invoice(
@@ -331,7 +332,7 @@ def create_invoice(
         tax=tax_amount,
         discount=discount_amount,
         total=total,
-        status="Draft",
+        status=InvoiceStatus.DRAFT,
         issued_date=today,
         due_date=due_date,
         notes=body.notes,
@@ -412,8 +413,8 @@ def send_invoice(
         raise HTTPException(status_code=404, detail="Invoice not found")
     ensure_company_access(invoice, current_user)
     
-    invoice.status = "Pending"
-    invoice.issued_date = datetime.now().date()
+    invoice.status = InvoiceStatus.PENDING
+    invoice.issued_date = datetime.now(timezone.utc).date()
     db.commit()
     
     return {"message": f"Invoice {invoice_id} sent to client"}
@@ -434,7 +435,7 @@ def mark_invoice_paid(
         raise HTTPException(status_code=404, detail="Invoice not found")
     ensure_company_access(invoice, current_user)
     
-    invoice.status = "Paid"
+    invoice.status = InvoiceStatus.PAID
     invoice.paid_date = datetime.strptime(payment_date, "%Y-%m-%d").date()
     db.commit()
     
@@ -509,7 +510,7 @@ def get_purchase_monitoring(
     risk_trend = []
     day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     for i in range(6, -1, -1):
-        d = datetime.now() - timedelta(days=i)
+        d = datetime.now(timezone.utc) - timedelta(days=i)
         day_count = inv_q.filter(
             func.date(Invoice.created_at) == d.date()
         ).count()

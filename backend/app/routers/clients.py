@@ -158,8 +158,9 @@ def create_client(
     
     # Prevent duplicate conversion from same lead
     if body.converted_from_lead_id:
-        existing = db.query(Client).filter(
-            Client.company_id == current_user.company_id,
+        existing = apply_company_scope(
+            db.query(Client), Client, current_user
+        ).filter(
             Client.converted_from_lead_id == body.converted_from_lead_id
         ).first()
         if existing:
@@ -168,10 +169,9 @@ def create_client(
     # Validate assigned_to_id
     final_assigned_to = current_user.id
     if body.assigned_to_id:
-        assignee = db.query(User).filter(
-            User.id == body.assigned_to_id, 
-            User.company_id == current_user.company_id
-        ).first()
+        assignee = apply_company_scope(
+            db.query(User), User, current_user
+        ).filter(User.id == body.assigned_to_id).first()
         if not assignee:
             raise HTTPException(status_code=400, detail="Assigned user not found in your company")
         if current_user.role == "manager" and assignee.team_id != current_user.team_id:

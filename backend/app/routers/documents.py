@@ -13,7 +13,7 @@ from app.models.document import Document
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
 from app.utils.audit import log_activity
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter(
     prefix="/documents",
@@ -102,7 +102,7 @@ async def upload_document(
         "client_id": new_doc.client_id,
         "uploaded_by_id": new_doc.uploaded_by_id,
         "uploaded_by_name": current_user.full_name,
-        "created_at": new_doc.created_at.isoformat() if new_doc.created_at else datetime.now().isoformat()
+        "created_at": new_doc.created_at.isoformat() if new_doc.created_at else datetime.now(timezone.utc).isoformat()
     }
 
 

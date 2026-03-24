@@ -25,11 +25,8 @@ export default function AcceptInvitePage() {
                     password: '',
                 });
 
-                const { access_token, user } = response.data;
-
-                localStorage.setItem('token', access_token);
-                api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-
+                const { user } = response.data;
+                // Auth cookie is set by the backend. No need for localStorage.
                 setAccepted(true);
                 setLoading(false);
 

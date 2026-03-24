@@ -14,6 +14,7 @@ from app.models.invoice import Invoice
 from app.schemas.user import MessageResponse
 from app.schemas.transfer import TransferRequestCreate, TransferRequestResponse
 from app.models.transfer_request import TeamTransferRequest
+from app.models.enums import InvoiceStatus
 
 router = APIRouter()
 
@@ -120,7 +121,7 @@ def get_team_monitoring(
     task_stats = apply_company_scope(db.query(
         Task.assigned_to_id,
         func.sum(case((Task.status == "Pending", 1), else_=0)).label("pending_count"),
-        func.sum(case(((Task.due_date < datetime.now()) & (Task.status != "Completed"), 1), else_=0)).label("overdue_count")
+        func.sum(case(((Task.due_date < datetime.now(timezone.utc)) & (Task.status != "Completed"), 1), else_=0)).label("overdue_count")
     ), Task, current_user).filter(Task.assigned_to_id.in_(team_member_ids)).group_by(Task.assigned_to_id).all()
     
     task_map = {row.assigned_to_id: {"pending": row.pending_count or 0, "overdue": row.overdue_count or 0} for row in task_stats}
@@ -385,6 +386,9 @@ def get_team_performance(
     revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
     
     # Member breakdown (team-scoped)
+    team_members = apply_company_scope(db.query(User), User, current_user).filter(
+        User.team_id == current_user.team_id, User.role == "sales"
+    ).all()
     team_member_ids = [m.id for m in team_members]
     from sqlalchemy import case
     lead_perf = apply_company_scope(db.query(
@@ -487,7 +491,7 @@ def approve_invoice(
         raise HTTPException(status_code=404, detail="Invoice not found")
     ensure_company_access(invoice, current_user)
     
-    invoice.status = "Pending"  # Approved and sent to client
+    invoice.status = InvoiceStatus.PENDING  # Approved and sent to client
     db.commit()
     
     return {"message": f"Invoice {invoice_id} approved"}

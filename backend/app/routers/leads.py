@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
 from app.models.user import User
-from app.models.lead import Lead
+from app.models.lead import Lead, LeadStatus
 from app.models.task import Task
 from app.models.client import Client
 from app.models.invoice import Invoice
@@ -46,7 +46,7 @@ def get_sales_dashboard(
     conversion_rate = int((converted_leads / total_leads * 100)) if total_leads > 0 else 0
     
     # Get priority tasks (overdue and due today)
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     today_start = datetime(now.year, now.month, now.day)
     today_end = today_start + timedelta(days=1)
     
@@ -97,7 +97,7 @@ def get_sales_dashboard(
     
     active_leads = lead_query.filter(Lead.status.notin_(["Converted", "Lost"])).count()
     lost_leads = lead_query.filter(Lead.status == "Lost").count()
-    two_weeks_ago = datetime.now() - timedelta(days=14)
+    two_weeks_ago = datetime.now(timezone.utc) - timedelta(days=14)
     stalled_leads = lead_query.filter(Lead.status.in_(["New", "Contacted"]), Lead.created_at < two_weeks_ago).count()
     
     # Revenue and Order calculations (company-scoped)
@@ -130,7 +130,7 @@ def get_sales_dashboard(
     overdue_task_count = task_query.filter(Task.due_date < today_start, Task.status != "Completed").count()
 
     # Activity this week
-    one_week_ago = datetime.now() - timedelta(days=7)
+    one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
     new_leads_this_week = lead_query.filter(Lead.created_at >= one_week_ago).count()
     tasks_done_this_week = task_query.filter(Task.status == "Completed", Task.completed_at >= one_week_ago).count()
 
@@ -391,7 +391,9 @@ def update_lead(
         if current_user.role == "sales":
             raise HTTPException(status_code=403, detail="Sales executives cannot reassign leads")
         
-        assignee = db.query(User).filter(User.id == lead_data.assigned_to_id, User.company_id == current_user.company_id).first()
+        assignee = apply_company_scope(
+            db.query(User), User, current_user
+        ).filter(User.id == lead_data.assigned_to_id).first()
         if not assignee:
             raise HTTPException(status_code=400, detail="User not found in this company")
         if current_user.role == "manager" and assignee.team_id != current_user.team_id:
@@ -593,8 +595,8 @@ def convert_lead(
     )
     
     # Update lead status
-    lead.status = "Converted"
-    lead.converted_at = datetime.now()
+    lead.status = LeadStatus.CONVERTED
+    lead.converted_at = datetime.now(timezone.utc)
     
     db.add(new_client)
     db.flush()  # Get new_client.id before committing

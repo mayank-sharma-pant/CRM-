@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import secrets
@@ -35,6 +35,7 @@ from app.schemas.user import UserResponse, UserCreate, UserUpdate, MessageRespon
 from app.schemas.transfer import TransferRequestResponse, TransferRequestUpdate, TransferRequestList
 from app.models.transfer_request import TeamTransferRequest
 from app.utils.notify import send_notification, notify_role_users
+from app.models.enums import TransferRequestStatus
 
 router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
@@ -154,28 +155,12 @@ def list_users(
     teams = team_q.filter(Team.id.in_(team_ids)).all() if team_ids else []
     team_map = {t.id: t for t in teams}
     
-    # Pre-fetch company ranks efficiently
-    user_ids = [u.id for u in users]
-    from sqlalchemy import func
-    rank_query = db.query(
-        User.id,
-        func.rank().over(
-            partition_by=User.company_id,
-            order_by=User.id
-        ).label('company_rank')
-    )
-    if current_user.company_id:
-        rank_query = rank_query.filter(User.company_id == current_user.company_id)
-    all_ranks = rank_query.all()
-    rank_map = {r.id: r.company_rank for r in all_ranks}
-    
     for user in users:
-        company_rank = rank_map.get(user.id, 1)
-        
         prefix = company_map.get(user.company_id) or "EMP"
+        emp_num = user.employee_num or user.id  # fallback for legacy rows
         team = team_map.get(user.team_id)
         result.append({
-            "id": f"{prefix}{company_rank:03d}",
+            "id": f"{prefix}{emp_num:03d}",
             "user_id": user.id,
             "name": user.full_name,
             "email": user.email,
@@ -204,15 +189,11 @@ def get_user(
     
     team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == user.team_id).first() if user.team_id else None
     
-    # Calculate formatted_id
-    company_rank = db.query(User).filter(
-        User.company_id == user.company_id,
-        User.id <= user.id
-    ).count()
-    from app.models.company import Company
+    # Use persisted employee_num for formatted ID
+    emp_num = user.employee_num or user.id  # fallback for legacy rows
     company = db.query(Company).filter(Company.id == user.company_id).first()
     prefix = company.company_code if company and company.company_code else "EMP"
-    formatted_id = f"{prefix}{company_rank:03d}"
+    formatted_id = f"{prefix}{emp_num:03d}"
     
     return {
         "id": user.id,
@@ -777,7 +758,7 @@ def get_audit_log(
     current_user: User = Depends(require_admin)
 ):
     """Get audit log entries (company-scoped if admin has company_id, paginated)."""
-    since = datetime.now() - timedelta(days=days)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
     query = db.query(AuditLog).filter(AuditLog.timestamp >= since)
     if current_user.company_id is not None:
         query = query.filter(AuditLog.company_id == current_user.company_id)
@@ -969,7 +950,7 @@ def list_invites(
     result = []
     for inv in invites:
         # Check if expired
-        is_expired = inv.expires_at and datetime.now() > inv.expires_at
+        is_expired = inv.expires_at and datetime.now(timezone.utc) > inv.expires_at
         display_status = "expired" if is_expired and inv.status == "pending" else inv.status
         
         result.append({
@@ -1046,7 +1027,7 @@ def create_invite(
             resolved_manager_id = team_manager.id
     
     token = generate_invite_token()
-    expires_at = datetime.now() + timedelta(days=INVITE_EXPIRY_DAYS)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=INVITE_EXPIRY_DAYS)
 
     # Generate a random temporary password (12 chars: letters + digits + symbols)
     chars = string.ascii_letters + string.digits + "!@#$%"
@@ -1119,7 +1100,7 @@ def resend_invite(
     # Generate new token, extend expiry, and new temporary password
     old_token = invite.token
     invite.token = generate_invite_token()
-    invite.expires_at = datetime.now() + timedelta(days=INVITE_EXPIRY_DAYS)
+    invite.expires_at = datetime.now(timezone.utc) + timedelta(days=INVITE_EXPIRY_DAYS)
     invite.status = InviteStatus.PENDING
 
     chars = string.ascii_letters + string.digits + "!@#$%"
@@ -1200,7 +1181,7 @@ def get_invite(
     if not invite:
         raise HTTPException(status_code=404, detail="Invite not found")
     
-    is_expired = invite.expires_at and datetime.now() > invite.expires_at
+    is_expired = invite.expires_at and datetime.now(timezone.utc) > invite.expires_at
     display_status = "expired" if is_expired and invite.status == "pending" else invite.status
     
     return {
@@ -1232,7 +1213,7 @@ def list_transfer_requests(
     current_user: User = Depends(require_admin)
 ):
     """List all team transfer requests for the company"""
-    query = db.query(TeamTransferRequest).filter(TeamTransferRequest.company_id == current_user.company_id)
+    query = apply_company_scope(db.query(TeamTransferRequest), TeamTransferRequest, current_user)
     
     if status:
         query = query.filter(TeamTransferRequest.status == status)
@@ -1250,10 +1231,9 @@ def approve_transfer_request(
     current_user: User = Depends(require_admin)
 ):
     """Approve a team transfer request and update the user's team"""
-    request = db.query(TeamTransferRequest).filter(
-        TeamTransferRequest.id == request_id, 
-        TeamTransferRequest.company_id == current_user.company_id
-    ).first()
+    request = apply_company_scope(
+        db.query(TeamTransferRequest), TeamTransferRequest, current_user
+    ).filter(TeamTransferRequest.id == request_id).first()
     
     if not request:
         raise HTTPException(status_code=404, detail="Transfer request not found")
@@ -1270,9 +1250,9 @@ def approve_transfer_request(
     target_user.team_id = request.target_team_id
     
     # Update request status
-    request.status = "approved"
+    request.status = TransferRequestStatus.APPROVED
     request.admin_comment = update.admin_comment
-    request.updated_at = datetime.now()
+    request.updated_at = datetime.now(timezone.utc)
     
     # Log the action
     create_audit_log(
@@ -1296,10 +1276,9 @@ def reject_transfer_request(
     current_user: User = Depends(require_admin)
 ):
     """Reject a team transfer request"""
-    request = db.query(TeamTransferRequest).filter(
-        TeamTransferRequest.id == request_id, 
-        TeamTransferRequest.company_id == current_user.company_id
-    ).first()
+    request = apply_company_scope(
+        db.query(TeamTransferRequest), TeamTransferRequest, current_user
+    ).filter(TeamTransferRequest.id == request_id).first()
     
     if not request:
         raise HTTPException(status_code=404, detail="Transfer request not found")
@@ -1308,9 +1287,9 @@ def reject_transfer_request(
         raise HTTPException(status_code=400, detail=f"Request is already {request.status}")
     
     # Update request status
-    request.status = "rejected"
+    request.status = TransferRequestStatus.REJECTED
     request.admin_comment = update.admin_comment
-    request.updated_at = datetime.now()
+    request.updated_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(request)

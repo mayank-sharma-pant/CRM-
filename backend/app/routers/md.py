@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, is_platform_admin
@@ -59,7 +59,7 @@ def get_md_dashboard(
     overdue = inv_q.filter(Invoice.status == "Overdue").count()
     
     # Daily sales momentum (last 7 days)
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     sales_trend = []
     day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     for i in range(7):
@@ -634,7 +634,7 @@ def get_company_monitoring(
     
     # 1. Overdue tasks
     overdue_tasks = apply_company_scope(db.query(Task), Task, current_user).filter(
-        Task.due_date < datetime.now(),
+        Task.due_date < datetime.now(timezone.utc),
         Task.status != "Completed"
     ).count()
     if overdue_tasks > 0:
@@ -656,7 +656,7 @@ def get_company_monitoring(
         ai_interpretation.append({"type": "FINANCE", "title": "Cashflow Risk", "evidence": [f"{overdue_invoices} unsettled"]})
 
     # 3. Stalled Leads
-    two_weeks_ago = datetime.now() - timedelta(days=14)
+    two_weeks_ago = datetime.now(timezone.utc) - timedelta(days=14)
     stalled_leads = lead_q.filter(Lead.status.in_(["New", "Contacted"]), Lead.created_at < two_weeks_ago).count()
     if stalled_leads > 0:
         alerts.append({
@@ -670,7 +670,7 @@ def get_company_monitoring(
 
     # Mock trend history (until we have an alert history table)
     risk_trend = [
-        {"date": (datetime.now() - timedelta(days=i)).strftime("%a"), "value": max(1, len(alerts) - (i % 3))}
+        {"date": (datetime.now(timezone.utc) - timedelta(days=i)).strftime("%a"), "value": max(1, len(alerts) - (i % 3))}
         for i in range(6, -1, -1)
     ]
 

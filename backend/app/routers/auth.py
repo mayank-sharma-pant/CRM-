@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
@@ -11,6 +11,7 @@ import logging
 logger = logging.getLogger("uvicorn.error")
 
 from app.database import get_db
+from app.config import settings
 from app.models.user import User
 from app.models.company import Company
 from app.models.otp import OTPCode
@@ -19,6 +20,8 @@ from app.utils.security import verify_password, get_password_hash, create_access
 from app.utils.dependencies import get_current_user
 from app.utils.email_service import send_otp_email
 from sqlalchemy import func as sa_func
+from app.models.invite import Invite, InviteStatus
+from app.models.team import Team
 
 router = APIRouter()
 
@@ -40,9 +43,11 @@ _RATE_LIMITS = {
 }
 
 
-def _check_rate_limit(bucket_key: str, cfg: _RateLimitConfig) -> None:
-    """Simple in-memory sliding-window rate limiter by bucket key."""
+def _check_rate_limit(request: Request, identifier: str, cfg: _RateLimitConfig) -> None:
+    """Simple in-memory sliding-window rate limiter by identifier + IP."""
     now = time()
+    ip = request.client.host if request.client else "unknown"
+    bucket_key = f"{identifier}:{ip}"
     bucket = _rate_limit_buckets[bucket_key]
     cutoff = now - cfg.window_seconds
     while bucket and bucket[0] < cutoff:
@@ -53,6 +58,19 @@ def _check_rate_limit(bucket_key: str, cfg: _RateLimitConfig) -> None:
             detail="Too many attempts. Please try again later.",
         )
     bucket.append(now)
+
+
+def _set_auth_cookie(response: Response, token: str):
+    """Utility to set the access_token cookie with secure defaults."""
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        samesite="lax",
+        secure=True, # Should be True in production (main.py assumes https)
+    )
 
 
 class OTPRequest(BaseModel):
@@ -85,11 +103,10 @@ def _check_company_status(user: User, db: Session) -> None:
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
-def signup(user_data: UserCreate, db: Session = Depends(get_db)):
+def signup(request: Request, response: Response, user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user and create a company (pending approval)."""
     # Rate limit by email to prevent abuse
-    key = f"signup_email:{user_data.email.lower()}"
-    _check_rate_limit(key, _RATE_LIMITS["signup_email"])
+    _check_rate_limit(request, f"signup_email:{user_data.email.lower()}", _RATE_LIMITS["signup_email"])
     existing_user = db.query(User).filter(sa_func.lower(User.email) == user_data.email.lower()).first()
     if existing_user:
         raise HTTPException(
@@ -123,18 +140,26 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
             company_id=new_company.id,
             phone=user_data.phone,
             status="pending",
+            employee_num=1,  # First user in a new company
         )
 
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
 
+        access_token = create_access_token(data={"sub": db_user.email, "role": db_user.role})
+        _set_auth_cookie(response, access_token)
+
         return {
-            "id": db_user.id,
-            "email": db_user.email,
-            "full_name": db_user.full_name,
-            "role": db_user.role,
-            "company_id": db_user.company_id,
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "id": db_user.id,
+                "email": db_user.email,
+                "full_name": db_user.full_name,
+                "role": db_user.role,
+                "company_id": db_user.company_id
+            },
             "message": "User registered successfully. Company is pending approval."
         }
     except Exception as e:
@@ -147,12 +172,11 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(request: Request, response: Response, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     """Login and get access token"""
     # Rate limit by email/username
     email = form_data.username.lower()
-    key = f"login_email:{email}"
-    _check_rate_limit(key, _RATE_LIMITS["login_email"])
+    _check_rate_limit(request, f"login_email:{email}", _RATE_LIMITS["login_email"])
     user = db.query(User).filter(sa_func.lower(User.email) == form_data.username.lower()).first()
 
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -177,6 +201,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     db.commit()
 
     access_token = create_access_token(data={"sub": user.email, "role": user.role})
+    _set_auth_cookie(response, access_token)
 
     return {
         "access_token": access_token,
@@ -192,11 +217,10 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 
 @router.post("/request-otp")
-def request_otp(payload: OTPRequest, db: Session = Depends(get_db)):
+def request_otp(request: Request, payload: OTPRequest, db: Session = Depends(get_db)):
     """Generate OTP and store in DB (multi-worker safe). Logged in dev."""
     # Rate limit OTP requests per email
-    key = f"request_otp_email:{payload.email.lower()}"
-    _check_rate_limit(key, _RATE_LIMITS["request_otp_email"])
+    _check_rate_limit(request, f"request_otp_email:{payload.email.lower()}", _RATE_LIMITS["request_otp_email"])
     user = db.query(User).filter(sa_func.lower(User.email) == payload.email.lower()).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -219,10 +243,9 @@ def request_otp(payload: OTPRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login-otp", response_model=LoginResponse)
-def login_otp(payload: OTPLoginRequest, db: Session = Depends(get_db)):
+def login_otp(request: Request, response: Response, payload: OTPLoginRequest, db: Session = Depends(get_db)):
     # Rate limit OTP verification attempts per email
-    key = f"login_otp_email:{payload.email.lower()}"
-    _check_rate_limit(key, _RATE_LIMITS["login_otp_email"])
+    _check_rate_limit(request, f"login_otp_email:{payload.email.lower()}", _RATE_LIMITS["login_otp_email"])
 
     record = db.query(OTPCode).filter(OTPCode.email == payload.email.lower()).first()
     if not record:
@@ -249,6 +272,7 @@ def login_otp(payload: OTPLoginRequest, db: Session = Depends(get_db)):
     db.commit()
 
     access_token = create_access_token(data={"sub": user.email, "role": user.role})
+    _set_auth_cookie(response, access_token)
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -260,6 +284,18 @@ def login_otp(payload: OTPLoginRequest, db: Session = Depends(get_db)):
             "company_id": user.company_id,
         },
     }
+
+
+@router.post("/logout", response_model=MessageResponse)
+def logout(response: Response):
+    """Clear the authentication cookie."""
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite="lax",
+        secure=True
+    )
+    return {"message": "Logged out successfully"}
 
 
 @router.get("/me", response_model=MeResponse)
@@ -278,10 +314,7 @@ def get_me(current_user: User = Depends(get_current_user)):
     }
 
 
-@router.post("/logout", response_model=MessageResponse)
-def logout():
-    """Logout endpoint (client should clear token)"""
-    return {"message": "Logged out successfully"}
+
 
 
 @router.post("/change-password", response_model=MessageResponse)
@@ -315,8 +348,7 @@ def change_password(
 # Invite Acceptance
 # ===============================
 
-from app.models.invite import Invite, InviteStatus
-from app.models.team import Team
+
 
 
 class AcceptInviteBody(BaseModel):
@@ -325,6 +357,8 @@ class AcceptInviteBody(BaseModel):
 
 @router.post("/accept-invite/{token}")
 def accept_invite(
+    request: Request,
+    response: Response,
     token: str,
     body: AcceptInviteBody,
     db: Session = Depends(get_db)
@@ -385,6 +419,9 @@ def accept_invite(
         )
     
     try:
+        from app.utils.helpers import next_employee_num
+        emp_num = next_employee_num(db, invite.company_id)
+
         new_user = User(
             email=invite.email,
             full_name=invite.full_name,
@@ -395,7 +432,8 @@ def accept_invite(
             team_id=invite.team_id,
             manager_id=invite.manager_id,
             status="active",  # Invited users are auto-activated
-            is_active=True
+            is_active=True,
+            employee_num=emp_num,
         )
         
         db.add(new_user)
@@ -408,6 +446,7 @@ def accept_invite(
         
         # Create access token for immediate login
         access_token = create_access_token(data={"sub": new_user.email, "role": new_user.role})
+        _set_auth_cookie(response, access_token)
         
         return {
             "message": "Account created successfully",
@@ -445,10 +484,9 @@ class ResetPasswordRequest(BaseModel):
 
 
 @router.post("/forgot-password")
-def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
     """Send an OTP to the user's email for password reset."""
-    key = f"forgot_pw:{payload.email.lower()}"
-    _check_rate_limit(key, _RATE_LIMITS["request_otp_email"])
+    _check_rate_limit(request, f"forgot_pw:{payload.email.lower()}", _RATE_LIMITS["request_otp_email"])
 
     user = db.query(User).filter(sa_func.lower(User.email) == payload.email.lower()).first()
     if not user:
@@ -488,10 +526,9 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
 
 
 @router.post("/reset-password")
-def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+def reset_password(request: Request, payload: ResetPasswordRequest, db: Session = Depends(get_db)):
     """Verify OTP and set a new password."""
-    key = f"reset_pw:{payload.email.lower()}"
-    _check_rate_limit(key, _RATE_LIMITS["login_otp_email"])
+    _check_rate_limit(request, f"reset_pw:{payload.email.lower()}", _RATE_LIMITS["login_otp_email"])
 
     user = db.query(User).filter(sa_func.lower(User.email) == payload.email.lower()).first()
     if not user:

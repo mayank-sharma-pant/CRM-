@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -113,7 +113,7 @@ def approve_leave(
 
     leave.status = normalized
     leave.approved_by_id = current_user.id
-    leave.approved_at = datetime.now()
+    leave.approved_at = datetime.now(timezone.utc)
     
     # Notify the employee about their leave decision
     send_notification(db, leave.user_id,

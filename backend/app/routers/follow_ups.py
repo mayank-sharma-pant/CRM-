@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
@@ -261,7 +261,7 @@ def complete_follow_up(
     
     fu.status = "Completed"
     fu.outcome = body.outcome
-    fu.completed_at = datetime.now()
+    fu.completed_at = datetime.now(timezone.utc)
     
     db.commit()
     

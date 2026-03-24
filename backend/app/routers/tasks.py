@@ -12,6 +12,7 @@ from app.models.lead import Lead
 from app.models.client import Client
 from app.schemas.sales import TaskListResponse
 from app.schemas.user import MessageResponse
+from app.models.enums import TaskStatus
 
 router = APIRouter()
 
@@ -286,7 +287,7 @@ def complete_task(
         raise HTTPException(status_code=404, detail="Task not found")
     ensure_company_access(task, current_user)
     
-    task.status = "Completed"
+    task.status = TaskStatus.COMPLETED
     task.completed_at = datetime.now(timezone.utc)
     
     db.commit()

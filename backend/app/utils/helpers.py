@@ -17,3 +17,19 @@ def generate_company_code(db: Session, length: int = 3) -> str:
     # Fallback if extremely collision-heavy (unlikely with 3 chars but just in case)
     import time
     return (str(int(time.time()))[-2:] + random.choice(chars)).upper()
+
+
+def next_employee_num(db: Session, company_id: int) -> int:
+    """Return the next sequential employee_num for a company.
+
+    Uses MAX(employee_num) + 1 so the value is stable even if users are deleted.
+    """
+    from sqlalchemy import func as sa_func
+    from app.models.user import User
+
+    current_max = (
+        db.query(sa_func.max(User.employee_num))
+        .filter(User.company_id == company_id)
+        .scalar()
+    )
+    return (current_max or 0) + 1

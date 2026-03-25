@@ -29,6 +29,8 @@ import {
     FileText,
     BookOpen,
     Bug,
+    Target,
+    TrendingUp,
     Menu,
     X
 } from 'lucide-react';

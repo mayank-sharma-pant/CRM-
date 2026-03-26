@@ -2,6 +2,8 @@ import pytest
 from datetime import datetime, timezone
 from app.models import User, Lead, Company, Client, Task, Invoice
 from app.utils.security import get_password_hash
+from app.models.core.team import Team
+from app.models.core.team_membership import TeamMembership
 
 def login_user(client, email):
     # Utility to log in
@@ -55,6 +57,40 @@ def test_lead_conversion_flow(client, db):
     # Assert: Lead status updated
     db.refresh(lead)
     assert lead.status == "Converted"
+
+
+def test_sales_can_create_lead_with_team_id_from_memberships(client, db):
+    c, admin = setup_test_data(db)
+
+    # Create team + sales and membership
+    team = Team(company_id=c.id, name="Alpha")
+    db.add(team)
+    db.commit()
+    db.refresh(team)
+
+    sales = User(
+        email="sales@ftc.com",
+        full_name="FTC Sales",
+        hashed_password=get_password_hash("pw"),
+        role="sales",
+        company_id=c.id,
+        is_active=True,
+        status="active",
+        team_id=None,
+    )
+    db.add(sales)
+    db.commit()
+    db.refresh(sales)
+
+    db.add(TeamMembership(company_id=c.id, team_id=team.id, user_id=sales.id))
+    db.commit()
+
+    login_user(client, sales.email)
+    r = client.post("/api/leads", json={"name": "TLead", "team_id": team.id})
+    assert r.status_code == 201, r.text
+    lead_id = r.json()["id"]
+    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    assert lead.team_id == team.id
 
 def test_task_management_creation(client, db):
     c, u = setup_test_data(db)

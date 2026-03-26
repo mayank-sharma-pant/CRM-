@@ -20,6 +20,7 @@ class LeadBase(BaseModel):
 
 class LeadCreate(LeadBase):
     assigned_to_id: Optional[int] = None
+    team_id: Optional[int] = None
 
 
 class LeadUpdate(BaseModel):

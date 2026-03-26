@@ -27,6 +27,9 @@ class User(Base):
     # Company (Platform Admin may have company_id=NULL)
     company = relationship("Company", backref="users")
 
+    # Multi-team memberships
+    team_memberships = relationship("TeamMembership", back_populates="user", cascade="all, delete-orphan")
+
     # Self-referential for manager hierarchy
     manager = relationship("User", remote_side=[id], backref="direct_reports")
     

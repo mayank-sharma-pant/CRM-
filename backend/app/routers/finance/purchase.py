@@ -437,6 +437,8 @@ def mark_invoice_paid(
     
     invoice.status = InvoiceStatus.PAID
     invoice.paid_date = datetime.strptime(payment_date, "%Y-%m-%d").date()
+    invoice.payment_method = payment_method
+    invoice.payment_reference = reference
     db.commit()
     
     return {"message": f"Invoice {invoice_id} marked as paid"}

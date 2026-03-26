@@ -4,8 +4,10 @@ from typing import Optional, List
 from datetime import datetime
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, get_active_team_id
 from app.models.core.user import User
+from app.models.core.team import Team
+from app.models.core.team_membership import TeamMembership
 from app.models.sales.client import Client
 from app.models.finance.invoice import Invoice
 from app.models.sales.note import Note
@@ -78,7 +80,8 @@ def list_clients(
 def get_client(
     client_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get client details by ID"""
     client = db.query(Client).filter(Client.id == client_id).first()
@@ -89,8 +92,9 @@ def get_client(
     # Role-based scoping
     if current_user.role == "sales" and client.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You do not have access to this client")
-    if current_user.role == "manager" and client.team_id != current_user.team_id:
-        raise HTTPException(status_code=403, detail="You do not have access to this team's client")
+    if current_user.role == "manager":
+        if active_team_id is None or client.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You do not have access to this team's client")
     
     # Get client invoices (company-scoped)
     inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
@@ -156,7 +160,8 @@ def get_client(
 def create_client(
     body: ClientCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Create a new client"""
     if current_user.company_id is None:
@@ -180,14 +185,42 @@ def create_client(
         ).filter(User.id == body.assigned_to_id).first()
         if not assignee:
             raise HTTPException(status_code=400, detail="Assigned user not found in your company")
-        if current_user.role == "manager" and assignee.team_id != current_user.team_id:
-            raise HTTPException(status_code=403, detail="Cannot assign client outside your team")
+        if current_user.role == "manager":
+            if active_team_id is None:
+                raise HTTPException(status_code=400, detail="Active team required for manager actions")
+            in_team = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+                TeamMembership.team_id == active_team_id,
+                TeamMembership.user_id == assignee.id,
+            ).first()
+            if not in_team:
+                raise HTTPException(status_code=403, detail="Cannot assign client outside your team")
         final_assigned_to = body.assigned_to_id
 
-    # Auto-assign team_id
-    final_team_id = current_user.team_id
-    if current_user.role in ["admin", "md"] and body.team_id:
-        final_team_id = body.team_id
+    # Team selection rules (same as leads)
+    requested_team_id = body.team_id
+    final_team_id: Optional[int]
+
+    if requested_team_id is not None:
+        team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == requested_team_id).first()
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
+
+        if current_user.role in ("sales", "manager"):
+            member = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+                TeamMembership.team_id == requested_team_id,
+                TeamMembership.user_id == current_user.id,
+            ).first()
+            if not member:
+                raise HTTPException(status_code=403, detail="You are not a member of the selected team")
+
+        final_team_id = requested_team_id
+    else:
+        if current_user.role in ("sales", "manager"):
+            if active_team_id is None:
+                raise HTTPException(status_code=400, detail="Active team required. Select a team or provide team_id.")
+            final_team_id = active_team_id
+        else:
+            final_team_id = active_team_id
     
     new_client = Client(
         company_id=current_user.company_id,
@@ -217,7 +250,8 @@ def update_client(
     client_id: int,
     body: ClientUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Update client details"""
     client = db.query(Client).filter(Client.id == client_id).first()
@@ -228,8 +262,9 @@ def update_client(
     # Role-based scoping
     if current_user.role == "sales" and client.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You cannot edit a client you do not own")
-    if current_user.role == "manager" and client.team_id != current_user.team_id:
-        raise HTTPException(status_code=403, detail="You cannot edit a client outside your team")
+    if current_user.role == "manager":
+        if active_team_id is None or client.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You cannot edit a client outside your team")
     
     if body.name is not None:
         client.name = body.name
@@ -252,7 +287,8 @@ def update_client(
 def delete_client(
     client_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Delete a client"""
     client = db.query(Client).filter(Client.id == client_id).first()
@@ -263,8 +299,9 @@ def delete_client(
     # Role-based delete permission
     if current_user.role == "sales" and client.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only delete your own clients")
-    elif current_user.role == "manager" and client.team_id != current_user.team_id:
-        raise HTTPException(status_code=403, detail="You can only delete clients in your team")
+    elif current_user.role == "manager":
+        if active_team_id is None or client.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You can only delete clients in your team")
     
     db.delete(client)
     db.commit()
@@ -280,7 +317,8 @@ def delete_client(
 def get_client_invoices(
     client_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get all invoices for a client"""
     client = db.query(Client).filter(Client.id == client_id).first()
@@ -291,8 +329,9 @@ def get_client_invoices(
     # Role-based scoping
     if current_user.role == "sales" and client.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You do not have access to this client's invoices")
-    if current_user.role == "manager" and client.team_id != current_user.team_id:
-        raise HTTPException(status_code=403, detail="You do not have access to this team's client invoices")
+    if current_user.role == "manager":
+        if active_team_id is None or client.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You do not have access to this team's client invoices")
     
     inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
     invoices = inv_query.filter(Invoice.client_id == client_id).all()
@@ -316,7 +355,8 @@ def add_client_note(
     client_id: int,
     content: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Add a note to a client"""
     client = db.query(Client).filter(Client.id == client_id).first()
@@ -327,8 +367,9 @@ def add_client_note(
     # Role-based scoping
     if current_user.role == "sales" and client.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You cannot add notes to a client you do not own")
-    if current_user.role == "manager" and client.team_id != current_user.team_id:
-        raise HTTPException(status_code=403, detail="You cannot add notes to a client outside your team")
+    if current_user.role == "manager":
+        if active_team_id is None or client.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You cannot add notes to a client outside your team")
     
     new_note = Note(
         company_id=client.company_id,

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+const ACTIVE_TEAM_KEY = 'crm.activeTeamId';
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
@@ -8,6 +9,17 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const teamId = window.localStorage.getItem(ACTIVE_TEAM_KEY);
+    if (teamId) {
+      config.headers = config.headers || {};
+      config.headers['X-Team-Id'] = teamId;
+    }
+  }
+  return config;
 });
 
 // Response interceptor: handle 401 globally
@@ -34,3 +46,17 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+export function setActiveTeamId(teamId) {
+  if (typeof window === 'undefined') return;
+  if (teamId === null || teamId === undefined || teamId === '') {
+    window.localStorage.removeItem(ACTIVE_TEAM_KEY);
+  } else {
+    window.localStorage.setItem(ACTIVE_TEAM_KEY, String(teamId));
+  }
+}
+
+export function getActiveTeamId() {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem(ACTIVE_TEAM_KEY);
+}

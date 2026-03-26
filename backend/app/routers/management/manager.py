@@ -5,7 +5,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, is_platform_admin
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, is_platform_admin, get_active_team_id
 from app.models.core.user import User
 from app.models.sales.lead import Lead
 from app.models.sales.task import Task
@@ -16,6 +16,10 @@ from app.utils.notify import notify_role_users
 from app.models.hr.transfer_request import TeamTransferRequest
 from app.schemas.management import TransferRequestCreate, TransferRequestResponse
 from app.models.core.enums import InvoiceStatus
+from app.models.core.team import Team
+from app.models.core.team_membership import TeamMembership
+from app.models.sales.audit import AuditLog
+import json
 
 router = APIRouter()
 
@@ -30,6 +34,18 @@ def require_manager(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
+def _active_team_member_ids(db: Session, current_user: User, active_team_id: Optional[int]) -> list[int]:
+    if active_team_id is None:
+        return []
+    rows = (
+        apply_company_scope(db.query(User.id), User, current_user)
+        .join(TeamMembership, TeamMembership.user_id == User.id)
+        .filter(TeamMembership.team_id == active_team_id)
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
 # ===============================
 # Manager Dashboard
 # ===============================
@@ -37,19 +53,24 @@ def require_manager(current_user: User = Depends(get_current_user)) -> User:
 @router.get("/dashboard")
 def get_manager_dashboard(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(require_manager),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get manager dashboard with team metrics"""
     # Get real counts (company-scoped and team-scoped)
-    lead_query = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.team_id == current_user.team_id)
+    lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
+    if active_team_id is None:
+        lead_query = lead_query.filter(False)
+    else:
+        lead_query = lead_query.filter(Lead.team_id == active_team_id)
     total_leads = lead_query.count()
     closed_leads = lead_query.filter(Lead.status == "Converted").count()
     conversion_rate = int((closed_leads / total_leads * 100)) if total_leads > 0 else 0
     
     # Get team members (sales users, team-scoped)
-    user_query = apply_company_scope(db.query(User), User, current_user).filter(User.team_id == current_user.team_id)
-    team_members = user_query.filter(User.role == "sales").all()
-    team_member_ids = [m.id for m in team_members]
+    user_query = apply_company_scope(db.query(User), User, current_user)
+    team_member_ids = _active_team_member_ids(db, current_user, active_team_id)
+    team_members = user_query.filter(User.id.in_(team_member_ids), User.role == "sales").all() if team_member_ids else []
     
     from sqlalchemy import case
     
@@ -57,7 +78,11 @@ def get_manager_dashboard(
         Lead.assigned_to_id,
         func.sum(case((Lead.status == "Converted", 1), else_=0)).label("converted_count"),
         func.sum(case((Lead.status.notin_(["Converted", "Lost"]), 1), else_=0)).label("active_count")
-    ), Lead, current_user).filter(Lead.team_id == current_user.team_id).group_by(Lead.assigned_to_id).all()
+    ), Lead, current_user)
+    if team_member_ids and active_team_id is not None:
+        lead_stats = lead_stats.filter(Lead.team_id == active_team_id).group_by(Lead.assigned_to_id).all()
+    else:
+        lead_stats = []
     
     stats_map = {row.assigned_to_id: {"active": row.active_count or 0, "converted": row.converted_count or 0} for row in lead_stats}
     
@@ -106,16 +131,99 @@ def get_manager_dashboard(
 
 
 # ===============================
+# Team Membership Actions (Manager)
+# ===============================
+
+@router.delete("/teams/{team_id}/members/{user_id}", response_model=MessageResponse)
+def manager_remove_team_member(
+    team_id: int,
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager),
+):
+    """
+    Manager can remove a Sales Executive from a team they belong to.
+    MD/Admin can also use this endpoint (per MANAGER_ROLES), but Company Admin routes still exist.
+    """
+    if is_platform_admin(current_user) or current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="Company context required")
+
+    team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    # Manager must be a member of this team to manage it.
+    is_manager_member = (
+        apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+        .filter(TeamMembership.team_id == team_id, TeamMembership.user_id == current_user.id)
+        .first()
+    )
+    if not is_manager_member and current_user.role == "manager":
+        raise HTTPException(status_code=403, detail="You are not a member of this team")
+
+    target_user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target_user.role != "sales":
+        raise HTTPException(status_code=403, detail="Can only remove Sales Executives from teams")
+
+    membership = (
+        apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+        .filter(TeamMembership.team_id == team_id, TeamMembership.user_id == user_id)
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=404, detail="User not found in this team")
+
+    before_primary = target_user.team_id
+    db.delete(membership)
+
+    # Legacy compatibility: if primary team was this one, pick another membership else null.
+    if target_user.team_id == team_id:
+        next_membership = (
+            apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+            .filter(TeamMembership.user_id == user_id)
+            .order_by(TeamMembership.id.desc())
+            .first()
+        )
+        target_user.team_id = next_membership.team_id if next_membership else None
+
+    # Audit (company scoped)
+    db.add(
+        AuditLog(
+            company_id=current_user.company_id,
+            admin_id=current_user.id,
+            admin_name=current_user.full_name,
+            action="team_member_removed_by_manager",
+            entity_type="team",
+            entity_id=str(team_id),
+            entity_name=team.name,
+            before_value=json.dumps({"user_id": user_id, "user_name": target_user.full_name, "primary_team_id": before_primary}),
+            after_value=json.dumps({"user_id": user_id, "removed_from_team_id": team_id, "primary_team_id": target_user.team_id}),
+        )
+    )
+
+    db.commit()
+    return {"message": f"{target_user.full_name} removed from {team.name}"}
+
+
+# ===============================
 # Team Monitoring
 # ===============================
 
 @router.get("/monitoring")
 def get_team_monitoring(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(require_manager),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get team activity monitoring data"""
-    team_members = apply_company_scope(db.query(User), User, current_user).filter(User.role == "sales", User.team_id == current_user.team_id).all()
+    team_member_ids = _active_team_member_ids(db, current_user, active_team_id)
+    team_members = (
+        apply_company_scope(db.query(User), User, current_user)
+        .filter(User.role == "sales", User.id.in_(team_member_ids))
+        .all()
+    ) if team_member_ids else []
     
     team_member_ids = [m.id for m in team_members]
     from sqlalchemy import case
@@ -180,10 +288,18 @@ def get_team_monitoring(
 def get_team_member_detail(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(require_manager),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get detailed activity for a team member"""
-    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id, User.team_id == current_user.team_id).first()
+    if active_team_id is None:
+        raise HTTPException(status_code=400, detail="Active team required")
+    user = (
+        apply_company_scope(db.query(User), User, current_user)
+        .join(TeamMembership, TeamMembership.user_id == User.id)
+        .filter(User.id == user_id, TeamMembership.team_id == active_team_id)
+        .first()
+    )
     if not user:
         raise HTTPException(status_code=404, detail="User not found or not in your team")
     
@@ -228,10 +344,15 @@ def get_team_leads(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(require_manager),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get leads for the manager's team (paginated)."""
-    query = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.team_id == current_user.team_id)
+    query = apply_company_scope(db.query(Lead), Lead, current_user)
+    if active_team_id is None:
+        query = query.filter(False)
+    else:
+        query = query.filter(Lead.team_id == active_team_id)
     if status:
         query = query.filter(Lead.status == status)
     if member_id:
@@ -261,7 +382,8 @@ def reassign_lead(
     lead_id: int,
     new_assignee_id: int = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(require_manager),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Reassign a lead to a different team member"""
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
@@ -269,10 +391,15 @@ def reassign_lead(
         raise HTTPException(status_code=404, detail="Lead not found")
     ensure_company_access(lead, current_user)
     
-    if lead.team_id != current_user.team_id:
+    if active_team_id is None or lead.team_id != active_team_id:
         raise HTTPException(status_code=403, detail="Lead does not belong to your team")
     
-    new_assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == new_assignee_id, User.team_id == current_user.team_id).first()
+    new_assignee = (
+        apply_company_scope(db.query(User), User, current_user)
+        .join(TeamMembership, TeamMembership.user_id == User.id)
+        .filter(User.id == new_assignee_id, TeamMembership.team_id == active_team_id)
+        .first()
+    )
     if not new_assignee:
         raise HTTPException(status_code=404, detail="Assignee not found or not in your team")
     
@@ -297,13 +424,14 @@ def get_team_tasks(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(require_manager),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get tasks for the team (paginated)."""
     query = apply_company_scope(db.query(Task), Task, current_user)
     # Default team scoping for managers
-    team_member_ids = [m.id for m in apply_company_scope(db.query(User.id), User, current_user).filter(User.team_id == current_user.team_id).all()]
-    query = query.filter((Task.assigned_to_id.in_(team_member_ids)) | (Task.assigned_by_id == current_user.id))
+    team_member_ids = _active_team_member_ids(db, current_user, active_team_id)
+    query = query.filter((Task.assigned_to_id.in_(team_member_ids)) | (Task.assigned_by_id == current_user.id)) if team_member_ids else query.filter(Task.assigned_by_id == current_user.id)
     if status:
         query = query.filter(Task.status == status)
     if member_id:
@@ -333,13 +461,18 @@ def create_team_task(
     due_date: str = Query(...),
     priority: str = Query("medium"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(require_manager),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Create and assign a task to a team member"""
-    assignee = apply_company_scope(db.query(User), User, current_user).filter(
-        User.id == assignee_id,
-        User.team_id == current_user.team_id
-    ).first()
+    if active_team_id is None:
+        raise HTTPException(status_code=400, detail="Active team required")
+    assignee = (
+        apply_company_scope(db.query(User), User, current_user)
+        .join(TeamMembership, TeamMembership.user_id == User.id)
+        .filter(User.id == assignee_id, TeamMembership.team_id == active_team_id)
+        .first()
+    )
     if not assignee:
         raise HTTPException(status_code=404, detail="Assignee not found or not in your team")
     
@@ -377,33 +510,40 @@ def create_team_task(
 def get_team_performance(
     period: str = Query("month"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(require_manager),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get team performance report"""
-    lead_q = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.team_id == current_user.team_id)
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+    if active_team_id is None:
+        lead_q = lead_q.filter(False)
+    else:
+        lead_q = lead_q.filter(Lead.team_id == active_team_id)
     leads_total = lead_q.count()
     leads_converted = lead_q.filter(Lead.status == "Converted").count()
     conversion_rate = round((leads_converted / leads_total * 100), 1) if leads_total > 0 else 0
     
     # Get revenue from paid invoices (team-scoped via creator)
-    team_members_for_inv = apply_company_scope(db.query(User.id), User, current_user).filter(
-        User.team_id == current_user.team_id
-    ).all()
-    team_inv_ids = [m.id for m in team_members_for_inv]
+    team_inv_ids = _active_team_member_ids(db, current_user, active_team_id)
     inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.created_by_id.in_(team_inv_ids)) if team_inv_ids else apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id < 0)
     revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
     
     # Member breakdown (team-scoped)
     team_members = apply_company_scope(db.query(User), User, current_user).filter(
-        User.team_id == current_user.team_id, User.role == "sales"
-    ).all()
+        User.role == "sales", User.id.in_(team_inv_ids)
+    ).all() if team_inv_ids else []
     team_member_ids = [m.id for m in team_members]
     from sqlalchemy import case
-    lead_perf = apply_company_scope(db.query(
+    lead_perf_q = apply_company_scope(db.query(
         Lead.assigned_to_id,
         func.count(Lead.id).label("total"),
         func.sum(case((Lead.status == "Converted", 1), else_=0)).label("converted")
-    ), Lead, current_user).filter(Lead.team_id == current_user.team_id, Lead.assigned_to_id.in_(team_member_ids)).group_by(Lead.assigned_to_id).all()
+    ), Lead, current_user)
+    lead_perf = (
+        lead_perf_q.filter(Lead.team_id == active_team_id, Lead.assigned_to_id.in_(team_member_ids))
+        .group_by(Lead.assigned_to_id)
+        .all()
+    ) if team_member_ids and active_team_id is not None else []
     
     perf_map = {row.assigned_to_id: {"total": row.total, "converted": row.converted or 0} for row in lead_perf}
     
@@ -439,14 +579,14 @@ def get_team_invoices(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(require_manager),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get invoices created by team members (paginated)."""
     # Restrict invoices to those created by the manager's team members
-    team_members = apply_company_scope(db.query(User.id), User, current_user).filter(User.team_id == current_user.team_id).all()
-    team_member_ids = [m.id for m in team_members]
+    team_member_ids = _active_team_member_ids(db, current_user, active_team_id)
     
-    query = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.created_by_id.in_(team_member_ids))
+    query = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.created_by_id.in_(team_member_ids)) if team_member_ids else apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id < 0)
     if status:
         query = query.filter(Invoice.status == status)
     total = query.count()
@@ -511,13 +651,14 @@ def approve_invoice(
 @router.get("/team")
 def get_manager_team(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(require_manager),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """List all team members assigned to this manager's team"""
+    team_member_ids = _active_team_member_ids(db, current_user, active_team_id)
     team_members = apply_company_scope(db.query(User), User, current_user).filter(
-        User.team_id == current_user.team_id,
-        User.role == "sales"
-    ).all()
+        User.role == "sales", User.id.in_(team_member_ids)
+    ).all() if team_member_ids else []
     
     team_member_ids = [m.id for m in team_members]
     
@@ -546,13 +687,18 @@ def get_manager_team(
 def get_team_member_performance(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(require_manager),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Detailed performance metrics for a specific team member"""
-    member = apply_company_scope(db.query(User), User, current_user).filter(
-        User.id == user_id,
-        User.team_id == current_user.team_id
-    ).first()
+    if active_team_id is None:
+        raise HTTPException(status_code=400, detail="Active team required")
+    member = (
+        apply_company_scope(db.query(User), User, current_user)
+        .join(TeamMembership, TeamMembership.user_id == User.id)
+        .filter(User.id == user_id, TeamMembership.team_id == active_team_id)
+        .first()
+    )
     
     if not member:
         raise HTTPException(status_code=404, detail="Team member not found")
@@ -605,7 +751,8 @@ def get_team_member_performance(
 def create_transfer_request(
     request_data: TransferRequestCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(require_manager),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Request a team transfer for a sales executive in the manager's team"""
     # Verify the target user exists and is in the manager's team
@@ -614,7 +761,13 @@ def create_transfer_request(
         raise HTTPException(status_code=404, detail="Target user not found")
     
     # Manager can only request for their own team members (sales)
-    if target_user.team_id != current_user.team_id:
+    if active_team_id is None:
+        raise HTTPException(status_code=400, detail="Active team required")
+    is_member = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+        TeamMembership.team_id == active_team_id,
+        TeamMembership.user_id == target_user.id,
+    ).first()
+    if not is_member:
         raise HTTPException(status_code=403, detail="User is not in your team")
     
     if target_user.role != "sales":

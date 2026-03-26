@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
 from datetime import datetime, timedelta, timezone
+import calendar
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, is_platform_admin
@@ -12,6 +13,7 @@ from app.models.sales.client import Client
 from app.models.finance.invoice import Invoice, InvoiceItem
 from app.models.sales.task import Task
 from app.models.core.team import Team
+from app.models.core.team_membership import TeamMembership
 from app.models.core.company import Company
 from app.schemas.management import TransferRequestCreate, TransferRequestResponse
 from app.models.hr.transfer_request import TeamTransferRequest
@@ -28,6 +30,16 @@ def require_md(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role not in MD_ROLES:
         raise HTTPException(status_code=403, detail="MD access required")
     return current_user
+
+
+def _month_range_utc(year: int, month: int) -> tuple[datetime, datetime]:
+    """
+    Inclusive start, exclusive end for the given month in UTC.
+    """
+    start = datetime(year, month, 1, tzinfo=timezone.utc)
+    last_day = calendar.monthrange(year, month)[1]
+    end = datetime(year, month, last_day, 23, 59, 59, tzinfo=timezone.utc) + timedelta(seconds=1)
+    return start, end
 
 
 # ===============================
@@ -807,6 +819,96 @@ def get_performance_points(
         }
     }
 
+@router.get("/performance/monthly")
+def get_monthly_performance(
+    year: int = Query(..., ge=2000, le=2100),
+    month: int = Query(..., ge=1, le=12),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_md),
+):
+    """
+    Monthly performance leaderboard (1st to end of month).
+
+    Finance is the source of truth for revenue: paid invoices in the month.
+    Sales conversions come from leads marked Converted in the month (created_at window).
+    """
+    if is_platform_admin(current_user):
+        raise HTTPException(status_code=403, detail="Company context required")
+
+    start, end = _month_range_utc(year, month)
+
+    # Sales users in the company
+    sales_users = apply_company_scope(db.query(User), User, current_user).filter(User.role == "sales").all()
+    sales_ids = [u.id for u in sales_users]
+    if not sales_ids:
+        return {"year": year, "month": month, "start": start.isoformat(), "end": end.isoformat(), "leaderboard": []}
+
+    # Revenue: paid invoices with paid_date in the month (source of truth).
+    # If paid_date is missing, it is excluded to avoid ambiguity.
+    from sqlalchemy import and_
+
+    inv_q = apply_company_scope(db.query(Invoice.created_by_id, func.sum(Invoice.total)), Invoice, current_user)
+    inv_q = inv_q.filter(
+        Invoice.created_by_id.in_(sales_ids),
+        Invoice.status == "Paid",
+        Invoice.paid_date.isnot(None),
+        Invoice.paid_date >= start.date(),
+        Invoice.paid_date < end.date(),
+    ).group_by(Invoice.created_by_id)
+    revenue_rows = inv_q.all()
+    revenue_map = {uid: float(total or 0) for uid, total in revenue_rows}
+
+    # Conversions: leads assigned to the user, converted, converted_at in month.
+    lead_q = apply_company_scope(db.query(Lead.assigned_to_id, func.count(Lead.id)), Lead, current_user)
+    lead_q = lead_q.filter(
+        Lead.assigned_to_id.in_(sales_ids),
+        Lead.status == "Converted",
+        Lead.converted_at.isnot(None),
+        Lead.converted_at >= start,
+        Lead.converted_at < end,
+    ).group_by(Lead.assigned_to_id)
+    conv_rows = lead_q.all()
+    conv_map = {uid: int(cnt or 0) for uid, cnt in conv_rows}
+
+    # Total leads created in month (for conversion rate baseline)
+    total_leads_q = apply_company_scope(db.query(Lead.assigned_to_id, func.count(Lead.id)), Lead, current_user)
+    total_leads_q = total_leads_q.filter(
+        Lead.assigned_to_id.in_(sales_ids),
+        Lead.created_at >= start,
+        Lead.created_at < end,
+    ).group_by(Lead.assigned_to_id)
+    total_rows = total_leads_q.all()
+    total_map = {uid: int(cnt or 0) for uid, cnt in total_rows}
+
+    leaderboard = []
+    for u in sales_users:
+        total = total_map.get(u.id, 0)
+        converted = conv_map.get(u.id, 0)
+        revenue = revenue_map.get(u.id, 0.0)
+        leaderboard.append(
+            {
+                "user_id": u.id,
+                "name": u.full_name,
+                "email": u.email,
+                "converted_leads": converted,
+                "total_leads": total,
+                "conversion_rate": round((converted / total * 100), 1) if total else 0.0,
+                "revenue": revenue,
+            }
+        )
+
+    # Sort by revenue first, then conversions
+    leaderboard.sort(key=lambda x: (x["revenue"], x["converted_leads"]), reverse=True)
+
+    return {
+        "year": year,
+        "month": month,
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "leaderboard": leaderboard,
+        "top_sales_exec": leaderboard[0] if leaderboard else None,
+    }
+
 
 # ===============================
 # MD Teams Overview
@@ -822,7 +924,15 @@ def get_md_teams(
 
     result = []
     for team in teams:
-        members = db.query(User).filter(User.team_id == team.id, User.company_id == current_user.company_id).all()
+        members = (
+            db.query(User)
+            .join(TeamMembership, TeamMembership.user_id == User.id)
+            .filter(
+                TeamMembership.team_id == team.id,
+                TeamMembership.company_id == current_user.company_id,
+            )
+            .all()
+        )
         member_ids = [m.id for m in members]
 
         lead_count = db.query(Lead).filter(Lead.assigned_to_id.in_(member_ids)).count() if member_ids else 0

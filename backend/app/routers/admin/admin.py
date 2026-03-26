@@ -13,6 +13,7 @@ from app.utils.dependencies import require_admin, apply_company_scope, ensure_co
 from app.utils.security import get_password_hash
 from app.models.core.user import User
 from app.models.core.team import Team
+from app.models.core.team_membership import TeamMembership
 from app.models.sales.lead import Lead
 from app.models.sales.client import Client
 from app.models.sales.task import Task
@@ -469,7 +470,12 @@ def get_team(
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     
-    members = apply_company_scope(db.query(User), User, current_user).filter(User.team_id == team_id).all()
+    members = (
+        apply_company_scope(db.query(User), User, current_user)
+        .join(TeamMembership, TeamMembership.user_id == User.id)
+        .filter(TeamMembership.team_id == team_id)
+        .all()
+    )
     manager = next((m for m in members if m.role == "manager"), None)
     
     return {
@@ -522,12 +528,21 @@ def delete_team(
         raise HTTPException(status_code=404, detail="Team not found")
     
     team_name = team.name
-    member_count = apply_company_scope(db.query(User), User, current_user).filter(User.team_id == team_id).count()
+    member_count = (
+        apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+        .filter(TeamMembership.team_id == team_id)
+        .count()
+    )
     
-    # Remove team from users (company-scoped to prevent cross-tenant corruption)
-    apply_company_scope(db.query(User), User, current_user).filter(
-        User.team_id == team_id
-    ).update({"team_id": None}, synchronize_session="fetch")
+    # Remove memberships (company-scoped to prevent cross-tenant corruption)
+    apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+        TeamMembership.team_id == team_id
+    ).delete(synchronize_session="fetch")
+
+    # Keep legacy users.team_id consistent: if a user's primary team was deleted, set to NULL.
+    apply_company_scope(db.query(User), User, current_user).filter(User.team_id == team_id).update(
+        {"team_id": None}, synchronize_session="fetch"
+    )
     
     create_audit_log(
         db, current_user, "team_deleted", "team",
@@ -562,8 +577,20 @@ def add_team_member(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    existing = (
+        apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+        .filter(TeamMembership.team_id == team_id, TeamMembership.user_id == user.id)
+        .first()
+    )
+    if existing:
+        return {"message": f"{user.full_name} is already a member of {team.name}"}
+
     old_team_id = user.team_id
-    user.team_id = team_id
+    db.add(TeamMembership(company_id=current_user.company_id, team_id=team_id, user_id=user.id))
+
+    # Legacy compatibility: if user had no primary team, set it (does NOT remove other memberships)
+    if user.team_id is None:
+        user.team_id = team_id
     
     create_audit_log(
         db, current_user, "team_member_added", "team",
@@ -589,8 +616,16 @@ def remove_team_member(
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     
-    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id, User.team_id == team_id).first()
+    user = apply_company_scope(db.query(User), User, current_user).filter(User.id == user_id).first()
     if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    membership = (
+        apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+        .filter(TeamMembership.team_id == team_id, TeamMembership.user_id == user_id)
+        .first()
+    )
+    if not membership:
         raise HTTPException(status_code=404, detail="User not found in this team")
     
     create_audit_log(
@@ -600,7 +635,17 @@ def remove_team_member(
         after_value={"user_id": user_id, "team_id": None}
     )
     
-    user.team_id = None
+    db.delete(membership)
+
+    # Legacy compatibility: if primary team was this one, pick another membership (if any) else null.
+    if user.team_id == team_id:
+        next_membership = (
+            apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+            .filter(TeamMembership.user_id == user_id)
+            .order_by(TeamMembership.id.desc())
+            .first()
+        )
+        user.team_id = next_membership.team_id if next_membership else None
     db.commit()
     
     return {"message": f"{user.full_name} removed from {team.name}"}

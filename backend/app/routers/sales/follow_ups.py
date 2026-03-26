@@ -5,8 +5,9 @@ from typing import Optional, List
 from datetime import datetime, date, timedelta, timezone
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, get_active_team_id
 from app.models.core.user import User
+from app.models.core.team_membership import TeamMembership
 from app.models.sales.follow_up import FollowUp
 from app.models.sales.lead import Lead
 from app.schemas.sales import FollowUpCreate, FollowUpListResponse
@@ -42,7 +43,8 @@ def list_follow_ups(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """List follow-ups for the current user (paginated)."""
     query = apply_company_scope(db.query(FollowUp), FollowUp, current_user)
@@ -51,7 +53,15 @@ def list_follow_ups(
         own_lead_ids = [l.id for l in apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.assigned_to_id == current_user.id).all()]
         query = query.filter(FollowUp.lead_id.in_(own_lead_ids)) if own_lead_ids else query.filter(False)
     elif current_user.role == "manager":
-        team_lead_ids = [l.id for l in apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.team_id == current_user.team_id).all()]
+        if active_team_id is None:
+            team_lead_ids = []
+        else:
+            team_lead_ids = [
+                l.id
+                for l in apply_company_scope(db.query(Lead.id), Lead, current_user)
+                .filter(Lead.team_id == active_team_id)
+                .all()
+            ]
         query = query.filter(FollowUp.lead_id.in_(team_lead_ids)) if team_lead_ids else query.filter(False)
     if status:
         query = query.filter(FollowUp.status == status)
@@ -81,7 +91,8 @@ def list_follow_ups(
 @router.get("/today")
 def get_todays_follow_ups(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get follow-ups scheduled for today"""
     today = date.today()
@@ -91,7 +102,10 @@ def get_todays_follow_ups(
         own_lead_ids = [l.id for l in apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.assigned_to_id == current_user.id).all()]
         fu_query = fu_query.filter(FollowUp.lead_id.in_(own_lead_ids)) if own_lead_ids else fu_query.filter(False)
     elif current_user.role == "manager":
-        team_lead_ids = [l.id for l in apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.team_id == current_user.team_id).all()]
+        if active_team_id is None:
+            team_lead_ids = []
+        else:
+            team_lead_ids = [l.id for l in apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.team_id == active_team_id).all()]
         fu_query = fu_query.filter(FollowUp.lead_id.in_(team_lead_ids)) if team_lead_ids else fu_query.filter(False)
     follow_ups = fu_query.filter(
         FollowUp.scheduled_date == today,
@@ -123,7 +137,8 @@ def get_todays_follow_ups(
 @router.get("/overdue")
 def get_overdue_follow_ups(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get overdue follow-ups"""
     today = date.today()
@@ -133,7 +148,10 @@ def get_overdue_follow_ups(
         own_lead_ids = [l.id for l in apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.assigned_to_id == current_user.id).all()]
         fu_query = fu_query.filter(FollowUp.lead_id.in_(own_lead_ids)) if own_lead_ids else fu_query.filter(False)
     elif current_user.role == "manager":
-        team_lead_ids = [l.id for l in apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.team_id == current_user.team_id).all()]
+        if active_team_id is None:
+            team_lead_ids = []
+        else:
+            team_lead_ids = [l.id for l in apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.team_id == active_team_id).all()]
         fu_query = fu_query.filter(FollowUp.lead_id.in_(team_lead_ids)) if team_lead_ids else fu_query.filter(False)
     follow_ups = fu_query.filter(
         FollowUp.scheduled_date < today,
@@ -166,7 +184,8 @@ def get_overdue_follow_ups(
 def get_follow_up(
     follow_up_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get follow-up details by ID"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
@@ -181,7 +200,7 @@ def get_follow_up(
             raise HTTPException(status_code=403, detail="You do not have access to this follow-up")
     elif current_user.role == "manager":
         lead = db.query(Lead).filter(Lead.id == fu.lead_id).first()
-        if lead and lead.team_id != current_user.team_id:
+        if lead and (active_team_id is None or lead.team_id != active_team_id):
             raise HTTPException(status_code=403, detail="You do not have access to follow-ups outside your team")
     
     lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == fu.lead_id).first()
@@ -236,7 +255,8 @@ def update_follow_up(
     follow_up_id: int,
     body: FollowUpUpdateBody,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Update follow-up details"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
@@ -251,7 +271,7 @@ def update_follow_up(
             raise HTTPException(status_code=403, detail="You cannot edit this follow-up")
     elif current_user.role == "manager":
         lead = db.query(Lead).filter(Lead.id == fu.lead_id).first()
-        if lead and lead.team_id != current_user.team_id:
+        if lead and (active_team_id is None or lead.team_id != active_team_id):
             raise HTTPException(status_code=403, detail="You cannot edit follow-ups outside your team")
     
     if body.scheduled_date is not None:
@@ -271,7 +291,8 @@ def complete_follow_up(
     follow_up_id: int,
     body: FollowUpCompleteBody,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Mark follow-up as completed"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
@@ -286,7 +307,7 @@ def complete_follow_up(
             raise HTTPException(status_code=403, detail="You cannot complete this follow-up")
     elif current_user.role == "manager":
         lead = db.query(Lead).filter(Lead.id == fu.lead_id).first()
-        if lead and lead.team_id != current_user.team_id:
+        if lead and (active_team_id is None or lead.team_id != active_team_id):
             raise HTTPException(status_code=403, detail="You cannot complete follow-ups outside your team")
     
     fu.status = "Completed"
@@ -307,7 +328,8 @@ def reschedule_follow_up(
     follow_up_id: int,
     body: FollowUpRescheduleBody,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Reschedule a follow-up"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
@@ -322,7 +344,7 @@ def reschedule_follow_up(
             raise HTTPException(status_code=403, detail="You cannot reschedule this follow-up")
     elif current_user.role == "manager":
         lead = db.query(Lead).filter(Lead.id == fu.lead_id).first()
-        if lead and lead.team_id != current_user.team_id:
+        if lead and (active_team_id is None or lead.team_id != active_team_id):
             raise HTTPException(status_code=403, detail="You cannot reschedule follow-ups outside your team")
     
     fu.scheduled_date = datetime.strptime(body.new_date, "%Y-%m-%d").date()

@@ -7,6 +7,7 @@ import { Settings, LogOut, ChevronDown, User } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import SearchDropdown from './SearchDropdown';
 import NotificationDropdown from './NotificationDropdown';
+import TeamSwitcher from './TeamSwitcher';
 
 export default function TopBar() {
     const { user, logout } = useAuth();
@@ -47,6 +48,7 @@ export default function TopBar() {
 
             {/* Right - Actions */}
             <div className="flex items-center gap-2">
+                <TeamSwitcher className="hidden md:block" />
                 <ThemeToggle className="!border-none !bg-transparent hover:!bg-surface-elevated h-9 w-9" />
 
                 {/* Notifications */}

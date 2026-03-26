@@ -17,5 +17,6 @@ class Team(Base):
     
     # Relationships
     company = relationship("Company", backref="teams")
+    memberships = relationship("TeamMembership", back_populates="team", cascade="all, delete-orphan")
     leads = relationship("Lead", back_populates="team")
     clients = relationship("Client", back_populates="team")

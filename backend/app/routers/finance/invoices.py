@@ -7,8 +7,9 @@ from typing import Optional, List
 from datetime import date
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, get_active_team_id
 from app.models.core.user import User
+from app.models.core.team_membership import TeamMembership
 from app.models.sales.client import Client
 from app.models.finance.invoice import Invoice, InvoiceItem
 from app.models.core.company_settings import CompanySettings
@@ -39,6 +40,7 @@ def create_invoice(
     body: InvoiceCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Create a new invoice for a client (company-scoped)."""
     if not body.items:
@@ -53,8 +55,9 @@ def create_invoice(
     if current_user.role == "sales" and client.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only create invoices for your own clients")
     # Scoping: Manager must manage the client's team
-    if current_user.role == "manager" and client.team_id != current_user.team_id:
-        raise HTTPException(status_code=403, detail="You can only create invoices for your team's clients")
+    if current_user.role == "manager":
+        if active_team_id is None or client.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You can only create invoices for your team's clients")
 
     company_id = current_user.company_id
     settings = db.query(CompanySettings).filter(CompanySettings.company_id == company_id).first()
@@ -154,6 +157,7 @@ def list_invoices(
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """
     List invoices for the current company (paginated).
@@ -169,12 +173,17 @@ def list_invoices(
         query = query.filter(Invoice.created_by_id == current_user.id)
     elif getattr(current_user, "role", "") == "manager":
         # Managers see invoices created by their team members
-        team_member_ids = db.query(User.id).filter(
-            User.team_id == current_user.team_id,
-            User.company_id == current_user.company_id
-        ).all()
-        team_member_ids = [uid[0] for uid in team_member_ids]
-        query = query.filter(Invoice.created_by_id.in_(team_member_ids))
+        if active_team_id is None:
+            query = query.filter(False)
+        else:
+            team_member_ids = (
+                apply_company_scope(db.query(User.id), User, current_user)
+                .join(TeamMembership, TeamMembership.user_id == User.id)
+                .filter(TeamMembership.team_id == active_team_id)
+                .all()
+            )
+            team_member_ids = [uid[0] for uid in team_member_ids]
+            query = query.filter(Invoice.created_by_id.in_(team_member_ids)) if team_member_ids else query.filter(False)
 
     if status and status != "All":
         query = query.filter(Invoice.status == status)
@@ -234,6 +243,7 @@ def get_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get a specific invoice by ID (company-scoped)."""
     if current_user.company_id is None:
@@ -247,8 +257,13 @@ def get_invoice(
     if current_user.role == "sales" and invoice.created_by_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied to this invoice")
     if current_user.role == "manager":
-        creator = db.query(User).filter(User.id == invoice.created_by_id).first()
-        if creator and creator.team_id != current_user.team_id:
+        if active_team_id is None:
+            raise HTTPException(status_code=403, detail="Active team required")
+        creator_in_team = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+            TeamMembership.team_id == active_team_id,
+            TeamMembership.user_id == invoice.created_by_id,
+        ).first()
+        if not creator_in_team:
             raise HTTPException(status_code=403, detail="Access denied to another team's invoice")
 
     client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == invoice.client_id).first()

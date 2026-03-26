@@ -4,8 +4,10 @@ from typing import Optional, List
 from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, get_active_team_id
 from app.models.core.user import User
+from app.models.core.team_membership import TeamMembership
+from app.models.core.team import Team
 from app.models.sales.lead import Lead, LeadStatus
 from app.models.sales.task import Task
 from app.models.sales.client import Client
@@ -30,7 +32,8 @@ router = APIRouter()
 @router.get("/dashboard", response_model=SalesDashboardResponse)
 def get_sales_dashboard(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get sales executive dashboard with metrics and priority tasks"""
     # Get real counts from database (company-scoped)
@@ -40,7 +43,10 @@ def get_sales_dashboard(
     if current_user.role == "sales":
         lead_query = lead_query.filter(Lead.assigned_to_id == current_user.id)
     elif current_user.role == "manager":
-        lead_query = lead_query.filter(Lead.team_id == current_user.team_id)
+        if active_team_id is None:
+            lead_query = lead_query.filter(False)
+        else:
+            lead_query = lead_query.filter(Lead.team_id == active_team_id)
     total_leads = lead_query.count()
     converted_leads = lead_query.filter(Lead.status == "Converted").count()
     conversion_rate = int((converted_leads / total_leads * 100)) if total_leads > 0 else 0
@@ -56,10 +62,15 @@ def get_sales_dashboard(
     if current_user.role == "sales":
         task_query = task_query.filter((Task.assigned_to_id == current_user.id) | (Task.assigned_by_id == current_user.id))
     elif current_user.role == "manager":
-        team_members = db.query(User.id).filter(
-            User.team_id == current_user.team_id,
-            User.company_id == current_user.company_id
-        ).all()
+        if active_team_id is None:
+            team_members = []
+        else:
+            team_members = (
+                apply_company_scope(db.query(User.id), User, current_user)
+                .join(TeamMembership, TeamMembership.user_id == User.id)
+                .filter(TeamMembership.team_id == active_team_id)
+                .all()
+            )
         team_member_ids = [m[0] for m in team_members]
         task_query = task_query.filter((Task.assigned_to_id.in_(team_member_ids)) | (Task.assigned_by_id == current_user.id))
     overdue_tasks = task_query.filter(
@@ -119,7 +130,10 @@ def get_sales_dashboard(
         client_ids = [c[0] for c in client_ids]
         inv_query = inv_query.filter(Invoice.client_id.in_(client_ids))
     elif current_user.role == "manager":
-        team_client_ids = apply_company_scope(db.query(Client.id), Client, current_user).filter(Client.team_id == current_user.team_id).all()
+        if active_team_id is None:
+            team_client_ids = []
+        else:
+            team_client_ids = apply_company_scope(db.query(Client.id), Client, current_user).filter(Client.team_id == active_team_id).all()
         team_client_ids = [c[0] for c in team_client_ids]
         inv_query = inv_query.filter(Invoice.client_id.in_(team_client_ids))
 
@@ -177,7 +191,8 @@ def list_leads(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """List leads based on user role."""
     query = apply_company_scope(db.query(Lead), Lead, current_user)
@@ -187,7 +202,10 @@ def list_leads(
         query = query.filter(Lead.assigned_to_id == current_user.id)
     elif current_user.role == "manager":
         # Managers see leads assigned to their team (or explicitly owned by the manager)
-        query = query.filter(Lead.team_id == current_user.team_id)
+        if active_team_id is None:
+            query = query.filter(False)
+        else:
+            query = query.filter(Lead.team_id == active_team_id)
     if status:
         query = query.filter(Lead.status == status)
     if search:
@@ -227,7 +245,8 @@ def list_leads(
 def get_lead(
     lead_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get lead details by ID (with role scoping)"""
     lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
@@ -237,8 +256,9 @@ def get_lead(
     # Apply role-based scoping
     if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You do not have access to this lead")
-    if current_user.role == "manager" and lead.team_id != current_user.team_id:
-        raise HTTPException(status_code=403, detail="You do not have access to this team's lead")
+    if current_user.role == "manager":
+        if active_team_id is None or lead.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You do not have access to this team's lead")
     ensure_company_access(lead, current_user)
     
     # Fetch tasks linked to this lead
@@ -296,7 +316,8 @@ def get_lead(
 def create_lead(
     lead_data: LeadCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Create a new lead"""
     if current_user.company_id is None:
@@ -308,11 +329,46 @@ def create_lead(
         assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == assigned_to_id).first()
         if not assignee:
             raise HTTPException(status_code=400, detail="Assigned user not found in your company")
-        if current_user.role == "manager" and assignee.team_id != current_user.team_id:
-            raise HTTPException(status_code=403, detail="Cannot assign lead outside your team")
+
+        # If manager is assigning, assignee must be in the active team
+        if current_user.role == "manager":
+            if active_team_id is None:
+                raise HTTPException(status_code=400, detail="Active team required for manager actions")
+            assignee_in_team = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+                TeamMembership.team_id == active_team_id,
+                TeamMembership.user_id == assignee.id,
+            ).first()
+            if not assignee_in_team:
+                raise HTTPException(status_code=403, detail="Cannot assign lead outside your team")
             
-    # Auto-assign team_id if current_user is a manager
-    team_id = current_user.team_id  # Use team for all users who have one
+    # Team selection rules
+    requested_team_id = getattr(lead_data, "team_id", None)
+    team_id: Optional[int]
+
+    if requested_team_id is not None:
+        # Ensure team exists in company
+        team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == requested_team_id).first()
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
+
+        # Sales/Manager must choose only from teams they are members of
+        if current_user.role in ("sales", "manager"):
+            member = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+                TeamMembership.team_id == requested_team_id,
+                TeamMembership.user_id == current_user.id,
+            ).first()
+            if not member:
+                raise HTTPException(status_code=403, detail="You are not a member of the selected team")
+
+        team_id = requested_team_id
+    else:
+        # Default to active team for manager/sales when available; otherwise legacy primary team.
+        if current_user.role in ("sales", "manager"):
+            if active_team_id is None:
+                raise HTTPException(status_code=400, detail="Active team required. Select a team or provide team_id.")
+            team_id = active_team_id
+        else:
+            team_id = active_team_id
     
     new_lead = Lead(
         company_id=current_user.company_id,
@@ -352,7 +408,8 @@ def update_lead(
     lead_id: int,
     lead_data: LeadUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Update lead details"""
     lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
@@ -361,8 +418,9 @@ def update_lead(
     # Apply role-based scoping
     if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You cannot edit a lead you do not own")
-    if current_user.role == "manager" and lead.team_id != current_user.team_id:
-        raise HTTPException(status_code=403, detail="You cannot edit a lead outside your team")
+    if current_user.role == "manager":
+        if active_team_id is None or lead.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You cannot edit a lead outside your team")
     
     old_status = lead.status
     old_assigned_to = lead.assigned_to_id
@@ -399,8 +457,15 @@ def update_lead(
         ).filter(User.id == lead_data.assigned_to_id).first()
         if not assignee:
             raise HTTPException(status_code=400, detail="User not found in this company")
-        if current_user.role == "manager" and assignee.team_id != current_user.team_id:
-            raise HTTPException(status_code=403, detail="Cannot assign lead outside your team")
+        if current_user.role == "manager":
+            if active_team_id is None:
+                raise HTTPException(status_code=400, detail="Active team required for manager actions")
+            assignee_in_team = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+                TeamMembership.team_id == active_team_id,
+                TeamMembership.user_id == assignee.id,
+            ).first()
+            if not assignee_in_team:
+                raise HTTPException(status_code=403, detail="Cannot assign lead outside your team")
             
         lead.assigned_to_id = lead_data.assigned_to_id
     
@@ -450,7 +515,8 @@ def update_lead_status(
     lead_id: int,
     status_data: LeadStatusUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Quickly update lead status (used by Kanban board)"""
     lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
@@ -460,8 +526,9 @@ def update_lead_status(
     
     if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You cannot edit a lead you do not own")
-    if current_user.role == "manager" and lead.team_id != current_user.team_id:
-        raise HTTPException(status_code=403, detail="You cannot edit a lead outside your team")
+    if current_user.role == "manager":
+        if active_team_id is None or lead.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You cannot edit a lead outside your team")
         
     old_status = lead.status
     lead.status = status_data.status
@@ -487,7 +554,8 @@ def update_lead_status(
 def delete_lead(
     lead_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Delete a lead"""
     lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
@@ -497,8 +565,9 @@ def delete_lead(
     # Role-based delete permission
     if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only delete your own leads")
-    elif current_user.role == "manager" and lead.team_id != current_user.team_id:
-        raise HTTPException(status_code=403, detail="You can only delete leads in your team")
+    elif current_user.role == "manager":
+        if active_team_id is None or lead.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You can only delete leads in your team")
     
     # Invoice safeguard: Check if converted to a client with invoices
     client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.converted_from_lead_id == lead.id).first()
@@ -520,7 +589,8 @@ def delete_lead(
 def list_lead_notes(
     lead_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """List notes attached to a lead."""
     lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
@@ -531,8 +601,9 @@ def list_lead_notes(
     # Role-based scoping
     if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You do not have access to this lead's notes")
-    if current_user.role == "manager" and lead.team_id != current_user.team_id:
-        raise HTTPException(status_code=403, detail="You do not have access to this team's lead notes")
+    if current_user.role == "manager":
+        if active_team_id is None or lead.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You do not have access to this team's lead notes")
 
     notes = apply_company_scope(db.query(Note), Note, current_user).filter(Note.lead_id == lead_id).order_by(Note.created_at.desc()).all()
     return [
@@ -552,7 +623,8 @@ def add_lead_note(
     lead_id: int,
     content: str = Query(..., min_length=1),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Create a note for a lead."""
     lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
@@ -563,8 +635,9 @@ def add_lead_note(
     # Role-based scoping
     if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You cannot add notes to a lead you do not own")
-    if current_user.role == "manager" and lead.team_id != current_user.team_id:
-        raise HTTPException(status_code=403, detail="You cannot add notes to a lead outside your team")
+    if current_user.role == "manager":
+        if active_team_id is None or lead.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You cannot add notes to a lead outside your team")
 
     note = Note(
         company_id=current_user.company_id,
@@ -589,7 +662,8 @@ def add_lead_note(
 def convert_lead(
     lead_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Convert a lead to a client"""
     lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
@@ -600,8 +674,9 @@ def convert_lead(
     # Role-based scoping
     if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only convert leads you own")
-    if current_user.role == "manager" and lead.team_id != current_user.team_id:
-        raise HTTPException(status_code=403, detail="You can only convert leads in your team")
+    if current_user.role == "manager":
+        if active_team_id is None or lead.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You can only convert leads in your team")
     
     # Create client from lead
     new_client = Client(

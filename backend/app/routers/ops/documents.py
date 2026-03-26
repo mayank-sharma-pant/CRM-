@@ -10,7 +10,7 @@ from app.models.core.user import User
 from app.models.sales.lead import Lead
 from app.models.sales.client import Client
 from app.models.ops.document import Document
-from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, get_active_team_id
 from app.utils.audit import log_activity
 from pydantic import BaseModel
 from datetime import datetime, timezone
@@ -45,7 +45,8 @@ async def upload_document(
     lead_id: Optional[int] = Form(None),
     client_id: Optional[int] = Form(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: int | None = Depends(get_active_team_id),
 ):
     """Upload a document and attach it to a Lead or Client."""
     if not lead_id and not client_id:
@@ -64,7 +65,7 @@ async def upload_document(
         if current_user.role == "sales" and entity.assigned_to_id != current_user.id:
             raise HTTPException(status_code=403, detail="You can only upload documents to your own leads")
         # Scoping: Manager must manage the lead's team
-        if current_user.role == "manager" and entity.team_id != current_user.team_id:
+        if current_user.role == "manager" and (active_team_id is None or entity.team_id != active_team_id):
             raise HTTPException(status_code=403, detail="You can only upload documents to your team's leads")
             
         entity_name = entity.name
@@ -78,7 +79,7 @@ async def upload_document(
         if current_user.role == "sales" and entity.assigned_to_id != current_user.id:
             raise HTTPException(status_code=403, detail="You can only upload documents to your own clients")
         # Scoping: Manager must manage the client's team
-        if current_user.role == "manager" and entity.team_id != current_user.team_id:
+        if current_user.role == "manager" and (active_team_id is None or entity.team_id != active_team_id):
             raise HTTPException(status_code=403, detail="You can only upload documents to your team's clients")
             
         entity_name = entity.name
@@ -127,7 +128,8 @@ def get_documents(
     entity_type: str,
     entity_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: int | None = Depends(get_active_team_id),
 ):
     """Get all documents for a Lead or Client."""
     if entity_type not in ["lead", "client"]:
@@ -144,7 +146,7 @@ def get_documents(
         # Scoping checks
         if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied to these documents")
-        if current_user.role == "manager" and lead.team_id != current_user.team_id:
+        if current_user.role == "manager" and (active_team_id is None or lead.team_id != active_team_id):
             raise HTTPException(status_code=403, detail="Access denied to another team's documents")
             
         query = query.filter(Document.lead_id == entity_id)
@@ -157,7 +159,7 @@ def get_documents(
         # Scoping checks
         if current_user.role == "sales" and client.assigned_to_id != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied to these documents")
-        if current_user.role == "manager" and client.team_id != current_user.team_id:
+        if current_user.role == "manager" and (active_team_id is None or client.team_id != active_team_id):
             raise HTTPException(status_code=403, detail="Access denied to another team's documents")
             
         query = query.filter(Document.client_id == entity_id)
@@ -182,7 +184,8 @@ def get_documents(
 def download_document(
     document_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: int | None = Depends(get_active_team_id),
 ):
     """Download a file."""
     doc = apply_company_scope(db.query(Document), Document, current_user).filter(Document.id == document_id).first()
@@ -195,14 +198,14 @@ def download_document(
         if parent:
             if current_user.role == "sales" and parent.assigned_to_id != current_user.id:
                 raise HTTPException(status_code=403, detail="Access denied to this document")
-            if current_user.role == "manager" and parent.team_id != current_user.team_id:
+            if current_user.role == "manager" and (active_team_id is None or parent.team_id != active_team_id):
                 raise HTTPException(status_code=403, detail="Access denied to another team's document")
     elif doc.client_id:
         parent = db.query(Client).filter(Client.id == doc.client_id).first()
         if parent:
             if current_user.role == "sales" and parent.assigned_to_id != current_user.id:
                 raise HTTPException(status_code=403, detail="Access denied to this document")
-            if current_user.role == "manager" and parent.team_id != current_user.team_id:
+            if current_user.role == "manager" and (active_team_id is None or parent.team_id != active_team_id):
                 raise HTTPException(status_code=403, detail="Access denied to another team's document")
 
     if not os.path.exists(doc.file_path):

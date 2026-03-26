@@ -7,6 +7,8 @@ from app.routers.sales import leads, tasks, clients, follow_ups, search, timelin
 from app.routers.finance import invoices, purchase, ledgers, export
 from app.routers.ops import leaves, documents, bug_report, imports
 from app.routers.management import md, manager
+from app.routers.ai.company_assistant import router as company_ai_router
+from app.routers import teams
 from app.config import settings
 import traceback
 import logging
@@ -105,6 +107,8 @@ app.include_router(notifications.router, prefix="/api/notifications", tags=["Not
 app.include_router(timeline.router, prefix="/api/timeline", tags=["Timeline"])
 app.include_router(bug_report.router, prefix="/api/bug-report", tags=["Bug Reports"])
 app.include_router(imports.router, prefix="/api/import", tags=["Import"])
+app.include_router(company_ai_router, prefix="/api/ai", tags=["AI"])
+app.include_router(teams.router, prefix="/api/teams", tags=["Teams"])
 
 @app.get("/")
 def root():

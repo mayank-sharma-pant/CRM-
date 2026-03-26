@@ -14,14 +14,28 @@ depends_on = None
 
 
 def upgrade() -> None:
+    is_sqlite = op.get_bind().dialect.name == "sqlite"
     op.drop_index("ix_invoices_invoice_number", table_name="invoices")
-    op.create_unique_constraint(
-        "uq_invoices_company_invoice_number",
-        "invoices",
-        ["company_id", "invoice_number"],
-    )
+    if not is_sqlite:
+        op.create_unique_constraint(
+            "uq_invoices_company_invoice_number",
+            "invoices",
+            ["company_id", "invoice_number"],
+        )
+    else:
+        # SQLite can't ALTER constraints; keep non-unique composite constraint in local dev.
+        op.create_index(
+            "ix_invoices_company_invoice_number",
+            "invoices",
+            ["company_id", "invoice_number"],
+            unique=False,
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint("uq_invoices_company_invoice_number", "invoices", type_="unique")
+    is_sqlite = op.get_bind().dialect.name == "sqlite"
+    if not is_sqlite:
+        op.drop_constraint("uq_invoices_company_invoice_number", "invoices", type_="unique")
+    else:
+        op.drop_index("ix_invoices_company_invoice_number", table_name="invoices")
     op.create_index("ix_invoices_invoice_number", "invoices", ["invoice_number"], unique=True)

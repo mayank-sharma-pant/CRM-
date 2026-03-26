@@ -6,6 +6,8 @@ from typing import Optional, Any
 from app.database import get_db
 from app.models.core.user import User
 from app.models.core.company import Company
+from app.models.core.team_membership import TeamMembership
+from app.models.core.team import Team
 from app.utils.security import decode_access_token
 
 
@@ -109,3 +111,53 @@ async def require_admin_or_md(
             detail="Admin or MD access required"
         )
     return current_user
+
+
+def get_active_team_id(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Optional[int]:
+    """
+    Active team scope for multi-team users.
+
+    Priority:
+    - X-Team-Id header (must be a team the user is a member of)
+    - current_user.team_id (legacy primary team)
+    - most recent membership (if any)
+
+    Returns None for platform admin or users with no team context.
+    """
+    if is_platform_admin(current_user) or current_user.company_id is None:
+        return None
+
+    header_val = request.headers.get("x-team-id") or request.headers.get("X-Team-Id")
+    if header_val:
+        try:
+            team_id = int(header_val)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid X-Team-Id header")
+
+        membership = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+            TeamMembership.team_id == team_id,
+            TeamMembership.user_id == current_user.id,
+        ).first()
+        if not membership:
+            raise HTTPException(status_code=403, detail="Not a member of this team")
+        return team_id
+
+    if current_user.team_id is not None:
+        return current_user.team_id
+
+    membership = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+        TeamMembership.user_id == current_user.id
+    ).order_by(TeamMembership.id.desc()).first()
+    return membership.team_id if membership else None
+
+
+def require_active_team_id(
+    team_id: Optional[int] = Depends(get_active_team_id),
+) -> int:
+    if team_id is None:
+        raise HTTPException(status_code=400, detail="Active team required (set X-Team-Id or assign a primary team)")
+    return team_id

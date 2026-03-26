@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, apply_company_scope
+from app.utils.dependencies import get_current_user, apply_company_scope, get_active_team_id
 from app.models.core.user import User
+from app.models.core.team_membership import TeamMembership
 
 router = APIRouter()
 
@@ -15,7 +16,8 @@ def list_users(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: int | None = Depends(get_active_team_id),
 ):
     """
     List users for task assignee dropdown and similar use (paginated).
@@ -23,8 +25,11 @@ def list_users(
     """
     query = apply_company_scope(db.query(User), User, current_user)
     query = query.filter(User.is_active == True)
-    if current_user.team_id:
-        query = query.filter(User.team_id == current_user.team_id)
+    if active_team_id is not None:
+        query = (
+            query.join(TeamMembership, TeamMembership.user_id == User.id)
+            .filter(TeamMembership.team_id == active_team_id)
+        )
     if role and role.lower() != "all":
         query = query.filter(User.role == role.lower())
     total = query.count()

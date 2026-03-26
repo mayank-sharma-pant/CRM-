@@ -9,7 +9,7 @@ import io
 import codecs
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user
+from app.utils.dependencies import get_current_user, get_active_team_id
 from app.models.core.user import User
 from app.models.sales.lead import Lead
 from app.utils.audit import log_activity
@@ -20,7 +20,8 @@ router = APIRouter()
 async def import_leads(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: int | None = Depends(get_active_team_id),
 ):
     """Import leads from a CSV file"""
     if current_user.company_id is None:
@@ -44,7 +45,13 @@ async def import_leads(
             raise HTTPException(status_code=400, detail="CSV must contain at least a 'name' column.")
             
         leads_to_create = []
-        team_id = current_user.team_id  # Manager's team
+        # Team selection: for sales/manager, require active team to avoid ambiguity.
+        if current_user.role in ("sales", "manager"):
+            if active_team_id is None:
+                raise HTTPException(status_code=400, detail="Active team required for CSV import.")
+            team_id = active_team_id
+        else:
+            team_id = active_team_id
         assigned_to_id = current_user.id if current_user.role == "sales" else None
         
         row_count: int = 0

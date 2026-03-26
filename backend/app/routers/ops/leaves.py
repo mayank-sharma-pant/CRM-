@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.hr.leave_request import LeaveRequest
 from app.models.core.user import User
-from app.utils.dependencies import get_current_user, apply_company_scope
+from app.utils.dependencies import get_current_user, apply_company_scope, get_active_team_id
+from app.models.core.team_membership import TeamMembership
 from app.schemas.admin import MessageResponse
 from app.utils.notify import send_notification, notify_role_users
 
@@ -29,14 +30,22 @@ def list_leaves(
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_team_id: int | None = Depends(get_active_team_id),
 ):
     query = apply_company_scope(db.query(LeaveRequest), LeaveRequest, current_user)
 
     if current_user.role == "manager":
-        query = query.join(User, LeaveRequest.user_id == User.id).filter(
-            (LeaveRequest.user_id == current_user.id)
-            | (User.team_id == current_user.team_id)
-        )
+        team_member_ids = []
+        if active_team_id is not None:
+            team_member_ids = [
+                r[0]
+                for r in apply_company_scope(db.query(User.id), User, current_user)
+                .join(TeamMembership, TeamMembership.user_id == User.id)
+                .filter(TeamMembership.team_id == active_team_id)
+                .all()
+            ]
+        visible_ids = set(team_member_ids + [current_user.id])
+        query = query.filter(LeaveRequest.user_id.in_(list(visible_ids)))
     elif current_user.role in ["admin", "md"]:
         # Admin and MD see all leaves in the company
         pass
@@ -108,6 +117,7 @@ def approve_leave(
     payload: LeaveApproveRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    active_team_id: int | None = Depends(get_active_team_id),
 ):
     leave = apply_company_scope(db.query(LeaveRequest), LeaveRequest, current_user).filter(LeaveRequest.id == leave_id).first()
     if not leave:
@@ -119,7 +129,15 @@ def approve_leave(
     # Role-based approval restrictions
     leave_user = db.query(User).filter(User.id == leave.user_id).first()
     if current_user.role == "manager":
-        if not leave_user or leave_user.role != "sales" or leave_user.team_id != current_user.team_id:
+        if active_team_id is None:
+            raise HTTPException(status_code=400, detail="Active team required")
+        if not leave_user or leave_user.role != "sales":
+            raise HTTPException(status_code=403, detail="Managers can only approve leaves for their sales team")
+        in_team = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+            TeamMembership.team_id == active_team_id,
+            TeamMembership.user_id == leave_user.id,
+        ).first()
+        if not in_team:
             raise HTTPException(status_code=403, detail="Managers can only approve leaves for their sales team")
 
     normalized = payload.status.strip().capitalize()

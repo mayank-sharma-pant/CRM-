@@ -5,8 +5,9 @@ from typing import Optional, List
 from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, get_active_team_id
 from app.models.core.user import User
+from app.models.core.team_membership import TeamMembership
 from app.models.sales.task import Task
 from app.models.sales.lead import Lead
 from app.models.sales.client import Client
@@ -42,7 +43,8 @@ def get_tasks_list(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get full task list with grouping (paginated)."""
     # Base query for tasks
@@ -54,9 +56,15 @@ def get_tasks_list(
     elif current_user.role == "manager":
         # Managers see tasks assigned to anyone in their team or created by them.
         # MUST scope by company_id to avoid ID collision across companies.
-        team_members = apply_company_scope(db.query(User.id), User, current_user).filter(
-            User.team_id == current_user.team_id
-        ).all()
+        if active_team_id is None:
+            team_members = []
+        else:
+            team_members = (
+                apply_company_scope(db.query(User.id), User, current_user)
+                .join(TeamMembership, TeamMembership.user_id == User.id)
+                .filter(TeamMembership.team_id == active_team_id)
+                .all()
+            )
         team_member_ids = [m[0] for m in team_members]
         query = query.filter((Task.assigned_to_id.in_(team_member_ids)) | (Task.assigned_by_id == current_user.id))
     
@@ -114,7 +122,8 @@ def get_tasks_list(
 @router.get("")
 def get_priority_tasks(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get priority tasks for dashboard (overdue and due today)"""
     now = datetime.now(timezone.utc)
@@ -127,9 +136,15 @@ def get_priority_tasks(
     if current_user.role == "sales":
         task_query = task_query.filter((Task.assigned_to_id == current_user.id) | (Task.assigned_by_id == current_user.id))
     elif current_user.role == "manager":
-        team_members = apply_company_scope(db.query(User.id), User, current_user).filter(
-            User.team_id == current_user.team_id
-        ).all()
+        if active_team_id is None:
+            team_members = []
+        else:
+            team_members = (
+                apply_company_scope(db.query(User.id), User, current_user)
+                .join(TeamMembership, TeamMembership.user_id == User.id)
+                .filter(TeamMembership.team_id == active_team_id)
+                .all()
+            )
         team_member_ids = [m[0] for m in team_members]
         task_query = task_query.filter((Task.assigned_to_id.in_(team_member_ids)) | (Task.assigned_by_id == current_user.id))
         
@@ -169,7 +184,8 @@ def get_priority_tasks(
 def get_task(
     task_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get task details by ID"""
     task = apply_company_scope(db.query(Task), Task, current_user).filter(Task.id == task_id).first()
@@ -182,12 +198,15 @@ def get_task(
         if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
             raise HTTPException(status_code=403, detail="You do not have access to this task")
     elif current_user.role == "manager":
-        # Check if the assignee belongs to the manager's team
-        # Added explicit company scoping to User lookup
-        assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
-        
-        if assignee and assignee.team_id != current_user.team_id and task.assigned_by_id != current_user.id:
-            raise HTTPException(status_code=403, detail="You do not have access to this team's task")
+        if active_team_id is None:
+            raise HTTPException(status_code=403, detail="Active team required")
+        if task.assigned_to_id:
+            in_team = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+                TeamMembership.team_id == active_team_id,
+                TeamMembership.user_id == task.assigned_to_id,
+            ).first()
+            if not in_team and task.assigned_by_id != current_user.id:
+                raise HTTPException(status_code=403, detail="You do not have access to this team's task")
     
     return {
         "id": task.id,
@@ -260,7 +279,8 @@ def update_task(
     task_id: int,
     body: TaskUpdateBody,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Update a task"""
     task = apply_company_scope(db.query(Task), Task, current_user).filter(Task.id == task_id).first()
@@ -273,10 +293,15 @@ def update_task(
         if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
             raise HTTPException(status_code=403, detail="You cannot edit someone else's task")
     elif current_user.role == "manager":
-        assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
-        
-        if assignee and assignee.team_id != current_user.team_id and task.assigned_by_id != current_user.id:
-            raise HTTPException(status_code=403, detail="You cannot edit a task outside your team")
+        if active_team_id is None:
+            raise HTTPException(status_code=403, detail="Active team required")
+        if task.assigned_to_id:
+            in_team = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+                TeamMembership.team_id == active_team_id,
+                TeamMembership.user_id == task.assigned_to_id,
+            ).first()
+            if not in_team and task.assigned_by_id != current_user.id:
+                raise HTTPException(status_code=403, detail="You cannot edit a task outside your team")
     
     if body.title is not None:
         task.title = body.title
@@ -297,7 +322,8 @@ def update_task(
 def complete_task(
     task_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Mark task as completed"""
     task = apply_company_scope(db.query(Task), Task, current_user).filter(Task.id == task_id).first()
@@ -310,10 +336,15 @@ def complete_task(
         if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
             raise HTTPException(status_code=403, detail="You do not have permission to complete this task")
     elif current_user.role == "manager":
-        assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
-        
-        if assignee and assignee.team_id != current_user.team_id and task.assigned_by_id != current_user.id:
-            raise HTTPException(status_code=403, detail="You do not have permission to complete tasks outside your team")
+        if active_team_id is None:
+            raise HTTPException(status_code=403, detail="Active team required")
+        if task.assigned_to_id:
+            in_team = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+                TeamMembership.team_id == active_team_id,
+                TeamMembership.user_id == task.assigned_to_id,
+            ).first()
+            if not in_team and task.assigned_by_id != current_user.id:
+                raise HTTPException(status_code=403, detail="You do not have permission to complete tasks outside your team")
     
     task.status = TaskStatus.COMPLETED
     task.completed_at = datetime.now(timezone.utc)
@@ -327,7 +358,8 @@ def complete_task(
 def delete_task(
     task_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Delete a task"""
     task = apply_company_scope(db.query(Task), Task, current_user).filter(Task.id == task_id).first()
@@ -340,10 +372,15 @@ def delete_task(
         if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
             raise HTTPException(status_code=403, detail="You can only delete your own tasks")
     elif current_user.role == "manager":
-        assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
-        
-        if assignee and assignee.team_id != current_user.team_id and task.assigned_by_id != current_user.id:
-            raise HTTPException(status_code=403, detail="You can only delete tasks in your team")
+        if active_team_id is None:
+            raise HTTPException(status_code=403, detail="Active team required")
+        if task.assigned_to_id:
+            in_team = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+                TeamMembership.team_id == active_team_id,
+                TeamMembership.user_id == task.assigned_to_id,
+            ).first()
+            if not in_team and task.assigned_by_id != current_user.id:
+                raise HTTPException(status_code=403, detail="You can only delete tasks in your team")
     
     db.delete(task)
     db.commit()

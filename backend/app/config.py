@@ -1,11 +1,17 @@
 import warnings
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 _INSECURE_KEY_PREFIX = "your-secret-key"
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore",
+    )
+
     ENVIRONMENT: str = "development"
     DATABASE_URL: str = "sqlite:///./crm.db"
 
@@ -32,10 +38,11 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str = "https://crm.perioxia.com"
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-        extra = "ignore"
+    # AI (Gemini)
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+    AI_RATE_LIMIT_PER_MINUTE: int = 20
+    AI_MAX_ACTIONS_PER_REQUEST: int = 5
 
 
 settings = Settings()

@@ -1,23 +1,47 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import api from '../../services/api';
 
 export default function LeadModal({ isOpen, onClose, onRefresh }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [teams, setTeams] = useState([]);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         phone: '',
         company: '',
+        team_id: '',
         source: '',
         service_type: '',
         notes: ''
     });
 
     if (!isOpen) return null;
+
+    useEffect(() => {
+        const loadTeams = async () => {
+            try {
+                const res = await api.get('/teams/mine');
+                setTeams(res.data?.teams || []);
+                // Default selection: active team if present, else first team
+                const active = res.data?.active_team_id;
+                if (!formData.team_id) {
+                    if (active) {
+                        setFormData(prev => ({ ...prev, team_id: String(active) }));
+                    } else if ((res.data?.teams || []).length > 0) {
+                        setFormData(prev => ({ ...prev, team_id: String(res.data.teams[0].id) }));
+                    }
+                }
+            } catch {
+                // ignore
+            }
+        };
+        loadTeams();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -29,12 +53,16 @@ export default function LeadModal({ isOpen, onClose, onRefresh }) {
         setLoading(true);
         setError(null);
         try {
-            await api.post('/leads', formData);
+            const payload = {
+                ...formData,
+                team_id: formData.team_id ? parseInt(formData.team_id, 10) : undefined,
+            };
+            await api.post('/leads', payload);
             onRefresh();
             onClose();
             // Reset form
             setFormData({
-                name: '', email: '', phone: '', company: '', source: '', service_type: '', notes: ''
+                name: '', email: '', phone: '', company: '', team_id: '', source: '', service_type: '', notes: ''
             });
         } catch (err) {
             console.error("Create lead failed", err);
@@ -96,6 +124,25 @@ export default function LeadModal({ isOpen, onClose, onRefresh }) {
                             />
                         </div>
                     </div>
+
+                    {teams.length > 0 && (
+                        <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Team *</label>
+                            <select
+                                required
+                                name="team_id"
+                                value={formData.team_id}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                            >
+                                {teams.map((t) => (
+                                    <option key={t.id} value={String(t.id)}>
+                                        {t.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">

@@ -14,10 +14,12 @@ depends_on = None
 
 
 def upgrade() -> None:
+    is_sqlite = op.get_bind().dialect.name == "sqlite"
     op.add_column("invoice_items", sa.Column("company_id", sa.Integer(), nullable=True))
-    op.create_foreign_key(
-        "fk_invoice_items_company_id", "invoice_items", "companies", ["company_id"], ["id"]
-    )
+    if not is_sqlite:
+        op.create_foreign_key(
+            "fk_invoice_items_company_id", "invoice_items", "companies", ["company_id"], ["id"]
+        )
     op.create_index("ix_invoice_items_company_id", "invoice_items", ["company_id"])
 
     # Backfill: derive company_id from parent invoice
@@ -32,6 +34,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    is_sqlite = op.get_bind().dialect.name == "sqlite"
     op.drop_index("ix_invoice_items_company_id", table_name="invoice_items")
-    op.drop_constraint("fk_invoice_items_company_id", "invoice_items", type_="foreignkey")
+    if not is_sqlite:
+        op.drop_constraint("fk_invoice_items_company_id", "invoice_items", type_="foreignkey")
     op.drop_column("invoice_items", "company_id")

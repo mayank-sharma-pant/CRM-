@@ -73,8 +73,10 @@ export default function ManagerTasksPage() {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         return tasks.filter(t => {
-            if (!t.dueDate) return activeTab === 'Upcoming';
-            const due = new Date(t.dueDate);
+            const dueRaw = t.due_date_iso || t.due_date || t.dueDate;
+            if (!dueRaw) return activeTab === 'Upcoming';
+            const due = new Date(dueRaw);
+            if (Number.isNaN(due.getTime())) return false;
             if (activeTab === 'Overdue') return due < today && t.status !== 'Completed';
             if (activeTab === 'Today') return due.toDateString() === today.toDateString();
             if (activeTab === 'Upcoming') return due > today;

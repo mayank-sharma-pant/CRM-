@@ -32,6 +32,7 @@ import {
     Target,
     TrendingUp,
     Package,
+    Sparkles,
     Menu,
     X
 } from 'lucide-react';
@@ -61,7 +62,8 @@ const ICON_MAP = {
     Bug,
     Target,
     TrendingUp,
-    Package
+    Package,
+    Sparkles
 };
 
 const ROLE_NAVIGATION = {
@@ -74,6 +76,7 @@ const ROLE_NAVIGATION = {
         { name: 'Tasks', href: '/sales/tasks', icon: 'CheckSquare' },
         { name: 'Follow-ups', href: '/sales/follow-ups', icon: 'Calendar' },
         { name: 'Performance', href: '/sales/performance', icon: 'BarChart' },
+        { name: 'AI Assistant', href: '/sales/assistant', icon: 'Sparkles' },
     ],
     manager: [
         { category: 'OVERVIEW' },
@@ -87,6 +90,7 @@ const ROLE_NAVIGATION = {
         { name: 'Stock', href: '/manager/stock', icon: 'Package' },
         { name: 'Tasks', href: '/manager/tasks', icon: 'CheckSquare' },
         { name: 'Reports', href: '/manager/reports', icon: 'PieChart' },
+        { name: 'AI Assistant', href: '/manager/assistant', icon: 'Sparkles' },
     ],
     admin: [
         { name: 'Dashboard', href: '/admin/dashboard', icon: 'LayoutDashboard' },
@@ -94,6 +98,7 @@ const ROLE_NAVIGATION = {
         { name: 'Team Management', href: '/admin/teams', icon: 'GitBranch' },
         { name: 'Approvals', href: '/admin/approvals', icon: 'UserCheck' },
         { name: 'Audit Logs', href: '/admin/audit', icon: 'FileText' },
+        { name: 'AI Assistant', href: '/admin/assistant', icon: 'Sparkles' },
     ],
     md: [
         { name: 'Dashboard', href: '/md/dashboard', icon: 'LayoutDashboard' },
@@ -108,6 +113,7 @@ const ROLE_NAVIGATION = {
         { name: 'Stock', href: '/md/stock', icon: 'Package' },
         { name: 'Invoices', href: '/md/invoices', icon: 'Receipt' },
         { name: 'Reports', href: '/md/reports', icon: 'PieChart' },
+        { name: 'AI Assistant', href: '/md/assistant', icon: 'Sparkles' },
     ],
     purchase: [
         { name: 'Dashboard', href: '/purchase/dashboard', icon: 'LayoutDashboard' },
@@ -115,6 +121,7 @@ const ROLE_NAVIGATION = {
         { name: 'Stock', href: '/purchase/stock', icon: 'Package' },
         { name: 'Invoice Management', href: '/purchase/invoices', icon: 'Receipt' },
         { name: 'Purchase Monitoring', href: '/purchase/monitoring', icon: 'BarChart3' },
+        { name: 'AI Assistant', href: '/purchase/assistant', icon: 'Sparkles' },
     ],
 };
 

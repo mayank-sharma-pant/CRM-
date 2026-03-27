@@ -32,6 +32,57 @@ class TaskUpdateBody(BaseModel):
     title: Optional[str] = None
     status: Optional[str] = None
     priority: Optional[str] = None
+    due_date: Optional[str] = None
+
+
+def _parse_due_date_input(raw_due_date: Optional[str]) -> Optional[datetime]:
+    if raw_due_date is None:
+        return None
+    due_date_str = raw_due_date.strip()
+    if not due_date_str:
+        return None
+    try:
+        parsed = datetime.fromisoformat(due_date_str.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid due_date format. Use ISO datetime or YYYY-MM-DD.",
+        )
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _to_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _normalize_priority(raw_priority: Optional[str]) -> str:
+    normalized = (raw_priority or "").strip().lower()
+    mapping = {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+    }
+    if normalized not in mapping:
+        raise HTTPException(status_code=400, detail="Invalid priority. Allowed: low, medium, high.")
+    return mapping[normalized]
+
+
+def _normalize_status(raw_status: Optional[str]) -> str:
+    normalized = (raw_status or "").strip().lower().replace("_", " ")
+    mapping = {
+        "pending": "Pending",
+        "in progress": "In Progress",
+        "completed": "Completed",
+    }
+    if normalized not in mapping:
+        raise HTTPException(status_code=400, detail="Invalid status. Allowed: Pending, In Progress, Completed.")
+    return mapping[normalized]
 
 
 # ===============================
@@ -80,18 +131,19 @@ def get_tasks_list(
     tasks = query.order_by(Task.due_date.asc()).offset(skip).limit(limit).all()
     
     def get_due_label(task):
-        if not task.due_date:
+        due_dt = _to_utc(task.due_date)
+        if not due_dt:
             return "No date"
         now = datetime.now(timezone.utc)
-        diff = task.due_date - now
+        diff = due_dt - now
         if diff.days < 0:
             return f"{abs(diff.days)} days ago"
         elif diff.days == 0:
-            return task.due_date.strftime("%I:%M %p") if task.due_date.date() == now.date() else "Today"
+            return due_dt.strftime("%I:%M %p") if due_dt.date() == now.date() else "Today"
         elif diff.days == 1:
             return "Tomorrow"
         else:
-            return task.due_date.strftime("%a, %b %d")
+            return due_dt.strftime("%a, %b %d")
     
     lead_ids = {t.lead_id for t in tasks if t.lead_id}
     client_ids = {t.client_id for t in tasks if t.client_id}
@@ -119,6 +171,7 @@ def get_tasks_list(
             "entityType": entity_type,
             "assignedBy": "manager" if task.is_manager_assigned else "self",
             "dueDate": get_due_label(task),
+            "due_date_iso": _to_utc(task.due_date).isoformat() if task.due_date else None,
             "status": task.status,
             "priority": task.priority
         })
@@ -133,7 +186,7 @@ def get_priority_tasks(
 ):
     """Get priority tasks for dashboard (overdue and due today)"""
     now = datetime.now(timezone.utc)
-    today_start = datetime(now.year, now.month, now.day)
+    today_start = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
     today_end = today_start + timedelta(days=1)
     
     task_query = apply_company_scope(db.query(Task), Task, current_user)
@@ -242,13 +295,7 @@ def create_task(
     """Create a new task"""
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
-    due_date_val = None
-    if body.due_date and body.due_date.strip():
-        try:
-            due_date_str = body.due_date.replace("Z", "+00:00")
-            due_date_val = datetime.fromisoformat(due_date_str)
-        except ValueError:
-            pass
+    due_date_val = _parse_due_date_input(body.due_date)
 
     # Security: Verify Lead/Client belong to this company before linking
     if body.lead_id:
@@ -264,7 +311,7 @@ def create_task(
         company_id=current_user.company_id,
         title=body.title,
         description=body.description,
-        priority=body.priority,
+        priority=_normalize_priority(body.priority),
         due_date=due_date_val,
         lead_id=body.lead_id,
         client_id=body.client_id,
@@ -317,11 +364,13 @@ def update_task(
     if body.title is not None:
         task.title = body.title
     if body.status is not None:
-        task.status = body.status
-        if body.status == "Completed":
+        task.status = _normalize_status(body.status)
+        if task.status == "Completed":
             task.completed_at = datetime.now(timezone.utc)
     if body.priority is not None:
-        task.priority = body.priority
+        task.priority = _normalize_priority(body.priority)
+    if "due_date" in body.model_fields_set:
+        task.due_date = _parse_due_date_input(body.due_date)
     
     db.commit()
     db.refresh(task)

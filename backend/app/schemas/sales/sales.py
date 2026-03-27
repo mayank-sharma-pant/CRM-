@@ -89,6 +89,7 @@ class TaskResponse(BaseModel):
     title: str
     description: Optional[str] = None
     dueDate: str
+    due_date_iso: Optional[str] = None
     status: TaskStatus = TaskStatus.PENDING
     priority: Optional[TaskPriority] = None
     entity: Optional[str] = None

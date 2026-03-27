@@ -46,6 +46,18 @@ def _active_team_member_ids(db: Session, current_user: User, active_team_id: Opt
     return [r[0] for r in rows]
 
 
+def _normalize_task_priority(raw_priority: str) -> str:
+    normalized = (raw_priority or "").strip().lower()
+    mapping = {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+    }
+    if normalized not in mapping:
+        raise HTTPException(status_code=400, detail="Invalid priority. Allowed: low, medium, high.")
+    return mapping[normalized]
+
+
 # ===============================
 # Manager Dashboard
 # ===============================
@@ -467,6 +479,11 @@ def create_team_task(
     """Create and assign a task to a team member"""
     if active_team_id is None:
         raise HTTPException(status_code=400, detail="Active team required")
+    try:
+        parsed_due_date = datetime.strptime(due_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid due_date format. Use YYYY-MM-DD.")
+    normalized_priority = _normalize_task_priority(priority)
     assignee = (
         apply_company_scope(db.query(User), User, current_user)
         .join(TeamMembership, TeamMembership.user_id == User.id)
@@ -481,8 +498,8 @@ def create_team_task(
         title=title,
         assigned_to_id=assignee_id,
         assigned_by_id=current_user.id,
-        due_date=datetime.strptime(due_date, "%Y-%m-%d"),
-        priority=priority,
+        due_date=parsed_due_date,
+        priority=normalized_priority,
         status="Pending",
         is_manager_assigned=True
     )

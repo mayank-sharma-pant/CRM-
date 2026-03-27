@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import { Package, Plus, Search, AlertTriangle } from 'lucide-react';
+
+const STOCK_POLL_INTERVAL_MS = 30000;
 
 export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
     const [items, setItems] = useState([]);
@@ -18,22 +20,30 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
         reorder_level: 0,
     });
 
-    const fetchItems = async () => {
+    const fetchItems = useCallback(async (showLoader = true) => {
         try {
-            setLoading(true);
+            if (showLoader) {
+                setLoading(true);
+            }
             const res = await api.get('/inventory', { params: { limit: 500 } });
             setItems(res.data?.items || []);
         } catch (err) {
             console.error('Failed to fetch stock', err);
             setItems([]);
         } finally {
-            setLoading(false);
+            if (showLoader) {
+                setLoading(false);
+            }
         }
-    };
+    }, []);
 
     useEffect(() => {
-        fetchItems();
-    }, []);
+        fetchItems(true);
+        const intervalId = setInterval(() => {
+            fetchItems(false);
+        }, STOCK_POLL_INTERVAL_MS);
+        return () => clearInterval(intervalId);
+    }, [fetchItems]);
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -64,7 +74,7 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
                 quantity: 0,
                 reorder_level: 0,
             });
-            fetchItems();
+            fetchItems(false);
         } catch (err) {
             const detail = err.response?.data?.detail;
             alert(typeof detail === 'string' ? detail : 'Failed to create stock item');
@@ -82,7 +92,7 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
         const qty = delta > 0 ? abs : -abs;
         try {
             await api.post(`/inventory/${id}/adjust`, { quantity_change: qty });
-            fetchItems();
+            fetchItems(false);
         } catch (err) {
             const detail = err.response?.data?.detail;
             alert(typeof detail === 'string' ? detail : 'Failed to update quantity');

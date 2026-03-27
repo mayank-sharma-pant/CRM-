@@ -269,7 +269,7 @@ def get_revenue_analytics(
     else:
         trend_insight = "Revenue is perfectly flat compared to the previous 30 days."
 
-    # Dynamic AI Growth Insights (Mock logic based on current rev/outstanding)
+    # Dynamic AI growth insights from current revenue/outstanding signals.
     ai_insights = []
     if outstanding > total_revenue * 0.3 and total_revenue > 0:
         ai_insights.append({"tag": "Liquidity", "title": "High AR vs Collected", "evidence": [f"{int((outstanding/total_revenue)*100)}% of revenue is pending."]})
@@ -359,13 +359,26 @@ def get_company_sales(
 
     # AI Insights
     ai_insights = []
-    avg_velocity = 14  # placeholder for lead age tracking
+    active_lead_rows = lead_q.filter(
+        Lead.status.notin_(["Converted", "Lost"]),
+        Lead.created_at.isnot(None),
+    ).with_entities(Lead.created_at).all()
+    avg_velocity = 0
+    if active_lead_rows:
+        total_age_days = 0
+        for (created_at,) in active_lead_rows:
+            if created_at is None:
+                continue
+            created_at_utc = created_at if created_at.tzinfo else created_at.replace(tzinfo=timezone.utc)
+            total_age_days += max(0, int((now - created_at_utc).total_seconds() // 86400))
+        avg_velocity = round(total_age_days / max(1, len(active_lead_rows)))
     if win_rate < 20:
         ai_insights.append({"tag": "Critical", "title": "Conversion Drop", "evidence": [f"Win rate at {win_rate}%"], "link": "/md/monitoring"})
     elif active_leads > (won_leads + lost_leads) * 2:
         ai_insights.append({"tag": "Bottleneck", "title": "Pipeline Congestion", "evidence": [f"{active_leads} active deals aging"], "link": "/md/monitoring"})
     else:
-        ai_insights.append({"tag": "Performance", "title": "Pipeline Velocity", "evidence": [f"Avg {avg_velocity} days"], "link": "/md/monitoring"})
+        velocity_text = f"Avg {avg_velocity} days" if avg_velocity > 0 else "No active leads in pipeline"
+        ai_insights.append({"tag": "Performance", "title": "Pipeline Velocity", "evidence": [velocity_text], "link": "/md/monitoring"})
 
     return {
         "summary": {
@@ -647,6 +660,8 @@ def get_company_monitoring(
     current_user: User = Depends(require_md)
 ):
     """Get company-wide monitoring and alerts"""
+    now_utc_naive = datetime.utcnow()
+
     # Get team status (company-scoped)
     teams = apply_company_scope(db.query(Team), Team, current_user).all()
     team_status = []
@@ -664,7 +679,8 @@ def get_company_monitoring(
     
     # 1. Overdue tasks
     overdue_tasks = apply_company_scope(db.query(Task), Task, current_user).filter(
-        Task.due_date < datetime.now(timezone.utc),
+        Task.due_date.isnot(None),
+        Task.due_date < now_utc_naive,
         Task.status != "Completed"
     ).count()
     if overdue_tasks > 0:
@@ -686,7 +702,7 @@ def get_company_monitoring(
         ai_interpretation.append({"type": "FINANCE", "title": "Cashflow Risk", "evidence": [f"{overdue_invoices} unsettled"]})
 
     # 3. Stalled Leads
-    two_weeks_ago = datetime.now(timezone.utc) - timedelta(days=14)
+    two_weeks_ago = now_utc_naive - timedelta(days=14)
     stalled_leads = lead_q.filter(Lead.status.in_(["New", "Contacted"]), Lead.created_at < two_weeks_ago).count()
     if stalled_leads > 0:
         alerts.append({
@@ -698,11 +714,32 @@ def get_company_monitoring(
     if not ai_interpretation:
         ai_interpretation.append({"type": "INFO", "title": "System Nominal", "evidence": ["All clear"]})
 
-    # Mock trend history (until we have an alert history table)
-    risk_trend = [
-        {"date": (datetime.now(timezone.utc) - timedelta(days=i)).strftime("%a"), "value": max(1, len(alerts) - (i % 3))}
-        for i in range(6, -1, -1)
-    ]
+    # Risk trend from real daily snapshots (last 7 days).
+    risk_trend = []
+    for i in range(6, -1, -1):
+        checkpoint_dt = now_utc_naive - timedelta(days=i)
+        checkpoint_date = checkpoint_dt.date()
+        stall_cutoff = checkpoint_dt - timedelta(days=14)
+
+        overdue_tasks_day = apply_company_scope(db.query(Task), Task, current_user).filter(
+            Task.due_date.isnot(None),
+            Task.due_date < checkpoint_dt,
+            Task.status != "Completed",
+            Task.created_at <= checkpoint_dt,
+        ).count()
+        overdue_invoices_day = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(
+            Invoice.due_date.isnot(None),
+            Invoice.due_date < checkpoint_date,
+            Invoice.status.in_(["Pending", "Overdue"]),
+        ).count()
+        stalled_leads_day = lead_q.filter(
+            Lead.status.in_(["New", "Contacted"]),
+            Lead.created_at < stall_cutoff,
+            Lead.created_at <= checkpoint_dt,
+        ).count()
+
+        risk_value = overdue_tasks_day + overdue_invoices_day + stalled_leads_day
+        risk_trend.append({"date": checkpoint_dt.strftime("%a"), "value": risk_value})
 
     return {
         "alerts": alerts,

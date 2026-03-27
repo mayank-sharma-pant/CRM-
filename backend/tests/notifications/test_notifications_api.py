@@ -64,6 +64,12 @@ def test_low_stock_invoice_creates_purchase_notifications(client, db):
     purchase_2 = create_active_user(
         db, email="purchase2@lnf.com", role="purchase", company_id=company.id
     )
+    manager_user = create_active_user(
+        db, email="manager@lnf.com", role="manager", company_id=company.id
+    )
+    md_user = create_active_user(
+        db, email="md@lnf.com", role="md", company_id=company.id
+    )
     sales_user = create_active_user(db, email="sales@lnf.com", role="sales", company_id=company.id)
 
     customer = create_client(
@@ -122,11 +128,20 @@ def test_low_stock_invoice_creates_purchase_notifications(client, db):
 
     notif_p1 = db.query(Notification).filter(Notification.user_id == purchase_1.id).all()
     notif_p2 = db.query(Notification).filter(Notification.user_id == purchase_2.id).all()
+    notif_manager = db.query(Notification).filter(Notification.user_id == manager_user.id).all()
+    notif_md = db.query(Notification).filter(Notification.user_id == md_user.id).all()
+    notif_sales = db.query(Notification).filter(Notification.user_id == sales_user.id).all()
     assert len(notif_p1) == 1
     assert len(notif_p2) == 1
+    assert len(notif_manager) == 1
+    assert len(notif_md) == 1
+    assert len(notif_sales) == 1
     assert notif_p1[0].title.startswith("Low Stock:")
     assert notif_p1[0].type == "warning"
     assert notif_p1[0].link == "/purchase/stock"
+    assert notif_manager[0].link == "/manager/stock"
+    assert notif_md[0].link == "/md/stock"
+    assert notif_sales[0].link == "/sales/stock"
     assert "Only 1" in (notif_p1[0].message or "")
 
 

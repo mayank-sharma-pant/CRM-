@@ -134,3 +134,61 @@ def test_invoice_generation(client, db):
     invoice = db.query(Invoice).filter(Invoice.id == data["id"]).first()
     assert invoice is not None
     assert invoice.client_id == customer.id
+
+
+def test_platform_admin_without_company_cannot_create_invoice(client, db):
+    company, _admin = setup_test_data(db)
+    customer = create_client(
+        db,
+        company_id=company.id,
+        name="Blocked Invoice Client",
+        email="blocked@client.com",
+    )
+    platform_admin = create_active_user(
+        db,
+        email="platform-admin@ftc.com",
+        role="admin",
+        company_id=None,
+        full_name="Platform Admin",
+    )
+
+    login_user(client, platform_admin.email)
+    response = client.post(
+        "/api/invoices",
+        json={
+            "client_id": customer.id,
+            "items": [{"description": "Service", "quantity": 1, "unit_price": 10.0}],
+        },
+    )
+    assert response.status_code == 403
+    assert "assigned to a company" in response.json()["detail"].lower()
+
+
+def test_invoice_rejects_negative_tax_discount_and_due_days(client, db):
+    company, admin = setup_test_data(db)
+    customer = create_client(
+        db,
+        company_id=company.id,
+        name="Validation Client",
+        assigned_to_id=admin.id,
+        email="validation@client.com",
+    )
+    login_user(client, admin.email)
+
+    invalid_payloads = [
+        ({"tax": -1}, "tax"),
+        ({"discount": -1}, "discount"),
+        ({"due_days": -1}, "due_days"),
+    ]
+
+    for extra, field_name in invalid_payloads:
+        response = client.post(
+            "/api/invoices",
+            json={
+                "client_id": customer.id,
+                "items": [{"description": "Service", "quantity": 1, "unit_price": 100.0}],
+                **extra,
+            },
+        )
+        assert response.status_code == 400
+        assert field_name in response.json()["detail"].lower()

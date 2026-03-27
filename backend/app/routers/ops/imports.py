@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 import csv
 import io
-import codecs
+import logging
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user, get_active_team_id
@@ -15,6 +15,7 @@ from app.models.sales.lead import Lead
 from app.utils.audit import log_activity
 
 router = APIRouter()
+logger = logging.getLogger("app")
 
 @router.post("/leads")
 async def import_leads(
@@ -27,7 +28,7 @@ async def import_leads(
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
         
-    if not file.filename.endswith('.csv'):
+    if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Invalid file type. Only CSV files are allowed.")
         
     try:
@@ -96,6 +97,11 @@ async def import_leads(
         
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail="Invalid CSV encoding. Please upload a UTF-8 encoded file.")
-    except Exception as e:
+    except HTTPException:
+        # Preserve explicit 4xx/5xx responses raised by route validation.
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to process CSV: {str(e)}")
+        raise
+    except Exception:
+        db.rollback()
+        logger.exception("CSV import failed for user_id=%s", current_user.id)
+        raise HTTPException(status_code=500, detail="Failed to process CSV file.")

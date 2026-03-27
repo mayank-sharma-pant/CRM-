@@ -1,4 +1,9 @@
+from datetime import datetime, timedelta, timezone
+
+from app.models.core.invite import Invite, InviteStatus
+from app.routers.auth import auth as auth_router
 from tests.helpers.auth import create_active_user
+from tests.helpers.factories import create_company
 
 
 def test_login_success(client, db):
@@ -43,3 +48,73 @@ def test_logout(client):
 
     set_cookie_headers = [h for h in response.headers.get_list("set-cookie")]
     assert any("access_token=;" in h or 'access_token=""' in h for h in set_cookie_headers)
+
+
+def test_signup_internal_error_is_sanitized(client, monkeypatch):
+    def _boom(*_args, **_kwargs):
+        raise RuntimeError("SECRET_DB_FAILURE")
+
+    monkeypatch.setattr(auth_router, "notify_platform_admins", _boom)
+    response = client.post(
+        "/api/auth/signup",
+        json={
+            "email": "sanitize-signup@example.com",
+            "password": "password123",
+            "full_name": "Sanitize Signup",
+            "company_name": "Sanitize Co",
+            "phone": "1234567890",
+        },
+    )
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Registration failed. Please try again."
+    assert "secret" not in response.json()["detail"].lower()
+
+
+def test_login_internal_error_is_sanitized(client, db, monkeypatch):
+    create_active_user(
+        db,
+        email="sanitize-login@example.com",
+        role="sales",
+        full_name="Sanitize Login",
+        password="password123",
+    )
+
+    def _boom(_user, _db):
+        raise RuntimeError("SECRET_COMPANY_CHECK_FAILURE")
+
+    monkeypatch.setattr(auth_router, "_check_company_status", _boom)
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "sanitize-login@example.com", "password": "password123"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Login failed. Please try again."
+    assert "secret" not in response.json()["detail"].lower()
+
+
+def test_accept_invite_internal_error_is_sanitized(client, db, monkeypatch):
+    company = create_company(db, name="Invite Co", company_code="IVT")
+    invite = Invite(
+        company_id=company.id,
+        email="invitee@example.com",
+        full_name="Invitee User",
+        role="sales",
+        status=InviteStatus.PENDING,
+        token="token-sanitize-accept-invite",
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+    db.add(invite)
+    db.commit()
+
+    def _boom(*_args, **_kwargs):
+        raise RuntimeError("SECRET_TOKEN_FAILURE")
+
+    monkeypatch.setattr(auth_router, "create_access_token", _boom)
+    response = client.post(
+        f"/api/auth/accept-invite/{invite.token}",
+        json={"password": "newpassword123"},
+    )
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Registration failed. Please try again."
+    assert "secret" not in response.json()["detail"].lower()

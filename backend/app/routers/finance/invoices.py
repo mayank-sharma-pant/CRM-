@@ -38,6 +38,16 @@ class InvoiceCreate(BaseModel):
     discount: Optional[float] = None   # dollar amount from frontend
 
 
+def _stock_link_for_role(role: str) -> str:
+    role_map = {
+        "purchase": "/purchase/stock",
+        "md": "/md/stock",
+        "manager": "/manager/stock",
+        "sales": "/sales/stock",
+    }
+    return role_map.get(role, "/purchase/stock")
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_invoice(
     body: InvoiceCreate,
@@ -46,8 +56,18 @@ def create_invoice(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Create a new invoice for a client (company-scoped)."""
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
+
     if not body.items:
         raise HTTPException(status_code=400, detail="At least one line item is required")
+
+    if body.tax is not None and body.tax < 0:
+        raise HTTPException(status_code=400, detail="tax must be >= 0")
+    if body.discount is not None and body.discount < 0:
+        raise HTTPException(status_code=400, detail="discount must be >= 0")
+    if body.due_days is not None and body.due_days < 0:
+        raise HTTPException(status_code=400, detail="due_days must be >= 0")
 
     for item in body.items:
         if (item.quantity or 0) <= 0:
@@ -138,7 +158,7 @@ def create_invoice(
     from datetime import timedelta
     issued = body.issued_date or date.today()
     due = body.due_date
-    if not due and body.due_days:
+    if not due and body.due_days is not None:
         due = issued + timedelta(days=body.due_days)
 
     invoice = Invoice(
@@ -182,19 +202,20 @@ def create_invoice(
         stock_item = stock_map.get(stock_id)
         if stock_item is None:
             continue
-        notify_role_users(
-            db,
-            company_id=company_id,
-            role="purchase",
-            title=f"Low Stock: {stock_item.name}",
-            message=f"Only {stock_item.quantity} {stock_item.unit}(s) remaining.",
-            type="warning",
-            link="/purchase/stock",
-            category="inventory",
-            dedupe_window_seconds=6 * 60 * 60,
-            dedupe_match_message=False,
-            skip_if_unread_duplicate=True,
-        )
+        for target_role in ("purchase", "md", "manager", "sales"):
+            notify_role_users(
+                db,
+                company_id=company_id,
+                role=target_role,
+                title=f"Low Stock: {stock_item.name}",
+                message=f"Only {stock_item.quantity} {stock_item.unit}(s) remaining.",
+                type="warning",
+                link=_stock_link_for_role(target_role),
+                category="inventory",
+                dedupe_window_seconds=6 * 60 * 60,
+                dedupe_match_message=False,
+                skip_if_unread_duplicate=True,
+            )
 
     db.commit()
     db.refresh(invoice)

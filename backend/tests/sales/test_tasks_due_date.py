@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta, timezone
+
+from app.models.core.enums import TaskPriority, TaskStatus
 from app.models.sales.lead import Lead
 from app.models.sales.task import Task
 from tests.helpers.auth import create_active_user, login_user
@@ -103,3 +106,28 @@ def test_tasks_list_includes_due_date_iso(client, db):
     assert row is not None
     assert row["due_date_iso"] is not None
     assert "2026-04-10" in row["due_date_iso"]
+
+
+def test_tasks_list_handles_timezone_aware_due_date_without_crash(client, db):
+    company, admin = _setup_admin(client, db)
+    aware_due_date = datetime.now(timezone.utc) + timedelta(days=2)
+    task = Task(
+        company_id=company.id,
+        title="Timezone-safe list task",
+        description="Ensures due-date math handles aware datetimes",
+        status=TaskStatus.PENDING,
+        priority=TaskPriority.MEDIUM,
+        due_date=aware_due_date,
+        assigned_to_id=admin.id,
+        assigned_by_id=admin.id,
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+
+    response = client.get("/api/tasks/list")
+    assert response.status_code == 200
+    payload = response.json()
+    row = next((x for x in payload["items"] if x["id"] == task.id), None)
+    assert row is not None
+    assert row["due_date_iso"] is not None

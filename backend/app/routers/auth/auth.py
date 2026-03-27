@@ -150,12 +150,12 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
             },
             "message": "User registered successfully. Company is pending approval."
         }
-    except Exception as e:
+    except Exception:
         db.rollback()
-        logger.error(f"SIGNUP ERROR: {str(e)}", exc_info=True)
+        logger.exception("SIGNUP ERROR for email=%s", user_data.email)
         raise HTTPException(
             status_code=500,
-            detail=f"Registration failed: {str(e)}"
+            detail="Registration failed. Please try again."
         )
 
 
@@ -181,9 +181,9 @@ def login(request: Request, response: Response, form_data: OAuth2PasswordRequest
         _check_company_status(user, db)
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"LOGIN ERROR during company check for {email}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
+    except Exception:
+        logger.exception("LOGIN ERROR during company check for %s", email)
+        raise HTTPException(status_code=500, detail="Login failed. Please try again.")
 
     user.last_active_at = datetime.now(timezone.utc)
     db.commit()
@@ -448,12 +448,12 @@ def accept_invite(
                 "team_id": new_user.team_id
             }
         }
-    except Exception as e:
+    except Exception:
         db.rollback()
-        logger.error(f"ACCEPT INVITE ERROR: {str(e)}", exc_info=True)
+        logger.exception("ACCEPT INVITE ERROR for token=%s", token)
         raise HTTPException(
             status_code=500,
-            detail=f"Registration failed: {str(e)}"
+            detail="Registration failed. Please try again."
         )
 
 

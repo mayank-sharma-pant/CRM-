@@ -126,7 +126,12 @@ def get_sales_dashboard(
         # Invoices explicitly created by this sales rep
         sales_inv_query = inv_query.filter(Invoice.created_by_id == current_user.id)
         my_orders_count = sales_inv_query.count()
-        my_orders_revenue = sales_inv_query.filter(Invoice.status != "Cancelled").with_entities(sa_func.sum(Invoice.total)).scalar() or 0.0
+        my_orders_revenue = float(
+            sales_inv_query.filter(Invoice.status != "Cancelled")
+            .with_entities(sa_func.sum(Invoice.total))
+            .scalar()
+            or 0.0
+        )
         
         # Original client ledger scoping
         client_ids = apply_company_scope(db.query(Client.id), Client, current_user).filter(Client.assigned_to_id == current_user.id).all()
@@ -140,8 +145,10 @@ def get_sales_dashboard(
         team_client_ids = [c[0] for c in team_client_ids]
         inv_query = inv_query.filter(Invoice.client_id.in_(team_client_ids))
 
-    total_rev = inv_query.with_entities(sa_func.sum(Invoice.total)).scalar() or 0.0
-    paid_rev = inv_query.filter(Invoice.status == "Paid").with_entities(sa_func.sum(Invoice.total)).scalar() or 0.0
+    total_rev = float(inv_query.with_entities(sa_func.sum(Invoice.total)).scalar() or 0.0)
+    paid_rev = float(
+        inv_query.filter(Invoice.status == "Paid").with_entities(sa_func.sum(Invoice.total)).scalar() or 0.0
+    )
     outstanding_rev = total_rev - paid_rev
 
     # Task metrics

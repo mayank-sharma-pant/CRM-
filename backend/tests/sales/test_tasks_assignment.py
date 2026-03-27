@@ -47,6 +47,39 @@ def test_admin_can_assign_task_to_another_user(client, db):
     assert task.assigned_by_id == admin.id
 
 
+def test_create_task_defaults_assignment_to_current_user(client, db):
+    company = create_company(db, name="Assign Self Co", company_code="ASL")
+    admin = create_active_user(
+        db,
+        email="admin@asl.co",
+        role="admin",
+        company_id=company.id,
+        full_name="Assign Self Admin",
+    )
+    lead = Lead(name="Assign Self Lead", company_id=company.id, status="New")
+    db.add(lead)
+    db.commit()
+    db.refresh(lead)
+
+    login_user(client, admin.email)
+    response = client.post(
+        "/api/tasks",
+        json={
+            "title": "Default self assignment",
+            "priority": "medium",
+            "due_date": "2026-04-20",
+            "lead_id": lead.id,
+        },
+    )
+    assert response.status_code == 201
+
+    task_id = response.json()["id"]
+    task = db.query(Task).filter(Task.id == task_id).first()
+    assert task is not None
+    assert task.assigned_to_id == admin.id
+    assert task.assigned_by_id == admin.id
+
+
 def test_sales_cannot_assign_task_to_other_user(client, db):
     company = create_company(db, name="Assign Sales Co", company_code="ASC")
     sales_1 = create_active_user(

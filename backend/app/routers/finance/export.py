@@ -90,7 +90,7 @@ def export_invoices(
     client_map = {}
     client_ids = set(i.client_id for i in invoices if i.client_id)
     if client_ids:
-        for c in db.query(Client).filter(Client.id.in_(client_ids)).all():
+        for c in apply_company_scope(db.query(Client), Client, current_user).filter(Client.id.in_(client_ids)).all():
             client_map[c.id] = c.name
 
     headers = ["Invoice #", "Client", "Subtotal", "Tax", "Total", "Status", "Issued Date", "Due Date", "Paid Date"]

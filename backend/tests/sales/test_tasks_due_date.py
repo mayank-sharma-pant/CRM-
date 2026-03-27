@@ -79,6 +79,40 @@ def test_update_task_due_date_and_clear(client, db):
     assert task.due_date is None
 
 
+def test_update_task_rejects_invalid_due_date_and_preserves_existing(client, db):
+    company, _admin = _setup_admin(client, db)
+    lead = Lead(name="Invalid Update Due Date Lead", company_id=company.id, status="New")
+    db.add(lead)
+    db.commit()
+    db.refresh(lead)
+
+    create_response = client.post(
+        "/api/tasks",
+        json={
+            "title": "Task with valid due date",
+            "priority": "medium",
+            "due_date": "2026-04-15",
+            "lead_id": lead.id,
+        },
+    )
+    assert create_response.status_code == 201
+    task_id = create_response.json()["id"]
+
+    update_response = client.put(
+        f"/api/tasks/{task_id}",
+        json={"due_date": "invalid-date-value"},
+    )
+    assert update_response.status_code == 400
+    assert "invalid due_date format" in update_response.json()["detail"].lower()
+
+    task = db.query(Task).filter(Task.id == task_id).first()
+    assert task is not None
+    assert task.due_date is not None
+    assert task.due_date.year == 2026
+    assert task.due_date.month == 4
+    assert task.due_date.day == 15
+
+
 def test_tasks_list_includes_due_date_iso(client, db):
     company, _admin = _setup_admin(client, db)
     lead = Lead(name="List Due Date Lead", company_id=company.id, status="New")

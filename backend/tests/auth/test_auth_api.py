@@ -50,6 +50,45 @@ def test_logout(client):
     assert any("access_token=;" in h or 'access_token=""' in h for h in set_cookie_headers)
 
 
+def test_logout_cookie_secure_matches_environment(client, monkeypatch):
+    monkeypatch.setattr(auth_router.settings, "ENVIRONMENT", "development")
+    response = client.post("/api/auth/logout")
+    assert response.status_code == 200
+    access_cookie_headers = [
+        header
+        for header in response.headers.get_list("set-cookie")
+        if "access_token=" in header
+    ]
+    assert access_cookie_headers
+    assert all("Secure" not in header for header in access_cookie_headers)
+
+
+def test_request_otp_unknown_email_returns_generic_response(client):
+    response = client.post(
+        "/api/auth/request-otp",
+        json={"email": "unknown-request-otp@example.com"},
+    )
+    assert response.status_code == 200
+    assert response.json()["message"] == "If this email is registered, an OTP has been sent."
+
+
+def test_request_otp_known_email_returns_same_generic_response(client, db):
+    company = create_company(db, name="OTP Co", company_code="OTP")
+    create_active_user(
+        db,
+        email="known-request-otp@example.com",
+        role="sales",
+        company_id=company.id,
+        full_name="Known OTP User",
+    )
+    response = client.post(
+        "/api/auth/request-otp",
+        json={"email": "known-request-otp@example.com"},
+    )
+    assert response.status_code == 200
+    assert response.json()["message"] == "If this email is registered, an OTP has been sent."
+
+
 def test_signup_internal_error_is_sanitized(client, monkeypatch):
     def _boom(*_args, **_kwargs):
         raise RuntimeError("SECRET_DB_FAILURE")

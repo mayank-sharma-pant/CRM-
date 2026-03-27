@@ -218,16 +218,29 @@ def download_document(
 def delete_document(
     document_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: int | None = Depends(get_active_team_id),
 ):
     """Delete a document."""
     doc = apply_company_scope(db.query(Document), Document, current_user).filter(Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Only allow owners, manager of team, or admin to delete
+    # Sales can only delete their own uploads.
     if current_user.role == "sales" and doc.uploaded_by_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only delete your own documents")
+    # Managers are team-scoped for delete actions.
+    if current_user.role == "manager":
+        if active_team_id is None:
+            raise HTTPException(status_code=403, detail="Active team required")
+        if doc.lead_id:
+            lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == doc.lead_id).first()
+            if not lead or lead.team_id != active_team_id:
+                raise HTTPException(status_code=403, detail="You can only delete documents from your team's leads")
+        elif doc.client_id:
+            client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == doc.client_id).first()
+            if not client or client.team_id != active_team_id:
+                raise HTTPException(status_code=403, detail="You can only delete documents from your team's clients")
 
     # Remove file from disk
     if os.path.exists(doc.file_path):

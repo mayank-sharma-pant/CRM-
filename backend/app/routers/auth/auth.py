@@ -207,14 +207,18 @@ def login(request: Request, response: Response, form_data: OAuth2PasswordRequest
 @router.post("/request-otp")
 def request_otp(request: Request, payload: OTPRequest, db: Session = Depends(get_db)):
     """Generate OTP and store in DB (multi-worker safe). Logged in dev."""
+    generic_response = {"message": "If this email is registered, an OTP has been sent."}
     # Rate limit OTP requests per email
     auth_limiter.check(request, f"request_otp:{payload.email.lower()}", **_RATE_LIMITS["request_otp"])
     user = db.query(User).filter(sa_func.lower(User.email) == payload.email.lower()).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        return generic_response
     if user.status == "disabled":
-        raise HTTPException(status_code=403, detail="User account is disabled")
-    _check_company_status(user, db)
+        return generic_response
+    try:
+        _check_company_status(user, db)
+    except HTTPException:
+        return generic_response
 
     otp_code = f"{secrets.randbelow(1000000):06d}"
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
@@ -227,7 +231,7 @@ def request_otp(request: Request, payload: OTPRequest, db: Session = Depends(get
     sent = send_otp_email(payload.email, otp_code, OTP_EXPIRY_MINUTES)
     if not sent:
         logger.warning("[OTP] Email not sent for %s — SMTP not configured or failed", payload.email)
-    return {"message": "OTP sent successfully"}
+    return generic_response
 
 
 @router.post("/login-otp", response_model=LoginResponse)
@@ -281,7 +285,7 @@ def logout(response: Response):
         key="access_token",
         httponly=True,
         samesite="lax",
-        secure=True
+        secure=settings.ENVIRONMENT == "production"
     )
     return {"message": "Logged out successfully"}
 

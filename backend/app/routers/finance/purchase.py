@@ -297,6 +297,19 @@ def create_invoice(
     """Create a new invoice from purchase department"""
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="Platform Admin cannot create invoices")
+    if not body.items:
+        raise HTTPException(status_code=400, detail="At least one line item is required")
+    if body.tax < 0:
+        raise HTTPException(status_code=400, detail="tax must be >= 0")
+    if body.discount < 0:
+        raise HTTPException(status_code=400, detail="discount must be >= 0")
+    if body.due_days < 0:
+        raise HTTPException(status_code=400, detail="due_days must be >= 0")
+    for item in body.items:
+        if item.quantity <= 0:
+            raise HTTPException(status_code=400, detail="Quantity must be greater than zero for all line items")
+        if item.unit_price < 0:
+            raise HTTPException(status_code=400, detail="Unit price cannot be negative")
     
     # Validate client
     client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == body.client_id).first()

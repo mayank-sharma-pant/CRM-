@@ -14,8 +14,6 @@ import traceback
 import logging
 import logging.config
 import os
-from app.database import engine
-from app.models.ops.stock_item import StockItem
 
 # -------------------------------------------------------
 # Structured logging — JSON-friendly format for production
@@ -55,18 +53,6 @@ app = FastAPI(
     docs_url=None if is_production else "/docs",
     redoc_url=None if is_production else "/redoc",
 )
-
-
-@app.on_event("startup")
-def ensure_feature_tables_exist():
-    """
-    Keep inventory feature usable in environments where migrations were not applied yet.
-    Creates stock table if missing.
-    """
-    try:
-        StockItem.__table__.create(bind=engine, checkfirst=True)
-    except Exception:
-        logger.exception("Failed to ensure stock_items table exists")
 
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=os.getenv("TRUSTED_HOSTS", "127.0.0.1").split(","))

@@ -16,6 +16,7 @@ from app.utils.audit import log_activity
 
 router = APIRouter()
 logger = logging.getLogger("app")
+MAX_CSV_BYTES = 2 * 1024 * 1024  # 2 MB hard cap per upload
 
 @router.post("/leads")
 async def import_leads(
@@ -32,8 +33,10 @@ async def import_leads(
         raise HTTPException(status_code=400, detail="Invalid file type. Only CSV files are allowed.")
         
     try:
-        # Read file correctly handling the bytes
-        contents = await file.read()
+        # Read with a hard cap to prevent memory pressure from oversized uploads.
+        contents = await file.read(MAX_CSV_BYTES + 1)
+        if len(contents) > MAX_CSV_BYTES:
+            raise HTTPException(status_code=413, detail="CSV file too large. Maximum size is 2 MB.")
         csv_file = io.StringIO(contents.decode('utf-8'))
         reader = csv.DictReader(csv_file)
         

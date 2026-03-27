@@ -180,6 +180,7 @@ def test_invoice_rejects_negative_tax_discount_and_due_days(client, db):
         ({"discount": -1}, "discount"),
         ({"due_days": -1}, "due_days"),
     ]
+    before_count = db.query(Invoice).filter(Invoice.company_id == company.id).count()
 
     for extra, field_name in invalid_payloads:
         response = client.post(
@@ -192,3 +193,5 @@ def test_invoice_rejects_negative_tax_discount_and_due_days(client, db):
         )
         assert response.status_code == 400
         assert field_name in response.json()["detail"].lower()
+        after_count = db.query(Invoice).filter(Invoice.company_id == company.id).count()
+        assert after_count == before_count

@@ -49,3 +49,24 @@ def test_import_leads_internal_error_returns_sanitized_500(client, db, monkeypat
 
     # The row was created before activity logging; this test only verifies sanitization.
     assert db.query(Lead).filter(Lead.company_id == company.id).count() == 1
+
+
+def test_import_leads_rejects_oversized_csv(client, db):
+    company = create_company(db, name="Import Large Co", company_code="IML")
+    admin = create_active_user(
+        db,
+        email="admin@iml.com",
+        role="admin",
+        company_id=company.id,
+        full_name="Import Admin",
+    )
+    login_user(client, admin.email)
+
+    # Slightly over the 2 MB server limit.
+    payload = b"name\n" + (b"Lead\n" * (450000))
+    response = client.post(
+        "/api/import/leads",
+        files={"file": ("large.csv", payload, "text/csv")},
+    )
+    assert response.status_code == 413
+    assert "too large" in response.json()["detail"].lower()

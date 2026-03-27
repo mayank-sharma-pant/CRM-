@@ -19,6 +19,33 @@ export default function Signup() {
     const { signup } = useAuth();
     const router = useRouter();
 
+    const extractSignupError = (err) => {
+        const fallback = 'Registration failed. Please try again.';
+        const data = err?.response?.data;
+
+        if (!err?.response) {
+            return 'Cannot reach server right now. Please refresh and try again.';
+        }
+
+        if (!data) return fallback;
+
+        if (typeof data.detail === 'string' && data.detail.trim()) {
+            return data.detail;
+        }
+
+        if (Array.isArray(data.detail) && data.detail.length > 0) {
+            const first = data.detail[0];
+            if (typeof first === 'string' && first.trim()) return first;
+            if (first?.msg) return first.msg;
+        }
+
+        if (typeof data.error === 'string' && data.error.trim()) {
+            return data.error;
+        }
+
+        return fallback;
+    };
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
@@ -32,7 +59,7 @@ export default function Signup() {
             await signup(formData);
             router.push('/login?registered=true');
         } catch (err) {
-            setError(err.response?.data?.detail || err.response?.data?.error || 'Registration failed. Please try again.');
+            setError(extractSignupError(err));
         } finally {
             setLoading(false);
         }
@@ -114,9 +141,9 @@ export default function Signup() {
                                         type="password"
                                         autoComplete="new-password"
                                         required
-                                        minLength={6}
+                                        minLength={8}
                                         className="w-full px-4 py-2.5 bg-surface border border-border rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all"
-                                        placeholder="Min. 6 characters"
+                                        placeholder="Min. 8 characters"
                                         value={formData.password}
                                         onChange={handleChange}
                                     />

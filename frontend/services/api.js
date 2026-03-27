@@ -1,6 +1,11 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+const configuredApiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || '').trim();
+const preferProxy = process.env.NODE_ENV !== 'production';
+
+// In non-production, always prefer Next.js same-origin rewrite proxy
+// (/api -> backend) to avoid CORS/host-resolution inconsistencies.
+const API_BASE_URL = preferProxy ? '' : configuredApiBaseUrl;
 const ACTIVE_TEAM_KEY = 'crm.activeTeamId';
 
 const api = axios.create({

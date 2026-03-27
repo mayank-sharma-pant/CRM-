@@ -103,7 +103,7 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
         company_name = (user_data.company_name or "").strip() or f"{user_data.full_name}'s Company"
         from app.utils.helpers import generate_company_code
         company_code = generate_company_code(db)
-        
+
         new_company = Company(
             name=company_name,
             company_code=company_code,
@@ -126,30 +126,6 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
-
-        # Notify Platform Admins about new company signup
-        notify_platform_admins(db, 
-            title=f"New Company: {new_company.name}",
-            message=f"Signup by {db_user.full_name} ({db_user.email}). Status: Pending.",
-            type="info",
-            link="/platform/companies",
-            category="admin")
-
-        access_token = create_access_token(data={"sub": db_user.email, "role": db_user.role})
-        _set_auth_cookie(response, access_token)
-
-        return {
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user": {
-                "id": db_user.id,
-                "email": db_user.email,
-                "full_name": db_user.full_name,
-                "role": db_user.role,
-                "company_id": db_user.company_id
-            },
-            "message": "User registered successfully. Company is pending approval."
-        }
     except Exception:
         db.rollback()
         logger.exception("SIGNUP ERROR for email=%s", user_data.email)
@@ -157,6 +133,37 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
             status_code=500,
             detail="Registration failed. Please try again."
         )
+
+    # Notification must never block a successful signup.
+    try:
+        notify_platform_admins(
+            db,
+            title=f"New Company: {new_company.name}",
+            message=f"Signup by {db_user.full_name} ({db_user.email}). Status: Pending.",
+            type="info",
+            link="/platform/companies",
+            category="admin",
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("SIGNUP NOTIFY ERROR for email=%s", user_data.email)
+
+    access_token = create_access_token(data={"sub": db_user.email, "role": db_user.role})
+    _set_auth_cookie(response, access_token)
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": db_user.id,
+            "email": db_user.email,
+            "full_name": db_user.full_name,
+            "role": db_user.role,
+            "company_id": db_user.company_id
+        },
+        "message": "User registered successfully. Company is pending approval."
+    }
 
 
 @router.post("/login", response_model=LoginResponse)

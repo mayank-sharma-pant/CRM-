@@ -82,10 +82,14 @@ def get_dashboard(
 ):
     """Get admin dashboard with stats (company-scoped for company admin)"""
     user_q = apply_company_scope(db.query(User), User, current_user)
-    active_users = user_q.filter(User.status == "active").count()
+    total_users = user_q.count()
     pending_users = user_q.filter(User.status == "pending").count()
-    disabled_users = user_q.filter(User.status == "disabled").count()
+    
     teams_count = apply_company_scope(db.query(Team), Team, current_user).count()
+    
+    from app.models.hr.transfer_request import TeamTransferRequest
+    transfer_q = apply_company_scope(db.query(TeamTransferRequest), TeamTransferRequest, current_user)
+    pending_transfers = transfer_q.filter(TeamTransferRequest.status == "pending").count()
     
     # Get recent activity (company-scoped)
     log_q = apply_company_scope(db.query(AuditLog), AuditLog, current_user)
@@ -102,10 +106,10 @@ def get_dashboard(
     
     return {
         "stats": [
-            {"id": 1, "label": "Active Users", "value": str(active_users), "route": "/admin/users"},
-            {"id": 2, "label": "Pending Users", "value": str(pending_users), "route": "/admin/users"},
-            {"id": 3, "label": "Teams", "value": str(teams_count), "route": "/admin/teams-hierarchy"},
-            {"id": 4, "label": "Disabled Users", "value": str(disabled_users), "route": "/admin/users"}
+            {"id": 1, "label": "Total Staff", "value": str(total_users), "route": "/admin/users"},
+            {"id": 2, "label": "Pending Invites", "value": str(pending_users), "route": "/admin/users"},
+            {"id": 3, "label": "Active Teams", "value": str(teams_count), "route": "/admin/teams-hierarchy"},
+            {"id": 4, "label": "Transfer Requests", "value": str(pending_transfers), "route": "/admin/approvals"}
         ],
         "action_required": [],
         "recent_activity": recent_activity

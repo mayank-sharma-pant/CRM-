@@ -80,7 +80,7 @@ def get_purchase_dashboard(
         approval_queue.append({
             "id": inv.id,
             "client": client.name if client else "Unknown",
-            "amount": inv.total,
+            "amount": float(inv.total or 0),
             "date": inv.issued_date.strftime("%Y-%m-%d") if inv.issued_date else None,
             "salesperson": creator.full_name if creator else "Unknown"
         })
@@ -139,8 +139,8 @@ def list_sales_for_approval(
         result.append({
             "id": inv.id,
             "client": client.name if client else "Unknown",
-            "amount": inv.total,
-            "status": inv.status.lower(),
+            "amount": float(inv.total or 0),
+            "status": inv.status,
             "date": inv.issued_date.strftime("%Y-%m-%d") if inv.issued_date else None,
             "salesperson": creator.full_name if creator else "Unknown"
         })
@@ -219,7 +219,11 @@ def reject_sale(
         raise HTTPException(status_code=404, detail="Sale not found")
     ensure_company_access(invoice, current_user)
     
-    invoice.status = "Rejected"  # Not in InvoiceStatus enum — intentional one-off
+    invoice.status = InvoiceStatus.CANCELLED  # Rejected invoices are marked as cancelled
+    if not hasattr(invoice, 'notes') or not invoice.notes:
+        invoice.notes = f"Rejected by purchase dept: {reason}"
+    else:
+        invoice.notes = f"{invoice.notes}\n[Rejected: {reason}]"
     db.commit()
     
     return {

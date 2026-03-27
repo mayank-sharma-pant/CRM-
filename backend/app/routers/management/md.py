@@ -102,7 +102,7 @@ def get_md_dashboard(
     task_q = apply_company_scope(db.query(Task), Task, current_user)
     overdue_tasks = task_q.filter(Task.due_date < now, Task.status != "Completed").count()
     total_tasks = task_q.filter(Task.due_date >= d7_ago).count()
-    sla_adherence = int(((total_tasks - overdue_tasks) / max(total_tasks, 1)) * 100) - 100
+    sla_adherence = int(((total_tasks - overdue_tasks) / max(total_tasks, 1)) * 100)
     
     # AI Brief
     overdue_inv = inv_q.filter(Invoice.status == "Overdue").count()
@@ -177,7 +177,7 @@ def get_revenue_analytics(
     outstanding = inv_q.filter(Invoice.status.in_(["Pending", "Sent", "Draft"])).with_entities(func.sum(Invoice.total)).scalar() or 0
     
     # Growth: compare paid invoices in last 30d vs previous 30d
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     d30_ago = now - timedelta(days=30)
     d60_ago = now - timedelta(days=60)
     
@@ -250,7 +250,7 @@ def get_revenue_analytics(
     for idx, inv in enumerate(overdue_invoices[:5]):
         client_q = apply_company_scope(db.query(Client), Client, current_user)
         client = client_q.filter(Client.id == inv.client_id).first() if inv.client_id else None
-        days_overdue = (now - inv.due_date).days if inv.due_date else 0
+        days_overdue = (datetime.now(timezone.utc).date() - inv.due_date).days if inv.due_date else 0
         risks.append({
             "id": idx + 1,
             "signal": f"Overdue: {client.name if client else 'Unknown'} INV-{inv.id:04d}",
@@ -328,7 +328,7 @@ def get_company_sales(
         })
     
     # Daily sales trend (last 7 days)
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
     sales_trend = []
     for i in range(7):
@@ -462,7 +462,7 @@ def get_company_clients(
     clients = client_q.order_by(Client.created_at.desc()).offset(skip).limit(limit).all()
     
     # Growth trend (last 6 months)
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     growth_trend = []
     for m in range(6):
         month_start = (now.replace(day=1) - timedelta(days=30 * (5 - m))).replace(day=1)
@@ -586,7 +586,7 @@ def get_employee_detail(
     converted = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == "Converted").count()
     
     # Calculate 7-day trends
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     sales_trend = []
     conversion_trend = []
     for i in range(7):

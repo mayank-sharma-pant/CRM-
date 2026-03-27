@@ -41,7 +41,10 @@ def get_sales_dashboard(
     
     # Role-based scoping for leads
     if current_user.role == "sales":
-        lead_query = lead_query.filter(Lead.assigned_to_id == current_user.id)
+        if active_team_id is not None:
+            lead_query = lead_query.filter(Lead.assigned_to_id == current_user.id, Lead.team_id == active_team_id)
+        else:
+            lead_query = lead_query.filter(Lead.assigned_to_id == current_user.id)
     elif current_user.role == "manager":
         if active_team_id is None:
             lead_query = lead_query.filter(False)
@@ -199,7 +202,10 @@ def list_leads(
     
     # Apply role-based scoping
     if current_user.role == "sales":
-        query = query.filter(Lead.assigned_to_id == current_user.id)
+        if active_team_id is not None:
+            query = query.filter(Lead.assigned_to_id == current_user.id, Lead.team_id == active_team_id)
+        else:
+            query = query.filter(Lead.assigned_to_id == current_user.id)
     elif current_user.role == "manager":
         # Managers see leads assigned to their team (or explicitly owned by the manager)
         if active_team_id is None:

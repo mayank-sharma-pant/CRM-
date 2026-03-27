@@ -703,20 +703,33 @@ def get_team_member_performance(
     if not member:
         raise HTTPException(status_code=404, detail="Team member not found")
         
-    # Lead metrics
-    lead_q = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.assigned_to_id == user_id)
+    # Lead metrics — scoped to active team
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.assigned_to_id == user_id, Lead.team_id == active_team_id)
     total_leads = lead_q.count()
     converted_leads = lead_q.filter(Lead.status == "Converted").count()
     lost_leads = lead_q.filter(Lead.status == "Lost").count()
     
-    # Order metrics
-    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.created_by_id == user_id)
+    # Order metrics — scoped to active team via client
+    inv_q = (
+        apply_company_scope(db.query(Invoice), Invoice, current_user)
+        .join(Client, Invoice.client_id == Client.id)
+        .filter(Invoice.created_by_id == user_id, Client.team_id == active_team_id)
+    )
     total_orders = inv_q.count()
     revenue_sourced = inv_q.filter(Invoice.status != "Cancelled").with_entities(func.sum(Invoice.total)).scalar() or 0.0
     paid_revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0.0
     
-    # Task metrics
-    task_q = apply_company_scope(db.query(Task), Task, current_user).filter(Task.assigned_to_id == user_id)
+    # Task metrics — scoped to active team via lead/client
+    from sqlalchemy import or_
+    task_q = (
+        apply_company_scope(db.query(Task), Task, current_user)
+        .outerjoin(Lead, Task.lead_id == Lead.id)
+        .outerjoin(Client, Task.client_id == Client.id)
+        .filter(
+            Task.assigned_to_id == user_id,
+            or_(Lead.team_id == active_team_id, Client.team_id == active_team_id, (Task.lead_id == None) & (Task.client_id == None))
+        )
+    )
     tasks_completed = task_q.filter(Task.status == "Completed").count()
     tasks_pending = task_q.filter(Task.status == "Pending").count()
     

@@ -29,14 +29,23 @@ def list_clients(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """List clients (paginated)."""
     query = apply_company_scope(db.query(Client), Client, current_user)
     
-    # Sales executives only see their own clients
+    # Sales executives only see their own clients in the active team
     if getattr(current_user, 'role', '') == 'sales':
-        query = query.filter(Client.assigned_to_id == current_user.id)
+        if active_team_id is not None:
+            query = query.filter(Client.assigned_to_id == current_user.id, Client.team_id == active_team_id)
+        else:
+            query = query.filter(Client.assigned_to_id == current_user.id)
+    elif getattr(current_user, 'role', '') == 'manager':
+        if active_team_id is not None:
+            query = query.filter(Client.team_id == active_team_id)
+        else:
+            query = query.filter(False)
     
     if search:
         search_pattern = f"%{search}%"

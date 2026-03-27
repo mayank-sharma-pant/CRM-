@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timedelta, timezone
@@ -52,7 +53,12 @@ def get_tasks_list(
     
     # Role-based filtering
     if current_user.role == "sales":
+        query = query.outerjoin(Lead, Task.lead_id == Lead.id).outerjoin(Client, Task.client_id == Client.id)
         query = query.filter((Task.assigned_to_id == current_user.id) | (Task.assigned_by_id == current_user.id))
+        if active_team_id is not None:
+            query = query.filter(
+                or_(Lead.team_id == active_team_id, Client.team_id == active_team_id, (Task.lead_id == None) & (Task.client_id == None))
+            )
     elif current_user.role == "manager":
         # Managers see tasks assigned to anyone in their team or created by them.
         # MUST scope by company_id to avoid ID collision across companies.
@@ -134,7 +140,12 @@ def get_priority_tasks(
     
     # Role-based filtering
     if current_user.role == "sales":
+        task_query = task_query.outerjoin(Lead, Task.lead_id == Lead.id).outerjoin(Client, Task.client_id == Client.id)
         task_query = task_query.filter((Task.assigned_to_id == current_user.id) | (Task.assigned_by_id == current_user.id))
+        if active_team_id is not None:
+            task_query = task_query.filter(
+                or_(Lead.team_id == active_team_id, Client.team_id == active_team_id, (Task.lead_id == None) & (Task.client_id == None))
+            )
     elif current_user.role == "manager":
         if active_team_id is None:
             team_members = []

@@ -50,7 +50,10 @@ def list_follow_ups(
     query = apply_company_scope(db.query(FollowUp), FollowUp, current_user)
     # Role-based scoping: sales users only see follow-ups on their own leads
     if current_user.role == "sales":
-        own_lead_ids = [l.id for l in apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.assigned_to_id == current_user.id).all()]
+        lead_q = apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.assigned_to_id == current_user.id)
+        if active_team_id is not None:
+            lead_q = lead_q.filter(Lead.team_id == active_team_id)
+        own_lead_ids = [l.id for l in lead_q.all()]
         query = query.filter(FollowUp.lead_id.in_(own_lead_ids)) if own_lead_ids else query.filter(False)
     elif current_user.role == "manager":
         if active_team_id is None:
@@ -99,7 +102,10 @@ def get_todays_follow_ups(
     fu_query = apply_company_scope(db.query(FollowUp), FollowUp, current_user)
     # Role-based scoping
     if current_user.role == "sales":
-        own_lead_ids = [l.id for l in apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.assigned_to_id == current_user.id).all()]
+        lead_q = apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.assigned_to_id == current_user.id)
+        if active_team_id is not None:
+            lead_q = lead_q.filter(Lead.team_id == active_team_id)
+        own_lead_ids = [l.id for l in lead_q.all()]
         fu_query = fu_query.filter(FollowUp.lead_id.in_(own_lead_ids)) if own_lead_ids else fu_query.filter(False)
     elif current_user.role == "manager":
         if active_team_id is None:
@@ -145,7 +151,10 @@ def get_overdue_follow_ups(
     fu_query = apply_company_scope(db.query(FollowUp), FollowUp, current_user)
     # Role-based scoping
     if current_user.role == "sales":
-        own_lead_ids = [l.id for l in apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.assigned_to_id == current_user.id).all()]
+        lead_q = apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.assigned_to_id == current_user.id)
+        if active_team_id is not None:
+            lead_q = lead_q.filter(Lead.team_id == active_team_id)
+        own_lead_ids = [l.id for l in lead_q.all()]
         fu_query = fu_query.filter(FollowUp.lead_id.in_(own_lead_ids)) if own_lead_ids else fu_query.filter(False)
     elif current_user.role == "manager":
         if active_team_id is None:

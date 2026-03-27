@@ -190,6 +190,10 @@ def create_invoice(
             message=f"Only {stock_item.quantity} {stock_item.unit}(s) remaining.",
             type="warning",
             link="/purchase/stock",
+            category="inventory",
+            dedupe_window_seconds=6 * 60 * 60,
+            dedupe_match_message=False,
+            skip_if_unread_duplicate=True,
         )
 
     db.commit()

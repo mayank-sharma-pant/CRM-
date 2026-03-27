@@ -99,14 +99,16 @@ def create_leave(
             title="New Leave Request",
             message=f"{current_user.full_name} requested leave from {payload.from_date.date()} to {payload.to_date.date()}.",
             type="info",
-            link="/manager/leaves")
+            link="/manager/leaves",
+            category="leave")
     else:
         # Fallback to Company Admins if no direct manager is assigned
         notify_role_users(db, current_user.company_id, role="admin",
             title="New Leave Request",
             message=f"{current_user.full_name} has requested leave. Please review.",
             type="info",
-            link="/settings/leave")
+            link="/settings/leave",
+            category="leave")
 
     return {"id": leave.id, "message": "Leave request created"}
 
@@ -153,7 +155,8 @@ def approve_leave(
         title=f"Leave {normalized}",
         message=f"Your leave request was {normalized.lower()} by {current_user.full_name}.",
         type="success" if normalized == "Approved" else "warning",
-        link="/settings/leave")
+        link="/settings/leave",
+        category="leave")
     
     db.commit()
 

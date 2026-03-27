@@ -132,7 +132,8 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
             title=f"New Company: {new_company.name}",
             message=f"Signup by {db_user.full_name} ({db_user.email}). Status: Pending.",
             type="info",
-            link="/platform/companies")
+            link="/platform/companies",
+            category="admin")
 
         access_token = create_access_token(data={"sub": db_user.email, "role": db_user.role})
         _set_auth_cookie(response, access_token)

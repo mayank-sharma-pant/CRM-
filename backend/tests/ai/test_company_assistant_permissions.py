@@ -112,16 +112,14 @@ def test_ai_malformed_actions_shape_does_not_crash(client, db, monkeypatch):
 
     login_user(client, manager.email)
     r = client.post("/api/ai/company-assistant", json={"message": "Create team"})
-    assert r.status_code == 200
-    payload = r.json()
-    assert payload.get("message")
-    assert payload.get("executed_actions") == []
+    assert r.status_code == 400
+    assert "expected a list" in r.json()["detail"].lower()
 
 
 async def _plan_bad_action_item(_prompt: str, _params=None) -> dict:
     return {
         "say": "Malformed action item",
-        "actions": ["oops", {"action": "create_team", "params": "not-an-object"}],
+        "actions": [{"action": "create_team", "params": "not-an-object"}],
     }
 
 
@@ -132,10 +130,5 @@ def test_ai_malformed_action_item_or_params_returns_structured_errors(client, db
 
     login_user(client, manager.email)
     r = client.post("/api/ai/company-assistant", json={"message": "Do malformed actions"})
-    assert r.status_code == 200
-    actions = r.json().get("executed_actions", [])
-    assert len(actions) == 2
-    assert actions[0]["result"]["status"] == "error"
-    assert "payload" in actions[0]["result"]["error"].lower()
-    assert actions[1]["result"]["status"] == "error"
-    assert "params" in actions[1]["result"]["error"].lower()
+    assert r.status_code == 400
+    assert "params must be an object" in r.json()["detail"].lower()

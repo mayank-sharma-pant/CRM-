@@ -1,5 +1,6 @@
 from app.models.ops.stock_item import StockItem
 from app.models.sales.notification import Notification
+from app.utils.notify import send_notification
 from tests.helpers.auth import create_active_user, login_user
 from tests.helpers.factories import create_client, create_company
 
@@ -127,3 +128,152 @@ def test_low_stock_invoice_creates_purchase_notifications(client, db):
     assert notif_p1[0].type == "warning"
     assert notif_p1[0].link == "/purchase/stock"
     assert "Only 1" in (notif_p1[0].message or "")
+
+
+def test_send_notification_dedup_window_blocks_duplicate(db):
+    company = create_company(db, name="Dedupe Co", company_code="DDP")
+    user = create_active_user(db, email="user@ddp.com", role="sales", company_id=company.id)
+
+    created_1 = send_notification(
+        db,
+        user.id,
+        title="Stock Alert",
+        message="Low stock for RAM",
+        type="warning",
+        link="/purchase/stock",
+        dedupe_window_seconds=300,
+    )
+    created_2 = send_notification(
+        db,
+        user.id,
+        title="Stock Alert",
+        message="Low stock for RAM",
+        type="warning",
+        link="/purchase/stock",
+        dedupe_window_seconds=300,
+    )
+    db.commit()
+
+    assert created_1 is True
+    assert created_2 is False
+    notifications = db.query(Notification).filter(Notification.user_id == user.id).all()
+    assert len(notifications) == 1
+
+
+def test_low_stock_notifications_are_throttled_for_duplicate_alerts(client, db):
+    company = create_company(db, name="LowThrottle Co", company_code="LTH")
+    purchase_user = create_active_user(
+        db, email="purchase@lth.com", role="purchase", company_id=company.id
+    )
+    sales_user = create_active_user(db, email="sales@lth.com", role="sales", company_id=company.id)
+    customer = create_client(
+        db,
+        company_id=company.id,
+        name="Throttle Customer",
+        assigned_to_id=sales_user.id,
+    )
+
+    login_user(client, purchase_user.email)
+    create_stock = client.post(
+        "/api/inventory",
+        json={
+            "name": "Server RAM 64GB",
+            "sku": "RAM-64-THR",
+            "category": "Hardware",
+            "unit": "pcs",
+            "unit_price": 200.0,
+            "quantity": 5,
+            "reorder_level": 4,
+        },
+    )
+    assert create_stock.status_code == 200, create_stock.text
+    stock_id = create_stock.json()["id"]
+
+    login_user(client, sales_user.email)
+    invoice_1 = client.post(
+        "/api/invoices",
+        json={
+            "client_id": customer.id,
+            "items": [
+                {
+                    "description": "RAM shipment 1",
+                    "quantity": 1,
+                    "unit_price": 200.0,
+                    "stock_item_id": stock_id,
+                }
+            ],
+            "tax": 0,
+            "discount": 0,
+        },
+    )
+    assert invoice_1.status_code == 201, invoice_1.text
+
+    invoice_2 = client.post(
+        "/api/invoices",
+        json={
+            "client_id": customer.id,
+            "items": [
+                {
+                    "description": "RAM shipment 2",
+                    "quantity": 1,
+                    "unit_price": 200.0,
+                    "stock_item_id": stock_id,
+                }
+            ],
+            "tax": 0,
+            "discount": 0,
+        },
+    )
+    assert invoice_2.status_code == 201, invoice_2.text
+
+    purchase_notifications = db.query(Notification).filter(Notification.user_id == purchase_user.id).all()
+    assert len(purchase_notifications) == 1
+    assert purchase_notifications[0].title == "Low Stock: Server RAM 64GB"
+
+
+def test_notification_preferences_api_and_category_mute(client, db):
+    company = create_company(db, name="Pref Co", company_code="PRF")
+    user = create_active_user(db, email="pref@prf.com", role="sales", company_id=company.id)
+
+    login_user(client, user.email)
+    initial = client.get("/api/notifications/preferences")
+    assert initial.status_code == 200, initial.text
+    initial_payload = initial.json()
+    assert "tasks" in initial_payload["available_categories"]
+    assert initial_payload["muted_categories"] == []
+
+    updated = client.put(
+        "/api/notifications/preferences",
+        json={"muted_categories": ["tasks", "inventory", "invalid-value", "general"]},
+    )
+    assert updated.status_code == 200, updated.text
+    updated_payload = updated.json()
+    assert "tasks" in updated_payload["muted_categories"]
+    assert "inventory" in updated_payload["muted_categories"]
+    assert "general" not in updated_payload["muted_categories"]
+
+    blocked = send_notification(
+        db,
+        user.id,
+        title="Task Assignment",
+        message="You got a new task",
+        type="info",
+        link="/sales/tasks",
+        category="tasks",
+    )
+    allowed = send_notification(
+        db,
+        user.id,
+        title="General Notice",
+        message="Welcome back",
+        type="info",
+        link="/profile",
+        category="general",
+    )
+    db.commit()
+
+    assert blocked is False
+    assert allowed is True
+    rows = db.query(Notification).filter(Notification.user_id == user.id).all()
+    assert len(rows) == 1
+    assert rows[0].title == "General Notice"

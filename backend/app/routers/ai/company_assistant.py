@@ -661,57 +661,52 @@ async def company_assistant(
             raise HTTPException(status_code=502, detail="AI output was not a JSON object")
 
         say = str(plan.get("say", "")).strip() or "Done."
-        actions = plan.get("actions", []) or []
-        if not isinstance(actions, list):
-            actions = []
-        executed: list[AIExecutedAction] = []
+        actions_raw = plan.get("actions", []) or []
+        if not isinstance(actions_raw, list):
+            raise HTTPException(status_code=400, detail="Invalid actions payload: expected a list")
 
-        for a in actions[: ai_params.max_actions]:
-            if not isinstance(a, dict):
-                executed.append(
-                    AIExecutedAction(
-                        action="invalid_action",
-                        params={},
-                        result={"status": "error", "error": "Action payload must be an object"},
-                    )
+        selected_actions = actions_raw[: ai_params.max_actions]
+        action_inputs: list[tuple[int, str, dict]] = []
+        executed_map: dict[int, AIExecutedAction] = {}
+
+        # Validate first so we fail with clean 400s before executing mutating actions.
+        for idx, raw_action in enumerate(selected_actions):
+            if not isinstance(raw_action, dict):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid action payload at index {idx}: action must be an object",
                 )
-                continue
-            action = str(a.get("action", "")).strip()
-            params = a.get("params") or {}
-            if not isinstance(params, dict):
-                executed.append(
-                    AIExecutedAction(
-                        action=action or "invalid_action",
-                        params={},
-                        result={"status": "error", "error": "Action params must be an object"},
-                    )
-                )
-                continue
+            action = str(raw_action.get("action", "")).strip()
             if not action:
-                continue
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid action payload at index {idx}: missing 'action'",
+                )
+            params = raw_action.get("params") or {}
+            if not isinstance(params, dict):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid params for action '{action}' at index {idx}: params must be an object",
+                )
 
             if action not in allowed_actions:
-                executed.append(
-                    AIExecutedAction(
-                        action=action,
-                        params=params,
-                        result={"status": "skipped", "reason": "action_not_allowed_for_role"},
-                    )
+                executed_map[idx] = AIExecutedAction(
+                    action=action,
+                    params=params,
+                    result={"status": "skipped", "reason": "action_not_allowed_for_role"},
                 )
                 continue
 
             try:
                 normalized = _normalize_action(action, params)
             except ActionValidationError as exc:
-                executed.append(
-                    AIExecutedAction(
-                        action=action,
-                        params=params,
-                        result={"status": "error", "error": str(exc)},
-                    )
-                )
-                continue
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid params for action '{action}': {exc}",
+                ) from exc
+            action_inputs.append((idx, action, normalized))
 
+        for idx, action, normalized in action_inputs:
             if action == "create_team":
                 result = _create_team(db, current_user, name=normalized["name"])
             elif action == "delete_team":
@@ -756,16 +751,16 @@ async def company_assistant(
             elif action == "business_snapshot":
                 result = _business_snapshot(db, current_user)
             else:
-                executed.append(
-                    AIExecutedAction(
-                        action=action,
-                        params=params,
-                        result={"status": "skipped", "reason": "unsupported_action"},
-                    )
+                executed_map[idx] = AIExecutedAction(
+                    action=action,
+                    params=normalized,
+                    result={"status": "skipped", "reason": "unsupported_action"},
                 )
                 continue
 
-            executed.append(AIExecutedAction(action=action, params=normalized, result=result))
+            executed_map[idx] = AIExecutedAction(action=action, params=normalized, result=result)
+
+        executed = [executed_map[idx] for idx in range(len(selected_actions)) if idx in executed_map]
 
         conversation.status = "completed"
         conversation.ai_message = say

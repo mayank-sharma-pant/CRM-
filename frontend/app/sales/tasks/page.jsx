@@ -2,8 +2,8 @@
 
 /**
  * TASKS PAGE - Sales Executive Execution View
- * 
- * Purpose: Manage daily work. Purely frontend mock for now.
+ *
+ * Purpose: Manage daily work with API-backed task states.
  * Pattern: Static Tabs (Overdue, Today, Upcoming)
  */
 
@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import TaskModal from '../../../components/leads/TaskModal';
-import { isPast, isSameDay, parseISO, isFuture } from 'date-fns';
+import { isPast, isSameDay, parseISO, isFuture, startOfDay } from 'date-fns';
 
 // --- MOCK DATA REMOVED (Replaced by API) ---
 
@@ -59,21 +59,37 @@ export default function TasksPage() {
         }
     };
 
-    // Filter Logic simulating the original tabs using string matching on 'dueDate'
-    // NOTE: In a real app we'd parse dates. Here we match the Mock Data strings to preserve the UI exactly.
     const getTasksForTab = () => {
         if (!tasks.length) return [];
+        const today = startOfDay(new Date());
 
         return tasks.filter(t => {
-            const d = (t.dueDate || '').toLowerCase();
+            if (t.status === 'Completed') {
+                return false;
+            }
+            const dueRaw = t.due_date_iso || t.due_date || null;
+            if (!dueRaw) {
+                return activeTab === 'Upcoming';
+            }
+            let dueDate;
+            try {
+                dueDate = parseISO(dueRaw);
+            } catch {
+                return false;
+            }
+            if (Number.isNaN(dueDate.getTime())) {
+                return false;
+            }
+            const dueDay = startOfDay(dueDate);
+
             if (activeTab === 'Overdue') {
-                return d.includes('yesterday') || d.includes('ago');
+                return isPast(dueDay) && !isSameDay(dueDay, today);
             }
             if (activeTab === 'Today') {
-                return d.includes('am') || d.includes('pm') || d.includes('today');
+                return isSameDay(dueDay, today);
             }
             if (activeTab === 'Upcoming') {
-                return d.includes('tomorrow') || d.includes('jan') || d.includes('feb') || d.includes('mar') || d.includes('apr') || d.includes('may') || d.includes('jun') || d.includes('jul') || d.includes('aug') || d.includes('sep') || d.includes('oct') || d.includes('nov') || d.includes('dec');
+                return isFuture(dueDay) && !isSameDay(dueDay, today);
             }
             return false;
         });

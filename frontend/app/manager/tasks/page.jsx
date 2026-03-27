@@ -168,13 +168,16 @@ export default function ManagerTasksPage() {
                                                         <User size={9} className="inline mr-1" />{task.assigned_to}
                                                     </span>
                                                 )}
-                                                {task.priority && (
-                                                    <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${task.priority === 'high' ? 'text-red-600 bg-red-50 border-red-200' :
-                                                            task.priority === 'medium' ? 'text-amber-600 bg-amber-50 border-amber-200' :
+                                                {task.priority && (() => {
+                                                    const priority = String(task.priority).toLowerCase();
+                                                    return (
+                                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${priority === 'high' ? 'text-red-600 bg-red-50 border-red-200' :
+                                                            priority === 'medium' ? 'text-amber-600 bg-amber-50 border-amber-200' :
                                                                 'text-slate-500 bg-slate-50 border-slate-200'}`}>
-                                                        {task.priority}
-                                                    </span>
-                                                )}
+                                                            {priority}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                         <div className="shrink-0 flex items-center gap-2 tabular-nums">

@@ -18,6 +18,7 @@ class User(Base):
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     manager_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     phone = Column(String(50), nullable=True)
+    notification_prefs_json = Column(Text, nullable=True)
     employee_num = Column(Integer, nullable=True)  # Sequential number within company, assigned at creation
     is_active = Column(Boolean, default=True)
     last_active_at = Column(DateTime(timezone=True), nullable=True)

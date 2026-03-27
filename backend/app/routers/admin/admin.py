@@ -736,7 +736,8 @@ def approve_user(
         title="Account Approved!",
         message="Your account has been approved. You now have full access.",
         type="success",
-        link=f"/{user.role}/dashboard")
+        link=f"/{user.role}/dashboard",
+        category="approvals")
     db.commit()
     
     return {"message": f"User {user.full_name} approved"}

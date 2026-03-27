@@ -505,7 +505,8 @@ def update_lead(
                 title=f"Lead Assigned: {lead.name}",
                 message=f"{current_user.full_name} assigned you a new lead.",
                 type="info",
-                link=f"/{current_user.role}/leads/{lead.id}")
+                link=f"/{current_user.role}/leads/{lead.id}",
+                category="leads")
         
     if info_edited and not actions_logged:
         log_activity(db, user=current_user, action='updated', entity_type='lead',
@@ -556,7 +557,8 @@ def update_lead_status(
                 title=f"Lead Status Changed: {lead.name}",
                 message=f"{old_status} → {status_data.status} (by {current_user.full_name})",
                 type="info",
-                link=f"/sales/leads/{lead.id}")
+                link=f"/sales/leads/{lead.id}",
+                category="leads")
         
         db.commit()
     
@@ -726,3 +728,5 @@ def convert_lead(
         "message": f"Lead {lead_id} converted to client successfully",
         "client_id": new_client.id
     }
+
+

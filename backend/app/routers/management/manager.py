@@ -12,7 +12,7 @@ from app.models.sales.task import Task
 from app.models.sales.client import Client
 from app.models.finance.invoice import Invoice
 from app.schemas.admin import MessageResponse
-from app.utils.notify import notify_role_users
+from app.utils.notify import notify_role_users, send_notification
 from app.models.hr.transfer_request import TeamTransferRequest
 from app.schemas.management import TransferRequestCreate, TransferRequestResponse
 from app.models.core.enums import InvoiceStatus
@@ -56,6 +56,23 @@ def _normalize_task_priority(raw_priority: str) -> str:
     if normalized not in mapping:
         raise HTTPException(status_code=400, detail="Invalid priority. Allowed: low, medium, high.")
     return mapping[normalized]
+
+
+def _task_link_for_role(role: Optional[str]) -> Optional[str]:
+    role_map = {
+        "sales": "/sales/tasks",
+        "manager": "/manager/tasks",
+    }
+    return role_map.get((role or "").strip().lower())
+
+
+def _lead_link_for_role(role: Optional[str], lead_id: int) -> Optional[str]:
+    role_map = {
+        "sales": f"/sales/leads/{lead_id}",
+        "manager": f"/manager/leads/{lead_id}",
+        "md": f"/md/leads/{lead_id}",
+    }
+    return role_map.get((role or "").strip().lower())
 
 
 # ===============================
@@ -109,7 +126,7 @@ def get_manager_dashboard(
         })
     
     # Get priority tasks
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     today_start = datetime(now.year, now.month, now.day)
     
     task_query = apply_company_scope(db.query(Task), Task, current_user)
@@ -239,10 +256,11 @@ def get_team_monitoring(
     
     team_member_ids = [m.id for m in team_members]
     from sqlalchemy import case
+    now_naive_utc = datetime.utcnow()
     task_stats = apply_company_scope(db.query(
         Task.assigned_to_id,
         func.sum(case((Task.status == "Pending", 1), else_=0)).label("pending_count"),
-        func.sum(case(((Task.due_date < datetime.now(timezone.utc)) & (Task.status != "Completed"), 1), else_=0)).label("overdue_count")
+        func.sum(case(((Task.due_date < now_naive_utc) & (Task.status != "Completed"), 1), else_=0)).label("overdue_count")
     ), Task, current_user).filter(Task.assigned_to_id.in_(team_member_ids)).group_by(Task.assigned_to_id).all()
     
     task_map = {row.assigned_to_id: {"pending": row.pending_count or 0, "overdue": row.overdue_count or 0} for row in task_stats}
@@ -415,7 +433,18 @@ def reassign_lead(
     if not new_assignee:
         raise HTTPException(status_code=404, detail="Assignee not found or not in your team")
     
+    previous_assignee_id = lead.assigned_to_id
     lead.assigned_to_id = new_assignee_id
+    if previous_assignee_id != new_assignee_id and new_assignee_id != current_user.id:
+        send_notification(
+            db,
+            new_assignee_id,
+            title=f"Lead Reassigned: {lead.name}",
+            message=f"{current_user.full_name} reassigned this lead to you.",
+            type="info",
+            link=_lead_link_for_role(new_assignee.role, lead.id),
+            category="leads",
+        )
     db.commit()
     
     return {
@@ -480,7 +509,7 @@ def create_team_task(
     if active_team_id is None:
         raise HTTPException(status_code=400, detail="Active team required")
     try:
-        parsed_due_date = datetime.strptime(due_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        parsed_due_date = datetime.strptime(due_date, "%Y-%m-%d")
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid due_date format. Use YYYY-MM-DD.")
     normalized_priority = _normalize_task_priority(priority)
@@ -505,6 +534,16 @@ def create_team_task(
     )
     
     db.add(new_task)
+    if assignee_id != current_user.id:
+        send_notification(
+            db,
+            assignee_id,
+            title=f"New Task Assigned: {title}",
+            message=f"{current_user.full_name} assigned you a task. Due: {due_date}.",
+            type="info",
+            link=_task_link_for_role(assignee.role),
+            category="tasks",
+        )
     db.commit()
     db.refresh(new_task)
     
@@ -829,6 +868,7 @@ def create_transfer_request(
         title="New Transfer Request",
         message=f"Manager {current_user.full_name} requested to transfer {target_user.full_name} to {target_team.name}.",
         type="info",
-        link="/admin/approvals")
+        link="/admin/approvals",
+        category="approvals")
     
     return new_request

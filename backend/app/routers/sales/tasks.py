@@ -15,6 +15,7 @@ from app.models.sales.client import Client
 from app.schemas.sales import TaskListResponse
 from app.schemas.admin import MessageResponse
 from app.models.core.enums import TaskStatus
+from app.utils.notify import send_notification
 
 router = APIRouter()
 
@@ -24,6 +25,7 @@ class TaskCreateBody(BaseModel):
     description: Optional[str] = None
     priority: str = "medium"
     due_date: Optional[str] = None
+    assigned_to_id: Optional[int] = None
     lead_id: Optional[int] = None
     client_id: Optional[int] = None
 
@@ -49,8 +51,9 @@ def _parse_due_date_input(raw_due_date: Optional[str]) -> Optional[datetime]:
             detail="Invalid due_date format. Use ISO datetime or YYYY-MM-DD.",
         )
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        # Persist all task datetimes as naive UTC in DB.
+        return parsed
+    return parsed.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def _to_utc(dt: Optional[datetime]) -> Optional[datetime]:
@@ -83,6 +86,104 @@ def _normalize_status(raw_status: Optional[str]) -> str:
     if normalized not in mapping:
         raise HTTPException(status_code=400, detail="Invalid status. Allowed: Pending, In Progress, Completed.")
     return mapping[normalized]
+
+
+def _resolve_task_assignee(db: Session, current_user: User, requested_assignee_id: Optional[int]) -> int:
+    if requested_assignee_id is None:
+        return current_user.id
+
+    target = apply_company_scope(db.query(User), User, current_user).filter(User.id == requested_assignee_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Assignee not found")
+
+    if target.status != "active":
+        raise HTTPException(status_code=400, detail="Assignee must be active")
+
+    if current_user.role == "sales" and target.id != current_user.id:
+        raise HTTPException(status_code=403, detail="Sales users can only assign tasks to themselves")
+
+    if current_user.role == "manager" and target.id != current_user.id:
+        manager_team_ids = [
+            team_id
+            for (team_id,) in apply_company_scope(
+                db.query(TeamMembership.team_id),
+                TeamMembership,
+                current_user,
+            )
+            .filter(TeamMembership.user_id == current_user.id)
+            .all()
+        ]
+        if not manager_team_ids:
+            raise HTTPException(status_code=403, detail="Manager has no team membership configured")
+
+        shared_membership = (
+            apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+            .filter(
+                TeamMembership.user_id == target.id,
+                TeamMembership.team_id.in_(manager_team_ids),
+            )
+            .first()
+        )
+        if not shared_membership:
+            raise HTTPException(status_code=403, detail="Managers can only assign tasks within their team")
+
+    return target.id
+
+
+def _task_link_for_role(role: Optional[str]) -> Optional[str]:
+    role_map = {
+        "sales": "/sales/tasks",
+        "manager": "/manager/tasks",
+    }
+    return role_map.get((role or "").strip().lower())
+
+
+def _notify_task_assigned(db: Session, current_user: User, task: Task) -> None:
+    if not task.assigned_to_id or task.assigned_to_id == current_user.id:
+        return
+    assignee = (
+        apply_company_scope(db.query(User), User, current_user)
+        .filter(User.id == task.assigned_to_id)
+        .first()
+    )
+    if not assignee:
+        return
+    due_text = task.due_date.strftime("%Y-%m-%d") if task.due_date else "No due date"
+    send_notification(
+        db,
+        assignee.id,
+        title=f"New Task Assigned: {task.title}",
+        message=f"{current_user.full_name} assigned you a task. Due: {due_text}.",
+        type="info",
+        link=_task_link_for_role(assignee.role),
+        category="tasks",
+    )
+
+
+def _notify_task_completed(db: Session, current_user: User, task: Task) -> None:
+    if not task.assigned_by_id or task.assigned_by_id == current_user.id:
+        return
+    assigner = (
+        apply_company_scope(db.query(User), User, current_user)
+        .filter(User.id == task.assigned_by_id)
+        .first()
+    )
+    if not assigner:
+        return
+    send_notification(
+        db,
+        assigner.id,
+        title=f"Task Completed: {task.title}",
+        message=f"{current_user.full_name} marked this task as completed.",
+        type="success",
+        link=_task_link_for_role(assigner.role),
+        category="tasks",
+    )
+
+
+def _is_task_completed(value: object) -> bool:
+    normalized = getattr(value, "value", value)
+    return str(normalized) == "Completed"
 
 
 # ===============================
@@ -185,8 +286,8 @@ def get_priority_tasks(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get priority tasks for dashboard (overdue and due today)"""
-    now = datetime.now(timezone.utc)
-    today_start = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+    now = datetime.utcnow()
+    today_start = datetime(now.year, now.month, now.day)
     today_end = today_start + timedelta(days=1)
     
     task_query = apply_company_scope(db.query(Task), Task, current_user)
@@ -296,6 +397,7 @@ def create_task(
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
     due_date_val = _parse_due_date_input(body.due_date)
+    assignee_id = _resolve_task_assignee(db, current_user, body.assigned_to_id)
 
     # Security: Verify Lead/Client belong to this company before linking
     if body.lead_id:
@@ -315,12 +417,13 @@ def create_task(
         due_date=due_date_val,
         lead_id=body.lead_id,
         client_id=body.client_id,
-        assigned_to_id=current_user.id,
+        assigned_to_id=assignee_id,
         assigned_by_id=current_user.id,
         status="Pending"
     )
     
     db.add(new_task)
+    _notify_task_assigned(db, current_user, new_task)
     db.commit()
     db.refresh(new_task)
     
@@ -361,16 +464,19 @@ def update_task(
             if not in_team and task.assigned_by_id != current_user.id:
                 raise HTTPException(status_code=403, detail="You cannot edit a task outside your team")
     
+    previous_status = task.status
     if body.title is not None:
         task.title = body.title
     if body.status is not None:
         task.status = _normalize_status(body.status)
         if task.status == "Completed":
-            task.completed_at = datetime.now(timezone.utc)
+            task.completed_at = datetime.utcnow()
     if body.priority is not None:
         task.priority = _normalize_priority(body.priority)
     if "due_date" in body.model_fields_set:
         task.due_date = _parse_due_date_input(body.due_date)
+    if not _is_task_completed(previous_status) and _is_task_completed(task.status):
+        _notify_task_completed(db, current_user, task)
     
     db.commit()
     db.refresh(task)
@@ -406,8 +512,11 @@ def complete_task(
             if not in_team and task.assigned_by_id != current_user.id:
                 raise HTTPException(status_code=403, detail="You do not have permission to complete tasks outside your team")
     
+    was_completed = _is_task_completed(task.status)
     task.status = TaskStatus.COMPLETED
-    task.completed_at = datetime.now(timezone.utc)
+    task.completed_at = datetime.utcnow()
+    if not was_completed:
+        _notify_task_completed(db, current_user, task)
     
     db.commit()
     

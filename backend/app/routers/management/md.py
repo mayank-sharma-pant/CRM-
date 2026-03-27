@@ -1033,7 +1033,8 @@ def create_md_transfer_request(
         title="New Transfer Request (MD)",
         message=f"MD {current_user.full_name} requested to transfer {target_user.full_name} to {target_team.name}.",
         type="info",
-        link="/admin/approvals")
+        link="/admin/approvals",
+        category="approvals")
     
     return new_request
 

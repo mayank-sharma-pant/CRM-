@@ -5,13 +5,29 @@ Endpoints for listing, marking read, and creating notifications.
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
+import json
+from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user
 from app.models.core.user import User
 from app.models.sales.notification import Notification
+from app.utils.notify import NOTIFICATION_CATEGORIES, normalize_notification_category, get_user_muted_notification_categories
 
 router = APIRouter()
+
+
+class NotificationPreferencesBody(BaseModel):
+    muted_categories: List[str] = Field(default_factory=list)
+
+
+def _preferences_payload(user: User) -> dict:
+    muted = sorted(get_user_muted_notification_categories(user))
+    return {
+        "available_categories": list(NOTIFICATION_CATEGORIES),
+        "muted_categories": muted,
+        "enabled_categories": [c for c in NOTIFICATION_CATEGORIES if c not in muted],
+    }
 
 
 @router.get("")
@@ -51,6 +67,30 @@ def list_notifications(
         "unread_count": unread_count,
         "total": total
     }
+
+
+@router.get("/preferences")
+def get_notification_preferences(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get current user's notification preference categories."""
+    return _preferences_payload(current_user)
+
+
+@router.put("/preferences")
+def update_notification_preferences(
+    body: NotificationPreferencesBody,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update current user's muted notification categories."""
+    normalized = {normalize_notification_category(c) for c in body.muted_categories if c}
+    normalized.discard("general")
+    current_user.notification_prefs_json = json.dumps({"muted_categories": sorted(normalized)})
+    db.commit()
+    db.refresh(current_user)
+    return _preferences_payload(current_user)
 
 
 @router.post("/{notification_id}/read")

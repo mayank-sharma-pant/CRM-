@@ -229,12 +229,16 @@ def update_user(
     # 1-Manager-Per-Team Constraint
     if target_role == "manager" and target_team is not None:
         if (target_role != user.role or target_team != user.team_id):
-            existing_manager = apply_company_scope(db.query(User), User, current_user).filter(
-                User.team_id == target_team,
-                User.role == "manager",
-                User.status != "disabled",
-                User.id != user_id
-            ).first()
+            existing_manager = (
+                apply_company_scope(db.query(User), User, current_user)
+                .join(TeamMembership, TeamMembership.user_id == User.id)
+                .filter(
+                    TeamMembership.team_id == target_team,
+                    User.role == "manager",
+                    User.status != "disabled",
+                    User.id != user_id
+                ).first()
+            )
             if existing_manager:
                 raise HTTPException(status_code=400, detail="This team already has an active manager. A team can only have one manager.")
     
@@ -249,8 +253,12 @@ def update_user(
             manager = apply_company_scope(db.query(User), User, current_user).filter(User.id == body.manager_id).first()
             if not manager:
                 raise HTTPException(status_code=400, detail="Manager not found")
-            if target_team and manager.team_id != target_team:
-                raise HTTPException(status_code=400, detail="The selected manager does not belong to the correct team.")
+            if target_team:
+                mgr_in_team = db.query(TeamMembership).filter(
+                    TeamMembership.user_id == body.manager_id, TeamMembership.team_id == target_team
+                ).first()
+                if not mgr_in_team:
+                    raise HTTPException(status_code=400, detail="The selected manager does not belong to the correct team.")
             user.manager_id = body.manager_id
         else:
             user.manager_id = None
@@ -411,11 +419,21 @@ def list_teams(
     if not team_ids:
         return {"teams": [], "total": total, "skip": skip, "limit": limit}
         
-    counts = user_q.filter(User.team_id.in_(team_ids)).with_entities(User.team_id, func.count(User.id)).group_by(User.team_id).all()
+    counts = (
+        db.query(TeamMembership.team_id, func.count(TeamMembership.user_id))
+        .filter(TeamMembership.team_id.in_(team_ids), TeamMembership.company_id == current_user.company_id)
+        .group_by(TeamMembership.team_id)
+        .all()
+    )
     count_map = {t_id: count for t_id, count in counts}
     
-    managers = user_q.filter(User.team_id.in_(team_ids), User.role == "manager").all()
-    manager_map = {m.team_id: m for m in managers}
+    mgr_rows = (
+        db.query(User, TeamMembership.team_id)
+        .join(TeamMembership, TeamMembership.user_id == User.id)
+        .filter(TeamMembership.team_id.in_(team_ids), User.role == "manager", User.company_id == current_user.company_id)
+        .all()
+    )
+    manager_map = {tid: u for u, tid in mgr_rows}
     
     for team in teams:
         manager = manager_map.get(team.id)
@@ -766,7 +784,7 @@ def get_hierarchy(
     hierarchy = []
     user_q = apply_company_scope(db.query(User), User, current_user)
     for team in teams:
-        members = user_q.filter(User.team_id == team.id).all()
+        members = user_q.join(TeamMembership, TeamMembership.user_id == User.id).filter(TeamMembership.team_id == team.id).all()
         manager = next((m for m in members if m.role == "manager"), None)
         
         hierarchy.append({
@@ -1042,11 +1060,15 @@ def create_invite(
         
         # 1-Manager-Per-Team Constraint
         if body.role == "manager":
-            existing_manager = apply_company_scope(db.query(User), User, current_user).filter(
-                User.team_id == body.team_id,
-                User.role == "manager",
-                User.status != "disabled"
-            ).first()
+            existing_manager = (
+                apply_company_scope(db.query(User), User, current_user)
+                .join(TeamMembership, TeamMembership.user_id == User.id)
+                .filter(
+                    TeamMembership.team_id == body.team_id,
+                    User.role == "manager",
+                    User.status != "disabled"
+                ).first()
+            )
             if existing_manager:
                 raise HTTPException(status_code=400, detail="This team already has an active manager. A team can only have one manager.")
             
@@ -1061,11 +1083,15 @@ def create_invite(
     # Auto-detect manager from team (no manual selection needed)
     resolved_manager_id = body.manager_id  # allow explicit override if needed
     if not resolved_manager_id and body.team_id and body.role == "sales":
-        team_manager = apply_company_scope(db.query(User), User, current_user).filter(
-            User.team_id == body.team_id,
-            User.role == "manager",
-            User.status != "disabled"
-        ).first()
+        team_manager = (
+            apply_company_scope(db.query(User), User, current_user)
+            .join(TeamMembership, TeamMembership.user_id == User.id)
+            .filter(
+                TeamMembership.team_id == body.team_id,
+                User.role == "manager",
+                User.status != "disabled"
+            ).first()
+        )
         if team_manager:
             resolved_manager_id = team_manager.id
     
@@ -1291,6 +1317,13 @@ def approve_transfer_request(
     
     old_team_id = target_user.team_id
     target_user.team_id = request.target_team_id
+    
+    # Add membership in new team (multi-team aware)
+    existing_membership = db.query(TeamMembership).filter(
+        TeamMembership.user_id == target_user.id, TeamMembership.team_id == request.target_team_id
+    ).first()
+    if not existing_membership:
+        db.add(TeamMembership(company_id=target_user.company_id, team_id=request.target_team_id, user_id=target_user.id))
     
     # Update request status
     request.status = TransferRequestStatus.APPROVED

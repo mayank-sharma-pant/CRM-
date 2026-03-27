@@ -531,14 +531,20 @@ def employee_lookup(
         ).count()
         prefix = company_map.get(user.company_id) or "EMP"
         
-        team_obj = team_q.filter(Team.id == user.team_id).first() if user.team_id else None
+        # Get teams via membership
+        user_teams = (
+            db.query(Team)
+            .join(TeamMembership, TeamMembership.team_id == Team.id)
+            .filter(TeamMembership.user_id == user.id, TeamMembership.company_id == current_user.company_id)
+            .all()
+        )
         result.append({
             "id": f"{prefix}{company_rank:03d}",
             "user_id": user.id,
             "name": user.full_name,
             "email": user.email,
             "role": user.role.title(),
-            "team": team_obj.name if team_obj else None,
+            "team": ", ".join(t.name for t in user_teams) if user_teams else None,
             "status": user.status
         })
     
@@ -556,7 +562,14 @@ def get_employee_detail(
     if not user:
         raise HTTPException(status_code=404, detail="Employee not found")
     
-    team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == user.team_id).first() if user.team_id else None
+    # Get teams via membership
+    user_teams = (
+        db.query(Team)
+        .join(TeamMembership, TeamMembership.team_id == Team.id)
+        .filter(TeamMembership.user_id == user.id, TeamMembership.company_id == current_user.company_id)
+        .all()
+    )
+    team = user_teams[0] if user_teams else None
     
     # Calculate company rank and prefix
     company_rank = db.query(User).filter(
@@ -587,7 +600,11 @@ def get_employee_detail(
     # Team performance context
     team_metrics = {"leads": 0, "converted": 0, "avg_leads_per_member": 0}
     if team:
-        team_members_count = apply_company_scope(db.query(User), User, current_user).filter(User.team_id == team.id).count()
+        team_members_count = (
+            db.query(TeamMembership)
+            .filter(TeamMembership.team_id == team.id, TeamMembership.company_id == current_user.company_id)
+            .count()
+        )
         team_leads = lead_q.filter(Lead.team_id == team.id, Lead.company_id == current_user.company_id).count()
         team_converted = lead_q.filter(Lead.team_id == team.id, Lead.status == "Converted", Lead.company_id == current_user.company_id).count()
         team_metrics = {

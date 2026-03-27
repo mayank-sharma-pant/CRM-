@@ -13,6 +13,8 @@ from app.models.core.team_membership import TeamMembership
 from app.models.sales.client import Client
 from app.models.finance.invoice import Invoice, InvoiceItem
 from app.models.core.company_settings import CompanySettings
+from app.models.ops.stock_item import StockItem
+from app.utils.notify import notify_role_users
 
 router = APIRouter()
 
@@ -21,6 +23,7 @@ class InvoiceItemCreate(BaseModel):
     description: str
     quantity: int = 1
     unit_price: float = 0.0
+    stock_item_id: Optional[int] = None
 
 
 class InvoiceCreate(BaseModel):
@@ -45,6 +48,12 @@ def create_invoice(
     """Create a new invoice for a client (company-scoped)."""
     if not body.items:
         raise HTTPException(status_code=400, detail="At least one line item is required")
+
+    for item in body.items:
+        if (item.quantity or 0) <= 0:
+            raise HTTPException(status_code=400, detail="Quantity must be greater than zero for all line items")
+        if (item.unit_price or 0) < 0:
+            raise HTTPException(status_code=400, detail="Unit price cannot be negative")
 
     client = db.query(Client).filter(Client.id == body.client_id).first()
     if not client:
@@ -90,6 +99,33 @@ def create_invoice(
         total = (it.quantity or 0) * (it.unit_price or 0)
         subtotal += total
 
+    # Optional stock deduction map when stock_item_id is provided on line items
+    requested_stock_qty: dict[int, int] = {}
+    for it in body.items:
+        if it.stock_item_id is not None:
+            requested_stock_qty[it.stock_item_id] = requested_stock_qty.get(it.stock_item_id, 0) + int(it.quantity or 0)
+
+    stock_map: dict[int, StockItem] = {}
+    if requested_stock_qty:
+        stock_rows = (
+            apply_company_scope(db.query(StockItem), StockItem, current_user)
+            .filter(StockItem.id.in_(requested_stock_qty.keys()))
+            .with_for_update()
+            .all()
+        )
+        stock_map = {s.id: s for s in stock_rows}
+
+        missing_ids = [sid for sid in requested_stock_qty.keys() if sid not in stock_map]
+        if missing_ids:
+            raise HTTPException(status_code=404, detail=f"Stock item(s) not found: {missing_ids}")
+
+        for sid, qty in requested_stock_qty.items():
+            if int(stock_map[sid].quantity or 0) < qty:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient stock for '{stock_map[sid].name}'. Available: {stock_map[sid].quantity}, requested: {qty}",
+                )
+
     # Use frontend-provided tax/discount if present, else auto-calc from company settings
     if body.tax is not None:
         tax = round(body.tax, 2)
@@ -122,8 +158,17 @@ def create_invoice(
     db.add(invoice)
     db.flush()
 
+    low_stock_alert_ids: set[int] = set()
+
     for it in body.items:
         total = (it.quantity or 0) * (it.unit_price or 0)
+        if it.stock_item_id is not None:
+            stock_item = stock_map[it.stock_item_id]
+            stock_item.quantity = int(stock_item.quantity or 0) - int(it.quantity or 0)
+            stock_item.updated_by_id = current_user.id
+            if int(stock_item.quantity or 0) <= int(stock_item.reorder_level or 0):
+                low_stock_alert_ids.add(stock_item.id)
+
         db.add(InvoiceItem(
             company_id=company_id,
             invoice_id=invoice.id,
@@ -132,6 +177,20 @@ def create_invoice(
             unit_price=it.unit_price or 0.0,
             total=total,
         ))
+
+    for stock_id in low_stock_alert_ids:
+        stock_item = stock_map.get(stock_id)
+        if stock_item is None:
+            continue
+        notify_role_users(
+            db,
+            company_id=company_id,
+            role="purchase",
+            title=f"Low Stock: {stock_item.name}",
+            message=f"Only {stock_item.quantity} {stock_item.unit}(s) remaining.",
+            type="warning",
+            link="/purchase/stock",
+        )
 
     db.commit()
     db.refresh(invoice)

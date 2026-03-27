@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
 import {
     X,
@@ -9,10 +9,14 @@ import {
     Receipt
 } from 'lucide-react';
 
+const EMPTY_ITEM = { description: '', quantity: 1, unit_price: 0, stock_item_id: null };
+
 export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId, clientName, endpoint = '/invoices' }) {
     const [clients, setClients] = useState([]);
     const [selectedClientId, setSelectedClientId] = useState(clientId || '');
-    const [items, setItems] = useState([{ description: '', quantity: 1, unit_price: 0 }]);
+    const [items, setItems] = useState([{ ...EMPTY_ITEM }]);
+    const [inventory, setInventory] = useState([]);
+    const [inventoryLoading, setInventoryLoading] = useState(false);
     const [tax, setTax] = useState(0);
     const [discount, setDiscount] = useState(0);
     const [dueDays, setDueDays] = useState(30);
@@ -20,23 +24,83 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        if (!clientId) {
-            api.get('/clients').then(res => {
-                const data = res.data?.items ?? res.data?.clients ?? res.data;
-                setClients(Array.isArray(data) ? data : []);
-            }).catch(() => {});
+        if (!isOpen || clientId) return;
+        api.get('/clients').then(res => {
+            const data = res.data?.items ?? res.data?.clients ?? res.data;
+            setClients(Array.isArray(data) ? data : []);
+        }).catch(() => {});
+    }, [clientId, isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setSelectedClientId(clientId || '');
+    }, [clientId, isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setInventoryLoading(true);
+        api.get('/inventory', { params: { limit: 500, in_stock_only: true } }).then((res) => {
+            setInventory(res.data?.items || []);
+        }).catch(() => {
+            setInventory([]);
+        }).finally(() => {
+            setInventoryLoading(false);
+        });
+    }, [isOpen]);
+
+    const stockById = useMemo(
+        () => Object.fromEntries(inventory.map((item) => [item.id, item])),
+        [inventory]
+    );
+
+    const getReservedQty = (stockItemId, excludeIndex = -1) => {
+        return items.reduce((sum, item, index) => {
+            if (index === excludeIndex) return sum;
+            if (item.stock_item_id !== stockItemId) return sum;
+            return sum + (Number(item.quantity) || 0);
+        }, 0);
+    };
+
+    const validateStockLimits = () => {
+        for (let idx = 0; idx < items.length; idx += 1) {
+            const item = items[idx];
+            if (!item.stock_item_id) continue;
+            const stock = stockById[item.stock_item_id];
+            if (!stock) return `Selected stock item on row ${idx + 1} is not available.`;
+            const requested = (Number(item.quantity) || 0) + getReservedQty(item.stock_item_id, idx);
+            if (requested > Number(stock.quantity || 0)) {
+                return `Insufficient stock for "${stock.name}". Available: ${stock.quantity}, requested total: ${requested}.`;
+            }
         }
-    }, [clientId]);
+        return null;
+    };
 
-    if (!isOpen) return null;
-
-    const addItem = () => setItems([...items, { description: '', quantity: 1, unit_price: 0 }]);
+    const addItem = () => setItems([...items, { ...EMPTY_ITEM }]);
     const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
+
     const updateItem = (idx, field, value) => {
         const updated = [...items];
-        updated[idx][field] = field === 'quantity' ? parseInt(value) || 1 : field === 'unit_price' ? parseFloat(value) || 0 : value;
+        if (field === 'quantity') {
+            updated[idx][field] = Math.max(1, parseInt(value, 10) || 1);
+        } else if (field === 'unit_price') {
+            updated[idx][field] = Math.max(0, parseFloat(value) || 0);
+        } else if (field === 'stock_item_id') {
+            const stockId = value ? parseInt(value, 10) : null;
+            updated[idx].stock_item_id = Number.isFinite(stockId) ? stockId : null;
+            if (updated[idx].stock_item_id) {
+                const selectedStock = stockById[updated[idx].stock_item_id];
+                if (selectedStock) {
+                    updated[idx].description = selectedStock.name || updated[idx].description;
+                    updated[idx].unit_price = Number(selectedStock.unit_price || 0);
+                }
+            }
+        } else {
+            updated[idx][field] = value;
+        }
         setItems(updated);
     };
+
+    if (!isOpen) return null;
 
     const subtotal = items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
     const total = subtotal + tax - discount;
@@ -45,17 +109,30 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
         const targetClientId = clientId || selectedClientId;
         if (!targetClientId) { alert('Please select a client'); return; }
         if (items.some(i => !i.description.trim())) { alert('All items need a description'); return; }
+
+        const stockError = validateStockLimits();
+        if (stockError) { alert(stockError); return; }
+
         setSubmitting(true);
         try {
             await api.post(endpoint, {
-                client_id: parseInt(targetClientId),
-                items: items.map(i => ({ description: i.description, quantity: i.quantity, unit_price: i.unit_price })),
-                tax, 
-                discount, 
-                due_days: dueDays, 
+                client_id: parseInt(targetClientId, 10),
+                items: items.map(i => ({
+                    description: i.description,
+                    quantity: i.quantity,
+                    unit_price: i.unit_price,
+                    stock_item_id: i.stock_item_id || null
+                })),
+                tax,
+                discount,
+                due_days: dueDays,
                 notes: notes || null
             });
             alert('Order created successfully!');
+            setItems([{ ...EMPTY_ITEM }]);
+            setNotes('');
+            setTax(0);
+            setDiscount(0);
             onCreated();
         } catch (err) {
             const detail = err.response?.data?.detail;
@@ -68,9 +145,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in duration-200">
-                
-                {/* Header */}
+            <div className="relative bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in duration-200">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
@@ -86,9 +161,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                     </button>
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    {/* Client Selection (if not fixed) */}
                     {!clientId && (
                         <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Client Selection</label>
@@ -112,7 +185,6 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                         </div>
                     )}
 
-                    {/* Line Items */}
                     <div>
                         <div className="flex items-center justify-between mb-2 ml-1">
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Order Items</label>
@@ -120,11 +192,29 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                                 <Plus size={12} /> Add Row
                             </button>
                         </div>
-                        
+
                         <div className="space-y-3">
                             {items.map((item, idx) => (
-                                <div key={idx} className="flex gap-2 group">
-                                    <div className="flex-1">
+                                <div key={idx} className="grid grid-cols-12 gap-2 items-start group border border-slate-100 dark:border-slate-800 rounded-lg p-2.5">
+                                    <div className="col-span-12 md:col-span-4">
+                                        <select
+                                            value={item.stock_item_id || ''}
+                                            onChange={(e) => updateItem(idx, 'stock_item_id', e.target.value)}
+                                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+                                        >
+                                            <option value="">Custom item (manual)</option>
+                                            {inventory.map(stock => (
+                                                <option key={stock.id} value={stock.id}>
+                                                    {stock.name} {stock.sku ? `(${stock.sku})` : ''} - {stock.quantity} {stock.unit}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5">
+                                            {inventoryLoading ? 'Loading stock...' : 'Select stock to auto-fill name and price'}
+                                        </p>
+                                    </div>
+
+                                    <div className="col-span-12 md:col-span-4">
                                         <input
                                             type="text"
                                             value={item.description}
@@ -132,8 +222,14 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                                             placeholder="Item detail..."
                                             className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none"
                                         />
+                                        {item.stock_item_id && stockById[item.stock_item_id] && (
+                                            <p className="text-[10px] mt-1.5 font-semibold text-slate-500 dark:text-slate-400">
+                                                Available: {stockById[item.stock_item_id].quantity} {stockById[item.stock_item_id].unit}
+                                            </p>
+                                        )}
                                     </div>
-                                    <div className="w-20">
+
+                                    <div className="col-span-4 md:col-span-1">
                                         <input
                                             type="number"
                                             value={item.quantity}
@@ -143,7 +239,8 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                                             min={1}
                                         />
                                     </div>
-                                    <div className="w-28">
+
+                                    <div className="col-span-6 md:col-span-2">
                                         <input
                                             type="number"
                                             value={item.unit_price}
@@ -154,41 +251,55 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                                             step={0.01}
                                         />
                                     </div>
-                                    {items.length > 1 && (
-                                        <button onClick={() => removeItem(idx)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                                            <Trash2 size={16} />
-                                        </button>
-                                    )}
+
+                                    <div className="col-span-2 md:col-span-1 flex justify-end">
+                                        {items.length > 1 && (
+                                            <button onClick={() => removeItem(idx)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Financial Options */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Tax Offset ($)</label>
-                            <input type="number" value={tax} onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
+                            <input
+                                type="number"
+                                value={tax}
+                                onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
                                 className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
-                                min={0} step={0.01} />
+                                min={0}
+                                step={0.01}
+                            />
                         </div>
                         <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Discount ($)</label>
-                            <input type="number" value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                            <input
+                                type="number"
+                                value={discount}
+                                onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
                                 className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
-                                min={0} step={0.01} />
+                                min={0}
+                                step={0.01}
+                            />
                         </div>
                     </div>
 
-                    {/* Additional Notes */}
                     <div>
                         <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Order Memo</label>
-                        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+                        <textarea
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            rows={2}
                             className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none"
-                            placeholder="Specify order details or special requests..." />
+                            placeholder="Specify order details or special requests..."
+                        />
                     </div>
 
-                    {/* Summary */}
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-2.5">
                         <div className="flex justify-between text-xs text-slate-400 font-medium">
                             <span>Subtotal</span>
@@ -209,14 +320,18 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                     </div>
                 </div>
 
-                {/* Footer Actions */}
                 <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex gap-3">
-                    <button onClick={onClose}
-                        className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm"
+                    >
                         Keep Browsing
                     </button>
-                    <button onClick={handleSubmit} disabled={submitting}
-                        className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
+                    <button
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                        className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
                         {submitting ? 'Submitting...' : 'Initiate Approval'}
                     </button>
                 </div>

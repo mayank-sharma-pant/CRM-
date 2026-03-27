@@ -316,7 +316,7 @@ export default function MDRevenuePage() {
                     ))}
                 </div>
             </div>
-            
+
             {/* Section E: AI Revenue Insights */}
             {aiInsights.length > 0 && (
                 <div className="bg-surface rounded-md border border-border flex items-center justify-between p-5 shadow-sm">

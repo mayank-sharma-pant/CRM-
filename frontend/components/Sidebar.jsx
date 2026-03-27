@@ -31,6 +31,7 @@ import {
     Bug,
     Target,
     TrendingUp,
+    Package,
     Menu,
     X
 } from 'lucide-react';
@@ -59,7 +60,8 @@ const ICON_MAP = {
     BookOpen,
     Bug,
     Target,
-    TrendingUp
+    TrendingUp,
+    Package
 };
 
 const ROLE_NAVIGATION = {
@@ -68,6 +70,7 @@ const ROLE_NAVIGATION = {
         { name: 'Leads', href: '/sales/leads', icon: 'Users' },
         { name: 'Clients', href: '/sales/clients', icon: 'Briefcase' },
         { name: 'My Orders', href: '/sales/orders', icon: 'Receipt' },
+        { name: 'Stock', href: '/sales/stock', icon: 'Package' },
         { name: 'Tasks', href: '/sales/tasks', icon: 'CheckSquare' },
         { name: 'Follow-ups', href: '/sales/follow-ups', icon: 'Calendar' },
         { name: 'Performance', href: '/sales/performance', icon: 'BarChart' },
@@ -81,6 +84,7 @@ const ROLE_NAVIGATION = {
         { name: 'My Team', href: '/manager/team', icon: 'UsersRound' },
         { name: 'Leads', href: '/manager/leads', icon: 'Users' },
         { name: 'Clients', href: '/manager/clients', icon: 'Briefcase' },
+        { name: 'Stock', href: '/manager/stock', icon: 'Package' },
         { name: 'Tasks', href: '/manager/tasks', icon: 'CheckSquare' },
         { name: 'Reports', href: '/manager/reports', icon: 'PieChart' },
     ],
@@ -101,12 +105,14 @@ const ROLE_NAVIGATION = {
         { name: 'Monitoring', href: '/md/monitoring', icon: 'Activity' },
         { name: 'Leads', href: '/md/leads', icon: 'Target' },
         { name: 'Clients', href: '/md/clients', icon: 'Briefcase' },
+        { name: 'Stock', href: '/md/stock', icon: 'Package' },
         { name: 'Invoices', href: '/md/invoices', icon: 'Receipt' },
         { name: 'Reports', href: '/md/reports', icon: 'PieChart' },
     ],
     purchase: [
         { name: 'Dashboard', href: '/purchase/dashboard', icon: 'LayoutDashboard' },
         { name: 'Sales Approvals', href: '/purchase/sales', icon: 'ShoppingCart' },
+        { name: 'Stock', href: '/purchase/stock', icon: 'Package' },
         { name: 'Invoice Management', href: '/purchase/invoices', icon: 'Receipt' },
         { name: 'Purchase Monitoring', href: '/purchase/monitoring', icon: 'BarChart3' },
     ],

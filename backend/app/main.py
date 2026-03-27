@@ -5,7 +5,7 @@ from app.routers.auth import auth
 from app.routers.admin import users, admin, platform, notifications
 from app.routers.sales import leads, tasks, clients, follow_ups, search, timeline
 from app.routers.finance import invoices, purchase, ledgers, export
-from app.routers.ops import leaves, documents, bug_report, imports
+from app.routers.ops import leaves, documents, bug_report, imports, inventory
 from app.routers.management import md, manager
 from app.routers.ai.company_assistant import router as company_ai_router
 from app.routers import teams
@@ -14,6 +14,8 @@ import traceback
 import logging
 import logging.config
 import os
+from app.database import engine
+from app.models.ops.stock_item import StockItem
 
 # -------------------------------------------------------
 # Structured logging — JSON-friendly format for production
@@ -53,6 +55,18 @@ app = FastAPI(
     docs_url=None if is_production else "/docs",
     redoc_url=None if is_production else "/redoc",
 )
+
+
+@app.on_event("startup")
+def ensure_inventory_table_exists():
+    """
+    Keep inventory feature usable in environments where migrations were not applied yet.
+    Creates stock_items table if missing.
+    """
+    try:
+        StockItem.__table__.create(bind=engine, checkfirst=True)
+    except Exception:
+        logger.exception("Failed to ensure stock_items table exists")
 
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=os.getenv("TRUSTED_HOSTS", "127.0.0.1").split(","))
@@ -107,6 +121,7 @@ app.include_router(notifications.router, prefix="/api/notifications", tags=["Not
 app.include_router(timeline.router, prefix="/api/timeline", tags=["Timeline"])
 app.include_router(bug_report.router, prefix="/api/bug-report", tags=["Bug Reports"])
 app.include_router(imports.router, prefix="/api/import", tags=["Import"])
+app.include_router(inventory.router, prefix="/api/inventory", tags=["Inventory"])
 app.include_router(company_ai_router, prefix="/api/ai", tags=["AI"])
 app.include_router(teams.router, prefix="/api/teams", tags=["Teams"])
 

@@ -32,6 +32,20 @@ class FollowUpRescheduleBody(BaseModel):
     reason: Optional[str] = None
 
 
+def _parse_ymd_date(value: str, field_name: str):
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid {field_name} format. Expected YYYY-MM-DD.")
+
+
+def _parse_hm_time(value: str, field_name: str):
+    try:
+        return datetime.strptime(value, "%H:%M").time()
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid {field_name} format. Expected HH:MM (24-hour).")
+
+
 # ===============================
 # Follow-ups Endpoints
 # ===============================
@@ -230,18 +244,29 @@ def get_follow_up(
 def create_follow_up(
     body: FollowUpCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Create a new follow-up"""
     lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == body.lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
+
+    # Role-based scoping
+    if current_user.role == "sales":
+        if lead.assigned_to_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You can only create follow-ups for your own leads")
+        if active_team_id is not None and lead.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You can only create follow-ups in your active team")
+    elif current_user.role == "manager":
+        if active_team_id is None or lead.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You can only create follow-ups for leads in your team")
     
     new_fu = FollowUp(
         company_id=lead.company_id,
         lead_id=body.lead_id,
-        scheduled_date=datetime.strptime(body.scheduled_date, "%Y-%m-%d").date(),
-        scheduled_time=datetime.strptime(body.scheduled_time, "%H:%M").time() if body.scheduled_time else None,
+        scheduled_date=_parse_ymd_date(body.scheduled_date, "scheduled_date"),
+        scheduled_time=_parse_hm_time(body.scheduled_time, "scheduled_time") if body.scheduled_time else None,
         notes=body.notes,
         status="Pending"
     )
@@ -284,9 +309,9 @@ def update_follow_up(
             raise HTTPException(status_code=403, detail="You cannot edit follow-ups outside your team")
     
     if body.scheduled_date is not None:
-        fu.scheduled_date = datetime.strptime(body.scheduled_date, "%Y-%m-%d").date()
+        fu.scheduled_date = _parse_ymd_date(body.scheduled_date, "scheduled_date")
     if body.scheduled_time is not None:
-        fu.scheduled_time = datetime.strptime(body.scheduled_time, "%H:%M").time()
+        fu.scheduled_time = _parse_hm_time(body.scheduled_time, "scheduled_time")
     if body.notes is not None:
         fu.notes = body.notes
     
@@ -356,9 +381,9 @@ def reschedule_follow_up(
         if lead and (active_team_id is None or lead.team_id != active_team_id):
             raise HTTPException(status_code=403, detail="You cannot reschedule follow-ups outside your team")
     
-    fu.scheduled_date = datetime.strptime(body.new_date, "%Y-%m-%d").date()
+    fu.scheduled_date = _parse_ymd_date(body.new_date, "new_date")
     if body.new_time:
-        fu.scheduled_time = datetime.strptime(body.new_time, "%H:%M").time()
+        fu.scheduled_time = _parse_hm_time(body.new_time, "new_time")
     if body.reason:
         fu.notes = f"{fu.notes or ''}\n[Rescheduled: {body.reason}]"
     
@@ -375,7 +400,8 @@ def reschedule_follow_up(
 def delete_follow_up(
     follow_up_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Delete a follow-up"""
     fu = db.query(FollowUp).filter(FollowUp.id == follow_up_id).first()
@@ -388,6 +414,10 @@ def delete_follow_up(
         lead = db.query(Lead).filter(Lead.id == fu.lead_id).first()
         if lead and lead.assigned_to_id != current_user.id:
             raise HTTPException(status_code=403, detail="You can only delete follow-ups for your own leads")
+    elif current_user.role == "manager":
+        lead = db.query(Lead).filter(Lead.id == fu.lead_id).first()
+        if lead and (active_team_id is None or lead.team_id != active_team_id):
+            raise HTTPException(status_code=403, detail="You can only delete follow-ups for leads in your team")
     
     db.delete(fu)
     db.commit()

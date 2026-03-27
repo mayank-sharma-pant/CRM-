@@ -1,73 +1,31 @@
-from app.models import Company, User, Client
 from app.models.ops.stock_item import StockItem
-from app.utils.security import get_password_hash
-
-
-def login_user(client, email):
-    response = client.post(
-        "/api/auth/login",
-        data={"username": email, "password": "pw"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert response.status_code == 200, f"Login failed for {email}: {response.text}"
-    token = response.json()["access_token"]
-    client.headers["Authorization"] = f"Bearer {token}"
-    return response
-
-
-def create_user(db, *, email, role, company_id):
-    user = User(
-        email=email,
-        full_name=email.split("@")[0].title(),
-        hashed_password=get_password_hash("pw"),
-        role=role,
-        company_id=company_id,
-        status="active",
-        is_active=True,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
+from tests.helpers.auth import create_active_user, login_user
+from tests.helpers.factories import create_client, create_company
 
 
 def test_sales_invoice_decreases_stock_when_stock_item_linked(client, db):
-    company = Company(name="Inventory Co", company_code="INV", status="active")
-    db.add(company)
-    db.commit()
-    db.refresh(company)
-
-    purchase_user = User(
+    company = create_company(db, name="Inventory Co", company_code="INV")
+    purchase_user = create_active_user(
+        db,
         email="purchase@inv.com",
-        full_name="Purchase",
-        hashed_password=get_password_hash("pw"),
         role="purchase",
         company_id=company.id,
-        status="active",
-        is_active=True,
+        full_name="Purchase",
     )
-    sales_user = User(
+    sales_user = create_active_user(
+        db,
         email="sales@inv.com",
-        full_name="Sales",
-        hashed_password=get_password_hash("pw"),
         role="sales",
         company_id=company.id,
-        status="active",
-        is_active=True,
+        full_name="Sales",
     )
-    db.add_all([purchase_user, sales_user])
-    db.commit()
-    db.refresh(purchase_user)
-    db.refresh(sales_user)
 
-    client_row = Client(
+    customer = create_client(
+        db,
         company_id=company.id,
         name="Customer A",
         assigned_to_id=sales_user.id,
     )
-    db.add(client_row)
-    db.commit()
-    db.refresh(client_row)
 
     login_user(client, purchase_user.email)
     create_stock = client.post(
@@ -89,7 +47,7 @@ def test_sales_invoice_decreases_stock_when_stock_item_linked(client, db):
     create_invoice = client.post(
         "/api/invoices",
         json={
-            "client_id": client_row.id,
+            "client_id": customer.id,
             "items": [
                 {
                     "description": "RAM 16GB",
@@ -111,33 +69,21 @@ def test_sales_invoice_decreases_stock_when_stock_item_linked(client, db):
 
 
 def test_manager_can_view_but_not_modify_inventory(client, db):
-    company = Company(name="View Co", company_code="VCO", status="active")
-    db.add(company)
-    db.commit()
-    db.refresh(company)
-
-    manager = User(
+    company = create_company(db, name="View Co", company_code="VCO")
+    manager = create_active_user(
+        db,
         email="manager@view.com",
-        full_name="Manager",
-        hashed_password=get_password_hash("pw"),
         role="manager",
         company_id=company.id,
-        status="active",
-        is_active=True,
+        full_name="Manager",
     )
-    purchase_user = User(
+    purchase_user = create_active_user(
+        db,
         email="purchase@view.com",
-        full_name="Purchase",
-        hashed_password=get_password_hash("pw"),
         role="purchase",
         company_id=company.id,
-        status="active",
-        is_active=True,
+        full_name="Purchase",
     )
-    db.add_all([manager, purchase_user])
-    db.commit()
-    db.refresh(manager)
-    db.refresh(purchase_user)
 
     db.add(
         StockItem(
@@ -176,42 +122,27 @@ def test_manager_can_view_but_not_modify_inventory(client, db):
 
 
 def test_invoice_rejects_when_requested_quantity_exceeds_stock(client, db):
-    company = Company(name="Low Stock Co", company_code="LSC", status="active")
-    db.add(company)
-    db.commit()
-    db.refresh(company)
-
-    purchase_user = User(
+    company = create_company(db, name="Low Stock Co", company_code="LSC")
+    purchase_user = create_active_user(
+        db,
         email="purchase@lsc.com",
-        full_name="Purchase",
-        hashed_password=get_password_hash("pw"),
         role="purchase",
         company_id=company.id,
-        status="active",
-        is_active=True,
+        full_name="Purchase",
     )
-    sales_user = User(
+    sales_user = create_active_user(
+        db,
         email="sales@lsc.com",
-        full_name="Sales",
-        hashed_password=get_password_hash("pw"),
         role="sales",
         company_id=company.id,
-        status="active",
-        is_active=True,
+        full_name="Sales",
     )
-    db.add_all([purchase_user, sales_user])
-    db.commit()
-    db.refresh(purchase_user)
-    db.refresh(sales_user)
-
-    customer = Client(
+    customer = create_client(
+        db,
         company_id=company.id,
         name="Customer B",
         assigned_to_id=sales_user.id,
     )
-    db.add(customer)
-    db.commit()
-    db.refresh(customer)
 
     login_user(client, purchase_user.email)
     create_stock = client.post(
@@ -255,13 +186,14 @@ def test_invoice_rejects_when_requested_quantity_exceeds_stock(client, db):
 
 
 def test_inventory_filters_search_and_instock_lowstock(client, db):
-    company = Company(name="Filter Co", company_code="FIL", status="active")
-    db.add(company)
-    db.commit()
-    db.refresh(company)
+    company = create_company(db, name="Filter Co", company_code="FIL")
 
-    purchase_user = create_user(db, email="purchase@fil.com", role="purchase", company_id=company.id)
-    manager_user = create_user(db, email="manager@fil.com", role="manager", company_id=company.id)
+    purchase_user = create_active_user(
+        db, email="purchase@fil.com", role="purchase", company_id=company.id
+    )
+    manager_user = create_active_user(
+        db, email="manager@fil.com", role="manager", company_id=company.id
+    )
 
     db.add_all(
         [
@@ -326,13 +258,12 @@ def test_inventory_filters_search_and_instock_lowstock(client, db):
 
 
 def test_inventory_adjust_quantity_rules_and_permissions(client, db):
-    company = Company(name="Adjust Co", company_code="ADJ", status="active")
-    db.add(company)
-    db.commit()
-    db.refresh(company)
+    company = create_company(db, name="Adjust Co", company_code="ADJ")
 
-    purchase_user = create_user(db, email="purchase@adj.com", role="purchase", company_id=company.id)
-    sales_user = create_user(db, email="sales@adj.com", role="sales", company_id=company.id)
+    purchase_user = create_active_user(
+        db, email="purchase@adj.com", role="purchase", company_id=company.id
+    )
+    sales_user = create_active_user(db, email="sales@adj.com", role="sales", company_id=company.id)
 
     stock = StockItem(
         company_id=company.id,
@@ -371,15 +302,15 @@ def test_inventory_adjust_quantity_rules_and_permissions(client, db):
 
 
 def test_inventory_sku_uniqueness_scoped_per_company(client, db):
-    company_a = Company(name="SKU Co A", company_code="SKA", status="active")
-    company_b = Company(name="SKU Co B", company_code="SKB", status="active")
-    db.add_all([company_a, company_b])
-    db.commit()
-    db.refresh(company_a)
-    db.refresh(company_b)
+    company_a = create_company(db, name="SKU Co A", company_code="SKA")
+    company_b = create_company(db, name="SKU Co B", company_code="SKB")
 
-    purchase_a = create_user(db, email="purchase@ska.com", role="purchase", company_id=company_a.id)
-    purchase_b = create_user(db, email="purchase@skb.com", role="purchase", company_id=company_b.id)
+    purchase_a = create_active_user(
+        db, email="purchase@ska.com", role="purchase", company_id=company_a.id
+    )
+    purchase_b = create_active_user(
+        db, email="purchase@skb.com", role="purchase", company_id=company_b.id
+    )
 
     login_user(client, purchase_a.email)
     first = client.post(

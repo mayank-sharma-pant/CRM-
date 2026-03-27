@@ -1,29 +1,15 @@
-from datetime import date
+from datetime import date, timedelta
 
-from app.models import Company, User, Lead
+from app.models import Lead
 from app.models.core.team import Team
 from app.models.core.team_membership import TeamMembership
 from app.models.sales.follow_up import FollowUp
-from app.utils.security import get_password_hash
-
-
-def login_user(client, email):
-    response = client.post(
-        "/api/auth/login",
-        data={"username": email, "password": "pw"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert response.status_code == 200, f"Login failed for {email}: {response.text}"
-    token = response.json()["access_token"]
-    client.headers["Authorization"] = f"Bearer {token}"
-    return response
+from tests.helpers.auth import create_active_user, login_user
+from tests.helpers.factories import create_company
 
 
 def test_manager_cannot_create_follow_up_for_other_team_lead(client, db):
-    company = Company(name="Followup Co", company_code="FUP", status="active")
-    db.add(company)
-    db.commit()
-    db.refresh(company)
+    company = create_company(db, name="Followup Co", company_code="FUP")
 
     team_a = Team(company_id=company.id, name="A")
     team_b = Team(company_id=company.id, name="B")
@@ -32,30 +18,22 @@ def test_manager_cannot_create_follow_up_for_other_team_lead(client, db):
     db.refresh(team_a)
     db.refresh(team_b)
 
-    manager = User(
+    manager = create_active_user(
+        db,
         email="manager@fup.com",
-        full_name="Manager",
-        hashed_password=get_password_hash("pw"),
         role="manager",
         company_id=company.id,
-        is_active=True,
-        status="active",
+        full_name="Manager",
         team_id=team_a.id,
     )
-    sales_b = User(
+    sales_b = create_active_user(
+        db,
         email="salesb@fup.com",
-        full_name="Sales B",
-        hashed_password=get_password_hash("pw"),
         role="sales",
         company_id=company.id,
-        is_active=True,
-        status="active",
+        full_name="Sales B",
         team_id=team_b.id,
     )
-    db.add_all([manager, sales_b])
-    db.commit()
-    db.refresh(manager)
-    db.refresh(sales_b)
 
     db.add_all(
         [
@@ -77,19 +55,21 @@ def test_manager_cannot_create_follow_up_for_other_team_lead(client, db):
     db.refresh(lead_b)
 
     login_user(client, manager.email)
+    scheduled_date = (date.today() + timedelta(days=1)).isoformat()
     response = client.post(
         "/api/follow-ups",
-        json={"lead_id": lead_b.id, "scheduled_date": "2026-03-27", "scheduled_time": "10:00", "notes": "x"},
+        json={
+            "lead_id": lead_b.id,
+            "scheduled_date": scheduled_date,
+            "scheduled_time": "10:00",
+            "notes": "x",
+        },
     )
-
     assert response.status_code == 403
 
 
 def test_manager_cannot_delete_follow_up_for_other_team_lead(client, db):
-    company = Company(name="Delete Co", company_code="DEL", status="active")
-    db.add(company)
-    db.commit()
-    db.refresh(company)
+    company = create_company(db, name="Delete Co", company_code="DEL")
 
     team_a = Team(company_id=company.id, name="A")
     team_b = Team(company_id=company.id, name="B")
@@ -98,30 +78,22 @@ def test_manager_cannot_delete_follow_up_for_other_team_lead(client, db):
     db.refresh(team_a)
     db.refresh(team_b)
 
-    manager = User(
+    manager = create_active_user(
+        db,
         email="manager2@fup.com",
-        full_name="Manager 2",
-        hashed_password=get_password_hash("pw"),
         role="manager",
         company_id=company.id,
-        is_active=True,
-        status="active",
+        full_name="Manager 2",
         team_id=team_a.id,
     )
-    sales_b = User(
+    sales_b = create_active_user(
+        db,
         email="salesb2@fup.com",
-        full_name="Sales B2",
-        hashed_password=get_password_hash("pw"),
         role="sales",
         company_id=company.id,
-        is_active=True,
-        status="active",
+        full_name="Sales B2",
         team_id=team_b.id,
     )
-    db.add_all([manager, sales_b])
-    db.commit()
-    db.refresh(manager)
-    db.refresh(sales_b)
 
     db.add_all(
         [
@@ -153,28 +125,18 @@ def test_manager_cannot_delete_follow_up_for_other_team_lead(client, db):
 
     login_user(client, manager.email)
     response = client.delete(f"/api/follow-ups/{follow_up.id}")
-
     assert response.status_code == 403
 
 
 def test_follow_up_create_invalid_date_returns_400(client, db):
-    company = Company(name="Date Co", company_code="DAT", status="active")
-    db.add(company)
-    db.commit()
-    db.refresh(company)
-
-    admin = User(
+    company = create_company(db, name="Date Co", company_code="DAT")
+    admin = create_active_user(
+        db,
         email="admin@date.com",
-        full_name="Admin",
-        hashed_password=get_password_hash("pw"),
         role="admin",
         company_id=company.id,
-        is_active=True,
-        status="active",
+        full_name="Admin",
     )
-    db.add(admin)
-    db.commit()
-    db.refresh(admin)
 
     lead = Lead(company_id=company.id, name="Lead", status="New")
     db.add(lead)
@@ -186,6 +148,5 @@ def test_follow_up_create_invalid_date_returns_400(client, db):
         "/api/follow-ups",
         json={"lead_id": lead.id, "scheduled_date": "27-03-2026", "scheduled_time": "10:00", "notes": "x"},
     )
-
     assert response.status_code == 400
     assert "Invalid scheduled_date format" in response.json()["detail"]

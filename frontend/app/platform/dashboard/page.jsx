@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Building2, Users, AlertCircle, TrendingUp, CheckCircle, Clock } from 'lucide-react';
+import { Building2, Users, AlertCircle, TrendingUp, CheckCircle, Clock, ShieldCheck } from 'lucide-react';
 
 const PLATFORM_API = '/platform';
 
@@ -131,33 +131,33 @@ export default function PlatformDashboardPage() {
                 ))}
             </div>
 
-            {/* Business Metrics */}
+            {/* Platform Overview */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div className="bg-white rounded-xl border border-slate-200 p-6">
-                    <h2 className="text-lg font-bold text-slate-900 mb-4">Business Metrics</h2>
+                    <h2 className="text-lg font-bold text-slate-900 mb-4">Company Health</h2>
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <span className="text-slate-600">Total Leads</span>
+                            <span className="text-slate-600">Active Companies</span>
                             <span className="text-xl font-bold text-slate-900">
-                                {metrics?.business_metrics?.leads || 0}
+                                {metrics?.companies?.active || 0}
                             </span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-slate-600">Total Clients</span>
+                            <span className="text-slate-600">Pending Companies</span>
                             <span className="text-xl font-bold text-slate-900">
-                                {metrics?.business_metrics?.clients || 0}
+                                {metrics?.companies?.pending || 0}
                             </span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-slate-600">Total Tasks</span>
+                            <span className="text-slate-600">Suspended Companies</span>
                             <span className="text-xl font-bold text-slate-900">
-                                {metrics?.business_metrics?.tasks || 0}
+                                {metrics?.companies?.suspended || 0}
                             </span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-slate-600">Total Invoices</span>
+                            <span className="text-slate-600">Total Company Users</span>
                             <span className="text-xl font-bold text-slate-900">
-                                {metrics?.business_metrics?.invoices || 0}
+                                {metrics?.users?.total || 0}
                             </span>
                         </div>
                     </div>
@@ -179,6 +179,37 @@ export default function PlatformDashboardPage() {
                         {(!metrics?.plan_distribution || metrics.plan_distribution.length === 0) && (
                             <p className="text-slate-400 text-sm italic">No active companies yet</p>
                         )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Governance */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
+                <h2 className="text-lg font-bold text-slate-900 mb-4">Governance Snapshot</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="rounded-lg border border-slate-200 p-4">
+                        <div className="flex items-center gap-2 text-slate-700 mb-2">
+                            <ShieldCheck size={18} className="text-green-600" />
+                            <span className="text-sm font-semibold">Approval Queue</span>
+                        </div>
+                        <p className="text-2xl font-bold text-slate-900">{metrics?.companies?.pending || 0}</p>
+                        <p className="text-xs text-slate-500 mt-1">Companies awaiting review</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 p-4">
+                        <div className="flex items-center gap-2 text-slate-700 mb-2">
+                            <Building2 size={18} className="text-blue-600" />
+                            <span className="text-sm font-semibold">Total Companies</span>
+                        </div>
+                        <p className="text-2xl font-bold text-slate-900">{metrics?.companies?.total || 0}</p>
+                        <p className="text-xs text-slate-500 mt-1">Registered organizations</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 p-4">
+                        <div className="flex items-center gap-2 text-slate-700 mb-2">
+                            <Users size={18} className="text-indigo-600" />
+                            <span className="text-sm font-semibold">Platform Footprint</span>
+                        </div>
+                        <p className="text-2xl font-bold text-slate-900">{metrics?.users?.active || 0}</p>
+                        <p className="text-xs text-slate-500 mt-1">Active users across companies</p>
                     </div>
                 </div>
             </div>

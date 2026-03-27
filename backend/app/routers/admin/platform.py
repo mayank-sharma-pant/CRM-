@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func as sa_func
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from app.database import get_db
 from app.models.core.user import User
@@ -29,7 +29,22 @@ def _require_platform_admin(token: str, db: Session) -> User:
     if payload is None:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     email = payload.get("sub")
-    user = db.query(User).filter(User.email == email).first()
+    user = (
+        db.query(User)
+        .options(
+            load_only(
+                User.id,
+                User.email,
+                User.full_name,
+                User.role,
+                User.company_id,
+                User.status,
+                User.is_active,
+            )
+        )
+        .filter(User.email == email)
+        .first()
+    )
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     if not (user.role == "admin" and user.company_id is None):
@@ -58,7 +73,23 @@ def _create_platform_audit(db: Session, admin: User, action: str, company_id: in
 
 @router.post("/auth/login")
 def platform_login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(sa_func.lower(User.email) == form_data.username.lower()).first()
+    user = (
+        db.query(User)
+        .options(
+            load_only(
+                User.id,
+                User.email,
+                User.full_name,
+                User.hashed_password,
+                User.role,
+                User.company_id,
+                User.status,
+                User.is_active,
+            )
+        )
+        .filter(sa_func.lower(User.email) == form_data.username.lower())
+        .first()
+    )
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     if not (user.role == "admin" and user.company_id is None):

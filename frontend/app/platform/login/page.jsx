@@ -44,7 +44,13 @@ export default function PlatformLoginPage() {
                 throw new Error(detail);
             }
 
-            // No longer storing token in localStorage as backend uses httpOnly cookies
+            const data = await response.json();
+            if (!data?.access_token) {
+                throw new Error('Login failed: missing access token');
+            }
+
+            // Platform routes use bearer token auth.
+            localStorage.setItem('platform_token', data.access_token);
             router.push('/platform/dashboard');
         } catch (err) {
             setError(err.message);

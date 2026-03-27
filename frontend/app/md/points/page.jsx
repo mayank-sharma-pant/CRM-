@@ -1,79 +1,95 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import api from '../../../services/api';
 import {
     Award,
-    ChevronRight,
     TrendingUp,
     TrendingDown,
     Minus,
     Search,
-    Filter,
-    ArrowUpRight,
-    Target,
-    Zap
+    Zap,
 } from 'lucide-react';
 
 export default function MDPointsPage() {
-    const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [performance, setPerformance] = useState([]);
     const [summary, setSummary] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
 
+    const fetchPerformance = async () => {
+        try {
+            setLoading(true);
+            const res = await api.get('/md/points');
+            setPerformance(res.data.performance || []);
+            setSummary(res.data.summary || null);
+        } catch (err) {
+            console.error('Failed to fetch MD points', err);
+            setPerformance([]);
+            setSummary(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchPerformance = async () => {
-            try {
-                setLoading(true);
-                // Assume /md/points or /md/performance endpoint
-                const res = await api.get('/md/points');
-                setPerformance(res.data.performance || []);
-                setSummary(res.data.summary || null);
-            } catch (err) {
-                console.error("Failed to fetch MD points", err);
-                setPerformance([]);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchPerformance();
     }, []);
 
     if (loading) return <PointsSkeleton />;
 
-    const filteredPerformance = performance.filter(p =>
+    const filteredPerformance = performance.filter((p) =>
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.id.toLowerCase().includes(searchQuery.toLowerCase())
+        String(p.id || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     return (
         <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
-
-            {/* Header: Incentive Engine Control */}
             <div className="flex items-center justify-between py-4 border-b border-border">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-primary">Incentive Engine</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Employee Performance Points & Tier Distribution</p>
+                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">
+                        Auto-calculated employee performance points
+                    </p>
                 </div>
                 <div className="flex items-center gap-2.5">
-                    <button className="flex items-center gap-2 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-black uppercase tracking-tight transition-all shadow-sm shadow-accent/10">
+                    <button
+                        onClick={fetchPerformance}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-black uppercase tracking-tight transition-all shadow-sm shadow-accent/10"
+                    >
                         <Zap size={14} strokeWidth={2.5} />
-                        Recalculate Bounds
+                        Refresh Scores
                     </button>
                 </div>
             </div>
 
-            {/* Section A: Global Performance Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <KPIMini label="Aggregate Points" value={summary ? summary.totalPoints.toLocaleString() : '0'} sub={`${performance.length} employees`} color="text-primary" />
-                <KPIMini label="Bonus Provision" value={summary ? `$${summary.totalBonus.toLocaleString()}` : '$0'} sub="Current period" color="text-accent" />
-                <KPIMini label="Active Tiers" value={summary ? `${summary.tierCount} Classes` : '0'} sub="Silver to Titanium" color="text-secondary" />
-                <KPIMini label="Top Performer" value={summary?.topPerformer || 'N/A'} sub={summary ? `${summary.topTier} ${summary.topPoints.toLocaleString()}pts` : ''} color="text-success" />
+                <KPIMini
+                    label="Aggregate Points"
+                    value={summary ? summary.totalPoints.toLocaleString() : '0'}
+                    sub={`${performance.length} employees`}
+                    color="text-primary"
+                />
+                <KPIMini
+                    label="Bonus Provision"
+                    value={summary ? `$${summary.totalBonus.toLocaleString()}` : '$0'}
+                    sub="Current period"
+                    color="text-accent"
+                />
+                <KPIMini
+                    label="Active Tiers"
+                    value={summary ? `${summary.tierCount} Classes` : '0'}
+                    sub="Silver to Titanium"
+                    color="text-secondary"
+                />
+                <KPIMini
+                    label="Top Performer"
+                    value={summary?.topPerformer || 'N/A'}
+                    sub={summary ? `${summary.topTier} ${summary.topPoints.toLocaleString()}pts` : ''}
+                    color="text-success"
+                />
             </div>
 
-            {/* Section B: Filter & Search */}
             <div className="flex items-center justify-between bg-surface p-2 rounded-md border border-border">
                 <div className="relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" strokeWidth={2.5} />
@@ -85,13 +101,11 @@ export default function MDPointsPage() {
                         className="pl-9 pr-4 py-1.5 bg-surface-elevated border border-border rounded-md text-[11px] font-bold uppercase tracking-widest placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent min-w-[320px]"
                     />
                 </div>
-                <button className="flex items-center gap-2 px-3 py-1.5 bg-surface-elevated border border-border rounded-md text-[11px] font-bold text-secondary uppercase tracking-tight hover:bg-border/50">
-                    <Filter size={14} className="text-muted" strokeWidth={2.5} />
-                    <span>Incentivization Tiers</span>
-                </button>
+                <div className="text-[11px] font-bold text-muted uppercase tracking-widest">
+                    Calculated from conversions and lead ownership
+                </div>
             </div>
 
-            {/* Section C: Performance Ledger */}
             <div className="bg-surface rounded-md border border-border shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -103,7 +117,6 @@ export default function MDPointsPage() {
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Target Progress</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Bonus Accrued</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest text-center">Velocity</th>
-                                <th className="py-3 px-5"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border/50">
@@ -115,11 +128,13 @@ export default function MDPointsPage() {
                                     <td className="py-4 px-5">
                                         <div className="flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-[12px] font-black text-accent uppercase">
-                                                {emp.name.split(' ').map(n => n[0]).join('')}
+                                                {emp.name.split(' ').map((n) => n[0]).join('')}
                                             </div>
                                             <div>
                                                 <div className="text-[13px] font-bold text-primary">{emp.name}</div>
-                                                <div className="text-[10px] font-black text-muted uppercase tracking-widest">{emp.id} • {emp.role}</div>
+                                                <div className="text-[10px] font-black text-muted uppercase tracking-widest">
+                                                    {emp.id} - {emp.role}
+                                                </div>
                                             </div>
                                         </div>
                                     </td>
@@ -148,11 +163,6 @@ export default function MDPointsPage() {
                                         {emp.trend === 'down' && <TrendingDown size={16} className="text-error mx-auto" strokeWidth={3} />}
                                         {emp.trend === 'flat' && <Minus size={16} className="text-muted mx-auto" strokeWidth={3} />}
                                     </td>
-                                    <td className="py-4 px-5 text-right w-10">
-                                        <button className="p-1.5 rounded-md hover:bg-surface-elevated text-muted hover:text-accent transition-all">
-                                            <ArrowUpRight size={14} strokeWidth={2.5} />
-                                        </button>
-                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -170,9 +180,7 @@ export default function MDPointsPage() {
     );
 }
 
-// --- SUBCOMPONENTS ---
-
-function KPIMini({ label, value, sub, color = "text-primary" }) {
+function KPIMini({ label, value, sub, color = 'text-primary' }) {
     return (
         <div className="bg-surface rounded-md border border-border p-5 shadow-sm hover:bg-surface-elevated transition-colors group">
             <span className="text-[10px] font-black uppercase tracking-widest text-muted group-hover:text-secondary">{label}</span>
@@ -189,7 +197,7 @@ function TierBadge({ tier }) {
         Titanium: 'bg-primary text-white border-primary shadow-[0_0_12px_rgba(0,0,0,0.1)]',
         Platinum: 'bg-surface-elevated text-primary border-primary/20',
         Gold: 'bg-warning/10 text-warning border-warning/20',
-        Silver: 'bg-surface-elevated text-muted border-border'
+        Silver: 'bg-surface-elevated text-muted border-border',
     };
 
     return (

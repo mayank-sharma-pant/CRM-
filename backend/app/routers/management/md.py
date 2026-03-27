@@ -22,6 +22,7 @@ from app.utils.notify import notify_role_users
 router = APIRouter()
 
 MD_ROLES = {"md", "admin"}
+POINT_ELIGIBLE_ROLES = {"sales", "manager"}
 
 
 def require_md(current_user: User = Depends(get_current_user)) -> User:
@@ -757,6 +758,23 @@ def get_company_invoices(
 # Performance Points / Incentives
 # ===============================
 
+def _tier_for_points(points: int) -> str:
+    if points >= 2000:
+        return "Titanium"
+    if points >= 1500:
+        return "Platinum"
+    if points >= 800:
+        return "Gold"
+    return "Silver"
+
+
+def _base_points_for_user(lead_q, user_id: int) -> tuple[int, int, int]:
+    total_leads = lead_q.filter(Lead.assigned_to_id == user_id).count()
+    converted = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == "Converted").count()
+    points = converted * 500 + (total_leads - converted) * 50
+    return total_leads, converted, points
+
+
 @router.get("/points")
 def get_performance_points(
     skip: int = Query(0, ge=0),
@@ -764,11 +782,11 @@ def get_performance_points(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_md)
 ):
-    """Get employee performance points based on lead conversions"""
+    """Get employee performance points based on lead performance."""
     lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
     user_q = apply_company_scope(db.query(User), User, current_user)
 
-    sales_users = user_q.filter(User.role.in_(["sales", "manager"])).all()
+    sales_users = user_q.filter(User.role.in_(list(POINT_ELIGIBLE_ROLES))).all()
 
     company_ids = {u.company_id for u in sales_users if u.company_id}
     companies = db.query(Company).filter(Company.id.in_(company_ids)).all() if company_ids else []
@@ -781,20 +799,12 @@ def get_performance_points(
             User.id <= user.id
         ).count()
         prefix = company_map.get(user.company_id) or "EMP"
-        
-        total_leads = lead_q.filter(Lead.assigned_to_id == user.id).count()
-        converted = lead_q.filter(Lead.assigned_to_id == user.id, Lead.status == "Converted").count()
-        points = converted * 500 + (total_leads - converted) * 50
+
+        total_leads, converted, base_points = _base_points_for_user(lead_q, user.id)
+        points = base_points
         target = 2000
 
-        if points >= 2000:
-            tier = "Titanium"
-        elif points >= 1500:
-            tier = "Platinum"
-        elif points >= 800:
-            tier = "Gold"
-        else:
-            tier = "Silver"
+        tier = _tier_for_points(points)
 
         bonus_amount = points * 5
         trend = "up" if converted > 0 else ("flat" if total_leads > 0 else "down")

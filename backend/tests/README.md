@@ -7,6 +7,7 @@ This suite is organized by domain to keep intent clear and maintenance predictab
 - `auth/`: authentication and rate-limit behavior
 - `ai/`: AI endpoint permissions
 - `sales/`: lead/follow-up/task/invoice behavior
+- `management/`: MD/manager governance flows (for example auto points/performance)
 - `ops/`: inventory and operations flows
 - `notifications/`: notification API and trigger behavior
 - `tenancy/`: company-isolation and platform-admin bypass behavior

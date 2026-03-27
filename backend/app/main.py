@@ -58,10 +58,10 @@ app = FastAPI(
 
 
 @app.on_event("startup")
-def ensure_inventory_table_exists():
+def ensure_feature_tables_exist():
     """
     Keep inventory feature usable in environments where migrations were not applied yet.
-    Creates stock_items table if missing.
+    Creates stock table if missing.
     """
     try:
         StockItem.__table__.create(bind=engine, checkfirst=True)

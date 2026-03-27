@@ -17,6 +17,7 @@ from app.utils.audit import log_activity
 router = APIRouter()
 logger = logging.getLogger("app")
 MAX_CSV_BYTES = 2 * 1024 * 1024  # 2 MB hard cap per upload
+MAX_IMPORT_ROWS = 500
 
 @router.post("/leads")
 async def import_leads(
@@ -59,9 +60,11 @@ async def import_leads(
         assigned_to_id = current_user.id if current_user.role == "sales" else None
         
         row_count: int = 0
+        import_limited = False
         for row in reader:
-            if row_count >= 500:
-                break # Limit to 500 records per upload
+            if row_count >= MAX_IMPORT_ROWS:
+                import_limited = True
+                break
             
             # Skip empty rows
             name_val = row.get('name', '')
@@ -96,7 +99,15 @@ async def import_leads(
                          entity_id=lead.id, entity_name=lead.name)
         db.commit()
         
-        return {"message": f"Successfully imported {len(leads_to_create)} leads.", "count": len(leads_to_create)}
+        response = {"message": f"Successfully imported {len(leads_to_create)} leads.", "count": len(leads_to_create)}
+        if import_limited:
+            response["message"] = (
+                f"Successfully imported {len(leads_to_create)} leads. "
+                f"Import capped at {MAX_IMPORT_ROWS} rows per upload."
+            )
+            response["import_limited"] = True
+            response["max_rows"] = MAX_IMPORT_ROWS
+        return response
         
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail="Invalid CSV encoding. Please upload a UTF-8 encoded file.")

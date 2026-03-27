@@ -64,6 +64,11 @@ def _to_utc(dt: Optional[datetime]) -> Optional[datetime]:
     return dt.astimezone(timezone.utc)
 
 
+def _utc_now_naive() -> datetime:
+    """Return current UTC as naive datetime (Task.due_date storage format)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def _normalize_priority(raw_priority: Optional[str]) -> str:
     normalized = (raw_priority or "").strip().lower()
     mapping = {
@@ -286,7 +291,7 @@ def get_priority_tasks(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get priority tasks for dashboard (overdue and due today)"""
-    now = datetime.utcnow()
+    now = _utc_now_naive()
     today_start = datetime(now.year, now.month, now.day)
     today_end = today_start + timedelta(days=1)
     
@@ -470,7 +475,7 @@ def update_task(
     if body.status is not None:
         task.status = _normalize_status(body.status)
         if task.status == "Completed":
-            task.completed_at = datetime.utcnow()
+            task.completed_at = _utc_now_naive()
     if body.priority is not None:
         task.priority = _normalize_priority(body.priority)
     if "due_date" in body.model_fields_set:
@@ -514,7 +519,7 @@ def complete_task(
     
     was_completed = _is_task_completed(task.status)
     task.status = TaskStatus.COMPLETED
-    task.completed_at = datetime.utcnow()
+    task.completed_at = _utc_now_naive()
     if not was_completed:
         _notify_task_completed(db, current_user, task)
     

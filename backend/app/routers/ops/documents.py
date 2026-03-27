@@ -1,6 +1,5 @@
 import os
 import uuid
-import shutil
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from fastapi.responses import FileResponse
@@ -21,6 +20,22 @@ router = APIRouter(
 )
 
 UPLOAD_DIR = "uploads/documents"
+MAX_DOCUMENT_BYTES = 10 * 1024 * 1024  # 10 MB
+ALLOWED_DOCUMENT_EXTENSIONS = {
+    ".pdf",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".txt",
+    ".csv",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+}
 
 # Ensure upload directory exists
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -51,6 +66,8 @@ async def upload_document(
     """Upload a document and attach it to a Lead or Client."""
     if not lead_id and not client_id:
         raise HTTPException(status_code=400, detail="Must provide either lead_id or client_id")
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
 
     # Verify access to the parent entity
     entity = None
@@ -85,13 +102,22 @@ async def upload_document(
         entity_name = entity.name
         entity_type = "client"
 
+    # Validate file type and size before writing to disk.
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in ALLOWED_DOCUMENT_EXTENSIONS:
+        allowed = ", ".join(sorted(ALLOWED_DOCUMENT_EXTENSIONS))
+        raise HTTPException(status_code=400, detail=f"Unsupported file type. Allowed extensions: {allowed}")
+
+    file_bytes = await file.read(MAX_DOCUMENT_BYTES + 1)
+    if len(file_bytes) > MAX_DOCUMENT_BYTES:
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 10 MB.")
+
     # Save physical file
-    file_ext = os.path.splitext(file.filename)[1]
     stored_filename = f"{uuid.uuid4()}{file_ext}"
     file_path = os.path.join(UPLOAD_DIR, stored_filename)
 
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        buffer.write(file_bytes)
 
     # Save to DB
     new_doc = Document(

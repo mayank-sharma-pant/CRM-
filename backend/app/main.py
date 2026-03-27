@@ -69,9 +69,8 @@ async def global_exception_handler(request: Request, exc: Exception):
     tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
     tb_str = ''.join(tb)
     logger.error(f"Unhandled error on {request.method} {request.url}:\n{tb_str}")
-    # Don't expose internal errors in production
-    detail = str(exc) if not is_production else "Internal server error"
-    return JSONResponse(status_code=500, content={"detail": detail})
+    # Keep response sanitized in all environments; full traceback is already logged.
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 # CORS Configuration 
 allowed_origins = settings.CORS_ORIGINS.split(",") if settings.CORS_ORIGINS else ["http://localhost:3000"]

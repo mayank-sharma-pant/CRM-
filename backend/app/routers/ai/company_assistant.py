@@ -764,7 +764,7 @@ async def company_assistant(
 
         conversation.status = "completed"
         conversation.ai_message = say
-        conversation.planned_actions_json = json.dumps(actions)
+        conversation.planned_actions_json = json.dumps(selected_actions)
         conversation.executed_actions_json = _serialize_actions(executed)
         db.commit()
         return AIChatResponse(message=say, executed_actions=executed, used_params=ai_params)

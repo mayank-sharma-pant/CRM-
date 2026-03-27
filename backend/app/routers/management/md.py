@@ -43,6 +43,11 @@ def _month_range_utc(year: int, month: int) -> tuple[datetime, datetime]:
     return start, end
 
 
+def _utc_now_naive() -> datetime:
+    """Return current UTC as naive datetime for Task.due_date comparisons."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 # ===============================
 # MD Dashboard
 # ===============================
@@ -101,8 +106,10 @@ def get_md_dashboard(
     lead_velocity = int(((recent_leads - prev_leads) / max(prev_leads, 1)) * 100)
     
     task_q = apply_company_scope(db.query(Task), Task, current_user)
-    overdue_tasks = task_q.filter(Task.due_date < now, Task.status != "Completed").count()
-    total_tasks = task_q.filter(Task.due_date >= d7_ago).count()
+    now_naive_utc = now.replace(tzinfo=None)
+    d7_ago_naive_utc = d7_ago.replace(tzinfo=None)
+    overdue_tasks = task_q.filter(Task.due_date < now_naive_utc, Task.status != "Completed").count()
+    total_tasks = task_q.filter(Task.due_date >= d7_ago_naive_utc).count()
     sla_adherence = int(((total_tasks - overdue_tasks) / max(total_tasks, 1)) * 100)
     
     # AI Brief
@@ -660,7 +667,7 @@ def get_company_monitoring(
     current_user: User = Depends(require_md)
 ):
     """Get company-wide monitoring and alerts"""
-    now_utc_naive = datetime.utcnow()
+    now_utc_naive = _utc_now_naive()
 
     # Get team status (company-scoped)
     teams = apply_company_scope(db.query(Team), Team, current_user).all()

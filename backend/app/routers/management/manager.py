@@ -58,6 +58,11 @@ def _normalize_task_priority(raw_priority: str) -> str:
     return mapping[normalized]
 
 
+def _utc_now_naive() -> datetime:
+    """Return current UTC as naive datetime for Task.due_date comparisons."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def _task_link_for_role(role: Optional[str]) -> Optional[str]:
     role_map = {
         "sales": "/sales/tasks",
@@ -126,7 +131,7 @@ def get_manager_dashboard(
         })
     
     # Get priority tasks
-    now = datetime.utcnow()
+    now = _utc_now_naive()
     today_start = datetime(now.year, now.month, now.day)
     
     task_query = apply_company_scope(db.query(Task), Task, current_user)
@@ -256,7 +261,7 @@ def get_team_monitoring(
     
     team_member_ids = [m.id for m in team_members]
     from sqlalchemy import case
-    now_naive_utc = datetime.utcnow()
+    now_naive_utc = _utc_now_naive()
     task_stats = apply_company_scope(db.query(
         Task.assigned_to_id,
         func.sum(case((Task.status == "Pending", 1), else_=0)).label("pending_count"),

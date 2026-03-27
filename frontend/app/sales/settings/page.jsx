@@ -44,6 +44,9 @@ export default function SettingsPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-8 space-y-8">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300">
+          Profile and security controls on this page are currently read-only. Notification preferences and theme settings are active.
+        </div>
 
         {/* --- SECTION 1: PROFILE INFORMATION --- */}
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -128,7 +131,7 @@ export default function SettingsPage() {
 
           <div className="p-6">
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300">
-              Password change is not wired to backend yet. Contact admin to reset credentials.
+              Password change is currently disabled here. Use the dedicated auth reset flow or contact admin.
             </div>
             <div className="max-w-md space-y-4">
               <div className="space-y-1.5">

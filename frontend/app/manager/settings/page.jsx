@@ -74,6 +74,7 @@ export default function ManagerSettingsPage() {
                     </h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-2xl">
                         Manage team operations and view hierarchy. Structure changes require Admin approval.
+                        Team change requests are currently read-only until backend request APIs are connected.
                     </p>
                 </div>
             </div>
@@ -125,7 +126,7 @@ export default function ManagerSettingsPage() {
                                 View History <ArrowUpRight size={12} />
                             </button>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">Awaiting Admin approval</p>
+                        <p className="text-xs text-slate-500 mt-1">History view only (submission disabled)</p>
                     </div>
                 </div>
 
@@ -149,6 +150,9 @@ export default function ManagerSettingsPage() {
                             }`}
                     >
                         Change Requests
+                        <span className="ml-2 inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                            Read Only
+                        </span>
                         {view === 'requests' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></div>}
                     </button>
                 </div>

@@ -8,9 +8,10 @@ from sqlalchemy import or_
 from typing import Optional
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user
+from app.utils.dependencies import get_current_user, apply_company_scope
 from app.models.core.user import User
 from app.models.sales.audit import AuditLog
+from app.utils.datetime_json import isoformat_utc
 
 router = APIRouter()
 
@@ -47,7 +48,7 @@ def get_timeline(
                 "admin_name": e.admin_name,
                 "before_value": e.before_value,
                 "after_value": e.after_value,
-                "timestamp": e.timestamp.isoformat() if e.timestamp else None
+                "timestamp": isoformat_utc(e.timestamp)
             }
             for e in events
         ],

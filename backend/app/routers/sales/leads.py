@@ -14,6 +14,7 @@ from app.models.sales.client import Client
 from app.models.finance.invoice import Invoice
 from app.models.sales.note import Note
 from app.utils.audit import log_activity
+from app.utils.datetime_json import isoformat_utc, task_due_for_json
 from app.utils.notify import send_notification
 from sqlalchemy import func as sa_func
 from app.schemas.sales import (
@@ -280,11 +281,13 @@ def get_lead(
         {
             "id": t.id,
             "title": t.title,
-            "status": t.status,
-            "priority": t.priority,
-            "due_date": t.due_date.isoformat() if t.due_date else None,
-            "completed_at": t.completed_at.isoformat() if t.completed_at else None,
-            "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+            "status": getattr(t.status, "value", t.status),
+            "priority": getattr(t.priority, "value", t.priority),
+            "due_date": task_due_for_json(t.due_date),
+            "created_at": isoformat_utc(t.created_at),
+            "completed_at": isoformat_utc(t.completed_at),
+            "updated_at": isoformat_utc(t.updated_at),
+            "is_manager_assigned": bool(t.is_manager_assigned),
         }
         for t in tasks
     ]
@@ -297,7 +300,7 @@ def get_lead(
             "content": n.content,
             "created_by_id": n.created_by_id,
             "created_by_name": n.created_by.full_name if n.created_by else None,
-            "created_at": n.created_at.isoformat() if n.created_at else None,
+            "created_at": isoformat_utc(n.created_at),
         }
         for n in notes
     ]
@@ -318,10 +321,10 @@ def get_lead(
         "tasks": tasks_list,
         "notes_list": notes_list,
         "assignee": assignee.full_name if assignee else "Unassigned",
-        "created_at": lead.created_at.strftime("%Y-%m-%d") if lead.created_at else None,
-        "last_contacted_at": lead.last_contacted_at.isoformat() if lead.last_contacted_at else None,
-        "last_response_at": lead.last_response_at.isoformat() if lead.last_response_at else None,
-        "next_task": lead.next_follow_up.isoformat() if lead.next_follow_up else None
+        "created_at": isoformat_utc(lead.created_at),
+        "last_contacted_at": isoformat_utc(lead.last_contacted_at),
+        "last_response_at": isoformat_utc(lead.last_response_at),
+        "next_task": isoformat_utc(lead.next_follow_up),
     }
 
 

@@ -6,6 +6,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
+from app.utils.datetime_json import task_due_for_json
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, get_active_team_id
 from app.models.core.user import User
 from app.models.core.team_membership import TeamMembership
@@ -18,6 +19,39 @@ from app.models.core.enums import TaskStatus
 from app.utils.notify import send_notification
 
 router = APIRouter()
+
+
+def _user_role_str(user: User) -> str:
+    r = getattr(user, "role", None)
+    if r is None:
+        return ""
+    return str(getattr(r, "value", r))
+
+
+def _ids_equal(a: Optional[object], b: Optional[object]) -> bool:
+    if a is None or b is None:
+        return False
+    try:
+        return int(a) == int(b)
+    except (TypeError, ValueError):
+        return False
+
+
+def _sales_may_access_task(db: Session, current_user: User, task: Task) -> bool:
+    """Sales: assignee, creator, or owner of the linked lead/client (any task on that record)."""
+    if _ids_equal(task.assigned_to_id, current_user.id):
+        return True
+    if _ids_equal(task.assigned_by_id, current_user.id):
+        return True
+    if task.lead_id is not None:
+        lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == task.lead_id).first()
+        if lead and _ids_equal(lead.assigned_to_id, current_user.id):
+            return True
+    if task.client_id is not None:
+        client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == task.client_id).first()
+        if client and _ids_equal(client.assigned_to_id, current_user.id):
+            return True
+    return False
 
 
 class TaskCreateBody(BaseModel):
@@ -104,10 +138,10 @@ def _resolve_task_assignee(db: Session, current_user: User, requested_assignee_i
     if target.status != "active":
         raise HTTPException(status_code=400, detail="Assignee must be active")
 
-    if current_user.role == "sales" and target.id != current_user.id:
+    if _user_role_str(current_user) == "sales" and target.id != current_user.id:
         raise HTTPException(status_code=403, detail="Sales users can only assign tasks to themselves")
 
-    if current_user.role == "manager" and target.id != current_user.id:
+    if _user_role_str(current_user) == "manager" and target.id != current_user.id:
         manager_team_ids = [
             team_id
             for (team_id,) in apply_company_scope(
@@ -209,14 +243,19 @@ def get_tasks_list(
     query = apply_company_scope(db.query(Task), Task, current_user)
     
     # Role-based filtering
-    if current_user.role == "sales":
+    if _user_role_str(current_user) == "sales":
         query = query.outerjoin(Lead, Task.lead_id == Lead.id).outerjoin(Client, Task.client_id == Client.id)
-        query = query.filter((Task.assigned_to_id == current_user.id) | (Task.assigned_by_id == current_user.id))
+        query = query.filter(
+            (Task.assigned_to_id == current_user.id)
+            | (Task.assigned_by_id == current_user.id)
+            | (Lead.assigned_to_id == current_user.id)
+            | (Client.assigned_to_id == current_user.id)
+        )
         if active_team_id is not None:
             query = query.filter(
                 or_(Lead.team_id == active_team_id, Client.team_id == active_team_id, (Task.lead_id == None) & (Task.client_id == None))
             )
-    elif current_user.role == "manager":
+    elif _user_role_str(current_user) == "manager":
         # Managers see tasks assigned to anyone in their team or created by them.
         # MUST scope by company_id to avoid ID collision across companies.
         if active_team_id is None:
@@ -277,7 +316,7 @@ def get_tasks_list(
             "entityType": entity_type,
             "assignedBy": "manager" if task.is_manager_assigned else "self",
             "dueDate": get_due_label(task),
-            "due_date_iso": _to_utc(task.due_date).isoformat() if task.due_date else None,
+            "due_date_iso": task_due_for_json(task.due_date),
             "status": task.status,
             "priority": task.priority
         })
@@ -298,14 +337,19 @@ def get_priority_tasks(
     task_query = apply_company_scope(db.query(Task), Task, current_user)
     
     # Role-based filtering
-    if current_user.role == "sales":
+    if _user_role_str(current_user) == "sales":
         task_query = task_query.outerjoin(Lead, Task.lead_id == Lead.id).outerjoin(Client, Task.client_id == Client.id)
-        task_query = task_query.filter((Task.assigned_to_id == current_user.id) | (Task.assigned_by_id == current_user.id))
+        task_query = task_query.filter(
+            (Task.assigned_to_id == current_user.id)
+            | (Task.assigned_by_id == current_user.id)
+            | (Lead.assigned_to_id == current_user.id)
+            | (Client.assigned_to_id == current_user.id)
+        )
         if active_team_id is not None:
             task_query = task_query.filter(
                 or_(Lead.team_id == active_team_id, Client.team_id == active_team_id, (Task.lead_id == None) & (Task.client_id == None))
             )
-    elif current_user.role == "manager":
+    elif _user_role_str(current_user) == "manager":
         if active_team_id is None:
             team_members = []
         else:
@@ -364,10 +408,10 @@ def get_task(
     ensure_company_access(task, current_user)
     
     # Role-based scoping checking
-    if current_user.role == "sales":
-        if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
+    if _user_role_str(current_user) == "sales":
+        if not _sales_may_access_task(db, current_user, task):
             raise HTTPException(status_code=403, detail="You do not have access to this task")
-    elif current_user.role == "manager":
+    elif _user_role_str(current_user) == "manager":
         if active_team_id is None:
             raise HTTPException(status_code=403, detail="Active team required")
         if task.assigned_to_id:
@@ -455,10 +499,10 @@ def update_task(
     ensure_company_access(task, current_user)
     
     # Role-based editing rules
-    if current_user.role == "sales":
-        if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
+    if _user_role_str(current_user) == "sales":
+        if not _sales_may_access_task(db, current_user, task):
             raise HTTPException(status_code=403, detail="You cannot edit someone else's task")
-    elif current_user.role == "manager":
+    elif _user_role_str(current_user) == "manager":
         if active_team_id is None:
             raise HTTPException(status_code=403, detail="Active team required")
         if task.assigned_to_id:
@@ -503,10 +547,10 @@ def complete_task(
     ensure_company_access(task, current_user)
     
     # Role-based scoping
-    if current_user.role == "sales":
-        if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
+    if _user_role_str(current_user) == "sales":
+        if not _sales_may_access_task(db, current_user, task):
             raise HTTPException(status_code=403, detail="You do not have permission to complete this task")
-    elif current_user.role == "manager":
+    elif _user_role_str(current_user) == "manager":
         if active_team_id is None:
             raise HTTPException(status_code=403, detail="Active team required")
         if task.assigned_to_id:
@@ -542,10 +586,10 @@ def delete_task(
     ensure_company_access(task, current_user)
 
     # Role-based delete permission
-    if current_user.role == "sales":
-        if task.assigned_to_id != current_user.id and task.assigned_by_id != current_user.id:
+    if _user_role_str(current_user) == "sales":
+        if not _sales_may_access_task(db, current_user, task):
             raise HTTPException(status_code=403, detail="You can only delete your own tasks")
-    elif current_user.role == "manager":
+    elif _user_role_str(current_user) == "manager":
         if active_team_id is None:
             raise HTTPException(status_code=403, detail="Active team required")
         if task.assigned_to_id:

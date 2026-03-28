@@ -1,5 +1,4 @@
 import axios from 'axios';
-
 const configuredApiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || '').trim();
 const preferProxy = process.env.NODE_ENV !== 'production';
 
@@ -7,7 +6,7 @@ const preferProxy = process.env.NODE_ENV !== 'production';
 // (/api -> backend) to avoid CORS/host-resolution inconsistencies.
 const API_BASE_URL = preferProxy ? '' : configuredApiBaseUrl;
 const ACTIVE_TEAM_KEY = 'crm.activeTeamId';
-
+console.log(configuredApiBaseUrl);
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
   withCredentials: true,

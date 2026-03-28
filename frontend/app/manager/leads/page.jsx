@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { formatDistanceToNow, parseISO, differenceInDays } from 'date-fns';
 import api from '../../../services/api';
+import { normalizeLeadStatus } from '../../../lib/leadStatus';
 import { downloadCSV } from '../../../services/export';
 import LeadModal from '../../../components/leads/LeadModal';
 import {
@@ -65,15 +66,10 @@ export default function Leads() {
         params.status = activeTab;
       }
 
-      const response = await api.get(url, { params });
+      const response = await api.get(url, { params: { ...params, limit: 500 } });
       const raw = response.data?.items ?? response.data;
       let data = Array.isArray(raw) ? raw : [];
-
-      if (activeTab === 'active') {
-        data = data.filter(l => ['New', 'Contacted', 'Qualified', 'Proposal'].includes(l.status));
-      } else if (activeTab === 'Closed') {
-        data = data.filter(l => ['Converted', 'Lost', 'Lost Client'].includes(l.status));
-      }
+      data = data.map((l) => ({ ...l, status: normalizeLeadStatus(l.status) }));
 
       setLeads(data);
     } catch (err) {
@@ -138,7 +134,25 @@ export default function Leads() {
     }
   };
 
-  const filteredLeads = leads;
+  const tabFilteredLeads = useMemo(() => {
+    if (activeTab === 'active') {
+      return leads.filter((l) =>
+        ['New', 'Contacted', 'Qualified', 'Proposal'].includes(l.status)
+      );
+    }
+    if (activeTab === 'Closed') {
+      return leads.filter((l) =>
+        ['Converted', 'Lost', 'Lost Client'].includes(l.status)
+      );
+    }
+    return leads;
+  }, [leads, activeTab]);
+
+  // Board + "Active" tab: show full pipeline so Converted / Lost columns populate; list view stays "active only"
+  const filteredLeads = useMemo(() => {
+    if (viewMode === 'board' && activeTab === 'active') return leads;
+    return tabFilteredLeads;
+  }, [viewMode, activeTab, leads, tabFilteredLeads]);
 
   const safeParseISO = (s) => {
     if (!s || typeof s !== 'string') return null;

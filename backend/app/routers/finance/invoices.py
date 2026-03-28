@@ -83,6 +83,7 @@ def create_invoice(
     # Scoping: Sales must own the client to bill them
     if current_user.role == "sales" and client.assigned_to_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only create invoices for your own clients")
+
     # Scoping: Manager must manage the client's team
     if current_user.role == "manager":
         if active_team_id is None or client.team_id != active_team_id:
@@ -107,12 +108,8 @@ def create_invoice(
         if existing:
             raise HTTPException(status_code=400, detail="Invoice number already exists for this company")
     else:
-        count = db.query(Invoice).filter(Invoice.company_id == company_id).count()
-        invoice_number = f"{prefix}-{company_id:03d}-{count + 1:04d}"
-        # Robust collision guard against concurrent creates or deleted invoices
-        while db.query(Invoice).filter(Invoice.company_id == company_id, Invoice.invoice_number == invoice_number).first():
-            count += 1
-            invoice_number = f"{prefix}-{company_id:03d}-{count + 1:04d}"
+        import uuid
+        invoice_number = f"DRAFT-{uuid.uuid4().hex[:8].upper()}"
 
     subtotal = 0.0
     for it in body.items:

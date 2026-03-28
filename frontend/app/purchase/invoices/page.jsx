@@ -34,7 +34,7 @@ export default function PurchaseInvoicesPage() {
             const res = await api.get('/purchase/invoices');
             const mappedInvoices = (res.data.invoices || []).map(inv => ({
                 ...inv,
-                id: inv.number || `INV-${inv.id}`,
+                id: inv.number || `UNKNOWN-${inv.id}`,
                 db_id: inv.id,
                 dueDate: inv.due,
                 originDate: inv.issued,

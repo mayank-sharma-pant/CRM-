@@ -44,7 +44,7 @@ export default function InvoiceDetailPage() {
                 else timeline.push({ date: null, event: 'Payment Received', status: 'upcoming' });
 
                 setInvoice({
-                    id: d.number || `INV-${d.id}`,
+                    id: d.number || `UNKNOWN-${d.id}`,
                     db_id: d.id,
                     status: st,
                     client: {

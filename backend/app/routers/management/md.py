@@ -46,11 +46,32 @@ def _month_range_utc(year: int, month: int) -> tuple[datetime, datetime]:
 def _utc_now_naive() -> datetime:
     """Return current UTC as naive datetime for Task.due_date comparisons."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
-    
+
+
+@router.get("/dashboard")
+def get_md_dashboard(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_md),
+    active_team_id: Optional[int] = Depends(get_active_team_id)
+):
+    """Integrated MD Executive Dashboard"""
+    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
+    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    client_q = apply_company_scope(db.query(Client), Client, current_user)
+
+    active = lead_q.filter(Lead.status.notin_(["Converted", "Lost"])).count()
+    converted = lead_q.filter(Lead.status == "Converted").count()
+    lost = lead_q.filter(Lead.status == "Lost").count()
+    win_rate = int((converted / (converted + lost) * 100)) if (converted + lost) > 0 else 0
+    total_clients = client_q.count()
+    paid = inv_q.filter(Invoice.status == "Paid").count()
+    pending = inv_q.filter(Invoice.status.in_(["Pending", "Sent"])).count()
+    overdue = inv_q.filter(Invoice.status == "Overdue").count()
+    total_revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
+
     # Daily sales momentum (last 7 days)
     now = datetime.now(timezone.utc)
     sales_trend = []
-    day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     for i in range(7):
         day = now - timedelta(days=6 - i)
         day_end = day + timedelta(days=1)
@@ -85,13 +106,12 @@ def _utc_now_naive() -> datetime:
     total_tasks = task_q.filter(Task.due_date >= d7_ago_naive_utc).count()
     sla_adherence = int(((total_tasks - overdue_tasks) / max(total_tasks, 1)) * 100)
 
-    
     # AI Brief
-    overdue_inv = inv_q.filter(Invoice.status == "Overdue").count()
+    overdue_inv_count = inv_q.filter(Invoice.status == "Overdue").count()
     stalled_leads = lead_q.filter(Lead.status.in_(["New", "Contacted"]), Lead.created_at < d14_ago).count()
     ai_brief = []
-    if overdue_inv > 0:
-        ai_brief.append({"id": 1, "title": "Revenue Risk", "summary": f"{overdue_inv} invoice(s) are overdue. Review immediately.", "link": "/md/invoices"})
+    if overdue_inv_count > 0:
+        ai_brief.append({"id": 1, "title": "Revenue Risk", "summary": f"{overdue_inv_count} invoice(s) are overdue. Review immediately.", "link": "/md/invoices"})
     if stalled_leads > 0:
         ai_brief.append({"id": 2, "title": "Pipeline Stagnation", "summary": f"{stalled_leads} lead(s) have been stalled for 14+ days.", "link": "/md/leads"})
     if not ai_brief:
@@ -140,9 +160,22 @@ def _utc_now_naive() -> datetime:
         ],
         "aiBrief": ai_brief
     }
+
+
+@router.get("/revenue")
+def get_md_revenue(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_md)
+):
+    """MD Revenue Performance Dashboard"""
+    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    
     now = datetime.now(timezone.utc)
     d30_ago = now - timedelta(days=30)
     d60_ago = now - timedelta(days=60)
+    
+    total_revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
+    outstanding = inv_q.filter(Invoice.status.in_(["Pending", "Sent"])).with_entities(func.sum(Invoice.total)).scalar() or 0
     
     recent_rev = inv_q.filter(Invoice.status != "Cancelled", Invoice.created_at >= d30_ago).with_entities(func.sum(Invoice.total)).scalar() or 0
     prev_rev = inv_q.filter(Invoice.status != "Cancelled", Invoice.created_at >= d60_ago, Invoice.created_at < d30_ago).with_entities(func.sum(Invoice.total)).scalar() or 0
@@ -216,7 +249,7 @@ def _utc_now_naive() -> datetime:
         days_overdue = (datetime.now(timezone.utc).date() - inv.due_date).days if inv.due_date else 0
         risks.append({
             "id": idx + 1,
-            "signal": f"Overdue: {client.name if client else 'Unknown'} INV-{inv.id:04d}",
+            "signal": f"Overdue: {client.name if client else 'Unknown'} {inv.invoice_number}",
             "severity": "High" if days_overdue > 14 else ("Medium" if days_overdue > 7 else "Low"),
             "metric": f"${inv.total:,.0f}" if inv.total else "$0",
             "delta": f"-{days_overdue}d",
@@ -231,9 +264,9 @@ def _utc_now_naive() -> datetime:
     else:
         trend_insight = "Revenue is perfectly flat compared to the previous 30 days."
 
-    # Dynamic AI growth insights from current revenue/outstanding signals.
+    # Dynamic AI growth insights
     ai_insights = []
-    if outstanding > total_revenue * 0.3 and total_revenue > 0:
+    if total_revenue > 0 and outstanding > total_revenue * 0.3:
         ai_insights.append({"tag": "Liquidity", "title": "High AR vs Collected", "evidence": [f"{int((outstanding/total_revenue)*100)}% of revenue is pending."]})
     elif growth_pct < 0:
         ai_insights.append({"tag": "Contraction", "title": "Negative Growth", "evidence": [f"Down {abs(growth_pct)}% from last 30d."]})
@@ -258,10 +291,6 @@ def _utc_now_naive() -> datetime:
         "aiInsights": ai_insights
     }
 
-
-# ===============================
-# Company-wide Sales Analytics
-# ===============================
 
 @router.get("/sales")
 def get_company_sales(
@@ -358,10 +387,6 @@ def get_company_sales(
     }
 
 
-# ===============================
-# Company-wide Leads
-# ===============================
-
 @router.get("/leads")
 def get_company_leads(
     status: Optional[str] = Query(None),
@@ -419,10 +444,6 @@ def get_company_leads(
     }
 
 
-# ===============================
-# Company-wide Clients
-# ===============================
-
 @router.get("/clients")
 def get_company_clients(
     status: Optional[str] = Query(None),
@@ -464,10 +485,6 @@ def get_company_clients(
         ]
     }
 
-
-# ===============================
-# Employee Lookup
-# ===============================
 
 @router.get("/employee-lookup")
 def employee_lookup(
@@ -612,9 +629,6 @@ def get_employee_detail(
         "team_performance": team_metrics
     }
 
-# ===============================
-# Company Monitoring
-# ===============================
 
 @router.get("/monitoring")
 def get_company_monitoring(
@@ -711,10 +725,6 @@ def get_company_monitoring(
     }
 
 
-# ===============================
-# Company-wide Invoices
-# ===============================
-
 @router.get("/invoices")
 def get_company_invoices(
     status: Optional[str] = Query(None),
@@ -739,7 +749,7 @@ def get_company_invoices(
         creator = user_q.filter(User.id == inv.created_by_id).first() if getattr(inv, "created_by_id", None) else None
         
         result.append({
-            "id": f"INV-{inv.id:04d}",
+            "id": inv.invoice_number,
             "db_id": inv.id,
             "client": client.name if client else "Unknown",
             "sales_rep_name": creator.full_name if creator else "System",
@@ -752,10 +762,6 @@ def get_company_invoices(
 
     return {"invoices": result, "total": total, "skip": skip, "limit": limit}
 
-
-# ===============================
-# Performance Points / Incentives
-# ===============================
 
 def _tier_for_points(points: int) -> str:
     if points >= 2000:
@@ -845,6 +851,7 @@ def get_performance_points(
         }
     }
 
+
 @router.get("/performance/monthly")
 def get_monthly_performance(
     year: int = Query(..., ge=2000, le=2100),
@@ -854,9 +861,6 @@ def get_monthly_performance(
 ):
     """
     Monthly performance leaderboard (1st to end of month).
-
-    Finance is the source of truth for revenue: paid invoices in the month.
-    Sales conversions come from leads marked Converted in the month (created_at window).
     """
     if is_platform_admin(current_user):
         raise HTTPException(status_code=403, detail="Company context required")
@@ -868,10 +872,6 @@ def get_monthly_performance(
     sales_ids = [u.id for u in sales_users]
     if not sales_ids:
         return {"year": year, "month": month, "start": start.isoformat(), "end": end.isoformat(), "leaderboard": []}
-
-    # Revenue: paid invoices with paid_date in the month (source of truth).
-    # If paid_date is missing, it is excluded to avoid ambiguity.
-    from sqlalchemy import and_
 
     inv_q = apply_company_scope(db.query(Invoice.created_by_id, func.sum(Invoice.total)), Invoice, current_user)
     inv_q = inv_q.filter(
@@ -896,7 +896,7 @@ def get_monthly_performance(
     conv_rows = lead_q.all()
     conv_map = {uid: int(cnt or 0) for uid, cnt in conv_rows}
 
-    # Total leads created in month (for conversion rate baseline)
+    # Total leads created in month
     total_leads_q = apply_company_scope(db.query(Lead.assigned_to_id, func.count(Lead.id)), Lead, current_user)
     total_leads_q = total_leads_q.filter(
         Lead.assigned_to_id.in_(sales_ids),
@@ -935,10 +935,6 @@ def get_monthly_performance(
         "top_sales_exec": leaderboard[0] if leaderboard else None,
     }
 
-
-# ===============================
-# MD Teams Overview
-# ===============================
 
 @router.get("/teams")
 def get_md_teams(
@@ -992,6 +988,7 @@ def get_md_teams(
 
     return {"teams": result, "total": len(result)}
 
+
 @router.post("/transfer-request", response_model=TransferRequestResponse)
 def create_md_transfer_request(
     request_data: TransferRequestCreate,
@@ -1003,21 +1000,18 @@ def create_md_transfer_request(
     if not target_user:
         raise HTTPException(status_code=404, detail="Target user not found")
     
-    # MD can request for manager or sales
     if target_user.role not in ["manager", "sales"]:
         raise HTTPException(status_code=403, detail="Can only request transfers for Managers or Sales executives")
     
-    # Check if target team exists
     target_team = db.query(Team).filter(Team.id == request_data.target_team_id, Team.company_id == current_user.company_id).first()
     if not target_team:
         raise HTTPException(status_code=404, detail="Target team not found")
     
-    # Create the request
     new_request = TeamTransferRequest(
         company_id=current_user.company_id,
         user_id=target_user.id,
         requested_by_id=current_user.id,
-        current_team_id=target_user.team_id,
+        current_team_id=getattr(target_user, "team_id", None),
         target_team_id=request_data.target_team_id,
         reason=request_data.reason,
         status="pending"
@@ -1027,7 +1021,6 @@ def create_md_transfer_request(
     db.commit()
     db.refresh(new_request)
     
-    # Notify Company Admins about the transfer request
     notify_role_users(db, current_user.company_id, role="admin",
         title="New Transfer Request (MD)",
         message=f"MD {current_user.full_name} requested to transfer {target_user.full_name} to {target_team.name}.",
@@ -1037,9 +1030,6 @@ def create_md_transfer_request(
     
     return new_request
 
-# ===============================
-# Custom Report Builder
-# ===============================
 
 @router.get("/reports/custom")
 def get_custom_report(
@@ -1054,20 +1044,16 @@ def get_custom_report(
     """Generate dynamic custom reports combining Leads and Invoices"""
     from sqlalchemy import cast, Date as SqlDate
     
-    # 1. Base Queries
     lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
-    
     inv_q = apply_company_scope(db.query(Invoice, Lead.source, Lead.service_type), Invoice, current_user)
     inv_q = inv_q.outerjoin(Client, Invoice.client_id == Client.id).outerjoin(Lead, Client.converted_from_lead_id == Lead.id)
     
-    # Base Sum and Count Queries for Invoices
     inv_sum_q = apply_company_scope(db.query(func.sum(Invoice.total)), Invoice, current_user)
     inv_sum_q = inv_sum_q.outerjoin(Client, Invoice.client_id == Client.id).outerjoin(Lead, Client.converted_from_lead_id == Lead.id)
     
     inv_count_q = apply_company_scope(db.query(func.count(Invoice.id)), Invoice, current_user)
     inv_count_q = inv_count_q.outerjoin(Client, Invoice.client_id == Client.id).outerjoin(Lead, Client.converted_from_lead_id == Lead.id)
     
-    # 2. Apply Filters
     if start_date:
         dt_start = datetime.strptime(start_date, "%Y-%m-%d")
         lead_q = lead_q.filter(Lead.created_at >= dt_start)
@@ -1094,23 +1080,18 @@ def get_custom_report(
         inv_sum_q = inv_sum_q.filter(Lead.service_type == service_type)
         inv_count_q = inv_count_q.filter(Lead.service_type == service_type)
         
-    # 3. Aggregations
     total_leads = lead_q.count()
     converted_leads = lead_q.filter(Lead.status == "Converted").count()
     total_revenue = inv_sum_q.filter(Invoice.status != "Cancelled").scalar() or 0
     total_invoices = inv_count_q.scalar() or 0
     
-    # 4. Grouping Data (Chart Data)
     chart_data = {}
-    
     if group_by == "source":
-        # Group leads by source
         lead_groups = lead_q.with_entities(Lead.source, func.count(Lead.id)).group_by(Lead.source).all()
         for src, cnt in lead_groups:
             name = src or "Unknown"
             chart_data[name] = {"name": name, "leads": cnt, "revenue": 0}
             
-        # Group revenue by source
         inv_groups = inv_sum_q.with_entities(Lead.source, func.sum(Invoice.total)).filter(Invoice.status != "Cancelled").group_by(Lead.source).all()
         for src, rev in inv_groups:
             name = src or "Unknown"
@@ -1119,13 +1100,11 @@ def get_custom_report(
             chart_data[name]["revenue"] = float(rev or 0)
             
     elif group_by == "service_type":
-        # Group leads by service type
         lead_groups = lead_q.with_entities(Lead.service_type, func.count(Lead.id)).group_by(Lead.service_type).all()
         for srv, cnt in lead_groups:
             name = srv or "Unknown"
             chart_data[name] = {"name": name, "leads": cnt, "revenue": 0}
             
-        # Group inv by service type
         inv_groups = inv_sum_q.with_entities(Lead.service_type, func.sum(Invoice.total)).filter(Invoice.status != "Cancelled").group_by(Lead.service_type).all()
         for srv, rev in inv_groups:
             name = srv or "Unknown"
@@ -1146,18 +1125,16 @@ def get_custom_report(
                 chart_data[name] = {"name": name, "leads": 0, "revenue": 0}
             chart_data[name]["revenue"] = float(rev or 0)
 
-    # 5. Data Grid (Top 50 matches)
     grid_results = inv_q.order_by(Invoice.created_at.desc()).limit(50).all()
     grid_data = []
     
-    # client lookup
     client_ids = [inv.client_id for inv, _, _ in grid_results]
     clients = db.query(Client).filter(Client.id.in_(client_ids)).all() if client_ids else []
     client_map = {c.id: c.name for c in clients}
     
     for inv, l_src, l_stype in grid_results:
         grid_data.append({
-            "id": f"INV-{inv.id:04d}",
+            "id": inv.invoice_number,
             "client": client_map.get(inv.client_id, "Unknown"),
             "amount": float(inv.total or 0),
             "status": inv.status,
@@ -1168,9 +1145,9 @@ def get_custom_report(
         
     chart_list = list(chart_data.values())
     if group_by == "date":
-        chart_list.sort(key=lambda x: x["name"]) # Sort chronologically
+        chart_list.sort(key=lambda x: x["name"])
     else:
-        chart_list.sort(key=lambda x: x["revenue"], reverse=True) # Sort by revenue descending
+        chart_list.sort(key=lambda x: x["revenue"], reverse=True)
         
     return {
         "kpis": {

@@ -206,7 +206,7 @@ export default function MDInvoicesPage() {
                                         <tr key={`detail-${invoice.id}`}>
                                             <td colSpan={9} className="bg-surface-elevated/20 border-t border-b border-border/50 px-8 py-5">
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                                    <DetailField label="Invoice ID" value={`INV-${String(invoice.id).padStart(4, '0')}`} />
+                                                    <DetailField label="Invoice ID" value={invoice.id} />
                                                     <DetailField label="Client" value={invoice.client || 'N/A'} />
                                                     <DetailField label="Amount" value={invoice.amount || '$0'} highlight />
                                                     <DetailField label="Status" value={invoice.status || 'Unknown'} />

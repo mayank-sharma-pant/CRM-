@@ -54,7 +54,7 @@ export default function SalesReviewDetailPage() {
                         discountAmount: '$0.00',
                         total: `$${Number(total).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
                     },
-                    invoiceLinkage: { hasInvoice: true, invoiceId: `INV-${d.id}`, invoiceStatus: d.status },
+                    invoiceLinkage: { hasInvoice: true, invoiceId: d.number, invoiceStatus: d.status },
                     rep: d.salesperson?.name || 'Unknown',
                     createdAt: '',
                     createdBy: d.salesperson?.name || 'Unknown',

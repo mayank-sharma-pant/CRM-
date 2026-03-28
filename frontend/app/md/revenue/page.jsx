@@ -15,6 +15,8 @@ import {
     AlertTriangle,
     Activity
 } from 'lucide-react';
+import { useNotification } from '../../../contexts/NotificationContext';
+import Skeleton, { CardSkeleton } from '../../../components/shared/Skeleton';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Cell
@@ -26,7 +28,7 @@ export default function MDRevenuePage() {
     const [loading, setLoading] = useState(true);
     const [compareEnabled, setCompareEnabled] = useState(false);
     const [trendView, setTrendView] = useState('Daily'); // Daily | Weekly | Monthly
-    const [selectedRisk, setSelectedRisk] = useState(null);
+    const { showToast } = useNotification();
 
     useEffect(() => {
         const fetchRevenue = async () => {
@@ -36,6 +38,7 @@ export default function MDRevenuePage() {
                 setData(res.data);
             } catch (err) {
                 console.error("Failed to fetch MD revenue", err);
+                showToast("Failed to fetch revenue data", "error");
             } finally {
                 setLoading(false);
             }
@@ -407,23 +410,39 @@ function BadgeChange({ change, trend }) {
 
 function RevenueSkeleton() {
     return (
-        <div className="mx-auto max-w-[1440px] px-6 py-4 space-y-6 animate-pulse bg-page min-h-screen">
+        <div className="mx-auto max-w-[1440px] px-6 py-4 space-y-6 bg-page min-h-screen">
             <div className="flex justify-between py-4 border-b border-border">
                 <div className="space-y-2">
-                    <div className="h-6 w-32 bg-surface border border-border rounded"></div>
-                    <div className="h-4 w-48 bg-surface border border-border rounded"></div>
+                    <Skeleton className="h-7 w-48" />
+                    <Skeleton className="h-4 w-60 opacity-60" />
                 </div>
-                <div className="h-8 w-48 bg-surface border border-border rounded"></div>
+                <Skeleton className="h-9 w-32" />
             </div>
-            <div className="grid grid-cols-3 gap-4">
-                {[...Array(3)].map((_, i) => <div key={i} className="h-[100px] bg-surface rounded-md border border-border"></div>)}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {[...Array(3)].map((_, i) => <CardSkeleton key={i} />)}
             </div>
-            <div className="h-[380px] bg-surface rounded-md border border-border shadow-sm"></div>
-            <div className="grid grid-cols-12 gap-5">
-                <div className="col-span-7 h-[260px] bg-surface rounded-md border border-border shadow-sm"></div>
-                <div className="col-span-5 h-[260px] bg-surface rounded-md border border-border shadow-sm"></div>
+            <div className="bg-surface border border-border rounded-xl p-6 space-y-4">
+                <div className="flex items-center justify-between border-b border-border pb-4">
+                   <Skeleton className="h-5 w-48" />
+                   <div className="flex gap-2">
+                        <Skeleton className="h-7 w-16" />
+                        <Skeleton className="h-7 w-16" />
+                   </div>
+                </div>
+                <Skeleton className="h-[380px] w-full rounded-lg shadow-sm" />
             </div>
-            <div className="h-[220px] bg-surface rounded-md border border-border shadow-sm"></div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="lg:col-span-7 bg-surface border border-border rounded-xl p-6 space-y-4">
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-[260px] w-full rounded-lg" />
+                </div>
+                <div className="lg:col-span-5 bg-surface border border-border rounded-xl p-6 space-y-4">
+                    <Skeleton className="h-5 w-32" />
+                    <div className="space-y-3">
+                        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

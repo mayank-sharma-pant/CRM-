@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 import calendar
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, is_platform_admin
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, is_platform_admin, get_active_team_id
 from app.models.core.user import User
 from app.models.sales.lead import Lead
 from app.models.sales.client import Client
@@ -46,36 +46,6 @@ def _month_range_utc(year: int, month: int) -> tuple[datetime, datetime]:
 def _utc_now_naive() -> datetime:
     """Return current UTC as naive datetime for Task.due_date comparisons."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
-
-
-# ===============================
-# MD Dashboard
-# ===============================
-
-@router.get("/dashboard")
-def get_md_dashboard(
-    period: str = Query("30d"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_md)
-):
-    """Get MD executive dashboard with company-wide KPIs"""
-    # Real counts (company-scoped)
-    lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
-    total_leads = lead_q.count()
-    converted = lead_q.filter(Lead.status == "Converted").count()
-    lost = lead_q.filter(Lead.status == "Lost").count()
-    active = total_leads - converted - lost
-    win_rate = int((converted / (converted + lost) * 100)) if (converted + lost) > 0 else 0
-    
-    client_q = apply_company_scope(db.query(Client), Client, current_user)
-    total_clients = client_q.count()
-    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
-    total_revenue = inv_q.filter(Invoice.status != "Cancelled").with_entities(func.sum(Invoice.total)).scalar() or 0
-    
-    # Invoice stats
-    paid = inv_q.filter(Invoice.status == "Paid").count()
-    pending = inv_q.filter(Invoice.status == "Pending").count()
-    overdue = inv_q.filter(Invoice.status == "Overdue").count()
     
     # Daily sales momentum (last 7 days)
     now = datetime.now(timezone.utc)
@@ -106,11 +76,15 @@ def get_md_dashboard(
     lead_velocity = int(((recent_leads - prev_leads) / max(prev_leads, 1)) * 100)
     
     task_q = apply_company_scope(db.query(Task), Task, current_user)
+    if active_team_id:
+        task_q = task_q.filter(Task.team_id == active_team_id)
+        
     now_naive_utc = now.replace(tzinfo=None)
     d7_ago_naive_utc = d7_ago.replace(tzinfo=None)
     overdue_tasks = task_q.filter(Task.due_date < now_naive_utc, Task.status != "Completed").count()
     total_tasks = task_q.filter(Task.due_date >= d7_ago_naive_utc).count()
     sla_adherence = int(((total_tasks - overdue_tasks) / max(total_tasks, 1)) * 100)
+
     
     # AI Brief
     overdue_inv = inv_q.filter(Invoice.status == "Overdue").count()
@@ -166,25 +140,6 @@ def get_md_dashboard(
         ],
         "aiBrief": ai_brief
     }
-
-
-# ===============================
-# Revenue Analytics
-# ===============================
-
-@router.get("/revenue")
-def get_revenue_analytics(
-    period: str = Query("30d"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_md)
-):
-    """Get detailed revenue analytics"""
-    inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
-    total_revenue = inv_q.filter(Invoice.status != "Cancelled").with_entities(func.sum(Invoice.total)).scalar() or 0
-    collected_revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
-    outstanding = inv_q.filter(Invoice.status.in_(["Pending", "Sent", "Draft"])).with_entities(func.sum(Invoice.total)).scalar() or 0
-    
-    # Growth: compare paid invoices in last 30d vs previous 30d
     now = datetime.now(timezone.utc)
     d30_ago = now - timedelta(days=30)
     d60_ago = now - timedelta(days=60)

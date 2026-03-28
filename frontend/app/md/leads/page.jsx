@@ -4,9 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { formatDistanceToNow, parseISO, differenceInDays } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../services/api';
 import { downloadCSV } from '../../../services/export';
 import LeadModal from '../../../components/leads/LeadModal';
+import { useNotification } from '../../../contexts/NotificationContext';
+import Skeleton, { TableRowSkeleton, CardSkeleton } from '../../../components/shared/Skeleton';
 import {
   Plus, ChevronRight, Filter, Briefcase, LayoutList, LayoutGrid, Download, Upload
 } from 'lucide-react';
@@ -43,6 +46,7 @@ export default function Leads() {
   
   const searchParams = useSearchParams();
   const basePath = usePathname(); // e.g., '/sales/leads'
+  const { showToast } = useNotification();
 
   useEffect(() => {
     if (searchParams.get('action') === 'new') {
@@ -108,10 +112,11 @@ export default function Leads() {
 
     try {
       await api.patch(`/leads/${leadId}/status`, { status: newStatus });
+      showToast(`Lead moved to ${newStatus}`, 'success');
     } catch (err) {
       console.error(err);
       setLeads(previousLeads); // Revert on failure
-      alert('Failed to update lead status.');
+      showToast('Failed to update lead status.', 'error');
     }
   };
 
@@ -127,11 +132,11 @@ export default function Leads() {
       const response = await api.post('/import/leads', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      alert(response.data.message);
+      showToast(response.data.message || 'Import successful', 'success');
       fetchLeads();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.detail || 'Failed to import CSV');
+      showToast(err.response?.data?.detail || 'Failed to import CSV', 'error');
     } finally {
       setLoading(false);
       e.target.value = null; // reset input
@@ -169,10 +174,33 @@ export default function Leads() {
     return { text: '', color: '' };
   };
 
-  if (loading) {
+  if (loading && leads.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
-        <div className="text-[13px] text-muted font-bold uppercase tracking-widest animate-pulse">Synchronizing leads...</div>
+      <div className="min-h-[calc(100vh-56px)] bg-page">
+        <div className="bg-surface border-b border-border px-6 py-4">
+          <div className="max-w-[1400px] mx-auto flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-32 opacity-60" />
+            </div>
+          </div>
+        </div>
+        <div className="max-w-[1400px] mx-auto px-6 py-8">
+            {viewMode === 'list' ? (
+                <div className="bg-surface rounded border border-border overflow-hidden">
+                    {[...Array(6)].map((_, i) => <TableRowSkeleton key={i} />)}
+                </div>
+            ) : (
+                <div className="flex gap-4 overflow-hidden">
+                    {[...Array(4)].map((_, i) => (
+                        <div key={i} className="flex-shrink-0 w-[280px] space-y-3">
+                            <Skeleton className="h-4 w-24 mb-4" />
+                            {[...Array(3)].map((_, j) => <CardSkeleton key={j} />)}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
       </div>
     );
   }
@@ -200,42 +228,59 @@ export default function Leads() {
           <div className="w-8"></div>
         </div>
         <div className="divide-y divide-border/50">
-          {filteredLeads.length === 0 ? (
-            <div className="p-12 text-center text-muted text-[13px] font-medium italic">No leads found in this view.</div>
-          ) : (
-            filteredLeads.map((lead, idx) => {
-              const signal = getEngagementSignal(lead);
-              const isMuted = ['Converted', 'Lost', 'Lost Client'].includes(lead.status);
+          <AnimatePresence mode="popLayout">
+            {filteredLeads.length === 0 ? (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-12 text-center text-muted text-[13px] font-medium italic"
+              >
+                No leads found in this view.
+              </motion.div>
+            ) : (
+              filteredLeads.map((lead, idx) => {
+                const signal = getEngagementSignal(lead);
+                const isMuted = ['Converted', 'Lost', 'Lost Client'].includes(lead.status);
 
-              return (
-                <Link key={lead.id} href={`${basePath}/${lead.id}`} className={`flex items-center gap-4 px-5 py-2.5 hover:bg-surface-elevated/30 transition-all group ${isMuted ? 'opacity-50' : ''} ${idx % 2 !== 0 ? 'bg-surface-elevated/10' : ''}`}>
-                  <div className="w-[30%] min-w-[180px]">
-                    <p className={`text-[13px] font-bold truncate ${isMuted ? 'text-muted' : 'text-primary'}`}>{lead.name}</p>
-                    {lead.company && (
-                      <p className="text-[11px] text-muted font-bold truncate flex items-center gap-1 opacity-70 uppercase tracking-tight">
-                        <Briefcase size={10} strokeWidth={2.5} /> {lead.company}
-                      </p>
-                    )}
-                  </div>
-                  <div className="w-[20%] flex justify-center">
-                    <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${STATUS_STYLES[lead.status] || STATUS_STYLES['New']}`}>
-                      {lead.status === 'Qualified' ? 'Follow-up' : lead.status}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    {signal.text && (
-                      <span className={`text-[12px] font-bold ${isMuted ? 'text-muted' : signal.color.replace('font-semibold', '').replace('font-medium', '')} truncate block`}>
-                        {signal.text}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-muted group-hover:text-accent transition-all translate-x-0 group-hover:translate-x-1">
-                    <ChevronRight size={14} strokeWidth={2.5} />
-                  </div>
-                </Link>
-              )
-            })
-          )}
+                return (
+                  <motion.div
+                    key={lead.id}
+                    layout
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Link key={lead.id} href={`${basePath}/${lead.id}`} className={`flex items-center gap-4 px-5 py-2.5 hover:bg-surface-elevated/30 transition-all group ${isMuted ? 'opacity-50' : ''} ${idx % 2 !== 0 ? 'bg-surface-elevated/10' : ''}`}>
+                      <div className="w-[30%] min-w-[180px]">
+                        <p className={`text-[13px] font-bold truncate ${isMuted ? 'text-muted' : 'text-primary'}`}>{lead.name}</p>
+                        {lead.company && (
+                          <p className="text-[11px] text-muted font-bold truncate flex items-center gap-1 opacity-70 uppercase tracking-tight">
+                            <Briefcase size={10} strokeWidth={2.5} /> {lead.company}
+                          </p>
+                        )}
+                      </div>
+                      <div className="w-[20%] flex justify-center">
+                        <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${STATUS_STYLES[lead.status] || STATUS_STYLES['New']}`}>
+                          {lead.status === 'Qualified' ? 'Follow-up' : lead.status}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {signal.text && (
+                          <span className={`text-[12px] font-bold ${isMuted ? 'text-muted' : signal.color.replace('font-semibold', '').replace('font-medium', '')} truncate block`}>
+                            {signal.text}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-muted group-hover:text-accent transition-all translate-x-0 group-hover:translate-x-1">
+                        <ChevronRight size={14} strokeWidth={2.5} />
+                      </div>
+                    </Link>
+                  </motion.div>
+                )
+              })
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
@@ -264,37 +309,44 @@ export default function Leads() {
             </div>
             
             <div className="flex flex-col gap-2 overflow-y-auto pr-1 pb-2 min-h-[100px] no-scrollbar">
-              {colLeads.map(lead => {
-                const signal = getEngagementSignal(lead);
-                const isMuted = ['Converted', 'Lost', 'Lost Client'].includes(lead.status);
+              <AnimatePresence mode="popLayout">
+                {colLeads.map(lead => {
+                  const signal = getEngagementSignal(lead);
+                  const isMuted = ['Converted', 'Lost', 'Lost Client'].includes(lead.status);
 
-                return (
-                  <div 
-                    key={lead.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, lead.id)}
-                    className={`bg-surface border border-border rounded shadow-sm p-3 cursor-grab active:cursor-grabbing hover:border-accent/50 transition-all ${isMuted ? 'opacity-70' : ''}`}
-                  >
-                    <Link href={`${basePath}/${lead.id}`} className="block">
-                      <div className="flex justify-between items-start mb-1.5">
-                        <p className={`text-[13px] font-bold ${isMuted ? 'text-muted' : 'text-primary'} leading-tight`}>{lead.name}</p>
-                      </div>
-                      
-                      {lead.company && (
-                        <p className="text-[11px] text-muted font-bold truncate flex items-center gap-1 opacity-70 uppercase tracking-tight mb-2">
-                          <Briefcase size={10} strokeWidth={2.5} /> {lead.company}
-                        </p>
-                      )}
-
-                      {signal.text && (
-                        <div className={`mt-2 text-[10px] font-bold ${isMuted ? 'text-muted' : signal.color.replace('font-semibold', '').replace('font-medium', '')} bg-surface-elevated/50 px-2 py-1 rounded w-fit`}>
-                          {signal.text}
+                  return (
+                    <motion.div 
+                      key={lead.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, lead.id)}
+                      className={`bg-surface border border-border rounded shadow-sm p-3 cursor-grab active:cursor-grabbing hover:border-accent/50 transition-all ${isMuted ? 'opacity-70' : ''}`}
+                    >
+                      <Link href={`${basePath}/${lead.id}`} className="block">
+                        <div className="flex justify-between items-start mb-1.5">
+                          <p className={`text-[13px] font-bold ${isMuted ? 'text-muted' : 'text-primary'} leading-tight`}>{lead.name}</p>
                         </div>
-                      )}
-                    </Link>
-                  </div>
-                )
-              })}
+                        
+                        {lead.company && (
+                          <p className="text-[11px] text-muted font-bold truncate flex items-center gap-1 opacity-70 uppercase tracking-tight mb-2">
+                            <Briefcase size={10} strokeWidth={2.5} /> {lead.company}
+                          </p>
+                        )}
+
+                        {signal.text && (
+                          <div className={`mt-2 text-[10px] font-bold ${isMuted ? 'text-muted' : signal.color.replace('font-semibold', '').replace('font-medium', '')} bg-surface-elevated/50 px-2 py-1 rounded w-fit`}>
+                            {signal.text}
+                          </div>
+                        )}
+                      </Link>
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
             </div>
           </div>
         );

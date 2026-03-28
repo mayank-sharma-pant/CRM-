@@ -1,6 +1,7 @@
 import './globals.css';
 import { AuthProvider } from '../contexts/AuthContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
+import { NotificationProvider } from '../contexts/NotificationContext';
 import Layout from '../components/Layout';
 import RouteGuard from '../components/RouteGuard';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -20,13 +21,15 @@ export default function RootLayout({ children }) {
             <body className="antialiased">
                 <ThemeProvider>
                     <AuthProvider>
-                        <ErrorBoundary>
-                            <RouteGuard>
-                                <Layout>
-                                    {children}
-                                </Layout>
-                            </RouteGuard>
-                        </ErrorBoundary>
+                        <NotificationProvider>
+                            <ErrorBoundary>
+                                <RouteGuard>
+                                    <Layout>
+                                        {children}
+                                    </Layout>
+                                </RouteGuard>
+                            </ErrorBoundary>
+                        </NotificationProvider>
                     </AuthProvider>
                 </ThemeProvider>
             </body>

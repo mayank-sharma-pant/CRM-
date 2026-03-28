@@ -44,7 +44,10 @@ export default function TeamSwitcher({ className = '' }) {
           const v = e.target.value;
           setValue(v);
           setActiveTeamId(v);
+          // Trigger global refresh to update all scoped components (dashboard, tasks, leads)
+          window.location.reload();
         }}
+
         className="h-9 px-3 rounded-md border border-border bg-surface text-sm text-primary font-semibold"
       >
         <option value="" disabled>

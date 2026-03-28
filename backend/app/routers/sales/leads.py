@@ -353,6 +353,10 @@ def create_lead(
             ).first()
             if not assignee_in_team:
                 raise HTTPException(status_code=403, detail="Cannot assign lead outside your team")
+    else:
+        # Auto-assign to self if sales executive
+        if current_user.role == "sales":
+            assigned_to_id = current_user.id
             
     # Team selection rules
     requested_team_id = getattr(lead_data, "team_id", None)
@@ -728,5 +732,3 @@ def convert_lead(
         "message": f"Lead {lead_id} converted to client successfully",
         "client_id": new_client.id
     }
-
-

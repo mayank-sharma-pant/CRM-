@@ -101,7 +101,7 @@ def get_dashboard(
             "id": log.id,
             "action": log.action,
             "entity": log.entity_type,
-            "time": log.timestamp.strftime("%Y-%m-%d %H:%M") if log.timestamp else None
+            "time": log.timestamp.strftime("%Y-%m-%d %H:%M") if hasattr(log.timestamp, 'strftime') else None
         })
     
     return {
@@ -160,20 +160,29 @@ def list_users(
     
     for user in users:
         prefix = company_map.get(user.company_id) or "EMP"
-        emp_num = user.employee_num or user.id  # fallback for legacy rows
-        team = team_map.get(user.team_id)
+        try:
+            emp_num = int(user.employee_num) if user.employee_num is not None else user.id
+        except (ValueError, TypeError):
+            emp_num = user.id
+            
+        role_val = user.role.value if hasattr(user.role, 'value') else user.role
+        status_val = user.status.value if hasattr(user.status, 'value') else user.status
+        
+        role_str = str(role_val) if role_val else "Sales"
+        status_str = str(status_val) if status_val else "Pending"
+        
         result.append({
             "id": f"{prefix}{emp_num:03d}",
             "user_id": user.id,
             "name": user.full_name,
             "email": user.email,
             "phone": user.phone,
-            "role": user.role.title(),
-            "team": team.name if team else None,
+            "role": role_str.title(),
+            "team": team_map.get(user.team_id).name if user.team_id in team_map else None,
             "team_id": user.team_id,
-            "status": user.status.title(),
-            "joined_at": user.created_at.strftime("%Y-%m-%d") if user.created_at else None,
-            "last_active": user.last_active_at.strftime("%Y-%m-%d %H:%M") if user.last_active_at else None
+            "status": status_str.title(),
+            "joined_at": user.created_at.strftime("%Y-%m-%d") if hasattr(user.created_at, 'strftime') else None,
+            "last_active": user.last_active_at.strftime("%Y-%m-%d %H:%M") if hasattr(user.last_active_at, 'strftime') else None
         })
     
     return {"users": result, "total": total, "skip": skip, "limit": limit}
@@ -446,7 +455,7 @@ def list_teams(
             "name": team.name,
             "member_count": count_map.get(team.id, 0),
             "manager": {"id": manager.id, "name": manager.full_name} if manager else None,
-            "created_at": team.created_at.strftime("%Y-%m-%d") if team.created_at else None
+            "created_at": team.created_at.strftime("%Y-%m-%d") if hasattr(team.created_at, 'strftime') else None
         })
     
     return {"teams": result, "total": total, "skip": skip, "limit": limit}

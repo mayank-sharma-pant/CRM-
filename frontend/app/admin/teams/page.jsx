@@ -9,8 +9,11 @@ import {
     Plus,
     X,
     ArrowRight,
-    Shield
+    Shield,
+    RefreshCw
 } from 'lucide-react';
+import { useNotification } from '@/contexts/NotificationContext';
+import Skeleton, { TableRowSkeleton, CardSkeleton } from '@/components/shared/Skeleton';
 
 export default function AdminTeamsPage() {
     const [loading, setLoading] = useState(true);
@@ -28,6 +31,7 @@ export default function AdminTeamsPage() {
     const [selectedNewMember, setSelectedNewMember] = useState('');
     const [selectedNewManager, setSelectedNewManager] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { showToast } = useNotification();
 
     const fetchTeams = async () => {
         try {
@@ -45,6 +49,7 @@ export default function AdminTeamsPage() {
             }
         } catch (err) {
             console.error('Failed to fetch teams', err);
+            showToast('Unable to synchronize teams list', 'error');
         } finally {
             setLoading(false);
         }
@@ -133,17 +138,18 @@ export default function AdminTeamsPage() {
     };
 
     const confirmCreateTeam = async () => {
-        if (isSubmitting) return;
+        if (!newTeamName.trim() || isSubmitting) return;
         try {
             setIsSubmitting(true);
             await api.post('/admin/teams', { name: newTeamName });
-            fetchTeams();
-            setShowCreateTeamModal(false);
+            showToast(`Team "${newTeamName}" created successfully`, 'success');
             setNewTeamName('');
+            setShowCreateTeamModal(false);
+            fetchTeams();
         } catch (err) {
             console.error('Create team failed', err);
             const detail = err.response?.data?.detail;
-            alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Creation failed');
+            showToast(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Creation failed', 'error');
         } finally {
             setIsSubmitting(false);
         }

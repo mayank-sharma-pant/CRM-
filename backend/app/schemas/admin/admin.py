@@ -25,7 +25,7 @@ class ActivityItem(BaseModel):
     id: int
     action: str
     entity: str
-    time: str
+    time: Optional[str] = None
 
 
 class DashboardResponse(BaseModel):
@@ -40,13 +40,14 @@ class DashboardResponse(BaseModel):
 
 class UserListItem(BaseModel):
     id: str
+    user_id: int
     name: str
     email: str
     phone: Optional[str] = None
     role: str
     team: Optional[str] = None
     status: str
-    joined_at: str
+    joined_at: Optional[str] = None
     last_active: Optional[str] = None
 
     class Config:
@@ -157,7 +158,7 @@ class ApprovalItem(BaseModel):
     phone: Optional[str] = None
     requested_role: str
     requested_team: Optional[str] = None
-    submitted_at: str
+    submitted_at: Optional[str] = None
     status: str
 
 
@@ -218,7 +219,7 @@ class ReassignRequest(BaseModel):
 
 class AuditLogItem(BaseModel):
     id: int
-    timestamp: str
+    timestamp: Optional[str] = None
     admin: str
     action: str
     entity: str

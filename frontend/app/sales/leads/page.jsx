@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { formatDistanceToNow, parseISO, differenceInDays } from 'date-fns';
@@ -8,9 +8,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../services/api';
 import LeadModal from '../../../components/leads/LeadModal';
 import { useNotification } from '../../../contexts/NotificationContext';
-import Skeleton, { TableRowSkeleton, CardSkeleton } from '../../../components/shared/Skeleton';
+import Skeleton, { TableRowSkeleton } from '../../../components/shared/Skeleton';
 import {
-  Plus, ChevronRight, Filter, Briefcase, LayoutList, LayoutGrid
+  Plus, ChevronRight, Filter, Briefcase, LayoutList
 } from 'lucide-react';
 
 const TABS = [
@@ -22,8 +22,6 @@ const TABS = [
   { id: 'Closed', label: 'Closed' }
 ];
 
-const BOARD_COLUMNS = ['New', 'Contacted', 'Qualified', 'Proposal', 'Converted', 'Lost'];
-
 const STATUS_STYLES = {
   'New': 'bg-slate-100 text-slate-600 border-slate-200',
   'Contacted': 'bg-blue-50 text-blue-700 border-blue-200',
@@ -34,8 +32,20 @@ const STATUS_STYLES = {
   'Lost Client': 'bg-red-50 text-red-700 border-red-200'
 };
 
+const normalizeStatus = (s) => {
+    if (!s) return 'New';
+    let raw = String(s).replace(/^LeadStatus\./i, '');
+    if (raw === 'NEW') return 'New';
+    if (raw === 'CONTACTED') return 'Contacted';
+    if (raw === 'QUALIFIED') return 'Qualified';
+    if (raw === 'PROPOSAL') return 'Proposal';
+    if (raw === 'CONVERTED') return 'Converted';
+    if (raw === 'LOST') return 'Lost';
+    if (raw === 'LOST_CLIENT') return 'Lost Client';
+    return s;
+};
+
 export default function Leads() {
-  const [viewMode, setViewMode] = useState('board'); // 'list' | 'board'
   const [activeTab, setActiveTab] = useState('active');
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +54,7 @@ export default function Leads() {
   const [now, setNow] = useState(null);
   
   const searchParams = useSearchParams();
-  const basePath = usePathname(); // e.g., '/sales/leads'
+  const basePath = usePathname();
   const { showToast } = useNotification();
 
   useEffect(() => {
@@ -62,21 +72,20 @@ export default function Leads() {
     setLoading(true);
     setError(null);
     try {
-      let url = '/leads';
-      const params = {};
-
-      if (activeTab !== 'all' && activeTab !== 'active' && activeTab !== 'Closed') {
-        params.status = activeTab;
-      }
-
-      const response = await api.get(url, { params });
+      // Fetch all leads for this user and filter locally to avoid backend enum capitalization mismatches
+      const response = await api.get('/leads');
       const raw = response.data?.items ?? response.data;
       let data = Array.isArray(raw) ? raw : [];
+
+      // Normalize statuses immediately
+      data = data.map(l => ({ ...l, status: normalizeStatus(l.status) }));
 
       if (activeTab === 'active') {
         data = data.filter(l => ['New', 'Contacted', 'Qualified', 'Proposal'].includes(l.status));
       } else if (activeTab === 'Closed') {
         data = data.filter(l => ['Converted', 'Lost', 'Lost Client'].includes(l.status));
+      } else if (activeTab !== 'all') {
+        data = data.filter(l => l.status === activeTab);
       }
 
       setLeads(data);
@@ -85,38 +94,6 @@ export default function Leads() {
       setError('Unable to load leads. Please try again.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDragStart = (e, leadId) => {
-    e.dataTransfer.setData('leadId', leadId);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = async (e, newStatus) => {
-    e.preventDefault();
-    const leadId = e.dataTransfer.getData('leadId');
-    if (!leadId) return;
-
-    const leadToUpdate = leads.find(l => l.id.toString() === leadId);
-    if (!leadToUpdate || leadToUpdate.status === newStatus) return;
-
-    // Optimistic UI update
-    const previousLeads = [...leads];
-    setLeads(prev => prev.map(l => l.id.toString() === leadId ? { ...l, status: newStatus } : l));
-
-    try {
-      await api.patch(`/leads/${leadId}/status`, { status: newStatus });
-      showToast(`Lead moved to ${newStatus}`, 'success');
-    } catch (err) {
-      console.error(err);
-      setLeads(previousLeads); // Revert on failure
-      showToast('Failed to update lead status.', 'error');
     }
   };
 
@@ -163,20 +140,9 @@ export default function Leads() {
           </div>
         </div>
         <div className="max-w-[1400px] mx-auto px-6 py-8">
-            {viewMode === 'list' ? (
-                <div className="bg-surface rounded border border-border overflow-hidden">
-                    {[...Array(6)].map((_, i) => <TableRowSkeleton key={i} />)}
-                </div>
-            ) : (
-                <div className="flex gap-4 overflow-hidden">
-                    {[...Array(4)].map((_, i) => (
-                        <div key={i} className="flex-shrink-0 w-[280px] space-y-3">
-                            <Skeleton className="h-4 w-24 mb-4" />
-                            {[...Array(3)].map((_, j) => <CardSkeleton key={j} />)}
-                        </div>
-                    ))}
-                </div>
-            )}
+            <div className="bg-surface rounded border border-border overflow-hidden">
+                {[...Array(6)].map((_, i) => <TableRowSkeleton key={i} />)}
+            </div>
         </div>
       </div>
     );
@@ -193,168 +159,22 @@ export default function Leads() {
     );
   }
 
-  // --- RENDERING VIEWS ---
-
-  const renderListView = () => (
-    <div className="max-w-[1400px] mx-auto px-6 py-4">
-      <div className="bg-surface rounded border border-border overflow-hidden shadow-sm">
-        <div className="hidden lg:flex items-center gap-4 px-5 py-2.5 bg-surface-elevated/50 border-b border-border">
-          <div className="w-[30%] text-[10px] font-black text-muted uppercase tracking-widest">Lead Entity</div>
-          <div className="w-[20%] text-[10px] font-black text-muted uppercase tracking-widest text-center">Status</div>
-          <div className="flex-1 text-[10px] font-black text-muted uppercase tracking-widest">Next Engagement</div>
-          <div className="w-8"></div>
-        </div>
-        <div className="divide-y divide-border/50">
-          <AnimatePresence mode="popLayout">
-            {filteredLeads.length === 0 ? (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="p-12 text-center text-muted text-[13px] font-medium italic"
-              >
-                No leads found in this view.
-              </motion.div>
-            ) : (
-              filteredLeads.map((lead, idx) => {
-                const signal = getEngagementSignal(lead);
-                const isMuted = ['Converted', 'Lost', 'Lost Client'].includes(lead.status);
-
-                return (
-                  <motion.div
-                    key={lead.id}
-                    layout
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 10 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Link href={`${basePath}/${lead.id}`} className={`flex items-center gap-4 px-5 py-2.5 hover:bg-surface-elevated/30 transition-all group ${isMuted ? 'opacity-50' : ''} ${idx % 2 !== 0 ? 'bg-surface-elevated/10' : ''}`}>
-                      <div className="w-[30%] min-w-[180px]">
-                        <p className={`text-[13px] font-bold truncate ${isMuted ? 'text-muted' : 'text-primary'}`}>{lead.name}</p>
-                        {lead.company && (
-                          <p className="text-[11px] text-muted font-bold truncate flex items-center gap-1 opacity-70 uppercase tracking-tight">
-                            <Briefcase size={10} strokeWidth={2.5} /> {lead.company}
-                          </p>
-                        )}
-                      </div>
-                      <div className="w-[20%] flex justify-center">
-                        <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${STATUS_STYLES[lead.status] || STATUS_STYLES['New']}`}>
-                          {lead.status === 'Qualified' ? 'Follow-up' : lead.status}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        {signal.text && (
-                          <span className={`text-[12px] font-bold ${isMuted ? 'text-muted' : signal.color.replace('font-semibold', '').replace('font-medium', '')} truncate block`}>
-                            {signal.text}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-muted group-hover:text-accent transition-all translate-x-0 group-hover:translate-x-1">
-                        <ChevronRight size={14} strokeWidth={2.5} />
-                      </div>
-                    </Link>
-                  </motion.div>
-                )
-              })
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderBoardView = () => (
-    <div className="max-w-[1400px] mx-auto px-6 py-4 flex flex-1 overflow-x-auto gap-4 items-start min-h-[500px] no-scrollbar">
-      {BOARD_COLUMNS.map(colStatus => {
-        const colLeads = filteredLeads.filter(l => {
-          if (colStatus === 'Lost') return l.status === 'Lost' || l.status === 'Lost Client';
-          return l.status === colStatus;
-        });
-
-        return (
-          <div 
-            key={colStatus} 
-            className="flex-shrink-0 w-[280px] bg-surface-elevated/50 rounded-lg border border-border p-3 flex flex-col max-h-[80vh]"
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, colStatus)}
-          >
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h3 className="text-[12px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                {colStatus === 'Qualified' ? 'Follow-up' : colStatus}
-                <span className="text-[10px] bg-surface text-muted px-1.5 py-0.5 rounded border border-border">{colLeads.length}</span>
-              </h3>
-            </div>
-            
-            <div className="flex flex-col gap-2 overflow-y-auto pr-1 pb-2 min-h-[100px] no-scrollbar">
-              <AnimatePresence mode="popLayout">
-                {colLeads.map(lead => {
-                  const signal = getEngagementSignal(lead);
-                  const isMuted = ['Converted', 'Lost', 'Lost Client'].includes(lead.status);
-
-                  return (
-                    <motion.div 
-                      key={lead.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, lead.id)}
-                      className={`bg-surface border border-border rounded shadow-sm p-3 cursor-grab active:cursor-grabbing hover:border-accent/50 transition-all ${isMuted ? 'opacity-70' : ''}`}
-                    >
-                      <Link href={`${basePath}/${lead.id}`} className="block">
-                        <div className="flex justify-between items-start mb-1.5">
-                          <p className={`text-[13px] font-bold ${isMuted ? 'text-muted' : 'text-primary'} leading-tight`}>{lead.name}</p>
-                        </div>
-                        
-                        {lead.company && (
-                          <p className="text-[11px] text-muted font-bold truncate flex items-center gap-1 opacity-70 uppercase tracking-tight mb-2">
-                            <Briefcase size={10} strokeWidth={2.5} /> {lead.company}
-                          </p>
-                        )}
-
-                        {signal.text && (
-                          <div className={`mt-2 text-[10px] font-bold ${isMuted ? 'text-muted' : signal.color.replace('font-semibold', '').replace('font-medium', '')} bg-surface-elevated/50 px-2 py-1 rounded w-fit`}>
-                            {signal.text}
-                          </div>
-                        )}
-                      </Link>
-                    </motion.div>
-                  )
-                })}
-              </AnimatePresence>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-
   return (
     <div className="min-h-[calc(100vh-56px)] bg-page flex flex-col">
       <div className="bg-surface border-b border-border px-6 py-4">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-primary tracking-tight">Leads Pipeline</h1>
-            <p className="text-[12px] text-muted font-medium mt-0.5 opacity-80 uppercase tracking-wider">Drag & Drop Pipeline Management</p>
+            <h1 className="text-xl font-bold text-primary tracking-tight">Leads Registry</h1>
+            <p className="text-[12px] text-muted font-medium mt-0.5 opacity-80 uppercase tracking-wider">Efficient Lead Tracking and Engagement</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex bg-surface-elevated/50 border border-border rounded-md p-1 shadow-inner h-8">
-              <button 
-                onClick={() => setViewMode('list')} 
-                className={`p-1 rounded flex items-center justify-center transition-all ${viewMode === 'list' ? 'bg-surface shadow-sm text-primary' : 'text-muted hover:text-primary'}`}
+              <div 
+                className="p-1 rounded flex items-center justify-center bg-surface shadow-sm text-primary"
                 title="List View"
               >
                 <LayoutList size={14} strokeWidth={2.5} />
-              </button>
-              <button 
-                onClick={() => setViewMode('board')} 
-                className={`p-1 rounded flex items-center justify-center transition-all ${viewMode === 'board' ? 'bg-surface shadow-sm text-primary' : 'text-muted hover:text-primary'}`}
-                title="Board View"
-              >
-                <LayoutGrid size={14} strokeWidth={2.5} />
-              </button>
+              </div>
             </div>
             
             <button
@@ -387,17 +207,79 @@ export default function Leads() {
         </div>
       </div>
 
-      {viewMode === 'board' ? renderBoardView() : renderListView()}
-
-      {viewMode === 'list' && (
-        <div className="max-w-[1400px] mx-auto px-7 mt-3 flex items-center justify-between pb-6">
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></div>
-           <span className="text-[10px] font-black text-muted uppercase tracking-widest">Real-time Pipeline Synchronized</span>
+      <div className="max-w-[1400px] mx-auto px-6 py-4 flex-1 w-full">
+        <div className="bg-surface rounded border border-border overflow-hidden shadow-sm">
+          <div className="hidden lg:flex items-center gap-4 px-5 py-2.5 bg-surface-elevated/50 border-b border-border">
+            <div className="w-[30%] text-[10px] font-black text-muted uppercase tracking-widest">Lead Entity</div>
+            <div className="w-[20%] text-[10px] font-black text-muted uppercase tracking-widest text-center">Status</div>
+            <div className="flex-1 text-[10px] font-black text-muted uppercase tracking-widest">Next Engagement</div>
+            <div className="w-8"></div>
           </div>
-          <span className="text-[10px] font-black text-muted uppercase tracking-widest tabular-nums">{filteredLeads.length} Items Indexed</span>
+          <div className="divide-y divide-border/50">
+            <AnimatePresence mode="popLayout">
+              {filteredLeads.length === 0 ? (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="p-12 text-center text-muted text-[13px] font-medium italic"
+                >
+                  No leads found in this view.
+                </motion.div>
+              ) : (
+                filteredLeads.map((lead, idx) => {
+                  const signal = getEngagementSignal(lead);
+                  const isMuted = ['Converted', 'Lost', 'Lost Client'].includes(lead.status);
+
+                  return (
+                    <motion.div
+                      key={lead.id}
+                      layout
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 10 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Link href={`${basePath}/${lead.id}`} className={`flex items-center gap-4 px-5 py-2.5 hover:bg-surface-elevated/30 transition-all group ${isMuted ? 'opacity-50' : ''} ${idx % 2 !== 0 ? 'bg-surface-elevated/10' : ''}`}>
+                        <div className="w-[30%] min-w-[180px]">
+                          <p className={`text-[13px] font-bold truncate ${isMuted ? 'text-muted' : 'text-primary'}`}>{lead.name}</p>
+                          {lead.company && (
+                            <p className="text-[11px] text-muted font-bold truncate flex items-center gap-1 opacity-70 uppercase tracking-tight">
+                              <Briefcase size={10} strokeWidth={2.5} /> {lead.company}
+                            </p>
+                          )}
+                        </div>
+                        <div className="w-[20%] flex justify-center">
+                          <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${STATUS_STYLES[lead.status] || STATUS_STYLES['New']}`}>
+                            {lead.status === 'Qualified' ? 'Follow-up' : lead.status}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {signal.text && (
+                            <span className={`text-[12px] font-bold ${isMuted ? 'text-muted' : signal.color.replace('font-semibold', '').replace('font-medium', '')} truncate block`}>
+                              {signal.text}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-muted group-hover:text-accent transition-all translate-x-0 group-hover:translate-x-1">
+                          <ChevronRight size={14} strokeWidth={2.5} />
+                        </div>
+                      </Link>
+                    </motion.div>
+                  )
+                })
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-      )}
+      </div>
+
+      <div className="max-w-[1400px] mx-auto px-7 mt-3 flex items-center justify-between pb-6 w-full">
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></div>
+         <span className="text-[10px] font-black text-muted uppercase tracking-widest">Real-time Pipeline Synchronized</span>
+        </div>
+        <span className="text-[10px] font-black text-muted uppercase tracking-widest tabular-nums">{filteredLeads.length} Items Indexed</span>
+      </div>
 
       <LeadModal
         isOpen={isModalOpen}

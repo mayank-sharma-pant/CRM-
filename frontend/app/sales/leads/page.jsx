@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { formatDistanceToNow, parseISO, differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../services/api';
+import { normalizeLeadStatus } from '../../../lib/leadStatus';
 import LeadModal from '../../../components/leads/LeadModal';
 import { useNotification } from '../../../contexts/NotificationContext';
 import Skeleton, { TableRowSkeleton } from '../../../components/shared/Skeleton';
@@ -30,19 +31,6 @@ const STATUS_STYLES = {
   'Converted': 'bg-emerald-50 text-emerald-700 border-emerald-200',
   'Lost': 'bg-gray-50 text-gray-500 border-gray-200',
   'Lost Client': 'bg-red-50 text-red-700 border-red-200'
-};
-
-const normalizeStatus = (s) => {
-    if (!s) return 'New';
-    let raw = String(s).replace(/^LeadStatus\./i, '');
-    if (raw === 'NEW') return 'New';
-    if (raw === 'CONTACTED') return 'Contacted';
-    if (raw === 'QUALIFIED') return 'Qualified';
-    if (raw === 'PROPOSAL') return 'Proposal';
-    if (raw === 'CONVERTED') return 'Converted';
-    if (raw === 'LOST') return 'Lost';
-    if (raw === 'LOST_CLIENT') return 'Lost Client';
-    return s;
 };
 
 export default function Leads() {
@@ -73,12 +61,12 @@ export default function Leads() {
     setError(null);
     try {
       // Fetch all leads for this user and filter locally to avoid backend enum capitalization mismatches
-      const response = await api.get('/leads');
+      const response = await api.get('/leads', { params: { limit: 500 } });
       const raw = response.data?.items ?? response.data;
       let data = Array.isArray(raw) ? raw : [];
 
       // Normalize statuses immediately
-      data = data.map(l => ({ ...l, status: normalizeStatus(l.status) }));
+      data = data.map(l => ({ ...l, status: normalizeLeadStatus(l.status) }));
 
       if (activeTab === 'active') {
         data = data.filter(l => ['New', 'Contacted', 'Qualified', 'Proposal'].includes(l.status));

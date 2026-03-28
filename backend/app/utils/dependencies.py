@@ -144,9 +144,9 @@ def get_active_team_id(
             TeamMembership.team_id == team_id,
             TeamMembership.user_id == current_user.id,
         ).first()
-        if not membership:
-            raise HTTPException(status_code=403, detail="Not a member of this team")
-        return team_id
+        if membership:
+            return team_id
+        # Stale X-Team-Id (e.g. old localStorage after switching user/company/team): fall back
 
     if current_user.team_id is not None:
         return current_user.team_id

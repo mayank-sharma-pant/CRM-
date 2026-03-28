@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { CornerDownRight, Briefcase, UserCircle, Plus, Check, Clock, User, X } from 'lucide-react';
+import { startOfDay, isPast, isSameDay, isFuture } from 'date-fns';
+import { parseTaskDueDate } from '../../../lib/taskDue';
 import api from '../../../services/api';
 
 export default function ManagerTasksPage() {
@@ -70,17 +72,20 @@ export default function ManagerTasksPage() {
     const getTasksForTab = () => {
         if (!tasks.length) return [];
         if (activeTab === 'all') return tasks;
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const today = startOfDay(new Date());
         return tasks.filter(t => {
-            // Use canonical ISO value from backend for tab filtering.
-            const dueIso = t.due_date_iso;
-            if (!dueIso) return false;
-            const due = new Date(dueIso);
-            if (Number.isNaN(due.getTime())) return false;
-            if (activeTab === 'Overdue') return due < today && t.status !== 'Completed';
-            if (activeTab === 'Today') return due.toDateString() === today.toDateString();
-            if (activeTab === 'Upcoming') return due > today;
+            const dueRaw = t.due_date_iso || t.due_date;
+            if (!dueRaw) return false;
+            const due = parseTaskDueDate(dueRaw);
+            if (!due) return false;
+            const dueDay = startOfDay(due);
+            if (activeTab === 'Overdue') {
+                return isPast(dueDay) && !isSameDay(dueDay, today) && t.status !== 'Completed';
+            }
+            if (activeTab === 'Today') return isSameDay(dueDay, today);
+            if (activeTab === 'Upcoming') {
+                return isFuture(dueDay) && !isSameDay(dueDay, today);
+            }
             return false;
         });
     };

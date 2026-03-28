@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import TaskModal from '../../../components/leads/TaskModal';
-import { isPast, isSameDay, parseISO, isFuture, startOfDay } from 'date-fns';
+import { isPast, isSameDay, isFuture, startOfDay } from 'date-fns';
+import { parseTaskDueDate } from '../../../lib/taskDue';
 
 // --- MOCK DATA REMOVED (Replaced by API) ---
 
@@ -71,13 +72,8 @@ export default function TasksPage() {
             if (!dueRaw) {
                 return activeTab === 'Upcoming';
             }
-            let dueDate;
-            try {
-                dueDate = parseISO(dueRaw);
-            } catch {
-                return false;
-            }
-            if (Number.isNaN(dueDate.getTime())) {
+            const dueDate = parseTaskDueDate(dueRaw);
+            if (!dueDate) {
                 return false;
             }
             const dueDay = startOfDay(dueDate);

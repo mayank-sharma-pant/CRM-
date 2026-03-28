@@ -20,6 +20,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
+import { formatDistanceToTaskDue } from '../../../../lib/taskDue';
 import api from '../../../../services/api';
 import TaskModal from '../../../../components/leads/TaskModal';
 import NoteModal from '../../../../components/leads/NoteModal';
@@ -86,13 +87,24 @@ export default function LeadDetailPage() {
 
       if (data.tasks) {
         data.tasks.forEach(task => {
-          if (task.status === 'Completed') {
+          if (task.created_at) {
             timeline.push({
-              id: `task-${task.id}`,
+              id: `task-added-${task.id}`,
               type: 'task',
-              title: 'Task Completed',
+              title: task.is_manager_assigned ? 'Task assigned' : 'Task created',
               description: task.title,
-              timestamp: task.updated_at || new Date().toISOString(),
+              timestamp: task.created_at,
+              icon: CheckSquare,
+              color: 'text-blue-600 bg-blue-100'
+            });
+          }
+          if (task.status === 'Completed' && (task.completed_at || task.updated_at)) {
+            timeline.push({
+              id: `task-done-${task.id}`,
+              type: 'task',
+              title: 'Task completed',
+              description: task.title,
+              timestamp: task.completed_at || task.updated_at,
               icon: CheckSquare,
               color: 'text-emerald-600 bg-emerald-100'
             });
@@ -389,7 +401,7 @@ export default function LeadDetailPage() {
                       {(task.status === 'Open' || task.status === 'Pending') && (
                         <div className="flex items-center gap-2 mt-1">
                           <span className={`text-[10px] ${task.due_date ? 'text-amber-600' : 'text-slate-400'} flex items-center gap-1`}>
-                            <Clock size={10} /> {task.due_date ? (() => { try { return formatDistanceToNow(parseISO(task.due_date), { addSuffix: true }); } catch { return task.due_date; } })() : 'No date'}
+                            <Clock size={10} /> {task.due_date ? (formatDistanceToTaskDue(task.due_date, { addSuffix: true }) || task.due_date) : 'No date'}
                           </span>
                         </div>
                       )}

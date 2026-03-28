@@ -19,6 +19,7 @@ from app.models.core.enums import InvoiceStatus
 from app.models.core.team import Team
 from app.models.core.team_membership import TeamMembership
 from app.models.sales.audit import AuditLog
+from app.utils.datetime_json import task_due_for_json
 import json
 
 router = APIRouter()
@@ -159,7 +160,7 @@ def get_manager_dashboard(
         priority_tasks.append({
             "id": task.id,
             "title": task.title,
-            "dueDate": task.due_date.isoformat() if task.due_date else None,
+            "dueDate": task_due_for_json(task.due_date),
             "statusReason": "OVERDUE"
         })
     

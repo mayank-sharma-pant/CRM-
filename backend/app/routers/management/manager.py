@@ -831,6 +831,18 @@ def get_team_member_performance(
         }
     }
 
+@router.get("/teams")
+def get_company_teams(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager),
+):
+    """List all teams in the manager's company (for transfer requests)"""
+    if is_platform_admin(current_user) or current_user.company_id is None:
+        return {"teams": []}
+        
+    teams = apply_company_scope(db.query(Team), Team, current_user).order_by(Team.name.asc()).all()
+    return {"teams": [{"id": t.id, "name": t.name} for t in teams]}
+
 @router.post("/transfer-request", response_model=TransferRequestResponse)
 def create_transfer_request(
     request_data: TransferRequestCreate,

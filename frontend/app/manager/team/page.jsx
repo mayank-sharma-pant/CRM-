@@ -29,14 +29,23 @@ export default function TeamListPage() {
     const fetchAllData = async () => {
         try {
             setLoading(true);
-            const [teamRes, monitoringRes, allTeamsRes] = await Promise.all([
+            
+            // Core data requests
+            const [teamRes, monitoringRes] = await Promise.all([
                 api.get('/manager/team'),
-                api.get('/manager/monitoring'),
-                api.get('/admin/teams')
+                api.get('/manager/monitoring')
             ]);
-
+            
             setTeam(teamRes.data.team || []);
-            setAllTeams(allTeamsRes.data.teams || []);
+            
+            // Optional data fetch for transfer dropdown (doesn't break the page if it fails)
+            try {
+                const allTeamsRes = await api.get('/manager/teams');
+                setAllTeams(allTeamsRes.data.teams || []);
+            } catch (err) {
+                console.error("Failed to fetch teams list for transfers", err);
+                setAllTeams([]);
+            }
             
             // Format monitoring data for PerformanceView
             const apiData = monitoringRes.data;

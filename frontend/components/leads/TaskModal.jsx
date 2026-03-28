@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, Calendar, User } from 'lucide-react';
+import { X, Loader2, Calendar, User as UserIcon } from 'lucide-react';
 import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = null, currentClientId = null }) {
+    const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [users, setUsers] = useState([]);
@@ -26,10 +28,32 @@ export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = 
 
     const fetchUsers = async () => {
         try {
-            // In a real app, fetching team members. For now, list users.
             const res = await api.get('/users/');
             const data = res.data;
-            setUsers(data?.items ?? (Array.isArray(data) ? data : (data?.users || [])));
+            let fetchedUsers = data?.items ?? (Array.isArray(data) ? data : (data?.users || []));
+            
+            // Normalize the current user's role string to handle different backend serialization
+            const currentUserRole = String(user?.role || '').toLowerCase();
+            
+            // Prevent assigning tasks to upper management based on current user's role
+            if (currentUserRole.includes('sales')) {
+                fetchedUsers = fetchedUsers.filter(u => {
+                    const r = String(u.role || '').toLowerCase();
+                    return !r.includes('admin') && !r.includes('md') && !r.includes('manager');
+                });
+            } else if (currentUserRole.includes('manager')) {
+                fetchedUsers = fetchedUsers.filter(u => {
+                    const r = String(u.role || '').toLowerCase();
+                    return !r.includes('admin') && !r.includes('md');
+                });
+            } else if (currentUserRole.includes('md')) {
+                fetchedUsers = fetchedUsers.filter(u => {
+                    const r = String(u.role || '').toLowerCase();
+                    return !r.includes('admin');
+                });
+            }
+            
+            setUsers(fetchedUsers);
         } catch (err) {
             console.error("Failed to fetch users", err);
         }
@@ -147,7 +171,7 @@ export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = 
                                     <option key={u.id} value={u.id}>{u.full_name}</option>
                                 ))}
                             </select>
-                            <User size={14} className="absolute left-3 top-3 text-slate-400" />
+                            <UserIcon size={14} className="absolute left-3 top-3 text-slate-400" />
                         </div>
                         <p className="text-[10px] text-slate-400 italic">Leave empty to assign to yourself.</p>
                     </div>

@@ -19,9 +19,8 @@ export default function LeadModal({ isOpen, onClose, onRefresh }) {
         notes: ''
     });
 
-    if (!isOpen) return null;
-
     useEffect(() => {
+        if (!isOpen) return;
         const loadTeams = async () => {
             try {
                 const res = await api.get('/teams/mine');
@@ -42,6 +41,8 @@ export default function LeadModal({ isOpen, onClose, onRefresh }) {
         loadTeams();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
+
+    if (!isOpen) return null;
 
     const handleChange = (e) => {
         const { name, value } = e.target;

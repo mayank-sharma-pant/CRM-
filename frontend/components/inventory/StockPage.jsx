@@ -109,97 +109,159 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
     }
 
     return (
-        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
-            <div className="flex items-center justify-between py-4 border-b border-border">
+        <div className="mx-auto max-w-[1440px] px-6 space-y-8 pb-12 bg-page min-h-screen">
+            <div className="flex items-center justify-between py-6 border-b border-border bg-gradient-to-r from-surface-elevated/10 to-transparent rounded-b-xl px-4 -mx-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-primary">Stock Inventory</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">
-                        Live visibility for {roleLabel}
+                    <h1 className="text-3xl font-extrabold tracking-tight text-primary bg-clip-text text-transparent bg-gradient-to-br from-primary to-primary/60">
+                        Stock Inventory
+                    </h1>
+                    <p className="text-[11px] text-muted font-black uppercase tracking-[0.2em] mt-1 opacity-70 flex items-center gap-2">
+                        <span className="w-8 h-[1px] bg-accent/30" /> Live visibility for {roleLabel}
                     </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
+                    <span className="text-[10px] font-bold text-success uppercase tracking-widest">System Online</span>
                 </div>
             </div>
 
-            <div className="flex items-center gap-3 bg-surface p-3 rounded-md border border-border">
+            <div className="flex items-center gap-4 bg-surface/40 backdrop-blur-sm p-4 rounded-xl border border-border/60 shadow-sm transition-all hover:shadow-md hover:border-border">
                 <div className="relative flex-1">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted/60" />
                     <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search by name / SKU / category"
-                        className="w-full pl-9 pr-3 py-2 bg-surface-elevated border border-border rounded-md text-sm"
+                        placeholder="Search by name / SKU / category..."
+                        className="w-full pl-11 pr-4 py-2.5 bg-surface-elevated/50 border border-border/40 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
                     />
                 </div>
-                <div className="text-xs font-bold uppercase tracking-wider text-muted">
-                    {filtered.length} items
+                <div className="px-4 py-2 bg-surface-elevated/40 rounded-lg border border-border/30 text-[10px] font-black uppercase tracking-widest text-muted whitespace-nowrap">
+                    {filtered.length} items total
                 </div>
             </div>
 
             {canManage && (
-                <div className="bg-surface rounded-md border border-border p-4 grid grid-cols-1 md:grid-cols-7 gap-2">
-                    <input className="px-3 py-2 border border-border rounded-md text-sm" placeholder="Name"
-                        value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} />
-                    <input className="px-3 py-2 border border-border rounded-md text-sm" placeholder="SKU"
-                        value={newItem.sku} onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })} />
-                    <input className="px-3 py-2 border border-border rounded-md text-sm" placeholder="Category"
-                        value={newItem.category} onChange={(e) => setNewItem({ ...newItem, category: e.target.value })} />
-                    <input className="px-3 py-2 border border-border rounded-md text-sm" placeholder="Unit"
-                        value={newItem.unit} onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })} />
-                    <input type="number" className="px-3 py-2 border border-border rounded-md text-sm" placeholder="Price"
-                        value={newItem.unit_price} onChange={(e) => setNewItem({ ...newItem, unit_price: e.target.value })} />
-                    <input type="number" className="px-3 py-2 border border-border rounded-md text-sm" placeholder="Qty"
-                        value={newItem.quantity} onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })} />
-                    <div className="flex gap-2">
-                        <input type="number" className="px-3 py-2 border border-border rounded-md text-sm w-full" placeholder="Reorder"
-                            value={newItem.reorder_level} onChange={(e) => setNewItem({ ...newItem, reorder_level: e.target.value })} />
+                <div className="bg-surface/60 backdrop-blur-md rounded-xl border border-border/80 p-6 shadow-sm transition-all hover:shadow-lg">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Plus size={16} className="text-accent" />
+                        <h2 className="text-sm font-black uppercase tracking-widest text-primary">Add New Inventory</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 items-end">
+                        <div className="space-y-1.5 md:col-span-2">
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Item Name</label>
+                            <input className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium" 
+                                placeholder="e.g., Premium Solar Panel"
+                                value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">SKU</label>
+                            <input className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium" 
+                                placeholder="SKU-001"
+                                value={newItem.sku} onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Category</label>
+                            <input className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium" 
+                                placeholder="Category"
+                                value={newItem.category} onChange={(e) => setNewItem({ ...newItem, category: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Price</label>
+                            <input type="number" className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium" 
+                                placeholder="0.00"
+                                value={newItem.unit_price} onChange={(e) => setNewItem({ ...newItem, unit_price: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Qty</label>
+                            <input type="number" className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium" 
+                                placeholder="0"
+                                value={newItem.quantity} onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })} />
+                        </div>
                         <button
                             onClick={handleCreate}
-                            className="px-3 py-2 bg-accent text-white rounded-md text-sm font-bold flex items-center gap-1"
+                            className="w-full py-2.5 bg-accent text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-accent/20 hover:bg-accent/90 hover:scale-[1.02] active:scale-[0.98] transition-all"
                         >
-                            <Plus size={14} /> Add
+                            <Plus size={14} strokeWidth={3} /> ADD ITEM
                         </button>
                     </div>
                 </div>
             )}
 
-            <div className="bg-surface rounded-md border border-border overflow-hidden">
+            <div className="bg-surface/40 backdrop-blur-sm rounded-xl border border-border/60 overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="border-b border-border bg-surface-elevated/20">
-                                <th className="py-3 px-4 text-[10px] font-black text-muted uppercase tracking-widest">Item</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-muted uppercase tracking-widest">SKU</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-muted uppercase tracking-widest">Category</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-muted uppercase tracking-widest">Price</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-muted uppercase tracking-widest">Available</th>
-                                <th className="py-3 px-4 text-[10px] font-black text-muted uppercase tracking-widest">Status</th>
-                                {canManage && <th className="py-3 px-4"></th>}
+                            <tr className="border-b border-border bg-surface-elevated/40">
+                                <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Item Details</th>
+                                <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">SKU / ID</th>
+                                <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Category</th>
+                                <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Unit Price</th>
+                                <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Available</th>
+                                <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Status</th>
+                                {canManage && <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em] text-right">Actions</th>}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-border/50">
+                        <tbody className="divide-y divide-border/30">
                             {filtered.map((item) => (
-                                <tr key={item.id} className="hover:bg-surface-elevated/30">
-                                    <td className="py-3 px-4 text-sm font-bold text-primary flex items-center gap-2">
-                                        <Package size={14} className="text-muted" /> {item.name}
+                                <tr key={item.id} className="group hover:bg-surface-elevated/40 transition-colors">
+                                    <td className="py-4 px-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent group-hover:bg-accent/20 transition-colors">
+                                                <Package size={16} />
+                                            </div>
+                                            <span className="text-sm font-bold text-primary">{item.name}</span>
+                                        </div>
                                     </td>
-                                    <td className="py-3 px-4 text-xs font-mono text-secondary">{item.sku || '-'}</td>
-                                    <td className="py-3 px-4 text-xs text-secondary">{item.category || '-'}</td>
-                                    <td className="py-3 px-4 text-sm font-bold text-primary">${Number(item.unit_price || 0).toFixed(2)}</td>
-                                    <td className="py-3 px-4 text-sm font-bold tabular-nums">{item.quantity} {item.unit}</td>
-                                    <td className="py-3 px-4">
+                                    <td className="py-4 px-6">
+                                        <span className="text-xs font-mono text-muted/80 bg-surface-elevated/40 px-2 py-1 rounded border border-border/30">
+                                            {item.sku || 'NO-SKU'}
+                                        </span>
+                                    </td>
+                                    <td className="py-4 px-6">
+                                        <span className="text-xs font-medium text-secondary bg-surface-elevated/30 px-2.5 py-1 rounded-full border border-border/20">
+                                            {item.category || 'General'}
+                                        </span>
+                                    </td>
+                                    <td className="py-4 px-6">
+                                        <span className="text-sm font-bold text-primary tabular-nums">
+                                            ${Number(item.unit_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                    </td>
+                                    <td className="py-4 px-6">
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-black tabular-nums text-primary">{item.quantity}</span>
+                                            <span className="text-[10px] font-bold text-muted uppercase tracking-tighter opacity-60">{item.unit || 'pcs'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="py-4 px-6">
                                         {item.is_low_stock ? (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-black uppercase tracking-widest bg-warning/10 text-warning border-warning/20">
-                                                <AlertTriangle size={10} /> Low
+                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest bg-warning/10 text-warning border-warning/20 shadow-sm shadow-warning/5 animate-pulse">
+                                                <AlertTriangle size={10} /> CRITICAL
                                             </span>
                                         ) : (
-                                            <span className="inline-flex px-2 py-0.5 rounded border text-[10px] font-black uppercase tracking-widest bg-success/10 text-success border-success/20">
-                                                Healthy
+                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest bg-success/10 text-success border-success/20 shadow-sm shadow-success/5">
+                                                <div className="h-1.5 w-1.5 rounded-full bg-success" /> OPTIMAL
                                             </span>
                                         )}
                                     </td>
                                     {canManage && (
-                                        <td className="py-3 px-4 text-right">
-                                            <button onClick={() => adjustQty(item.id, +1)} className="px-2 py-1 text-xs border border-border rounded mr-2">+ Add</button>
-                                            <button onClick={() => adjustQty(item.id, -1)} className="px-2 py-1 text-xs border border-border rounded">- Remove</button>
+                                        <td className="py-4 px-6 text-right">
+                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button 
+                                                    onClick={() => adjustQty(item.id, +1)} 
+                                                    title="Add Stock"
+                                                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-border bg-surface-elevated hover:bg-success/10 hover:border-success/30 hover:text-success transition-all"
+                                                >
+                                                    <Plus size={14} />
+                                                </button>
+                                                <button 
+                                                    onClick={() => adjustQty(item.id, -1)} 
+                                                    title="Remove Stock"
+                                                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-border bg-surface-elevated hover:bg-error/10 hover:border-error/30 hover:text-error transition-all"
+                                                >
+                                                    <div className="w-2.5 h-[2px] bg-current rounded-full" />
+                                                </button>
+                                            </div>
                                         </td>
                                     )}
                                 </tr>
@@ -208,7 +270,11 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
                     </table>
                 </div>
                 {filtered.length === 0 && (
-                    <div className="py-14 text-center text-sm text-muted">No stock items found.</div>
+                    <div className="py-24 text-center">
+                        <Package size={48} className="mx-auto text-muted/20 mb-4" />
+                        <h3 className="text-sm font-bold text-muted uppercase tracking-widest">Workspace Empty</h3>
+                        <p className="text-xs text-muted/60 mt-1">No stock items match your current filters.</p>
+                    </div>
                 )}
             </div>
         </div>

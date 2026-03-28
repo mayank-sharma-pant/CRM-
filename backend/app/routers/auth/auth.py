@@ -22,6 +22,7 @@ from app.utils.email_service import send_otp_email
 from sqlalchemy import func as sa_func
 from app.models.core.invite import Invite, InviteStatus
 from app.models.core.team import Team
+from app.models.core.team_membership import TeamMembership
 from app.utils.notify import notify_platform_admins
 
 router = APIRouter()
@@ -125,6 +126,7 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
 
         db.add(db_user)
         db.commit()
+        db_user_id = db_user.id # Store to use after commit
         db.refresh(db_user)
     except Exception:
         db.rollback()
@@ -313,9 +315,6 @@ def get_me(current_user: User = Depends(get_current_user)):
     }
 
 
-
-
-
 @router.post("/change-password", response_model=MessageResponse)
 def change_password(
     payload: ChangePasswordRequest,
@@ -346,8 +345,6 @@ def change_password(
 # ===============================
 # Invite Acceptance
 # ===============================
-
-
 
 
 class AcceptInviteBody(BaseModel):
@@ -436,6 +433,16 @@ def accept_invite(
         )
         
         db.add(new_user)
+        db.flush()
+        
+        # Create TeamMembership for the new user for multi-team readiness
+        if new_user.team_id:
+            membership = TeamMembership(
+                company_id=new_user.company_id,
+                team_id=new_user.team_id,
+                user_id=new_user.id
+            )
+            db.add(membership)
         
         # Mark invite as accepted
         invite.status = InviteStatus.ACCEPTED

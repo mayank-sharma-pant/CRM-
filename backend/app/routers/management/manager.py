@@ -23,13 +23,23 @@ import json
 
 router = APIRouter()
 
+from app.models.hr.transfer_request import TeamTransferRequest
+from app.schemas.management import TransferRequestCreate, TransferRequestResponse
+from app.models.core.enums import InvoiceStatus
+from app.models.core.team import Team
+from app.models.core.team_membership import TeamMembership
+from app.models.sales.audit import AuditLog
+import json
+
+router = APIRouter()
+
 MANAGER_ROLES = {"manager", "md", "admin"}
 
 
 def require_manager(current_user: User = Depends(get_current_user)) -> User:
     if is_platform_admin(current_user):
         return current_user
-    if current_user.role not in MANAGER_ROLES:
+    if current_user.role.value not in MANAGER_ROLES:
         raise HTTPException(status_code=403, detail="Manager access required")
     return current_user
 

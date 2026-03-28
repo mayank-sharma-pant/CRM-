@@ -83,8 +83,7 @@ const ROLE_NAVIGATION = {
         { name: 'Dashboard', href: '/manager/dashboard', icon: 'LayoutDashboard' },
 
         { category: 'TEAM' },
-        { name: 'Team Monitoring', href: '/manager/monitoring', icon: 'Activity' },
-        { name: 'My Team', href: '/manager/team', icon: 'UsersRound' },
+        { name: 'Team', href: '/manager/team', icon: 'UsersRound' },
         { name: 'Leads', href: '/manager/leads', icon: 'Users' },
         { name: 'Clients', href: '/manager/clients', icon: 'Briefcase' },
         { name: 'Stock', href: '/manager/stock', icon: 'Package' },

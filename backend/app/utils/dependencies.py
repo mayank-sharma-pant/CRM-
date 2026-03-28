@@ -75,12 +75,14 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
 
-    if not user.is_active or user.status == "disabled":
+    if not user.is_active or user.status.value == "disabled":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled")
 
     if user.company_id is not None:
         company = db.query(Company).filter(Company.id == user.company_id).first()
-        if company and company.status not in ("active",):
+        # Use str().lower() on the value to be extremely safe against any string-backed enum variation
+        company_status = str(company.status.value if hasattr(company.status, 'value') else company.status).lower()
+        if company and company_status not in ("active",):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Company account is {company.status}"
@@ -93,7 +95,7 @@ async def require_admin(
     current_user: User = Depends(get_current_user)
 ) -> User:
     """Ensure user has admin role (active check already done by get_current_user)."""
-    if current_user.role != "admin":
+    if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -105,7 +107,7 @@ async def require_admin_or_md(
     current_user: User = Depends(get_current_user)
 ) -> User:
     """Ensure user has admin or MD role."""
-    if current_user.role not in ["admin", "md"]:
+    if current_user.role.value not in ["admin", "md"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin or MD access required"

@@ -28,6 +28,7 @@ export default function MDRevenuePage() {
     const [loading, setLoading] = useState(true);
     const [compareEnabled, setCompareEnabled] = useState(false);
     const [trendView, setTrendView] = useState('Daily'); // Daily | Weekly | Monthly
+    const [selectedRisk, setSelectedRisk] = useState(null);
     const { showToast } = useNotification();
 
     useEffect(() => {
@@ -307,7 +308,7 @@ export default function MDRevenuePage() {
                                 </div>
                                 <div>
                                     <div className="text-[9px] text-muted uppercase tracking-widest font-black">Velocity</div>
-                                    <div className={`text-[12px] font-black tabular-nums mt-0.5 ${risk.delta.startsWith('-') ? 'text-error' : 'text-success'}`}>{risk.delta}</div>
+                                    <div className={`text-[12px] font-black tabular-nums mt-0.5 ${String(risk.delta || '').startsWith('-') ? 'text-error' : 'text-success'}`}>{risk.delta}</div>
                                 </div>
                                 <div>
                                     <div className="text-[9px] text-muted uppercase tracking-widest font-black">Detection</div>
@@ -378,7 +379,7 @@ export default function MDRevenuePage() {
                                 </div>
                                 <div>
                                     <div className="text-[10px] text-muted uppercase tracking-widest font-black">Trend Velocity</div>
-                                    <div className={`text-[14px] font-black mt-1 tabular-nums ${selectedRisk.delta.startsWith('-') ? 'text-error' : 'text-success'}`}>{selectedRisk.delta}</div>
+                                    <div className={`text-[14px] font-black mt-1 tabular-nums ${String(selectedRisk.delta || '').startsWith('-') ? 'text-error' : 'text-success'}`}>{selectedRisk.delta}</div>
                                 </div>
                             </div>
                         </div>

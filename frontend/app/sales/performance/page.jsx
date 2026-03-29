@@ -23,7 +23,7 @@ export default function PerformancePage() {
                     leadsMetrics: [
                         { label: 'Total Leads', value: apiData.metrics.total_leads, icon: 'Users', color: 'blue' },
                         { label: 'Conversion Rate', value: `${apiData.metrics.conversion_rate}%`, icon: 'Target', color: 'emerald' },
-                        { label: 'Revenue Sourced', value: `$${apiData.metrics.my_revenue.toLocaleString()}`, icon: 'TrendingUp', color: 'blue' }
+                        { label: 'Revenue Sourced', value: `₹${apiData.metrics.my_revenue.toLocaleString()}`, icon: 'TrendingUp', color: 'blue' }
                     ],
                     taskStatus: {
                         title: 'Task Execution',

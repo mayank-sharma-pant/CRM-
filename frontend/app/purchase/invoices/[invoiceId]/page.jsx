@@ -12,11 +12,11 @@ import {
     Building,
     User,
     Receipt,
-    DollarSign,
     Calendar,
     FileText,
     Send,
-    CreditCard
+    CreditCard,
+    X
 } from 'lucide-react';
 
 export default function InvoiceDetailPage() {
@@ -25,13 +25,19 @@ export default function InvoiceDetailPage() {
     const [loading, setLoading] = useState(true);
     const [invoice, setInvoice] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [paymentData, setPaymentData] = useState({
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_method: 'bank_transfer',
+        reference: ''
+    });
 
     useEffect(() => {
         const fetchInvoice = async () => {
             try {
                 const res = await api.get(`/purchase/invoices/${params.invoiceId}`);
                 const d = res.data;
-                const fmt = (v) => `$${Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                const fmt = (v) => `₹${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
                 const statusMap = { paid: 'Paid', pending: 'Pending', overdue: 'Overdue', draft: 'Draft', sent: 'Sent' };
                 const st = statusMap[(d.status || '').toLowerCase()] || d.status || 'Draft';
 
@@ -92,11 +98,17 @@ export default function InvoiceDetailPage() {
     const handleMarkPaid = async () => {
         setActionLoading(true);
         try {
-            const today = new Date().toISOString().split('T')[0];
-            await api.post(`/purchase/invoices/${invoice.db_id}/mark-paid?payment_date=${today}`);
-            alert('Marked as paid');
+            const params = new URLSearchParams({
+                payment_date: paymentData.payment_date,
+                payment_method: paymentData.payment_method,
+                ...(paymentData.reference && { reference: paymentData.reference })
+            });
+            await api.post(`/purchase/invoices/${invoice.db_id}/mark-paid?${params.toString()}`);
+            setShowPaymentModal(false);
+            alert('Marked as paid & recorded in ledger');
             router.refresh();
-        } catch { alert('Failed'); }
+            window.location.reload();
+        } catch { alert('Failed to mark as paid'); }
         finally { setActionLoading(false); }
     };
 
@@ -121,14 +133,14 @@ export default function InvoiceDetailPage() {
             <div className="flex items-start justify-between">
                 <div>
                     <div className="flex items-center gap-3 mb-2">
-                        <h1 className="text-[28px] font-semibold tracking-tight text-slate-900 dark:text-white leading-tight">{invoice.id}</h1>
+                        <h1 className="text-[22px] font-semibold tracking-tight text-slate-900 dark:text-white leading-tight">{invoice.id}</h1>
                         <StatusBadge status={invoice.status} />
                     </div>
-                    <p className="text-[15px] text-slate-500 dark:text-slate-400 font-medium">{invoice.client.name}</p>
+                    <p className="text-[14px] text-slate-500 dark:text-slate-400 font-medium">{invoice.client.name}</p>
                 </div>
                 <div className="text-right">
-                    <div className="text-[32px] font-bold text-slate-900 dark:text-white">{invoice.amount}</div>
-                    <div className="text-[13px] text-slate-500">Due: {invoice.dueDate}</div>
+                    <div className="text-[24px] font-bold text-slate-900 dark:text-white">{invoice.amount}</div>
+                    <div className="text-[12px] text-slate-500">Due: {invoice.dueDate}</div>
                 </div>
             </div>
 
@@ -238,7 +250,7 @@ export default function InvoiceDetailPage() {
                                 )}
                                 {isPending && (
                                     <button
-                                        onClick={handleMarkPaid}
+                                        onClick={() => setShowPaymentModal(true)}
                                         disabled={actionLoading}
                                         className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                                     >
@@ -316,6 +328,69 @@ export default function InvoiceDetailPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Payment Modal */}
+            {showPaymentModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowPaymentModal(false)} />
+                    <div className="relative bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 p-6">
+                        <div className="flex items-center justify-between mb-5">
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Record Payment</h3>
+                            <button onClick={() => setShowPaymentModal(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Payment Date</label>
+                                <input
+                                    type="date"
+                                    value={paymentData.payment_date}
+                                    onChange={(e) => setPaymentData({ ...paymentData, payment_date: e.target.value })}
+                                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Payment Method</label>
+                                <select
+                                    value={paymentData.payment_method}
+                                    onChange={(e) => setPaymentData({ ...paymentData, payment_method: e.target.value })}
+                                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                                >
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                    <option value="upi">UPI</option>
+                                    <option value="cash">Cash</option>
+                                    <option value="cheque">Cheque</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Reference / UTR Number</label>
+                                <input
+                                    type="text"
+                                    value={paymentData.reference}
+                                    onChange={(e) => setPaymentData({ ...paymentData, reference: e.target.value })}
+                                    placeholder="e.g. UTR123456789"
+                                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                                />
+                            </div>
+                            <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-500">Amount</span>
+                                    <span className="font-bold text-slate-900 dark:text-white">{invoice.amount}</span>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleMarkPaid}
+                                disabled={actionLoading}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold transition-colors disabled:opacity-50"
+                            >
+                                <CreditCard size={18} />
+                                {actionLoading ? 'Processing...' : 'Confirm Payment'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

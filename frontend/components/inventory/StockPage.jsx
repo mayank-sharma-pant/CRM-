@@ -149,31 +149,31 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
                     <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 items-end">
                         <div className="space-y-1.5 md:col-span-2">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Item Name</label>
-                            <input className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium" 
+                            <input className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
                                 placeholder="e.g., Premium Solar Panel"
                                 value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">SKU</label>
-                            <input className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium" 
+                            <input className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
                                 placeholder="SKU-001"
                                 value={newItem.sku} onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })} />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Category</label>
-                            <input className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium" 
+                            <input className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
                                 placeholder="Category"
                                 value={newItem.category} onChange={(e) => setNewItem({ ...newItem, category: e.target.value })} />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Price</label>
-                            <input type="number" className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium" 
+                            <input type="number" className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
                                 placeholder="0.00"
                                 value={newItem.unit_price} onChange={(e) => setNewItem({ ...newItem, unit_price: e.target.value })} />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Qty</label>
-                            <input type="number" className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium" 
+                            <input type="number" className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
                                 placeholder="0"
                                 value={newItem.quantity} onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })} />
                         </div>
@@ -224,7 +224,7 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
                                     </td>
                                     <td className="py-4 px-6">
                                         <span className="text-sm font-bold text-primary tabular-nums">
-                                            ${Number(item.unit_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            ₹{Number(item.unit_price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
                                     </td>
                                     <td className="py-4 px-6">
@@ -247,15 +247,15 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
                                     {canManage && (
                                         <td className="py-4 px-6 text-right">
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button 
-                                                    onClick={() => adjustQty(item.id, +1)} 
+                                                <button
+                                                    onClick={() => adjustQty(item.id, +1)}
                                                     title="Add Stock"
                                                     className="w-8 h-8 flex items-center justify-center rounded-lg border border-border bg-surface-elevated hover:bg-success/10 hover:border-success/30 hover:text-success transition-all"
                                                 >
                                                     <Plus size={14} />
                                                 </button>
-                                                <button 
-                                                    onClick={() => adjustQty(item.id, -1)} 
+                                                <button
+                                                    onClick={() => adjustQty(item.id, -1)}
                                                     title="Remove Stock"
                                                     className="w-8 h-8 flex items-center justify-center rounded-lg border border-border bg-surface-elevated hover:bg-error/10 hover:border-error/30 hover:text-error transition-all"
                                                 >

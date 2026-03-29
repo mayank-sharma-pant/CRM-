@@ -91,7 +91,7 @@ export default function CustomReportsPage() {
                     <Filter size={16} className="text-slate-400" />
                     Report Filters
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
                         <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Start Date</label>
@@ -238,27 +238,27 @@ export default function CustomReportsPage() {
                                     {groupBy === 'date' ? (
                                         <LineChart data={data.chartData}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                            <XAxis 
-                                                dataKey="name" 
-                                                tick={{ fill: 'var(--muted)', fontSize: 12 }} 
-                                                tickLine={false} 
+                                            <XAxis
+                                                dataKey="name"
+                                                tick={{ fill: 'var(--muted)', fontSize: 12 }}
+                                                tickLine={false}
                                                 axisLine={{ stroke: 'var(--border)' }}
                                             />
-                                            <YAxis 
+                                            <YAxis
                                                 yAxisId="left"
-                                                tickFormatter={(value) => `$${value/1000}k`} 
-                                                tick={{ fill: 'var(--muted)', fontSize: 12 }} 
-                                                tickLine={false} 
+                                                tickFormatter={(value) => `₹${value / 1000}k`}
+                                                tick={{ fill: 'var(--muted)', fontSize: 12 }}
+                                                tickLine={false}
                                                 axisLine={false}
                                             />
-                                            <YAxis 
-                                                yAxisId="right" 
+                                            <YAxis
+                                                yAxisId="right"
                                                 orientation="right"
-                                                tick={{ fill: 'var(--muted)', fontSize: 12 }} 
-                                                tickLine={false} 
+                                                tick={{ fill: 'var(--muted)', fontSize: 12 }}
+                                                tickLine={false}
                                                 axisLine={false}
                                             />
-                                            <Tooltip 
+                                            <Tooltip
                                                 contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '8px', color: 'var(--text)' }}
                                                 itemStyle={{ color: 'var(--text)' }}
                                             />
@@ -269,27 +269,27 @@ export default function CustomReportsPage() {
                                     ) : (
                                         <BarChart data={data.chartData}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                            <XAxis 
-                                                dataKey="name" 
-                                                tick={{ fill: 'var(--muted)', fontSize: 12 }} 
-                                                tickLine={false} 
+                                            <XAxis
+                                                dataKey="name"
+                                                tick={{ fill: 'var(--muted)', fontSize: 12 }}
+                                                tickLine={false}
                                                 axisLine={{ stroke: 'var(--border)' }}
                                             />
-                                            <YAxis 
+                                            <YAxis
                                                 yAxisId="left"
-                                                tickFormatter={(value) => `$${value/1000}k`} 
-                                                tick={{ fill: 'var(--muted)', fontSize: 12 }} 
-                                                tickLine={false} 
+                                                tickFormatter={(value) => `₹${value / 1000}k`}
+                                                tick={{ fill: 'var(--muted)', fontSize: 12 }}
+                                                tickLine={false}
                                                 axisLine={false}
                                             />
-                                            <YAxis 
-                                                yAxisId="right" 
+                                            <YAxis
+                                                yAxisId="right"
                                                 orientation="right"
-                                                tick={{ fill: 'var(--muted)', fontSize: 12 }} 
-                                                tickLine={false} 
+                                                tick={{ fill: 'var(--muted)', fontSize: 12 }}
+                                                tickLine={false}
                                                 axisLine={false}
                                             />
-                                            <Tooltip 
+                                            <Tooltip
                                                 contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '8px', color: 'var(--text)' }}
                                                 itemStyle={{ color: 'var(--text)' }}
                                                 cursor={{ fill: 'var(--surface-elevated)' }}
@@ -337,11 +337,10 @@ export default function CustomReportsPage() {
                                                 <td className="px-6 py-3 text-slate-500">{row.source}</td>
                                                 <td className="px-6 py-3 text-slate-500">{row.service_type}</td>
                                                 <td className="px-6 py-3">
-                                                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${
-                                                        row.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' :
-                                                        row.status === 'Overdue' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
-                                                        'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
-                                                    }`}>
+                                                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${row.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' :
+                                                            row.status === 'Overdue' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
+                                                                'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                                        }`}>
                                                         {row.status}
                                                     </span>
                                                 </td>

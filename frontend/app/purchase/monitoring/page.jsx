@@ -61,7 +61,7 @@ export default function PurchaseMonitoringPage() {
                         },
                         {
                             label: 'Outstanding Amount',
-                            delta: `$${Number(apiData.metrics?.pending_amount || 0).toLocaleString()}`,
+                            delta: `₹${Number(apiData.metrics?.pending_amount || 0).toLocaleString()}`,
                             route: '/purchase/invoices',
                             trend: (apiData.metrics?.pending_amount || 0) > 0 ? 'down' : 'up'
                         }

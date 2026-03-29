@@ -151,7 +151,7 @@ export default function Dashboard() {
           <KPICard
             label="My Revenue"
             subValue="total invoiced"
-            value={`$${(metrics.totalRevenue / 1000).toFixed(1)}k`}
+            value={`₹${(metrics.totalRevenue / 1000).toFixed(1)}k`}
             icon={ArrowRight}
             color="text-accent"
           />

@@ -15,6 +15,7 @@ from app.models.core.company_settings import CompanySettings
 from app.models.sales.lead import Lead
 from app.schemas.admin import MessageResponse
 from app.models.core.enums import InvoiceStatus
+from app.models.finance.ledger import LedgerEntry
 
 router = APIRouter()
 
@@ -452,19 +453,49 @@ def mark_invoice_paid(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_purchase)
 ):
-    """Mark invoice as paid"""
+    """Mark invoice as paid and auto-record in payments_received ledger"""
     invoice = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     ensure_company_access(invoice, current_user)
     
+    # Update invoice status
     invoice.status = InvoiceStatus.PAID
     invoice.paid_date = datetime.strptime(payment_date, "%Y-%m-%d").date()
     invoice.payment_method = payment_method
     invoice.payment_reference = reference
+    
+    # Auto-record in payments_received ledger
+    client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == invoice.client_id).first()
+    client_name = client.name if client else "Unknown"
+    
+    METHOD_LABELS = {
+        "bank_transfer": "Bank Transfer",
+        "upi": "UPI",
+        "cash": "Cash",
+        "cheque": "Cheque",
+    }
+    
+    ledger_entry = LedgerEntry(
+        company_id=current_user.company_id,
+        ledger_slug="payments_received",
+        data={
+            "date": payment_date,
+            "party_name": client_name,
+            "mode": METHOD_LABELS.get(payment_method, payment_method),
+            "reference": reference or "",
+            "amount": float(invoice.total or 0),
+            "invoice_no": invoice.invoice_number or "",
+            "remarks": f"Auto-recorded from Invoice #{invoice.invoice_number}"
+        },
+        created_by=current_user.id
+    )
+    db.add(ledger_entry)
+    
     db.commit()
     
-    return {"message": f"Invoice {invoice_id} marked as paid"}
+    return {"message": f"Invoice {invoice_id} marked as paid and recorded in ledger"}
+
 
 
 @router.post("/invoices/{invoice_id}/send-reminder", response_model=MessageResponse)

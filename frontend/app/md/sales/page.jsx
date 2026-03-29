@@ -59,7 +59,7 @@ export default function MDSalesPage() {
                         conversion: t.win_rate
                     })) || [],
                     salesSummary: [
-                        { id: 1, period: 'Current Month', sales: apiData.summary?.total_deals || 0, revenue: `$${(apiData.summary?.won || 0) * 10}k`, conversion: `${apiData.summary?.win_rate || 0}%`, notes: 'Steady growth' }
+                        { id: 1, period: 'Current Month', sales: apiData.summary?.total_deals || 0, revenue: `₹${(apiData.summary?.won || 0) * 10}k`, conversion: `${apiData.summary?.win_rate || 0}%`, notes: 'Steady growth' }
                     ],
                     aiInsights: apiData.aiInsights || []
                 };
@@ -130,7 +130,7 @@ export default function MDSalesPage() {
                             <LineChart data={data.salesTrend}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.3} />
                                 <XAxis dataKey="date" stroke="var(--color-text-muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} />
-                                <YAxis stroke="var(--color-text-muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={v => trendMode === 'revenue' ? `$${v / 1000}k` : v} />
+                                <YAxis stroke="var(--color-text-muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={v => trendMode === 'revenue' ? `₹${v / 1000}k` : v} />
                                 <Tooltip
                                     contentStyle={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}
                                     cursor={{ stroke: 'var(--color-accent)', strokeWidth: 2 }}

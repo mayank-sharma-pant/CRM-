@@ -26,7 +26,7 @@ export default function SalesInvoiceDetailPage() {
             try {
                 const res = await api.get(`/invoices/${params.invoiceId}`);
                 const d = res.data;
-                const fmt = (v) => `$${Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                const fmt = (v) => `₹${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
                 const statusMap = { paid: 'Paid', pending: 'Pending', overdue: 'Overdue', draft: 'Draft', sent: 'Sent' };
                 const st = statusMap[(d.status || '').toLowerCase()] || d.status || 'Draft';
 

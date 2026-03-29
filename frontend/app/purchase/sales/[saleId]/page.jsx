@@ -49,10 +49,10 @@ export default function SalesReviewDetailPage() {
                         type: 'Client'
                     },
                     pricing: {
-                        subtotal: `$${Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                        subtotal: `₹${Number(subtotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
                         discount: '0%',
-                        discountAmount: '$0.00',
-                        total: `$${Number(total).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                        discountAmount: '₹0.00',
+                        total: `₹${Number(total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                     },
                     invoiceLinkage: { hasInvoice: true, invoiceId: d.number, invoiceStatus: d.status },
                     rep: d.salesperson?.name || 'Unknown',
@@ -64,8 +64,8 @@ export default function SalesReviewDetailPage() {
                     items: (d.deal?.items || []).map(i => ({
                         description: i.description,
                         qty: i.quantity || 1,
-                        unitPrice: `$${Number(i.total / (i.quantity || 1)).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-                        total: `$${Number(i.total).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                        unitPrice: `₹${Number(i.total / (i.quantity || 1)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+                        total: `₹${Number(i.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                     }))
                 });
             } catch (err) {

@@ -28,7 +28,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
         api.get('/clients').then(res => {
             const data = res.data?.items ?? res.data?.clients ?? res.data;
             setClients(Array.isArray(data) ? data : []);
-        }).catch(() => {});
+        }).catch(() => { });
     }, [clientId, isOpen]);
 
     useEffect(() => {
@@ -266,22 +266,24 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Tax Offset ($)</label>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Tax Offset (₹)</label>
                             <input
                                 type="number"
-                                value={tax}
+                                value={tax || ''}
                                 onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
+                                placeholder="0"
                                 className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
                                 min={0}
                                 step={0.01}
                             />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Discount ($)</label>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Discount (₹)</label>
                             <input
                                 type="number"
-                                value={discount}
+                                value={discount || ''}
                                 onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                                placeholder="0"
                                 className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
                                 min={0}
                                 step={0.01}
@@ -303,19 +305,19 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-2.5">
                         <div className="flex justify-between text-xs text-slate-400 font-medium">
                             <span>Subtotal</span>
-                            <span className="text-slate-300 font-mono">${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="text-slate-300 font-mono">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between text-xs text-slate-400 font-medium">
                             <span>Admin/Tax (+)</span>
-                            <span className="text-emerald-500 font-mono">+${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="text-emerald-500 font-mono">+₹{tax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between text-xs text-slate-400 font-medium">
                             <span>Incentive/Disc (-)</span>
-                            <span className="text-red-400 font-mono">-${discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="text-red-400 font-mono">-₹{discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between font-bold text-white pt-2.5 border-t border-slate-800">
                             <span className="text-sm uppercase tracking-wider">Final Order Value</span>
-                            <span className="text-lg font-mono">${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="text-lg font-mono">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         </div>
                     </div>
                 </div>

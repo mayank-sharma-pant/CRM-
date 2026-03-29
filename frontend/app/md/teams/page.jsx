@@ -78,7 +78,7 @@ export default function MDTeamsPage() {
                 />
                 <KPICard
                     label="Total Revenue"
-                    value={`$${teams.reduce((s, t) => s + t.revenue, 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                    value={`₹${teams.reduce((s, t) => s + t.revenue, 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                     icon={<DollarSign size={18} className="text-emerald-500" />}
                 />
             </div>
@@ -158,16 +158,14 @@ export default function MDTeamsPage() {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-3">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
-                                                        member.role === 'manager'
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${member.role === 'manager'
                                                             ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800/50'
                                                             : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800/50'
-                                                    }`}>
+                                                        }`}>
                                                         {member.role}
                                                     </span>
-                                                    <span className={`w-2 h-2 rounded-full ${
-                                                        member.status === 'active' ? 'bg-emerald-500' : 'bg-slate-300'
-                                                    }`} />
+                                                    <span className={`w-2 h-2 rounded-full ${member.status === 'active' ? 'bg-emerald-500' : 'bg-slate-300'
+                                                        }`} />
                                                     <ChevronRight size={14} className="text-muted" />
                                                 </div>
                                             </div>

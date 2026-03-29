@@ -160,7 +160,7 @@ export default function MDRevenuePage() {
                                 fontWeight={700}
                                 tickLine={false}
                                 axisLine={false}
-                                tickFormatter={v => `$${v / 1000}k`}
+                                tickFormatter={v => `₹${v / 1000}k`}
                                 dx={-4}
                             />
                             <Tooltip
@@ -424,11 +424,11 @@ function RevenueSkeleton() {
             </div>
             <div className="bg-surface border border-border rounded-xl p-6 space-y-4">
                 <div className="flex items-center justify-between border-b border-border pb-4">
-                   <Skeleton className="h-5 w-48" />
-                   <div className="flex gap-2">
+                    <Skeleton className="h-5 w-48" />
+                    <div className="flex gap-2">
                         <Skeleton className="h-7 w-16" />
                         <Skeleton className="h-7 w-16" />
-                   </div>
+                    </div>
                 </div>
                 <Skeleton className="h-[380px] w-full rounded-lg shadow-sm" />
             </div>

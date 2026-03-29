@@ -72,7 +72,7 @@ export default function MDPointsPage() {
                 />
                 <KPIMini
                     label="Bonus Provision"
-                    value={summary ? `$${summary.totalBonus.toLocaleString()}` : '$0'}
+                    value={summary ? `₹${summary.totalBonus.toLocaleString()}` : '₹0'}
                     sub="Current period"
                     color="text-accent"
                 />

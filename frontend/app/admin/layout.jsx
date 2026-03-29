@@ -84,7 +84,7 @@ export default function AdminLayout({ children }) {
                                     <div className="absolute right-0 top-10 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 z-50">
                                         <button
                                             onClick={() => {
-                                                router.push('/admin/profile');
+                                                router.push('/profile');
                                                 setShowProfileMenu(false);
                                             }}
                                             className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"

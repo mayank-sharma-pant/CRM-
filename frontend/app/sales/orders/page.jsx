@@ -76,8 +76,8 @@ export default function SalesOrdersPage() {
                 </div>
                 <div className="flex items-center gap-2.5">
                     <div className="flex flex-col items-end mr-4">
-                         <span className="text-[10px] font-black uppercase tracking-widest text-muted">Total Value Sourced</span>
-                         <span className="text-[16px] font-black text-emerald-400 leading-none">${totalRevenueSourced.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted">Total Value Sourced</span>
+                        <span className="text-[16px] font-black text-emerald-400 leading-none">₹{totalRevenueSourced.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                     <button
                         onClick={() => setShowCreateModal(true)}
@@ -152,7 +152,7 @@ export default function SalesOrdersPage() {
                                     <td className="py-3.5 px-5 font-mono text-[12px] font-bold text-primary">{invoice.id}</td>
                                     <td className="py-3.5 px-5 text-[13px] font-bold text-secondary">{invoice.client}</td>
                                     <td className="py-3.5 px-5 text-[14px] font-black text-primary tabular-nums">
-                                        ${Number(invoice.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                        ₹{Number(invoice.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                     </td>
                                     <td className="py-3.5 px-5">
                                         <InvoiceStatusBadge status={invoice.status} />

@@ -541,9 +541,9 @@ def get_purchase_monitoring(
         alerts.append({
             "id": 1, "type": "invoice", "severity": "High",
             "title": f"{overdue_count} invoices overdue",
-            "message": f"{overdue_count} invoices overdue totaling ${float(overdue_amount):,.0f}",
+            "message": f"{overdue_count} invoices overdue totaling ₹{float(overdue_amount):,.0f}",
             "category": "Finance", "detected": "Now",
-            "evidence": [f"${float(overdue_amount):,.0f} outstanding"]
+            "evidence": [f"₹{float(overdue_amount):,.0f} outstanding"]
         })
     if pending_count > 3:
         alerts.append({

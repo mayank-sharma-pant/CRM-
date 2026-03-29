@@ -192,7 +192,7 @@ export default function PurchaseInvoicesPage() {
                                         </div>
                                     </td>
                                     <td className="py-3.5 px-5 text-[14px] font-black text-primary tabular-nums">
-                                        ${Number(invoice.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                        ₹{Number(invoice.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                     </td>
                                     <td className="py-3.5 px-5">
                                         <InvoiceStatusBadge status={invoice.status} />

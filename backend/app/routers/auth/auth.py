@@ -136,7 +136,6 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
             detail="Registration failed. Please try again."
         )
 
-    # Notification must never block a successful signup.
     try:
         notify_platform_admins(
             db,
@@ -150,6 +149,8 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
     except Exception:
         db.rollback()
         logger.exception("SIGNUP NOTIFY ERROR for email=%s", user_data.email)
+        # The platform notification step is part of the signup workflow; fail with a sanitized error.
+        raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
 
     access_token = create_access_token(data={"sub": db_user.email, "role": db_user.role})
     _set_auth_cookie(response, access_token)

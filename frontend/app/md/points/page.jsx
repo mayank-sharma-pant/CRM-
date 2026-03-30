@@ -157,7 +157,9 @@ export default function MDPointsPage() {
                                             />
                                         </div>
                                     </td>
-                                    <td className="py-4 px-5 text-[14px] font-black text-primary tabular-nums">{emp.bonus}</td>
+                                    <td className="py-4 px-5 text-[14px] font-black text-primary tabular-nums">
+                                        ₹{Number(emp.bonus_amount ?? 0).toLocaleString('en-IN')}
+                                    </td>
                                     <td className="py-4 px-5 text-center">
                                         {emp.trend === 'up' && <TrendingUp size={16} className="text-success mx-auto" strokeWidth={3} />}
                                         {emp.trend === 'down' && <TrendingDown size={16} className="text-error mx-auto" strokeWidth={3} />}

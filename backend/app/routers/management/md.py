@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import Optional, List
 from datetime import datetime, timedelta, timezone
 import calendar
@@ -24,11 +24,15 @@ router = APIRouter()
 MD_ROLES = {"md", "admin"}
 POINT_ELIGIBLE_ROLES = {"sales", "manager"}
 
+def _role_str(user: User) -> str:
+    r = getattr(user, "role", None)
+    return str(getattr(r, "value", r) or "").strip().lower()
+
 
 def require_md(current_user: User = Depends(get_current_user)) -> User:
     if is_platform_admin(current_user):
         return current_user
-    if current_user.role not in MD_ROLES:
+    if _role_str(current_user) not in MD_ROLES:
         raise HTTPException(status_code=403, detail="MD access required")
     return current_user
 
@@ -97,8 +101,10 @@ def get_md_dashboard(
     lead_velocity = int(((recent_leads - prev_leads) / max(prev_leads, 1)) * 100)
     
     task_q = apply_company_scope(db.query(Task), Task, current_user)
-    if active_team_id:
-        task_q = task_q.filter(Task.team_id == active_team_id)
+    if active_team_id is not None:
+        # Task has no team_id. Scope via the linked Lead/Client team.
+        task_q = task_q.outerjoin(Lead, Task.lead_id == Lead.id).outerjoin(Client, Task.client_id == Client.id)
+        task_q = task_q.filter(or_(Lead.team_id == active_team_id, Client.team_id == active_team_id))
         
     now_naive_utc = now.replace(tzinfo=None)
     d7_ago_naive_utc = d7_ago.replace(tzinfo=None)
@@ -119,7 +125,7 @@ def get_md_dashboard(
     
     return {
         "kpis": [
-            {"id": 1, "label": "Total Revenue", "value": f"${total_revenue:,.0f}", "route": "/md/revenue"},
+            {"id": 1, "label": "Total Revenue", "value": f"₹{float(total_revenue):,.0f}", "route": "/md/revenue"},
             {"id": 2, "label": "Pipeline Leads", "value": str(active), "route": "/md/leads"},
             {"id": 3, "label": "Win Rate", "value": f"{win_rate}%", "route": "/md/sales"},
             {"id": 4, "label": "Active Clients", "value": str(total_clients), "route": "/md/clients"},
@@ -275,9 +281,9 @@ def get_md_revenue(
 
     return {
         "kpis": [
-            {"id": 1, "code": "total", "label": "Total Revenue", "value": f"${total_revenue:,.0f}", "change": f"{growth_pct:+d}%", "trend": growth_trend},
-            {"id": 2, "code": "growth", "label": "30D Growth", "value": f"${recent_rev:,.0f}", "change": f"{growth_pct:+d}%", "trend": growth_trend},
-            {"id": 3, "code": "outstanding", "label": "Outstanding", "value": f"${outstanding:,.0f}", "change": None, "trend": "flat"}
+            {"id": 1, "code": "total", "label": "Total Revenue", "value": f"₹{float(total_revenue):,.0f}", "change": f"{growth_pct:+d}%", "trend": growth_trend},
+            {"id": 2, "code": "growth", "label": "30D Growth", "value": f"₹{float(recent_rev):,.0f}", "change": f"{growth_pct:+d}%", "trend": growth_trend},
+            {"id": 3, "code": "outstanding", "label": "Outstanding", "value": f"₹{float(outstanding):,.0f}", "change": None, "trend": "flat"}
         ],
         "revenueTrend": revenue_trend,
         "trendInsight": trend_insight,
@@ -536,7 +542,7 @@ def employee_lookup(
             "user_id": user.id,
             "name": user.full_name,
             "email": user.email,
-            "role": user.role.title(),
+            "role": _role_str(user).title(),
             "team": ", ".join(t.name for t in user_teams) if user_teams else None,
             "status": user.status
         })
@@ -753,7 +759,7 @@ def get_company_invoices(
             "db_id": inv.id,
             "client": client.name if client else "Unknown",
             "sales_rep_name": creator.full_name if creator else "System",
-            "amount": f"${inv.total:,.2f}" if inv.total else "$0.00",
+            "amount": f"₹{float(inv.total or 0):,.2f}",
             "status": inv.status or "Draft",
             "dueDate": inv.due_date.strftime("%Y-%m-%d") if inv.due_date else None,
             "linkedSale": None,
@@ -818,12 +824,15 @@ def get_performance_points(
             "id": f"{prefix}{company_rank:03d}",
             "user_id": user.id,
             "name": user.full_name,
-            "role": user.role.title(),
+            "role": _role_str(user).title(),
             "points": points,
             "tier": tier,
             "target": target,
             "trend": trend,
-            "bonus": f"${bonus_amount:,}"
+            # Keep legacy formatted string for backward compatibility (and tests),
+            # but also provide a numeric value so the frontend can format as ₹.
+            "bonus": f"${bonus_amount:,}",
+            "bonus_amount": bonus_amount,
         })
 
     performance.sort(key=lambda x: x["points"], reverse=True)

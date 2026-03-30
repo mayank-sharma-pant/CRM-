@@ -42,13 +42,9 @@ class UserStatus(str, enum.Enum):
 
 
 class LeadStatus(str, enum.Enum):
-    NEW = "New"
-    CONTACTED = "Contacted"
-    QUALIFIED = "Qualified"
-    PROPOSAL = "Proposal"
+    ACTIVE = "Active"
     CONVERTED = "Converted"
     LOST = "Lost"
-    LOST_CLIENT = "Lost Client"
 
 
 class CompanyStatus(str, enum.Enum):

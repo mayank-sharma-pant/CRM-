@@ -42,14 +42,36 @@ def _ensure_client_for_converted_lead(db: Session, lead: Lead, current_user: Use
     """
     If the lead is Converted, ensure a Client row exists (Kanban / status-only updates skip POST /convert).
     Returns True when a new Client was created (caller may need to commit).
+    Prevents duplicates by checking both converted_from_lead_id AND email.
     """
     if _lead_status_value(lead) != LeadStatus.CONVERTED.value:
         return False
+    # Check if client already exists for this lead
     existing = apply_company_scope(db.query(Client), Client, current_user).filter(
         Client.converted_from_lead_id == lead.id
     ).first()
     if existing:
         return False
+    # Check if a client with the same email already exists in the company
+    if lead.email:
+        existing_by_email = apply_company_scope(db.query(Client), Client, current_user).filter(
+            Client.email == lead.email
+        ).first()
+        if existing_by_email:
+            # Link the existing client to this lead instead of creating a duplicate
+            existing_by_email.converted_from_lead_id = lead.id
+            if lead.converted_at is None:
+                lead.converted_at = datetime.now(timezone.utc)
+            log_activity(
+                db,
+                user=current_user,
+                action="converted",
+                entity_type="lead",
+                entity_id=lead.id,
+                entity_name=lead.name,
+                after=f"Linked to existing Client #{existing_by_email.id}",
+            )
+            return True
     new_client = Client(
         company_id=lead.company_id,
         name=lead.name,
@@ -623,6 +645,15 @@ def update_lead_status(
             raise HTTPException(status_code=403, detail="You cannot edit a lead outside your team")
         
     old_status = lead.status
+
+    # Mandatory assignment check for Converted status
+    if status_data.status == LeadStatus.CONVERTED.value or status_data.status == LeadStatus.CONVERTED:
+        if not lead.assigned_to_id:
+            raise HTTPException(
+                status_code=400,
+                detail="A lead must be assigned to a specific user before it can be converted to a client."
+            )
+
     lead.status = status_data.status
 
     created_client = _ensure_client_for_converted_lead(db, lead, current_user)
@@ -773,6 +804,13 @@ def convert_lead(
     if _user_role_str(current_user) == "manager":
         if active_team_id is None or lead.team_id != active_team_id:
             raise HTTPException(status_code=403, detail="You can only convert leads in your team")
+
+    # Mandatory assignment check
+    if not lead.assigned_to_id:
+        raise HTTPException(
+            status_code=400,
+            detail="A lead must be assigned to a specific user before it can be converted to a client."
+        )
 
     existing = apply_company_scope(db.query(Client), Client, current_user).filter(
         Client.converted_from_lead_id == lead.id

@@ -1,0 +1,9 @@
+{
+    "status": "started",
+    "steps": [
+        "Setup: Using user prismagamer383@gmail.com"
+    ],
+    "errors": [
+        "Exception: 'New' is not among the defined enum values. Enum name: leadstatus. Possible values: Active, Converted, Lost"
+    ]
+}

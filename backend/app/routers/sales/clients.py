@@ -44,7 +44,17 @@ def list_clients(
         if active_team_id is not None:
             query = query.filter(Client.team_id == active_team_id)
         else:
-            query = query.filter(False)
+            # Fallback: show clients from all teams the manager belongs to
+            member_team_ids = [
+                tm.team_id for tm in
+                apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+                .filter(TeamMembership.user_id == current_user.id)
+                .all()
+            ]
+            if member_team_ids:
+                query = query.filter(Client.team_id.in_(member_team_ids))
+            else:
+                query = query.filter(False)
     
     if search:
         search_pattern = f"%{search}%"
@@ -184,6 +194,14 @@ def create_client(
         ).first()
         if existing:
             raise HTTPException(status_code=400, detail="This lead has already been converted to a client.")
+
+    # Prevent duplicate client by email
+    if body.email:
+        existing_by_email = apply_company_scope(
+            db.query(Client), Client, current_user
+        ).filter(Client.email == body.email).first()
+        if existing_by_email:
+            raise HTTPException(status_code=400, detail=f"A client with email '{body.email}' already exists.")
             
     # Validate assigned_to_id
     final_assigned_to = current_user.id

@@ -1,42 +1,39 @@
 /**
  * Normalize lead status from API (enum name, value, or mixed casing) to UI labels.
+ * Only three valid statuses: Active, Converted, Lost.
  */
 export function normalizeLeadStatus(s) {
-  if (s == null || s === '') return 'New';
-  const canonical = [
-    'New',
-    'Contacted',
-    'Qualified',
-    'Proposal',
-    'Converted',
-    'Lost',
-    'Lost Client',
-  ];
+  if (s == null || s === '') return 'Active';
+  const canonical = ['Active', 'Converted', 'Lost'];
   if (typeof s === 'string') {
     if (canonical.includes(s)) return s;
     const lower = s.trim().toLowerCase();
     const fromLower = {
-      new: 'New',
-      contacted: 'Contacted',
-      qualified: 'Qualified',
-      proposal: 'Proposal',
+      active: 'Active',
       converted: 'Converted',
       lost: 'Lost',
-      'lost client': 'Lost Client',
+      // Legacy status mappings
+      new: 'Active',
+      contacted: 'Active',
+      qualified: 'Active',
+      proposal: 'Active',
+      'lost client': 'Lost',
     };
     if (fromLower[lower]) return fromLower[lower];
     let raw = s.replace(/^LeadStatus\./i, '').trim();
     const upper = raw.toUpperCase().replace(/\s+/g, '_');
     const fromEnum = {
-      NEW: 'New',
-      CONTACTED: 'Contacted',
-      QUALIFIED: 'Qualified',
-      PROPOSAL: 'Proposal',
+      ACTIVE: 'Active',
       CONVERTED: 'Converted',
       LOST: 'Lost',
-      LOST_CLIENT: 'Lost Client',
+      // Legacy enum mappings
+      NEW: 'Active',
+      CONTACTED: 'Active',
+      QUALIFIED: 'Active',
+      PROPOSAL: 'Active',
+      LOST_CLIENT: 'Lost',
     };
     if (fromEnum[upper]) return fromEnum[upper];
   }
-  return typeof s === 'string' ? s : 'New';
+  return typeof s === 'string' ? s : 'Active';
 }

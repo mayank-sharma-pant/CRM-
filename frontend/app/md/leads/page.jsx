@@ -17,28 +17,22 @@ import {
 
 const TABS = [
   { id: 'all', label: 'All Leads' },
-  { id: 'active', label: 'Active' },
-  { id: 'New', label: 'New' },
-  { id: 'Contacted', label: 'Contacted' },
-  { id: 'Qualified', label: 'Follow-up' },
-  { id: 'Closed', label: 'Closed' }
+  { id: 'Active', label: 'Active' },
+  { id: 'Converted', label: 'Converted' },
+  { id: 'Lost', label: 'Lost' }
 ];
 
-const BOARD_COLUMNS = ['New', 'Contacted', 'Qualified', 'Proposal', 'Converted', 'Lost'];
+const BOARD_COLUMNS = ['Active', 'Converted', 'Lost'];
 
 const STATUS_STYLES = {
-  'New': 'bg-slate-100 text-slate-600 border-slate-200',
-  'Contacted': 'bg-blue-50 text-blue-700 border-blue-200',
-  'Qualified': 'bg-violet-50 text-violet-700 border-violet-200',
-  'Proposal': 'bg-amber-50 text-amber-700 border-amber-200',
+  'Active': 'bg-blue-50 text-blue-700 border-blue-200',
   'Converted': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'Lost': 'bg-gray-50 text-gray-500 border-gray-200',
-  'Lost Client': 'bg-red-50 text-red-700 border-red-200'
+  'Lost': 'bg-gray-50 text-gray-500 border-gray-200'
 };
 
 export default function Leads() {
   const [viewMode, setViewMode] = useState('board'); // 'list' | 'board'
-  const [activeTab, setActiveTab] = useState('active');
+  const [activeTab, setActiveTab] = useState('Active');
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -66,7 +60,7 @@ export default function Leads() {
       let url = '/leads';
       const params = {};
 
-      if (activeTab !== 'all' && activeTab !== 'active' && activeTab !== 'Closed') {
+      if (activeTab !== 'all') {
         params.status = activeTab;
       }
 
@@ -140,23 +134,12 @@ export default function Leads() {
   };
 
   const tabFilteredLeads = useMemo(() => {
-    if (activeTab === 'active') {
-      return leads.filter((l) =>
-        ['New', 'Contacted', 'Qualified', 'Proposal'].includes(l.status)
-      );
-    }
-    if (activeTab === 'Closed') {
-      return leads.filter((l) =>
-        ['Converted', 'Lost', 'Lost Client'].includes(l.status)
-      );
-    }
     return leads;
-  }, [leads, activeTab]);
+  }, [leads]);
 
   const filteredLeads = useMemo(() => {
-    if (viewMode === 'board' && activeTab === 'active') return leads;
     return tabFilteredLeads;
-  }, [viewMode, activeTab, leads, tabFilteredLeads]);
+  }, [tabFilteredLeads]);
 
   const safeParseISO = (s) => {
     if (!s || typeof s !== 'string') return null;
@@ -274,8 +257,8 @@ export default function Leads() {
                         )}
                       </div>
                       <div className="w-[20%] flex justify-center">
-                        <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${STATUS_STYLES[lead.status] || STATUS_STYLES['New']}`}>
-                          {lead.status === 'Qualified' ? 'Follow-up' : lead.status}
+                        <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${STATUS_STYLES[lead.status] || STATUS_STYLES['Active']}`}>
+                          {lead.status}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
@@ -316,7 +299,7 @@ export default function Leads() {
           >
             <div className="flex items-center justify-between mb-3 px-1">
               <h3 className="text-[12px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                {colStatus === 'Qualified' ? 'Follow-up' : colStatus}
+                {colStatus}
                 <span className="text-[10px] bg-surface text-muted px-1.5 py-0.5 rounded border border-border">{colLeads.length}</span>
               </h3>
             </div>

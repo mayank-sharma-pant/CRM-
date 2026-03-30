@@ -41,7 +41,7 @@ class LeadStatusUpdate(BaseModel):
 
 class LeadResponse(LeadBase):
     id: int
-    status: LeadStatus = LeadStatus.NEW
+    status: LeadStatus = LeadStatus.ACTIVE
     created_at: Optional[str] = None
     last_contacted_at: Optional[str] = None
     last_response_at: Optional[str] = None

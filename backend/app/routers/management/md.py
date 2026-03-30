@@ -829,9 +829,7 @@ def get_performance_points(
             "tier": tier,
             "target": target,
             "trend": trend,
-            # Keep legacy formatted string for backward compatibility (and tests),
-            # but also provide a numeric value so the frontend can format as ₹.
-            "bonus": f"${bonus_amount:,}",
+                "bonus": f"₹{bonus_amount:,}",
             "bonus_amount": bonus_amount,
         })
 

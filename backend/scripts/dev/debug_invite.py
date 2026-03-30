@@ -1,6 +1,5 @@
 from app.database import SessionLocal
 from app.models.core.invite import Invite
-from app.models.core.company import Company
 from app.models.core.user import User
 import uuid
 import datetime
@@ -11,7 +10,7 @@ db = SessionLocal()
 admin = db.query(User).filter(User.email == 'mayanksharmarrk07@gmail.com').first()
 if not admin:
     print("Admin not found")
-    exit(1)
+    raise SystemExit(1)
 
 # Create a mock pending invite
 token = str(uuid.uuid4())
@@ -23,7 +22,7 @@ invite = Invite(
     token=token,
     status="pending",
     expires_at=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1),
-    hashed_password="some_random_hash"
+    hashed_password="some_random_hash",
 )
 db.add(invite)
 db.commit()
@@ -43,10 +42,10 @@ try:
     print(f"Status Code: {response.status_code}")
     print("Response JSON:")
     try:
-         print(response.json())
-    except:
-         print(response.text)
-except Exception as e:
+        print(response.json())
+    except Exception:
+        print(response.text)
+except Exception:
     print("Exception running the test client request:")
     traceback.print_exc()
 
@@ -55,3 +54,4 @@ db.delete(invite)
 db.query(User).filter(User.email == "test_invite_bug@example.com").delete()
 db.commit()
 db.close()
+

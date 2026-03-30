@@ -125,7 +125,7 @@ export default function PurchaseSalesPage() {
                             <tr className="border-b border-border bg-surface-elevated/20">
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Sale ID</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Client Identity</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Value (USD)</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Value (₹)</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Variance</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Status</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Origin Date</th>

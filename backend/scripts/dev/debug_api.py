@@ -1,11 +1,12 @@
 import sys
+
 with open("testclient_error.txt", "w") as f:
     sys.stderr = f
     sys.stdout = f
-    
+
     from fastapi.testclient import TestClient
     from app.main import app
-    from app.database import get_db, SessionLocal
+    from app.database import SessionLocal
     from app.models.core.user import User
     from app.utils.security import create_access_token
     import traceback
@@ -19,7 +20,7 @@ with open("testclient_error.txt", "w") as f:
 
         if not admin:
             print("No admin user found")
-            exit(1)
+            raise SystemExit(1)
 
         token = create_access_token(data={"sub": admin.email})
 
@@ -30,7 +31,8 @@ with open("testclient_error.txt", "w") as f:
         print(f"Status: {response.status_code}")
         try:
             print(response.json())
-        except Exception as e:
+        except Exception:
             print(response.text)
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
+

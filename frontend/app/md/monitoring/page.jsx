@@ -19,7 +19,7 @@ import {
 
 // Signal definitions for each alert type (read-only reference)
 const SIGNAL_DEFINITIONS = {
-    'Liquidity Gap Projected': { metric: 'Projected Cashflow', comparison: 'End of Period vs Safety Threshold', threshold: '$50k buffer' },
+    'Liquidity Gap Projected': { metric: 'Projected Cashflow', comparison: 'End of Period vs Safety Threshold', threshold: '₹50k buffer' },
     'Major Account Churn Signal': { metric: 'Engagement Score', comparison: 'Current Week vs Previous Week', threshold: '>30% drop' },
     'Conversion Rate Dip': { metric: 'Conversion Rate %', comparison: 'Current vs Q3 Baseline', threshold: '<20%' },
     'Stalled Deals in Negotiation': { metric: 'Days in Stage', comparison: 'Current avg vs Target', threshold: '>14 days' },

@@ -20,6 +20,11 @@ coverage/
 playwright-report/
 test-results/
 .pytest_cache/
+**/test_results.json
+**/flow_test_results.json
+**/debug_out.txt
+**/test_res.txt
+**/testclient_error.txt
 
 # Next.js
 .next/
@@ -63,4 +68,9 @@ Thumbs.db
 # Database
 *.sqlite
 *.db
+
+# Backend runtime artifacts
+backend/uploads/
+backend/tmp/
+backend/backend/tests/_tmp_docs/
 

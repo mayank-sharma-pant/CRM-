@@ -9,7 +9,7 @@ if company:
     print(f"Value: {repr(company.status)}")
     if hasattr(company.status, 'value'):
         print(f"Inner Value: {repr(company.status.value)}")
-    
+
     status_to_check = company.status
     print(f"Check 'active': {status_to_check == 'active'}")
     print(f"Check CompanyStatus.ACTIVE: {status_to_check == CompanyStatus.ACTIVE}")
@@ -17,3 +17,4 @@ if company:
         print(f"Value check 'active': {status_to_check.value == 'active'}")
 
 db.close()
+

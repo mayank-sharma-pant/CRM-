@@ -41,7 +41,7 @@ def test_md_points_are_auto_calculated_from_lead_performance(client, db):
     expected_points = 2 * 500 + 1 * 50
     assert employee['points'] == expected_points
     assert employee['tier'] == 'Gold'
-    assert employee['bonus'] == f'${expected_points * 5:,}'
+    assert employee['bonus'] == f'₹{expected_points * 5:,}'
 
     assert data['summary']['totalPoints'] >= expected_points
 

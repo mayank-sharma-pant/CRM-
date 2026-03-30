@@ -153,7 +153,7 @@ export default function MDInvoicesPage() {
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Identifier</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Client Identity</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Sales Rep</th>
-                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Value (USD)</th>
+                                <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Value (₹)</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Lifecycle</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Maturity Date</th>
                                 <th className="py-3 px-5 text-[10px] font-black text-muted uppercase tracking-widest">Linked Sale</th>
@@ -208,7 +208,7 @@ export default function MDInvoicesPage() {
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                                                     <DetailField label="Invoice ID" value={invoice.id} />
                                                     <DetailField label="Client" value={invoice.client || 'N/A'} />
-                                                    <DetailField label="Amount" value={invoice.amount || '$0'} highlight />
+                                                    <DetailField label="Amount" value={invoice.amount || '₹0'} highlight />
                                                     <DetailField label="Status" value={invoice.status || 'Unknown'} />
                                                     <DetailField label="Due Date" value={invoice.dueDate || 'N/A'} />
                                                     <DetailField label="Sales Rep" value={invoice.sales_rep_name || 'System'} />
@@ -222,7 +222,7 @@ export default function MDInvoicesPage() {
                                                             {invoice.items.map((item, ii) => (
                                                                 <div key={ii} className="flex justify-between text-[12px] py-1">
                                                                     <span className="font-medium text-secondary">{item.description || item.name || `Item ${ii + 1}`}</span>
-                                                                    <span className="font-bold text-primary tabular-nums">{item.quantity || 1} × ${item.unit_price || item.price || 0}</span>
+                                                                    <span className="font-bold text-primary tabular-nums">{item.quantity || 1} × ₹{item.unit_price || item.price || 0}</span>
                                                                 </div>
                                                             ))}
                                                         </div>

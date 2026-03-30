@@ -66,7 +66,7 @@ def global_search(
             "type": "invoice",
             "id": inv.id,
             "title": inv.invoice_number,
-            "subtitle": f"${inv.total:,.2f}" if inv.total else "$0.00",
+            "subtitle": f"₹{inv.total:,.2f}" if inv.total else "₹0.00",
             "status": inv.status,
             "url": f"/{current_user.role}/invoices"
         })

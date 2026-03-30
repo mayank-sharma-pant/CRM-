@@ -242,7 +242,7 @@ def get_md_revenue(
         summary_table.append({
             "id": w + 1,
             "period": f"{week_start.strftime('%b %d')} - {week_end.strftime('%b %d')}",
-            "revenue": f"${week_rev:,.0f}",
+            "revenue": f"₹{week_rev:,.0f}",
             "delta": delta_str
         })
     
@@ -257,7 +257,7 @@ def get_md_revenue(
             "id": idx + 1,
             "signal": f"Overdue: {client.name if client else 'Unknown'} {inv.invoice_number}",
             "severity": "High" if days_overdue > 14 else ("Medium" if days_overdue > 7 else "Low"),
-            "metric": f"${inv.total:,.0f}" if inv.total else "$0",
+            "metric": f"₹{inv.total:,.0f}" if inv.total else "₹0",
             "delta": f"-{days_overdue}d",
             "detected": inv.due_date.strftime("%b %d") if inv.due_date else "N/A"
         })

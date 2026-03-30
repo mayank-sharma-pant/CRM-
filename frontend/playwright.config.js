@@ -26,7 +26,8 @@ module.exports = defineConfig({
   ],
   webServer: [
     {
-      command: 'python scripts/e2e_seed.py && python -m uvicorn app.main:app --host 127.0.0.1 --port 8001',
+      // Use 'py' on Windows to avoid the Microsoft Store 'python' stub.
+      command: 'py scripts/e2e_seed.py && py -m uvicorn app.main:app --host 127.0.0.1 --port 8001',
       cwd: '../backend',
       env: {
         DATABASE_URL: 'sqlite:///./e2e.db',
@@ -42,6 +43,8 @@ module.exports = defineConfig({
       command: 'npm run dev -- --hostname 127.0.0.1 --port 3001',
       cwd: '.',
       env: {
+        // Next rewrites read BACKEND_URL (see next.config.mjs)
+        BACKEND_URL: BACKEND_URL,
         NEXT_PUBLIC_API_URL: BACKEND_URL,
       },
       url: `${FRONTEND_URL}/login`,

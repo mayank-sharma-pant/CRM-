@@ -1,7 +1,28 @@
 import string
 import random
+import re
+from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.core.company import Company
+
+_NON_DIGIT_RE = re.compile(r"[^0-9]+")
+
+def normalize_email(value: Optional[str]) -> Optional[str]:
+    """Normalize email for consistent matching/storage (case-insensitive)."""
+    if value is None:
+        return None
+    value = value.strip()
+    return value.lower() if value else None
+
+def normalize_phone(value: Optional[str]) -> Optional[str]:
+    """Normalize phone for consistent matching/storage (digits-only)."""
+    if value is None:
+        return None
+    value = value.strip()
+    if not value:
+        return None
+    digits = _NON_DIGIT_RE.sub("", value)
+    return digits if digits else None
 
 def generate_company_code(db: Session, length: int = 3) -> str:
     """Generate a unique alphanumeric code for a company."""

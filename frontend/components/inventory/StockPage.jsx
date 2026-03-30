@@ -149,33 +149,56 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
                     <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 items-end">
                         <div className="space-y-1.5 md:col-span-2">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Item Name</label>
-                            <input className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
-                                placeholder="e.g., Premium Solar Panel"
+                            <input
+                                aria-label="Name"
+                                className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                                placeholder="Name"
                                 value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">SKU</label>
-                            <input className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
-                                placeholder="SKU-001"
+                            <input
+                                aria-label="SKU"
+                                className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                                placeholder="SKU"
                                 value={newItem.sku} onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })} />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Category</label>
-                            <input className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                            <input
+                                aria-label="Category"
+                                className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
                                 placeholder="Category"
                                 value={newItem.category} onChange={(e) => setNewItem({ ...newItem, category: e.target.value })} />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Price</label>
-                            <input type="number" className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
-                                placeholder="0.00"
+                            <input
+                                aria-label="Price"
+                                type="number"
+                                className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                                placeholder="Price"
                                 value={newItem.unit_price} onChange={(e) => setNewItem({ ...newItem, unit_price: e.target.value })} />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Qty</label>
-                            <input type="number" className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
-                                placeholder="0"
+                            <input
+                                aria-label="Qty"
+                                type="number"
+                                className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                                placeholder="Qty"
                                 value={newItem.quantity} onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Reorder</label>
+                            <input
+                                aria-label="Reorder"
+                                type="number"
+                                className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                                placeholder="Reorder"
+                                value={newItem.reorder_level}
+                                onChange={(e) => setNewItem({ ...newItem, reorder_level: e.target.value })}
+                            />
                         </div>
                         <button
                             onClick={handleCreate}

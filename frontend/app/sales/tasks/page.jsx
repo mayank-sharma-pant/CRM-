@@ -52,7 +52,7 @@ export default function TasksPage() {
         try {
             const newStatus = currentStatus === 'Completed' ? 'Pending' : 'Completed';
             await api.put(`/tasks/${id}`, { status: newStatus });
-            fetchTasks();
+            await fetchTasks(); // ensure UI matches backend before any user refresh
         } catch (err) {
             console.error("Failed to toggle task", err);
             const detail = err.response?.data?.detail;

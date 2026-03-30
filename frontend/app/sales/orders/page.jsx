@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '../../../services/api';
 import {
     ChevronRight,
@@ -17,6 +17,7 @@ import CreateOrderModal from '../../../components/shared/CreateOrderModal';
 
 export default function SalesOrdersPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [loading, setLoading] = useState(true);
     const [invoices, setInvoices] = useState([]);
     const [filter, setFilter] = useState('All');
@@ -28,7 +29,8 @@ export default function SalesOrdersPage() {
             setLoading(true);
             // The backend endpoint `/invoices` is already scoped in invoices.py to only 
             // return the current user's explicitly generated invoices if role == 'sales'
-            const res = await api.get('/invoices');
+            const clientId = searchParams?.get('clientId');
+            const res = await api.get('/invoices', { params: clientId ? { client_id: clientId } : undefined });
             const mappedInvoices = (res.data.items || []).map(inv => ({
                 ...inv,
                 db_id: inv.id,
@@ -44,7 +46,7 @@ export default function SalesOrdersPage() {
         }
     };
 
-    useEffect(() => { fetchInvoices(); }, []);
+    useEffect(() => { fetchInvoices(); }, [searchParams]);
 
     if (loading) return <InvoicesSkeleton />;
 

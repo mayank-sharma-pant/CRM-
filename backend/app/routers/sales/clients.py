@@ -13,8 +13,11 @@ from app.models.finance.invoice import Invoice
 from app.models.sales.note import Note
 from app.models.sales.task import Task
 from app.models.sales.audit import AuditLog
+from app.models.sales.lead import Lead
 from app.schemas.sales import ClientCreate, ClientUpdate, ClientListResponse
 from app.schemas.admin import MessageResponse
+from app.utils.helpers import normalize_email, normalize_phone
+from sqlalchemy import func as sa_func
 
 router = APIRouter()
 
@@ -195,13 +198,45 @@ def create_client(
         if existing:
             raise HTTPException(status_code=400, detail="This lead has already been converted to a client.")
 
-    # Prevent duplicate client by email
-    if body.email:
+    normalized_email = normalize_email(body.email)
+    normalized_phone = normalize_phone(body.phone)
+
+    # Prevent duplicate clients (same company scope) by email (case-insensitive) or phone (digits-only)
+    if normalized_email:
         existing_by_email = apply_company_scope(
             db.query(Client), Client, current_user
-        ).filter(Client.email == body.email).first()
+        ).filter(sa_func.lower(Client.email) == normalized_email).first()
         if existing_by_email:
-            raise HTTPException(status_code=400, detail=f"A client with email '{body.email}' already exists.")
+            raise HTTPException(
+                status_code=400,
+                detail=f"A client with email '{body.email}' already exists."
+            )
+        existing_lead_by_email = apply_company_scope(
+            db.query(Lead), Lead, current_user
+        ).filter(sa_func.lower(Lead.email) == normalized_email).first()
+        if existing_lead_by_email:
+            raise HTTPException(
+                status_code=400,
+                detail=f"A lead with email '{body.email}' already exists. Convert the lead instead of creating a new client."
+            )
+
+    if normalized_phone:
+        existing_by_phone = apply_company_scope(
+            db.query(Client), Client, current_user
+        ).filter(Client.phone == normalized_phone).first()
+        if existing_by_phone:
+            raise HTTPException(
+                status_code=400,
+                detail="A client with this phone number already exists."
+            )
+        existing_lead_by_phone = apply_company_scope(
+            db.query(Lead), Lead, current_user
+        ).filter(Lead.phone == normalized_phone).first()
+        if existing_lead_by_phone:
+            raise HTTPException(
+                status_code=400,
+                detail="A lead with this phone number already exists. Convert the lead instead of creating a new client."
+            )
             
     # Validate assigned_to_id
     final_assigned_to = current_user.id
@@ -251,8 +286,8 @@ def create_client(
     new_client = Client(
         company_id=current_user.company_id,
         name=body.name,
-        email=body.email,
-        phone=body.phone,
+        email=normalized_email,
+        phone=normalized_phone,
         company=body.company,
         address=body.address,
         assigned_to_id=final_assigned_to,
@@ -294,10 +329,53 @@ def update_client(
     
     if body.name is not None:
         client.name = body.name
-    if body.email is not None:
-        client.email = body.email
-    if body.phone is not None:
-        client.phone = body.phone
+    if body.email is not None and body.email != client.email:
+        normalized_email = normalize_email(body.email)
+        if normalized_email:
+            existing_by_email = apply_company_scope(
+                db.query(Client), Client, current_user
+            ).filter(
+                sa_func.lower(Client.email) == normalized_email,
+                Client.id != client.id,
+            ).first()
+            if existing_by_email:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"A client with email '{body.email}' already exists."
+                )
+            existing_lead_by_email = apply_company_scope(
+                db.query(Lead), Lead, current_user
+            ).filter(sa_func.lower(Lead.email) == normalized_email).first()
+            if existing_lead_by_email:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"A lead with email '{body.email}' already exists. Leads and clients cannot share the same email."
+                )
+        client.email = normalized_email
+
+    if body.phone is not None and body.phone != client.phone:
+        normalized_phone = normalize_phone(body.phone)
+        if normalized_phone:
+            existing_by_phone = apply_company_scope(
+                db.query(Client), Client, current_user
+            ).filter(
+                Client.phone == normalized_phone,
+                Client.id != client.id,
+            ).first()
+            if existing_by_phone:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A client with this phone number already exists."
+                )
+            existing_lead_by_phone = apply_company_scope(
+                db.query(Lead), Lead, current_user
+            ).filter(Lead.phone == normalized_phone).first()
+            if existing_lead_by_phone:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A lead with this phone number already exists. Leads and clients cannot share the same phone number."
+                )
+        client.phone = normalized_phone
     if body.company is not None:
         client.company = body.company
     if body.address is not None:

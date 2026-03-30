@@ -15,7 +15,7 @@ from app.schemas.admin import MessageResponse
 from app.utils.notify import notify_role_users, send_notification
 from app.models.hr.transfer_request import TeamTransferRequest
 from app.schemas.management import TransferRequestCreate, TransferRequestResponse
-from app.models.core.enums import InvoiceStatus
+from app.models.core.enums import InvoiceStatus, LeadStatus
 from app.models.core.team import Team
 from app.models.core.team_membership import TeamMembership
 from app.models.sales.audit import AuditLog

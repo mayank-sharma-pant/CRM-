@@ -234,6 +234,7 @@ def create_invoice(
 def list_invoices(
     status: Optional[str] = Query(None, description="Filter by status (Paid/Pending/Overdue/Draft)"),
     search: Optional[str] = Query(None, description="Search by client name or invoice number"),
+    client_id: Optional[int] = Query(None, description="Filter by client_id"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
@@ -275,6 +276,13 @@ def list_invoices(
             (Client.name.ilike(search_pattern)) |
             (Invoice.invoice_number.ilike(search_pattern))
         )
+
+    if client_id is not None:
+        # Ensure client exists and is accessible, then filter
+        client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == client_id).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+        query = query.filter(Invoice.client_id == client_id)
 
     total = query.count()
     invoices = query.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()

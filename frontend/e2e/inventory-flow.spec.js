@@ -54,7 +54,7 @@ test('purchase add stock, sales order decrements, manager and md can see update'
 
   const purchaseRow = purchasePage.locator('tr', { hasText: sku });
   await expect(purchaseRow).toBeVisible();
-  await expect(purchaseRow).toContainText(`${startingQty} pcs`);
+  await expect(purchaseRow).toContainText(`${startingQty}pcs`);
   await purchaseSession.context.close();
 
   const salesSession = await openRoleSession(browser, 'sales');
@@ -83,7 +83,7 @@ test('purchase add stock, sales order decrements, manager and md can see update'
   await managerPage.getByPlaceholder('Search by name / SKU / category').fill(sku);
   const managerRow = managerPage.locator('tr', { hasText: sku });
   await expect(managerRow).toBeVisible();
-  await expect(managerRow).toContainText(`${expectedQty} pcs`);
+  await expect(managerRow).toContainText(`${expectedQty}pcs`);
   await managerSession.context.close();
 
   const mdSession = await openRoleSession(browser, 'md');
@@ -92,7 +92,7 @@ test('purchase add stock, sales order decrements, manager and md can see update'
   await mdPage.getByPlaceholder('Search by name / SKU / category').fill(sku);
   const mdRow = mdPage.locator('tr', { hasText: sku });
   await expect(mdRow).toBeVisible();
-  await expect(mdRow).toContainText(`${expectedQty} pcs`);
+  await expect(mdRow).toContainText(`${expectedQty}pcs`);
   await mdSession.context.close();
 });
 

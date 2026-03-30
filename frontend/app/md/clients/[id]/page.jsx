@@ -309,7 +309,16 @@ export default function ClientDetailPage() {
                                     <Receipt size={18} className="text-emerald-500" />
                                     Orders & Invoices
                                 </h2>
-                                <span className="text-xs font-medium text-slate-400">{client.invoices?.length || 0} Total</span>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => router.push(`/sales/orders?clientId=${encodeURIComponent(params.id)}&clientName=${encodeURIComponent(client.name)}`)}
+                                        className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline"
+                                    >
+                                        View all
+                                    </button>
+                                    <span className="text-xs font-medium text-slate-400">{client.invoices?.length || 0} Total</span>
+                                </div>
                             </div>
 
                             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden divide-y divide-slate-100 dark:divide-slate-700/50">

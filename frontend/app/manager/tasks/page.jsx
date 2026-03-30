@@ -8,7 +8,6 @@ import api from '../../../services/api';
 
 export default function ManagerTasksPage() {
     const [activeTab, setActiveTab] = useState('all');
-    const [completedTasks, setCompletedTasks] = useState(new Set());
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
@@ -59,14 +58,19 @@ export default function ManagerTasksPage() {
     };
 
     const toggleTask = async (id) => {
-        const newCompleted = new Set(completedTasks);
-        if (newCompleted.has(id)) {
-            newCompleted.delete(id);
-        } else {
-            newCompleted.add(id);
-            try { await api.post(`/tasks/${id}/complete`); } catch (err) { console.error(err); }
+        const task = tasks.find(t => t.id === id);
+        if (!task) return;
+
+        const isCompleted = task.status === 'Completed';
+        const nextStatus = isCompleted ? 'Pending' : 'Completed';
+
+        try {
+            await api.put(`/tasks/${id}`, { status: nextStatus });
+            await fetchTasks(); // re-sync from backend so refresh shows correct state
+        } catch (err) {
+            alert(err.response?.data?.detail || 'Failed to update task');
+            console.error(err);
         }
-        setCompletedTasks(newCompleted);
     };
 
     const getTasksForTab = () => {
@@ -158,15 +162,15 @@ export default function ManagerTasksPage() {
                             ) : (
                                 getTasksForTab().map((task) => (
                                     <div key={task.id}
-                                        className={`group flex items-center gap-4 px-5 py-3 hover:bg-surface-elevated/20 transition-colors ${completedTasks.has(task.id) ? 'opacity-40 saturate-0' : ''}`}>
+                                        className={`group flex items-center gap-4 px-5 py-3 hover:bg-surface-elevated/20 transition-colors ${task.status === 'Completed' ? 'opacity-40 saturate-0' : ''}`}>
                                         <button onClick={() => toggleTask(task.id)}
-                                            className={`shrink-0 w-4 h-4 rounded border transition-all flex items-center justify-center ${completedTasks.has(task.id)
+                                            className={`shrink-0 w-4 h-4 rounded border transition-all flex items-center justify-center ${task.status === 'Completed'
                                                 ? 'bg-success border-success text-white' : 'border-border-strong hover:border-accent text-transparent bg-surface'}`}>
                                             <Check size={10} strokeWidth={4} />
                                         </button>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-3">
-                                                <span className={`text-[13px] font-bold text-primary group-hover:text-accent transition-colors ${completedTasks.has(task.id) ? 'line-through opacity-50' : ''}`}>
+                                                <span className={`text-[13px] font-bold text-primary group-hover:text-accent transition-colors ${task.status === 'Completed' ? 'line-through opacity-50' : ''}`}>
                                                     {task.title}
                                                 </span>
                                                 {task.assigned_to && (
@@ -203,7 +207,9 @@ export default function ManagerTasksPage() {
                     <div className="flex items-center gap-4">
                         <span>{getTasksForTab().length} tasks</span>
                         <div className="w-1 h-1 bg-border rounded-full" />
-                        <span>Completion: {Math.round((completedTasks.size / (tasks.length || 1)) * 100)}%</span>
+                        <span>
+                            Completion: {Math.round(((tasks.filter(t => t.status === 'Completed').length) / (tasks.length || 1)) * 100)}%
+                        </span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 bg-success rounded-full shadow-[0_0_8px_rgba(34,197,94,0.4)]" />

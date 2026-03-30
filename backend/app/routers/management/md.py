@@ -63,9 +63,9 @@ def get_md_dashboard(
     inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
     client_q = apply_company_scope(db.query(Client), Client, current_user)
 
-    active = lead_q.filter(Lead.status.notin_(["Converted", "Lost"])).count()
+    active = lead_q.filter(Lead.status.notin_(["Converted", "Lost", "Lost Client"])).count()
     converted = lead_q.filter(Lead.status == "Converted").count()
-    lost = lead_q.filter(Lead.status == "Lost").count()
+    lost = lead_q.filter(Lead.status.in_(["Lost", "Lost Client"])).count()
     win_rate = int((converted / (converted + lost) * 100)) if (converted + lost) > 0 else 0
     total_clients = client_q.count()
     paid = inv_q.filter(Invoice.status == "Paid").count()

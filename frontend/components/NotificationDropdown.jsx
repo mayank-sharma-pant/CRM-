@@ -24,8 +24,10 @@ export default function NotificationDropdown() {
             const res = await api.get('/notifications', { params: { limit: 10 } });
             setNotifications(res.data.notifications || []);
             setUnreadCount(res.data.unread_count || 0);
-        } catch {
-            // Silently fail — notifications are non-critical
+        } catch (err) {
+            // Notifications are non-critical, but don't hide failures completely.
+            // If this is failing (401/500), users will think "notifications don't work".
+            console.error('Failed to fetch notifications', err?.response?.status, err?.response?.data || err?.message);
         }
     };
 

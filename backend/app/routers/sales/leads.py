@@ -704,11 +704,12 @@ def update_lead(
         
         # Notify the new assignee
         if lead_data.assigned_to_id:
+            assignee_role = _user_role_str(new_user) if new_user else "sales"
             send_notification(db, lead_data.assigned_to_id,
                 title=f"Lead Assigned: {lead.name}",
                 message=f"{current_user.full_name} assigned you a new lead.",
                 type="info",
-                link=f"/{_user_role_str(current_user)}/leads/{lead.id}",
+                link=f"/{assignee_role}/leads/{lead.id}",
                 category="leads")
         
     if info_edited and not actions_logged:

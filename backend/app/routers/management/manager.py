@@ -74,21 +74,25 @@ def _utc_now_naive() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def _task_link_for_role(role: Optional[str]) -> Optional[str]:
+def _role_value(role: object | None) -> str:
+    return str(getattr(role, "value", role) or "")
+
+
+def _task_link_for_role(role: Optional[object]) -> Optional[str]:
     role_map = {
         "sales": "/sales/tasks",
         "manager": "/manager/tasks",
     }
-    return role_map.get((role or "").strip().lower())
+    return role_map.get(_role_value(role).strip().lower())
 
 
-def _lead_link_for_role(role: Optional[str], lead_id: int) -> Optional[str]:
+def _lead_link_for_role(role: Optional[object], lead_id: int) -> Optional[str]:
     role_map = {
         "sales": f"/sales/leads/{lead_id}",
         "manager": f"/manager/leads/{lead_id}",
         "md": f"/md/leads/{lead_id}",
     }
-    return role_map.get((role or "").strip().lower())
+    return role_map.get(_role_value(role).strip().lower())
 
 
 # ===============================

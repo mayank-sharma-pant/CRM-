@@ -169,12 +169,13 @@ def _resolve_task_assignee(db: Session, current_user: User, requested_assignee_i
     return target.id
 
 
-def _task_link_for_role(role: Optional[str]) -> Optional[str]:
+def _task_link_for_role(role: Optional[object]) -> Optional[str]:
     role_map = {
         "sales": "/sales/tasks",
         "manager": "/manager/tasks",
     }
-    return role_map.get((role or "").strip().lower())
+    role_val = str(getattr(role, "value", role) or "")
+    return role_map.get(role_val.strip().lower())
 
 
 def _notify_task_assigned(db: Session, current_user: User, task: Task) -> None:

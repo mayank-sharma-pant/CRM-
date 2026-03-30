@@ -16,6 +16,7 @@ from app.models.sales.lead import Lead
 from app.schemas.admin import MessageResponse
 from app.models.core.enums import InvoiceStatus
 from app.models.finance.ledger import LedgerEntry
+from app.utils.notify import send_notification, notify_role_users
 
 router = APIRouter()
 
@@ -215,6 +216,21 @@ def approve_sale(
 
     invoice.status = InvoiceStatus.PENDING  # Move from Draft to Pending (sent to client)
     db.commit()
+
+    # Notify invoice creator (usually sales/manager) that purchase approved it for sending.
+    if invoice.created_by_id:
+        send_notification(
+            db,
+            invoice.created_by_id,
+            title=f"Invoice approved: {invoice.invoice_number or f'#{invoice.id}'}",
+            message=f"Purchase department approved your invoice. It is now Pending.",
+            type="success",
+            link=f"/sales/invoices/{invoice.id}",
+            category="approvals",
+            dedupe_window_seconds=60,
+            dedupe_match_message=False,
+            skip_if_unread_duplicate=True,
+        )
     
     return {
         "message": f"Sale {sale_id} approved successfully",
@@ -242,6 +258,20 @@ def reject_sale(
     else:
         invoice.notes = f"{invoice.notes}\n[Rejected: {reason}]"
     db.commit()
+
+    if invoice.created_by_id:
+        send_notification(
+            db,
+            invoice.created_by_id,
+            title=f"Invoice rejected: {invoice.invoice_number or f'#{invoice.id}'}",
+            message=f"Purchase rejected your invoice. Reason: {reason}",
+            type="error",
+            link=f"/sales/invoices/{invoice.id}",
+            category="approvals",
+            dedupe_window_seconds=60,
+            dedupe_match_message=False,
+            skip_if_unread_duplicate=True,
+        )
     
     return {
         "message": f"Sale {sale_id} rejected",

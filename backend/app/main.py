@@ -62,15 +62,15 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    # Let FastAPI's built-in handler deal with HTTPException (4xx, 5xx with detail)
     from fastapi import HTTPException as FastAPIHTTPException
     if isinstance(exc, FastAPIHTTPException):
         raise exc
     tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
     tb_str = ''.join(tb)
     logger.error(f"Unhandled error on {request.method} {request.url}:\n{tb_str}")
-    # Keep response sanitized in all environments; full traceback is already logged.
-    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+    if is_production:
+        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+    return JSONResponse(status_code=500, content={"detail": f"{type(exc).__name__}: {exc}"})
 
 # CORS Configuration 
 allowed_origins = settings.CORS_ORIGINS.split(",") if settings.CORS_ORIGINS else ["http://localhost:3000"]

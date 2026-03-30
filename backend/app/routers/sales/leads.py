@@ -510,9 +510,10 @@ def create_lead(
     normalized_email = normalize_email(lead_data.email)
     normalized_phone = normalize_phone(lead_data.phone)
 
-    # Prevent duplicate leads (same company scope) by email (case-insensitive) or phone (digits-only)
+    # Prevent duplicate leads (same company scope) by email (case-insensitive) or phone (digits-only).
+    # Use .query(Model.id) to avoid full-object deserialization (Enum columns can crash on legacy data).
     if normalized_email:
-        existing_lead_by_email = apply_company_scope(db.query(Lead), Lead, current_user).filter(
+        existing_lead_by_email = apply_company_scope(db.query(Lead.id), Lead, current_user).filter(
             sa_func.lower(Lead.email) == normalized_email
         ).first()
         if existing_lead_by_email:
@@ -520,7 +521,7 @@ def create_lead(
                 status_code=400,
                 detail=f"A lead with email '{lead_data.email}' already exists."
             )
-        existing_client_by_email = apply_company_scope(db.query(Client), Client, current_user).filter(
+        existing_client_by_email = apply_company_scope(db.query(Client.id), Client, current_user).filter(
             sa_func.lower(Client.email) == normalized_email
         ).first()
         if existing_client_by_email:
@@ -529,7 +530,7 @@ def create_lead(
                 detail=f"A client with email '{lead_data.email}' already exists. Use Clients instead of creating a lead again."
             )
     if normalized_phone:
-        existing_lead_by_phone = apply_company_scope(db.query(Lead), Lead, current_user).filter(
+        existing_lead_by_phone = apply_company_scope(db.query(Lead.id), Lead, current_user).filter(
             Lead.phone == normalized_phone
         ).first()
         if existing_lead_by_phone:
@@ -537,7 +538,7 @@ def create_lead(
                 status_code=400,
                 detail="A lead with this phone number already exists."
             )
-        existing_client_by_phone = apply_company_scope(db.query(Client), Client, current_user).filter(
+        existing_client_by_phone = apply_company_scope(db.query(Client.id), Client, current_user).filter(
             Client.phone == normalized_phone
         ).first()
         if existing_client_by_phone:
@@ -554,6 +555,7 @@ def create_lead(
         company=lead_data.company,
         source=lead_data.source,
         service_type=lead_data.service_type if hasattr(lead_data, 'service_type') else None,
+        notes=lead_data.notes if hasattr(lead_data, 'notes') else None,
         status=LeadStatus.ACTIVE,
         assigned_to_id=assigned_to_id,
         team_id=team_id
@@ -609,7 +611,7 @@ def update_lead(
     if lead_data.email is not None and lead_data.email != lead.email:
         normalized_email = normalize_email(lead_data.email)
         if normalized_email:
-            existing_lead_by_email = apply_company_scope(db.query(Lead), Lead, current_user).filter(
+            existing_lead_by_email = apply_company_scope(db.query(Lead.id), Lead, current_user).filter(
                 sa_func.lower(Lead.email) == normalized_email,
                 Lead.id != lead.id,
             ).first()
@@ -618,7 +620,7 @@ def update_lead(
                     status_code=400,
                     detail=f"A lead with email '{lead_data.email}' already exists."
                 )
-            existing_client_by_email = apply_company_scope(db.query(Client), Client, current_user).filter(
+            existing_client_by_email = apply_company_scope(db.query(Client.id), Client, current_user).filter(
                 sa_func.lower(Client.email) == normalized_email
             ).first()
             if existing_client_by_email:
@@ -631,7 +633,7 @@ def update_lead(
     if lead_data.phone is not None and lead_data.phone != lead.phone:
         normalized_phone = normalize_phone(lead_data.phone)
         if normalized_phone:
-            existing_lead_by_phone = apply_company_scope(db.query(Lead), Lead, current_user).filter(
+            existing_lead_by_phone = apply_company_scope(db.query(Lead.id), Lead, current_user).filter(
                 Lead.phone == normalized_phone,
                 Lead.id != lead.id,
             ).first()
@@ -640,7 +642,7 @@ def update_lead(
                     status_code=400,
                     detail="A lead with this phone number already exists."
                 )
-            existing_client_by_phone = apply_company_scope(db.query(Client), Client, current_user).filter(
+            existing_client_by_phone = apply_company_scope(db.query(Client.id), Client, current_user).filter(
                 Client.phone == normalized_phone
             ).first()
             if existing_client_by_phone:

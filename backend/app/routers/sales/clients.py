@@ -201,10 +201,10 @@ def create_client(
     normalized_email = normalize_email(body.email)
     normalized_phone = normalize_phone(body.phone)
 
-    # Prevent duplicate clients (same company scope) by email (case-insensitive) or phone (digits-only)
+    # Prevent duplicate clients by email/phone. Use .query(Model.id) to avoid Enum deserialization crashes.
     if normalized_email:
         existing_by_email = apply_company_scope(
-            db.query(Client), Client, current_user
+            db.query(Client.id), Client, current_user
         ).filter(sa_func.lower(Client.email) == normalized_email).first()
         if existing_by_email:
             raise HTTPException(
@@ -212,7 +212,7 @@ def create_client(
                 detail=f"A client with email '{body.email}' already exists."
             )
         existing_lead_by_email = apply_company_scope(
-            db.query(Lead), Lead, current_user
+            db.query(Lead.id), Lead, current_user
         ).filter(sa_func.lower(Lead.email) == normalized_email).first()
         if existing_lead_by_email:
             raise HTTPException(
@@ -222,7 +222,7 @@ def create_client(
 
     if normalized_phone:
         existing_by_phone = apply_company_scope(
-            db.query(Client), Client, current_user
+            db.query(Client.id), Client, current_user
         ).filter(Client.phone == normalized_phone).first()
         if existing_by_phone:
             raise HTTPException(
@@ -230,7 +230,7 @@ def create_client(
                 detail="A client with this phone number already exists."
             )
         existing_lead_by_phone = apply_company_scope(
-            db.query(Lead), Lead, current_user
+            db.query(Lead.id), Lead, current_user
         ).filter(Lead.phone == normalized_phone).first()
         if existing_lead_by_phone:
             raise HTTPException(
@@ -333,7 +333,7 @@ def update_client(
         normalized_email = normalize_email(body.email)
         if normalized_email:
             existing_by_email = apply_company_scope(
-                db.query(Client), Client, current_user
+                db.query(Client.id), Client, current_user
             ).filter(
                 sa_func.lower(Client.email) == normalized_email,
                 Client.id != client.id,
@@ -344,7 +344,7 @@ def update_client(
                     detail=f"A client with email '{body.email}' already exists."
                 )
             existing_lead_by_email = apply_company_scope(
-                db.query(Lead), Lead, current_user
+                db.query(Lead.id), Lead, current_user
             ).filter(sa_func.lower(Lead.email) == normalized_email).first()
             if existing_lead_by_email:
                 raise HTTPException(
@@ -357,7 +357,7 @@ def update_client(
         normalized_phone = normalize_phone(body.phone)
         if normalized_phone:
             existing_by_phone = apply_company_scope(
-                db.query(Client), Client, current_user
+                db.query(Client.id), Client, current_user
             ).filter(
                 Client.phone == normalized_phone,
                 Client.id != client.id,
@@ -368,7 +368,7 @@ def update_client(
                     detail="A client with this phone number already exists."
                 )
             existing_lead_by_phone = apply_company_scope(
-                db.query(Lead), Lead, current_user
+                db.query(Lead.id), Lead, current_user
             ).filter(Lead.phone == normalized_phone).first()
             if existing_lead_by_phone:
                 raise HTTPException(

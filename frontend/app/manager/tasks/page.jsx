@@ -75,7 +75,8 @@ export default function ManagerTasksPage() {
 
     const getTasksForTab = () => {
         if (!tasks.length) return [];
-        if (activeTab === 'all') return tasks;
+        // "All" should still be actionable work; hide Completed so ticked tasks disappear.
+        if (activeTab === 'all') return tasks.filter(t => t.status !== 'Completed');
         const today = startOfDay(new Date());
         return tasks.filter(t => {
             const dueRaw = t.due_date_iso || t.due_date;
@@ -86,9 +87,9 @@ export default function ManagerTasksPage() {
             if (activeTab === 'Overdue') {
                 return isPast(dueDay) && !isSameDay(dueDay, today) && t.status !== 'Completed';
             }
-            if (activeTab === 'Today') return isSameDay(dueDay, today);
+            if (activeTab === 'Today') return isSameDay(dueDay, today) && t.status !== 'Completed';
             if (activeTab === 'Upcoming') {
-                return isFuture(dueDay) && !isSameDay(dueDay, today);
+                return isFuture(dueDay) && !isSameDay(dueDay, today) && t.status !== 'Completed';
             }
             return false;
         });

@@ -1,9 +1,12 @@
 {
-    "status": "started",
+    "status": "completed",
     "steps": [
-        "Setup: Using user prismagamer383@gmail.com"
+        "Setup: Using user prismagamer383@gmail.com",
+        "Lead creation successful.",
+        "Mandatory assignment check passed (blocked unassigned conversion).",
+        "Conversion after assignment successful.",
+        "Second lead converted successfully.",
+        "Duplicate prevention check passed (merged into 1 client)."
     ],
-    "errors": [
-        "Exception: 'New' is not among the defined enum values. Enum name: leadstatus. Possible values: Active, Converted, Lost"
-    ]
+    "errors": []
 }

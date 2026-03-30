@@ -126,7 +126,7 @@ def get_sales_dashboard(
         else:
             lead_query = lead_query.filter(Lead.team_id == active_team_id)
     total_leads = lead_query.count()
-    converted_leads = lead_query.filter(Lead.status == "Converted").count()
+    converted_leads = lead_query.filter(Lead.status == LeadStatus.CONVERTED).count()
     conversion_rate = int((converted_leads / total_leads * 100)) if total_leads > 0 else 0
     
     # Get priority tasks (overdue and due today) — Task.due_date is stored naive UTC
@@ -186,10 +186,10 @@ def get_sales_dashboard(
     source_counts = lead_query.with_entities(Lead.source, sa_func.count(Lead.id)).group_by(Lead.source).all()
     leads_by_source = [{"source": s or "Unknown", "count": c} for s, c in source_counts]
     
-    active_leads = lead_query.filter(Lead.status.notin_(["Converted", "Lost", "Lost Client"])).count()
-    lost_leads = lead_query.filter(Lead.status.in_(["Lost", "Lost Client"])).count()
+    active_leads = lead_query.filter(Lead.status == LeadStatus.ACTIVE).count()
+    lost_leads = lead_query.filter(Lead.status == LeadStatus.LOST).count()
     two_weeks_ago = datetime.now(timezone.utc) - timedelta(days=14)
-    stalled_leads = lead_query.filter(Lead.status.in_(["New", "Contacted"]), Lead.created_at < two_weeks_ago).count()
+    stalled_leads = lead_query.filter(Lead.status == LeadStatus.ACTIVE, Lead.created_at < two_weeks_ago).count()
     
     # Revenue and Order calculations (company-scoped)
     inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
@@ -489,7 +489,7 @@ def create_lead(
         company=lead_data.company,
         source=lead_data.source,
         service_type=lead_data.service_type if hasattr(lead_data, 'service_type') else None,
-        status="New",
+        status=LeadStatus.ACTIVE,
         assigned_to_id=assigned_to_id,
         team_id=team_id
     )
@@ -514,7 +514,7 @@ def create_lead(
     }
 
 
-@router.put("/{lead_id}")
+@router.api_route("/{lead_id}", methods=["PUT", "PATCH"])
 def update_lead(
     lead_id: int,
     lead_data: LeadUpdate,

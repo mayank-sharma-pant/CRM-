@@ -40,7 +40,11 @@ def run_tests():
         }
 
         # 2. Test 1: Create a lead
-        db.query(Lead).filter(Lead.email == "test_logic@example.com").delete()
+        # Thoroughly cleanup any data from previous failed runs (including linked clients)
+        leads_to_clean = db.query(Lead).filter(Lead.email == "test_logic@example.com").all()
+        for l in leads_to_clean:
+            db.query(Client).filter(Client.converted_from_lead_id == l.id).delete()
+            db.query(Lead).filter(Lead.id == l.id).delete()
         db.query(Client).filter(Client.email == "test_logic@example.com").delete()
         db.commit()
 
@@ -49,7 +53,7 @@ def run_tests():
             "email": "test_logic@example.com",
             "phone": "1234567890",
             "company": "Test Logic Co",
-            "status": "Active" 
+            "status": LeadStatus.ACTIVE.value
         }
         
         response = client.post("/api/leads", json=lead_data, headers=headers)
@@ -61,7 +65,7 @@ def run_tests():
             return results
             
         # 3. Test 2: Try converting without assignment
-        response = client.patch(f"/api/leads/{lead_id}/status", json={"status": "Converted"}, headers=headers)
+        response = client.patch(f"/api/leads/{lead_id}/status", json={"status": LeadStatus.CONVERTED.value}, headers=headers)
         if response.status_code == 400 and "assigned to a specific user" in response.text:
             results["steps"].append("Mandatory assignment check passed (blocked unassigned conversion).")
         else:
@@ -69,7 +73,7 @@ def run_tests():
 
         # 4. Test 3: Assign and Convert
         client.patch(f"/api/leads/{lead_id}", json={"assigned_to_id": manager.id}, headers=headers)
-        response = client.patch(f"/api/leads/{lead_id}/status", json={"status": "Converted"}, headers=headers)
+        response = client.patch(f"/api/leads/{lead_id}/status", json={"status": LeadStatus.CONVERTED.value}, headers=headers)
         if response.status_code == 200:
             results["steps"].append("Conversion after assignment successful.")
         else:
@@ -81,13 +85,13 @@ def run_tests():
             "email": "test_logic@example.com", # Identical email
             "phone": "0987654321",
             "company": "Test Logic Co 2",
-            "status": "Active"
+            "status": LeadStatus.ACTIVE.value
         }
         res = client.post("/api/leads", json=lead_data_2, headers=headers)
         lead_id_2 = res.json()["id"]
         client.patch(f"/api/leads/{lead_id_2}", json={"assigned_to_id": manager.id}, headers=headers)
         
-        response = client.patch(f"/api/leads/{lead_id_2}/status", json={"status": "Converted"}, headers=headers)
+        response = client.patch(f"/api/leads/{lead_id_2}/status", json={"status": LeadStatus.CONVERTED.value}, headers=headers)
         if response.status_code == 200:
             results["steps"].append("Second lead converted successfully.")
         else:
@@ -100,8 +104,8 @@ def run_tests():
             results["errors"].append(f"Duplicate prevention check failed: Found {len(clients)} clients.")
 
         # Cleanup
-        db.query(Lead).filter(Lead.email == "test_logic@example.com").delete()
         db.query(Client).filter(Client.email == "test_logic@example.com").delete()
+        db.query(Lead).filter(Lead.email == "test_logic@example.com").delete()
         db.commit()
         results["status"] = "completed"
 

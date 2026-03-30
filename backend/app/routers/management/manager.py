@@ -109,7 +109,7 @@ def get_manager_dashboard(
     else:
         lead_query = lead_query.filter(Lead.team_id == active_team_id)
     total_leads = lead_query.count()
-    closed_leads = lead_query.filter(Lead.status == "Converted").count()
+    closed_leads = lead_query.filter(Lead.status == LeadStatus.CONVERTED).count()
     conversion_rate = int((closed_leads / total_leads * 100)) if total_leads > 0 else 0
     
     # Get team members (sales users, team-scoped)
@@ -121,8 +121,8 @@ def get_manager_dashboard(
     
     lead_stats = apply_company_scope(db.query(
         Lead.assigned_to_id,
-        func.sum(case((Lead.status == "Converted", 1), else_=0)).label("converted_count"),
-        func.sum(case((Lead.status.notin_(["Converted", "Lost"]), 1), else_=0)).label("active_count")
+        func.sum(case((Lead.status == LeadStatus.CONVERTED, 1), else_=0)).label("converted_count"),
+        func.sum(case((Lead.status == LeadStatus.ACTIVE, 1), else_=0)).label("active_count")
     ), Lead, current_user)
     if team_member_ids and active_team_id is not None:
         lead_stats = lead_stats.filter(Lead.team_id == active_team_id).group_by(Lead.assigned_to_id).all()
@@ -351,13 +351,13 @@ def get_team_member_detail(
     
     # Get lead counts (company-scoped)
     lead_q = apply_company_scope(db.query(Lead), Lead, current_user)
-    leads_contacted = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == "Contacted").count()
-    leads_converted = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == "Converted").count()
+    leads_contacted = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == LeadStatus.ACTIVE).count()
+    leads_converted = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == LeadStatus.CONVERTED).count()
     
     # Get active leads
     active_leads = lead_q.filter(
         Lead.assigned_to_id == user_id,
-        Lead.status.notin_(["Converted", "Lost"])
+        Lead.status == LeadStatus.ACTIVE
     ).limit(5).all()
     
     return {
@@ -592,7 +592,7 @@ def get_team_performance(
     else:
         lead_q = lead_q.filter(Lead.team_id == active_team_id)
     leads_total = lead_q.count()
-    leads_converted = lead_q.filter(Lead.status == "Converted").count()
+    leads_converted = lead_q.filter(Lead.status == LeadStatus.CONVERTED).count()
     conversion_rate = round((leads_converted / leads_total * 100), 1) if leads_total > 0 else 0
     
     # Get revenue from paid invoices (team-scoped via creator)
@@ -609,7 +609,7 @@ def get_team_performance(
     lead_perf_q = apply_company_scope(db.query(
         Lead.assigned_to_id,
         func.count(Lead.id).label("total"),
-        func.sum(case((Lead.status == "Converted", 1), else_=0)).label("converted")
+        func.sum(case((Lead.status == LeadStatus.CONVERTED, 1), else_=0)).label("converted")
     ), Lead, current_user)
     lead_perf = (
         lead_perf_q.filter(Lead.team_id == active_team_id, Lead.assigned_to_id.in_(team_member_ids))
@@ -778,8 +778,8 @@ def get_team_member_performance(
     # Lead metrics — scoped to active team
     lead_q = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.assigned_to_id == user_id, Lead.team_id == active_team_id)
     total_leads = lead_q.count()
-    converted_leads = lead_q.filter(Lead.status == "Converted").count()
-    lost_leads = lead_q.filter(Lead.status == "Lost").count()
+    converted_leads = lead_q.filter(Lead.status == LeadStatus.CONVERTED).count()
+    lost_leads = lead_q.filter(Lead.status == LeadStatus.LOST).count()
     
     # Order metrics — scoped to active team via client
     inv_q = (

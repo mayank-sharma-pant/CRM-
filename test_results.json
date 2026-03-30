@@ -1,0 +1,7 @@
+{
+    "status": "started",
+    "steps": [],
+    "errors": [
+        "Exception: (sqlite3.OperationalError) no such table: users\n[SQL: SELECT users.id AS users_id, users.email AS users_email, users.full_name AS users_full_name, users.hashed_password AS users_hashed_password, users.role AS users_role, users.status AS users_status, users.company_id AS users_company_id, users.team_id AS users_team_id, users.manager_id AS users_manager_id, users.phone AS users_phone, users.notification_prefs_json AS users_notification_prefs_json, users.employee_num AS users_employee_num, users.is_active AS users_is_active, users.last_active_at AS users_last_active_at, users.created_at AS users_created_at, users.updated_at AS users_updated_at \nFROM users \nWHERE users.role = ?\n LIMIT ? OFFSET ?]\n[parameters: ('manager', 1, 0)]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)"
+    ]
+}

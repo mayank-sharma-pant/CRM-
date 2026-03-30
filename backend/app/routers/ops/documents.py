@@ -14,10 +14,7 @@ from app.utils.audit import log_activity
 from pydantic import BaseModel
 from datetime import datetime, timezone
 
-router = APIRouter(
-    prefix="/documents",
-    tags=["documents"],
-)
+router = APIRouter(tags=["documents"])
 
 UPLOAD_DIR = "uploads/documents"
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -149,63 +146,6 @@ async def upload_document(
     }
 
 
-@router.get("/{entity_type}/{entity_id}", response_model=List[DocumentResponse])
-def get_documents(
-    entity_type: str,
-    entity_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    active_team_id: int | None = Depends(get_active_team_id),
-):
-    """Get all documents for a Lead or Client."""
-    if entity_type not in ["lead", "client"]:
-        raise HTTPException(status_code=400, detail="Invalid entity type. Use 'lead' or 'client'")
-
-    query = apply_company_scope(db.query(Document), Document, current_user)
-    
-    if entity_type == "lead":
-        # First check lead access
-        lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == entity_id).first()
-        if not lead:
-            raise HTTPException(status_code=404, detail="Lead not found")
-            
-        # Scoping checks
-        if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Access denied to these documents")
-        if current_user.role == "manager" and (active_team_id is None or lead.team_id != active_team_id):
-            raise HTTPException(status_code=403, detail="Access denied to another team's documents")
-            
-        query = query.filter(Document.lead_id == entity_id)
-    else:
-        # Check client access
-        client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == entity_id).first()
-        if not client:
-            raise HTTPException(status_code=404, detail="Client not found")
-            
-        # Scoping checks
-        if current_user.role == "sales" and client.assigned_to_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Access denied to these documents")
-        if current_user.role == "manager" and (active_team_id is None or client.team_id != active_team_id):
-            raise HTTPException(status_code=403, detail="Access denied to another team's documents")
-            
-        query = query.filter(Document.client_id == entity_id)
-
-    docs = query.order_by(Document.created_at.desc()).all()
-    
-    result = []
-    for doc in docs:
-        result.append({
-            "id": doc.id,
-            "filename": doc.filename,
-            "lead_id": doc.lead_id,
-            "client_id": doc.client_id,
-            "uploaded_by_id": doc.uploaded_by_id,
-            "uploaded_by_name": doc.uploaded_by.full_name if doc.uploaded_by else "Unknown",
-            "created_at": doc.created_at.isoformat() if doc.created_at else ""
-        })
-    return result
-
-
 @router.get("/download/{document_id}")
 def download_document(
     document_id: int,
@@ -217,7 +157,7 @@ def download_document(
     doc = apply_company_scope(db.query(Document), Document, current_user).filter(Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-        
+
     # Scoping checks on parent entity
     if doc.lead_id:
         parent = db.query(Lead).filter(Lead.id == doc.lead_id).first()
@@ -238,6 +178,63 @@ def download_document(
         raise HTTPException(status_code=404, detail="File physical path not found")
 
     return FileResponse(doc.file_path, filename=doc.filename)
+
+
+@router.get("/{entity_type}/{entity_id}", response_model=List[DocumentResponse])
+def get_documents(
+    entity_type: str,
+    entity_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: int | None = Depends(get_active_team_id),
+):
+    """Get all documents for a Lead or Client."""
+    if entity_type not in ["lead", "client"]:
+        raise HTTPException(status_code=400, detail="Invalid entity type. Use 'lead' or 'client'")
+
+    query = apply_company_scope(db.query(Document), Document, current_user)
+
+    if entity_type == "lead":
+        # First check lead access
+        lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == entity_id).first()
+        if not lead:
+            raise HTTPException(status_code=404, detail="Lead not found")
+
+        # Scoping checks
+        if current_user.role == "sales" and lead.assigned_to_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied to these documents")
+        if current_user.role == "manager" and (active_team_id is None or lead.team_id != active_team_id):
+            raise HTTPException(status_code=403, detail="Access denied to another team's documents")
+
+        query = query.filter(Document.lead_id == entity_id)
+    else:
+        # Check client access
+        client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == entity_id).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+
+        # Scoping checks
+        if current_user.role == "sales" and client.assigned_to_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied to these documents")
+        if current_user.role == "manager" and (active_team_id is None or client.team_id != active_team_id):
+            raise HTTPException(status_code=403, detail="Access denied to another team's documents")
+
+        query = query.filter(Document.client_id == entity_id)
+
+    docs = query.order_by(Document.created_at.desc()).all()
+
+    result = []
+    for doc in docs:
+        result.append({
+            "id": doc.id,
+            "filename": doc.filename,
+            "lead_id": doc.lead_id,
+            "client_id": doc.client_id,
+            "uploaded_by_id": doc.uploaded_by_id,
+            "uploaded_by_name": doc.uploaded_by.full_name if doc.uploaded_by else "Unknown",
+            "created_at": doc.created_at.isoformat() if doc.created_at else ""
+        })
+    return result
 
 
 @router.delete("/{document_id}")

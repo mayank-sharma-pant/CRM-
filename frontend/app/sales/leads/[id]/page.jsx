@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, usePathname } from 'next/navigation';
 import {
   ArrowLeft,
   Mail,
@@ -17,7 +17,9 @@ import {
   MoreHorizontal,
   PlusCircle,
   History,
-  Briefcase
+  Briefcase,
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { formatDistanceToTaskDue } from '../../../../lib/taskDue';
@@ -29,6 +31,7 @@ import DocumentsList from '../../../../components/documents/DocumentsList';
 
 export default function LeadDetailPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const { id } = useParams();
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +39,7 @@ export default function LeadDetailPage() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
+  const [syncingClient, setSyncingClient] = useState(false);
 
   useEffect(() => {
     fetchLeadData();
@@ -199,21 +203,24 @@ export default function LeadDetailPage() {
   const handleConvert = async () => {
     if (!window.confirm("Convert this lead to a formal client?")) return;
     try {
-      await api.post('/clients', {
-        name: lead.name,
-        email: lead.email || null,
-        phone: lead.phone || null,
-        company: lead.company || null,
-        address: null,
-        converted_from_lead_id: parseInt(id),
-        assigned_to_id: lead.assigned_to_id || null,
-        team_id: lead.team_id || null,
-      });
-      await api.put(`/leads/${id}`, { status: 'Converted' });
+      await api.post(`/leads/${id}/convert`);
       alert("Converted successfully!");
-      router.push(window.location.pathname.startsWith('/manager') ? '/manager/clients' : '/sales/clients');
+      router.push(pathname.startsWith('/manager') ? '/manager/clients' : '/sales/clients');
     } catch (err) {
+      alert(err.response?.data?.detail || "Conversion failed");
       console.error("Conversion failed", err);
+    }
+  };
+
+  const handleEnsureClientRecord = async () => {
+    try {
+      setSyncingClient(true);
+      await api.post(`/leads/${id}/convert`);
+      await fetchLeadData();
+    } catch (err) {
+      alert(err.response?.data?.detail || "Could not create client record");
+    } finally {
+      setSyncingClient(false);
     }
   };
 
@@ -226,6 +233,11 @@ export default function LeadDetailPage() {
   };
 
   if (!lead) return <div className="p-6">Loading...</div>;
+
+  const clientsBase = pathname.startsWith('/manager') ? '/manager/clients' : '/sales/clients';
+  const statusStr = typeof lead.status === 'string' ? lead.status : lead.status?.value ?? String(lead.status);
+  const isConverted = statusStr === 'Converted';
+  const missingClientRecord = isConverted && lead.converted_client_id == null;
 
   return ( <>
     <div className="bg-slate-50 dark:bg-slate-900 min-h-full font-sans text-slate-900 dark:text-slate-100 pb-12">
@@ -297,9 +309,40 @@ export default function LeadDetailPage() {
                 Convert to Client
               </button>
             )}
+            {isConverted && lead.converted_client_id != null && (
+              <Link
+                href={`${clientsBase}/${lead.converted_client_id}`}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors"
+              >
+                Open client profile
+              </Link>
+            )}
           </div>
         </div>
       </div>
+
+      {missingClientRecord && (
+        <div className="bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800/60">
+          <div className="max-w-6xl mx-auto px-6 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-start gap-2 text-sm text-amber-900 dark:text-amber-100">
+              <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <p>
+                <span className="font-semibold">No client record linked.</span>{" "}
+                This lead is marked converted but has no entry in Clients (often from a status-only change). Create the record to use the Clients area and invoices.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleEnsureClientRecord}
+              disabled={syncingClient}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-60 shrink-0"
+            >
+              {syncingClient ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {syncingClient ? "Creating…" : "Create client record"}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-6xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
 

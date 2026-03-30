@@ -64,7 +64,7 @@ def test_manager_cannot_delete_document_outside_active_team(client, db):
     db.refresh(doc)
 
     login_user(client, manager.email)
-    response = client.delete(f"/api/documents/documents/{doc.id}")
+    response = client.delete(f"/api/documents/{doc.id}")
     assert response.status_code == 403
     assert "team" in response.json()["detail"].lower()
 
@@ -114,7 +114,7 @@ def test_manager_can_delete_document_within_active_team(client, db):
     db.refresh(doc)
 
     login_user(client, manager.email)
-    response = client.delete(f"/api/documents/documents/{doc.id}")
+    response = client.delete(f"/api/documents/{doc.id}")
     assert response.status_code == 200
     assert response.json()["message"] == "Document deleted successfully"
     assert db.query(Document).filter(Document.id == doc.id).first() is None

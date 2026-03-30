@@ -35,12 +35,11 @@ def list_clients(
     """List clients (paginated)."""
     query = apply_company_scope(db.query(Client), Client, current_user)
     
-    # Sales executives only see their own clients in the active team
+    # Sales: all clients they own (company-scoped). Do not filter by Client.team_id — converted
+    # clients keep the lead's team_id, which can differ from X-Team-Id when switching teams or
+    # with multi-team membership, which previously hid newly converted clients from this list.
     if getattr(current_user, 'role', '') == 'sales':
-        if active_team_id is not None:
-            query = query.filter(Client.assigned_to_id == current_user.id, Client.team_id == active_team_id)
-        else:
-            query = query.filter(Client.assigned_to_id == current_user.id)
+        query = query.filter(Client.assigned_to_id == current_user.id)
     elif getattr(current_user, 'role', '') == 'manager':
         if active_team_id is not None:
             query = query.filter(Client.team_id == active_team_id)

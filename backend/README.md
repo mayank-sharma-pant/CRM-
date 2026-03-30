@@ -37,9 +37,6 @@ cp .env.example .env
 
 5. Initialize database:
 ```bash
-# Create database migrations
-alembic revision --autogenerate -m "Initial migration"
-
 # Run migrations
 alembic upgrade head
 ```

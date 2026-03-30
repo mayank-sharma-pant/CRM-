@@ -15,9 +15,9 @@ A production-grade, multi-tenant CRM system built for service businesses, agenci
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **Next.js 16** (React 19, App Router)
+- **Next.js 15** (React 18, App Router)
 - **Tailwind CSS** (Modern utility-first styling)
-- **Axios** (Typescript-safe API client)
+- **Axios** (API client)
 - **Recharts** (Dynamic data visualization)
 - **Lucide React** (Consistent iconography)
 
@@ -84,7 +84,12 @@ CRM-/
 | `SECRET_KEY` | JWT signing key | *Required* |
 | `ALGORITHM` | Token hashing algorithm | `HS256` |
 | `CORS_ORIGINS` | Allowed frontend domains | `http://localhost:3000` |
-| `MAIL_SERVER` | SMTP server for notifications | `smtp.gmail.com` |
+| `SMTP_HOST` | SMTP host for email | `smtp.gmail.com` |
+| `SMTP_PORT` | SMTP port | `587` |
+| `SMTP_USER` | SMTP username | *(none)* |
+| `SMTP_PASSWORD` | SMTP password / app password | *(none)* |
+| `SMTP_FROM_EMAIL` | From address (optional; falls back to `SMTP_USER`) | *(none)* |
+| `SMTP_TLS` | Use STARTTLS | `true` |
 
 ## 🏁 Getting Started
 
@@ -107,6 +112,9 @@ cp .env.example .env
 # Migrations & Database
 createdb local_service_crm
 alembic upgrade head
+
+# Run API (dev)
+uvicorn app.main:app --reload --port 8000
 ```
 
 ### 2. Frontend Setup
@@ -132,6 +140,18 @@ gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app
 
 FastAPI provides interactive Swagger documentation. Start the backend and visit:
 **`http://localhost:8000/docs`**
+
+## 🧪 E2E (Playwright)
+
+This repo’s Playwright config starts servers on:
+- Frontend: **`http://127.0.0.1:3001`**
+- Backend: **`http://127.0.0.1:8001`**
+
+Run:
+```bash
+cd frontend
+npm run test:e2e
+```
 
 ## 📜 License
 

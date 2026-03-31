@@ -280,13 +280,16 @@ def get_tasks_list(
         due_dt = _to_utc(task.due_date)
         if not due_dt:
             return "No date"
-        now = datetime.now(timezone.utc)
-        diff = due_dt - now
-        if diff.days < 0:
-            return f"{abs(diff.days)} days ago"
-        elif diff.days == 0:
-            return due_dt.strftime("%I:%M %p") if due_dt.date() == now.date() else "Today"
-        elif diff.days == 1:
+        now_date = datetime.now(timezone.utc).date()
+        due_date = due_dt.date()
+        diff_days = (due_date - now_date).days
+        
+        if diff_days < 0:
+            return f"{abs(diff_days)} days ago"
+        elif diff_days == 0:
+            # If due date has a specific time, show time; otherwise just "Today"
+            return due_dt.strftime("%I:%M %p") if due_dt.hour != 0 or due_dt.minute != 0 else "Today"
+        elif diff_days == 1:
             return "Tomorrow"
         else:
             return due_dt.strftime("%a, %b %d")

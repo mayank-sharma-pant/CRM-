@@ -37,10 +37,22 @@ export default function SalesReviewDetailPage() {
                 const total = d.deal?.amount || 0;
                 const subtotal = d.deal?.subtotal || total;
                 const tax = d.deal?.tax || 0;
+                let uiStatus = 'Pending Review';
+                const rawStatus = (d.status || '').toLowerCase();
+                if (['pending', 'paid', 'sent', 'overdue'].includes(rawStatus)) {
+                    uiStatus = 'Approved';
+                } else if (['cancelled', 'rejected'].includes(rawStatus)) {
+                    uiStatus = 'Rejected';
+                } else if (['draft'].includes(rawStatus)) {
+                    uiStatus = 'Pending Review';
+                } else {
+                    uiStatus = d.status ? d.status.charAt(0).toUpperCase() + d.status.slice(1) : 'Pending Review';
+                }
+
                 setSale({
                     id: d.id,
                     saleId: `SAL-${d.id}`,
-                    status: d.status === 'Draft' ? 'Pending Review' : d.status,
+                    status: uiStatus,
                     client: {
                         name: d.client?.name || 'Unknown',
                         contact: d.client?.name || '',

@@ -27,13 +27,25 @@ export default function PurchaseSalesPage() {
                 setLoading(true);
                 const res = await api.get('/purchase/sales');
                 const mappedSales = (res.data.sales || []).map(sale => {
-                    const status = (sale.status === 'pending' || sale.status === 'Draft') ? 'Pending Review' : sale.status.charAt(0).toUpperCase() + sale.status.slice(1);
+                    let uiStatus = 'Pending Review';
+                    const rawStatus = (sale.status || '').toLowerCase();
+                    
+                    if (['pending', 'paid', 'sent', 'overdue'].includes(rawStatus)) {
+                        uiStatus = 'Approved';
+                    } else if (['cancelled', 'rejected'].includes(rawStatus)) {
+                        uiStatus = 'Rejected';
+                    } else if (['draft'].includes(rawStatus)) {
+                        uiStatus = 'Pending Review';
+                    } else {
+                        uiStatus = sale.status ? sale.status.charAt(0).toUpperCase() + sale.status.slice(1) : 'Pending Review';
+                    }
+
                     return {
                         ...sale,
                         saleId: `SAL-${sale.id}`,
-                        createdDate: sale.date,
-                        reviewerStatus: status === 'Pending Review' ? 'Pending Review' : 'Verified',
-                        status: status
+                        createdDate: sale.date || 'N/A',
+                        reviewerStatus: uiStatus === 'Pending Review' ? 'Pending Review' : 'Verified',
+                        status: uiStatus
                     };
                 });
                 setSales(mappedSales);
@@ -199,9 +211,8 @@ function StatusBadge({ status }) {
 
 function ReviewerBadge({ status }) {
     const maps = {
-        Unreviewed: 'text-info',
-        'In Progress': 'text-warning',
-        Reviewed: 'text-muted'
+        'Pending Review': 'text-warning',
+        Verified: 'text-success'
     };
 
     return (

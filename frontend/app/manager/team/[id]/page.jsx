@@ -13,7 +13,7 @@ import {
     ShoppingCart, 
     CheckCircle2,
     Clock,
-    DollarSign,
+    IndianRupee,
     Target
 } from 'lucide-react';
 
@@ -148,7 +148,7 @@ export default function TeamMemberDetailPage() {
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                                    <DollarSign size={20} />
+                                    <IndianRupee size={20} />
                                 </div>
                                 <h3 className="font-bold text-primary">Sales Revenue</h3>
                             </div>

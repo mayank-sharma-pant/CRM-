@@ -391,6 +391,10 @@ def _add_member(db: Session, current_user: User, team_id: int, user_id: int) -> 
     if existing:
         return {"message": "already_member", "team_id": team_id, "user_id": user_id}
 
+    if target.role == "manager":
+        from app.utils.validators import ensure_one_manager_per_team
+        ensure_one_manager_per_team(db, team_id, exclude_user_id=target.id)
+
     db.add(TeamMembership(company_id=current_user.company_id, team_id=team_id, user_id=user_id))
     if target.team_id is None:
         target.team_id = team_id

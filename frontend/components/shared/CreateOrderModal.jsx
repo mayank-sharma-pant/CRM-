@@ -81,9 +81,9 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
     const updateItem = (idx, field, value) => {
         const updated = [...items];
         if (field === 'quantity') {
-            updated[idx][field] = Math.max(1, parseInt(value, 10) || 1);
+            updated[idx][field] = value;
         } else if (field === 'unit_price') {
-            updated[idx][field] = Math.max(0, parseFloat(value) || 0);
+            updated[idx][field] = value;
         } else if (field === 'stock_item_id') {
             const stockId = value ? parseInt(value, 10) : null;
             updated[idx].stock_item_id = Number.isFinite(stockId) ? stockId : null;
@@ -102,7 +102,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
 
     if (!isOpen) return null;
 
-    const subtotal = items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+    const subtotal = items.reduce((sum, item) => sum + ((parseFloat(item.unit_price) || 0) * (parseInt(item.quantity) || 0)), 0);
     const total = subtotal + tax - discount;
 
     const handleSubmit = async () => {
@@ -119,8 +119,8 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                 client_id: parseInt(targetClientId, 10),
                 items: items.map(i => ({
                     description: i.description,
-                    quantity: i.quantity,
-                    unit_price: i.unit_price,
+                    quantity: parseInt(i.quantity, 10) || 1,
+                    unit_price: parseFloat(i.unit_price) || 0,
                     stock_item_id: i.stock_item_id || null
                 })),
                 tax,
@@ -152,8 +152,8 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                             <Receipt size={22} />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Create Sales Order</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Initiate a new order for review</p>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Create Draft Record</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Initiate a new entry</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
@@ -334,7 +334,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                         disabled={submitting}
                         className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                        {submitting ? 'Submitting...' : 'Initiate Approval'}
+                        {submitting ? 'Submitting...' : 'Save Draft'}
                     </button>
                 </div>
             </div>

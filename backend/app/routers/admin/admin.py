@@ -11,6 +11,7 @@ import string
 from app.database import get_db
 from app.utils.dependencies import require_admin, apply_company_scope, ensure_company_access
 from app.utils.security import get_password_hash
+from app.utils.validators import validate_manager_constraints_for_user, ensure_one_manager_per_team
 from app.models.core.user import User
 from app.models.core.team import Team
 from app.models.core.team_membership import TeamMembership
@@ -240,20 +241,7 @@ def update_user(
     target_team = target_team if target_team > 0 else None
     
     # 1-Manager-Per-Team Constraint
-    if target_role == "manager" and target_team is not None:
-        if (target_role != user.role or target_team != user.team_id):
-            existing_manager = (
-                apply_company_scope(db.query(User), User, current_user)
-                .join(TeamMembership, TeamMembership.user_id == User.id)
-                .filter(
-                    TeamMembership.team_id == target_team,
-                    User.role == "manager",
-                    User.status != "disabled",
-                    User.id != user_id
-                ).first()
-            )
-            if existing_manager:
-                raise HTTPException(status_code=400, detail="This team already has an active manager. A team can only have one manager.")
+    validate_manager_constraints_for_user(db, user, target_role, target_team)
     
     if body.role is not None:
         user.role = body.role
@@ -615,6 +603,9 @@ def add_team_member(
     )
     if existing:
         return {"message": f"{user.full_name} is already a member of {team.name}"}
+
+    if user.role == "manager":
+        ensure_one_manager_per_team(db, team_id, exclude_user_id=user.id)
 
     old_team_id = user.team_id
     db.add(TeamMembership(company_id=current_user.company_id, team_id=team_id, user_id=user.id))
@@ -1337,6 +1328,9 @@ def approve_transfer_request(
         TeamMembership.user_id == target_user.id, TeamMembership.team_id == request.target_team_id
     ).first()
     if not existing_membership:
+        if target_user.role == "manager":
+            ensure_one_manager_per_team(db, request.target_team_id, exclude_user_id=target_user.id)
+            
         db.add(TeamMembership(company_id=target_user.company_id, team_id=request.target_team_id, user_id=target_user.id))
     
     # Update request status

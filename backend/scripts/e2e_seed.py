@@ -8,6 +8,8 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from app.database import Base, engine, SessionLocal
 import app.models  # noqa: F401 - ensure model metadata is registered
 from app.models import Company, User, Client
+from app.models.core.team import Team
+from app.models.core.team_membership import TeamMembership
 from app.utils.security import get_password_hash
 
 
@@ -68,6 +70,21 @@ def main():
         )
 
         session.add_all([purchase, sales, manager, md])
+        session.flush()
+
+        alpha_team = Team(
+            name="Alpha Squad",
+            company_id=company.id,
+        )
+        session.add(alpha_team)
+        session.flush()
+
+        memberships = [
+            TeamMembership(company_id=company.id, team_id=alpha_team.id, user_id=purchase.id),
+            TeamMembership(company_id=company.id, team_id=alpha_team.id, user_id=sales.id),
+            TeamMembership(company_id=company.id, team_id=alpha_team.id, user_id=manager.id),
+        ]
+        session.add_all(memberships)
         session.flush()
 
         customer = Client(

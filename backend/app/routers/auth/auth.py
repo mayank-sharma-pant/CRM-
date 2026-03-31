@@ -23,6 +23,7 @@ from sqlalchemy import func as sa_func
 from app.models.core.invite import Invite, InviteStatus
 from app.models.core.team import Team
 from app.models.core.team_membership import TeamMembership
+from app.utils.validators import ensure_one_manager_per_team
 from app.utils.notify import notify_platform_admins
 
 router = APIRouter()
@@ -415,6 +416,10 @@ def accept_invite(
             detail="Password must be at least 8 characters"
         )
     
+    # Ensure one-manager-per-team constraint
+    if invite.team_id and invite.role == "manager":
+        ensure_one_manager_per_team(db, invite.team_id)
+        
     try:
         from app.utils.helpers import next_employee_num
         emp_num = next_employee_num(db, invite.company_id)

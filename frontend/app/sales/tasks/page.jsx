@@ -26,10 +26,15 @@ import { parseTaskDueDate } from '../../../lib/taskDue';
 // --- MOCK DATA REMOVED (Replaced by API) ---
 
 export default function TasksPage() {
+    const [mounted, setMounted] = useState(false);
     const [activeTab, setActiveTab] = useState('Today');
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const fetchTasks = async () => {
         setLoading(true);
@@ -98,6 +103,26 @@ export default function TasksPage() {
         });
     };
 
+    const getRelativeTaskDate = (task) => {
+        const dueRaw = task.due_date_iso;
+        if (!dueRaw) return task.dueDate || "No date";
+        
+        const dueDate = parseTaskDueDate(dueRaw);
+        if (!dueDate) return task.dueDate;
+        
+        const today = startOfDay(new Date());
+        const dueDay = startOfDay(dueDate);
+        
+        const diffTime = dueDay.getTime() - today.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+        
+        if (diffDays === 0) return "Today";
+        if (diffDays === 1) return "Tomorrow";
+        if (diffDays < 0) return `${Math.abs(diffDays)} days ago`;
+        
+        return dueDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    };
+
     // Color logic for tabs
     const getTabColor = (tabName) => {
         if (activeTab !== tabName) return 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200';
@@ -109,7 +134,7 @@ export default function TasksPage() {
         }
     };
 
-    if (loading) {
+    if (loading || !mounted) {
         return (
             <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
                 <div className="text-[13px] text-muted font-bold uppercase tracking-widest animate-pulse">Syncing Task Grid...</div>
@@ -227,7 +252,7 @@ export default function TasksPage() {
                                         ${activeTab === 'Overdue' ? 'text-error' : activeTab === 'Today' ? 'text-success' : 'text-muted'}
                                     `}>
                                         <Clock size={12} strokeWidth={2.5} />
-                                        {task.dueDate}
+                                        {getRelativeTaskDate(task)}
                                     </div>
                                 </div>
 

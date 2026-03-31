@@ -65,9 +65,16 @@ export default function TasksPage() {
         const today = startOfDay(new Date());
 
         return tasks.filter(t => {
-            if (t.status === 'Completed') {
+            const isCompleted = (t.status || '').toLowerCase() === 'completed';
+            
+            if (activeTab === 'Completed') {
+                return isCompleted;
+            }
+            
+            if (isCompleted) {
                 return false;
             }
+            
             const dueRaw = t.due_date_iso || t.due_date || null;
             if (!dueRaw) {
                 return activeTab === 'Upcoming';
@@ -134,13 +141,14 @@ export default function TasksPage() {
 
                 {/* Tabs: Compact Switchers */}
                 <div className="flex items-center gap-1 border-b border-border mb-4 bg-surface rounded-t-lg px-1.5 pt-1.5 shadow-sm">
-                    {['Overdue', 'Today', 'Upcoming'].map((tab) => (
+                    {['Overdue', 'Today', 'Upcoming', 'Completed'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`px-4 py-2 text-[11px] font-bold uppercase tracking-tight transition-all rounded-t-md border-b-2 ${activeTab === tab
                                 ? tab === 'Overdue' ? 'text-error border-error bg-error/5' :
                                     tab === 'Today' ? 'text-success border-success bg-success/5' :
+                                    tab === 'Completed' ? 'text-slate-500 border-slate-500 bg-slate-500/5 dark:text-slate-400 dark:border-slate-500' :
                                         'text-accent border-accent bg-accent/5'
                                 : 'text-muted border-transparent hover:text-primary hover:bg-surface-elevated'
                                 }`}
@@ -159,7 +167,7 @@ export default function TasksPage() {
                                 className={`
                   group flex items-center gap-4 px-5 py-2.5 hover:bg-surface-elevated/30 transition-all
                   ${task.isChild ? 'pl-12 bg-surface-elevated/10' : ''}
-                  ${task.status === 'Completed' ? 'opacity-40 grayscale-[0.8]' : ''}
+                  ${(task.status || '').toLowerCase() === 'completed' ? 'opacity-40 grayscale-[0.8]' : ''}
                   ${!task.isChild && idx % 2 !== 0 ? 'bg-surface-elevated/5' : ''}
                 `}
                             >
@@ -169,7 +177,7 @@ export default function TasksPage() {
                                     onClick={() => toggleTask(task.id, task.status)}
                                     className={`
                     flex-shrink-0 w-4.5 h-4.5 rounded border transition-all flex items-center justify-center
-                    ${task.status === 'Completed'
+                    ${(task.status || '').toLowerCase() === 'completed'
                                             ? 'bg-accent border-accent text-white'
                                             : 'bg-surface border-border hover:border-accent text-transparent shadow-inner'}
                   `}
@@ -181,7 +189,7 @@ export default function TasksPage() {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2.5 mb-0.5">
                                         {task.isChild && <CornerDownRight size={12} strokeWidth={2.5} className="text-muted opacity-50" />}
-                                        <span className={`text-[13px] font-bold text-primary ${task.status === 'Completed' ? 'line-through decoration-muted' : ''}`}>
+                                        <span className={`text-[13px] font-bold text-primary ${(task.status || '').toLowerCase() === 'completed' ? 'line-through decoration-muted' : ''}`}>
                                             {task.title}
                                         </span>
 

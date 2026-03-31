@@ -533,7 +533,7 @@ def create_team_task(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid due_date format. Use YYYY-MM-DD.")
     # Prevent assigning tasks in the past (date already gone)
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
     if parsed_due_date.date() < today:
         raise HTTPException(status_code=400, detail="due_date cannot be in the past.")
     normalized_priority = _normalize_task_priority(priority)

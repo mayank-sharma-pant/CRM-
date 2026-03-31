@@ -75,9 +75,10 @@ def get_md_dashboard(
 
     # Daily sales momentum (last 7 days)
     now = datetime.now(timezone.utc)
+    start_of_today = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
     sales_trend = []
     for i in range(7):
-        day = now - timedelta(days=6 - i)
+        day = start_of_today - timedelta(days=6 - i)
         day_end = day + timedelta(days=1)
         day_rev = inv_q.filter(Invoice.status == "Paid", Invoice.created_at >= day, Invoice.created_at < day_end).with_entities(func.sum(Invoice.total)).scalar() or 0
         day_leads = lead_q.filter(Lead.created_at >= day, Lead.created_at < day_end).count()
@@ -177,14 +178,15 @@ def get_md_revenue(
     inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
     
     now = datetime.now(timezone.utc)
-    d30_ago = now - timedelta(days=30)
-    d60_ago = now - timedelta(days=60)
+    start_of_today = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+    d30_ago = start_of_today - timedelta(days=30)
+    d60_ago = start_of_today - timedelta(days=60)
     
     total_revenue = inv_q.filter(Invoice.status == "Paid").with_entities(func.sum(Invoice.total)).scalar() or 0
     outstanding = inv_q.filter(Invoice.status.in_(["Pending", "Sent"])).with_entities(func.sum(Invoice.total)).scalar() or 0
     
-    recent_rev = inv_q.filter(Invoice.status != "Cancelled", Invoice.created_at >= d30_ago).with_entities(func.sum(Invoice.total)).scalar() or 0
-    prev_rev = inv_q.filter(Invoice.status != "Cancelled", Invoice.created_at >= d60_ago, Invoice.created_at < d30_ago).with_entities(func.sum(Invoice.total)).scalar() or 0
+    recent_rev = inv_q.filter(Invoice.status == "Paid", Invoice.created_at >= d30_ago).with_entities(func.sum(Invoice.total)).scalar() or 0
+    prev_rev = inv_q.filter(Invoice.status == "Paid", Invoice.created_at >= d60_ago, Invoice.created_at < d30_ago).with_entities(func.sum(Invoice.total)).scalar() or 0
     growth_pct = int(((recent_rev - prev_rev) / prev_rev * 100)) if prev_rev > 0 else 0
     growth_trend = "up" if growth_pct > 0 else ("down" if growth_pct < 0 else "flat")
     
@@ -194,7 +196,7 @@ def get_md_revenue(
         day = d30_ago + timedelta(days=i)
         day_end = day + timedelta(days=1)
         day_total = inv_q.filter(
-            Invoice.status != "Cancelled",
+            Invoice.status == "Paid",
             Invoice.created_at >= day,
             Invoice.created_at < day_end
         ).with_entities(func.sum(Invoice.total)).scalar() or 0
@@ -207,10 +209,10 @@ def get_md_revenue(
     breakdown_by_period = []
     colors = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"]
     for w in range(4):
-        week_start = now - timedelta(weeks=4 - w)
+        week_start = start_of_today - timedelta(weeks=4 - w)
         week_end = week_start + timedelta(weeks=1)
         week_rev = inv_q.filter(
-            Invoice.status != "Cancelled",
+            Invoice.status == "Paid",
             Invoice.created_at >= week_start,
             Invoice.created_at < week_end
         ).with_entities(func.sum(Invoice.total)).scalar() or 0
@@ -223,21 +225,21 @@ def get_md_revenue(
     # Summary table (weekly variance)
     summary_table = []
     for w in range(min(8, 4)):
-        week_start = now - timedelta(weeks=4 - w)
+        week_start = start_of_today - timedelta(weeks=4 - w)
         week_end = week_start + timedelta(weeks=1)
         week_rev = inv_q.filter(
-            Invoice.status != "Cancelled",
+            Invoice.status == "Paid",
             Invoice.created_at >= week_start,
             Invoice.created_at < week_end
         ).with_entities(func.sum(Invoice.total)).scalar() or 0
         # Compare to previous week
         prev_week_start = week_start - timedelta(weeks=1)
         prev_week_rev = inv_q.filter(
-            Invoice.status != "Cancelled",
+            Invoice.status == "Paid",
             Invoice.created_at >= prev_week_start,
             Invoice.created_at < week_start
         ).with_entities(func.sum(Invoice.total)).scalar() or 0
-        delta_pct = int(((week_rev - prev_week_rev) / prev_week_rev * 100)) if prev_week_rev > 0 else 0
+        delta_pct = int(((week_rev - prev_week_rev) / max(prev_week_rev, 1)) * 100)
         delta_str = f"+{delta_pct}%" if delta_pct > 0 else f"{delta_pct}%"
         summary_table.append({
             "id": w + 1,
@@ -327,10 +329,11 @@ def get_company_sales(
     
     # Daily sales trend (last 7 days)
     now = datetime.now(timezone.utc)
+    start_of_today = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
     inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
     sales_trend = []
     for i in range(7):
-        day = now - timedelta(days=6 - i)
+        day = start_of_today - timedelta(days=6 - i)
         day_end = day + timedelta(days=1)
         day_rev = inv_q.filter(Invoice.status == "Paid", Invoice.created_at >= day, Invoice.created_at < day_end).with_entities(func.sum(Invoice.total)).scalar() or 0
         day_deals = lead_q.filter(Lead.created_at >= day, Lead.created_at < day_end).count()
@@ -779,15 +782,35 @@ def _tier_for_points(points: int) -> str:
     return "Silver"
 
 
-def _base_points_for_user(lead_q, user_id: int) -> tuple[int, int, int]:
-    total_leads = lead_q.filter(Lead.assigned_to_id == user_id).count()
-    converted = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == "Converted").count()
+def _base_points_for_user(lead_q, user_id: int, period: str) -> tuple[int, int, int]:
+    now = datetime.now(timezone.utc)
+    cutoff = None
+    if period == "30d":
+        cutoff = datetime(now.year, now.month, now.day, tzinfo=timezone.utc) - timedelta(days=30)
+    elif period == "year":
+        cutoff = datetime(now.year, now.month, now.day, tzinfo=timezone.utc) - timedelta(days=365)
+    
+    q_total = lead_q.filter(Lead.assigned_to_id == user_id)
+    q_conv = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == "Converted", Lead.converted_at.isnot(None))
+    q_legacy = lead_q.filter(Lead.assigned_to_id == user_id, Lead.status == "Converted", Lead.converted_at.is_(None))
+    
+    if cutoff is not None:
+        q_total = q_total.filter(Lead.created_at >= cutoff)
+        q_conv = q_conv.filter(Lead.converted_at >= cutoff)
+        q_legacy = q_legacy.filter(Lead.updated_at >= cutoff)
+        
+    total_leads = q_total.count()
+    converted_leads = q_conv.count()
+    legacy_converted = q_legacy.count()
+    
+    converted = converted_leads + legacy_converted
     points = converted * 500 + (total_leads - converted) * 50
     return total_leads, converted, points
 
 
 @router.get("/points")
 def get_performance_points(
+    period: str = Query("30d"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
@@ -811,7 +834,7 @@ def get_performance_points(
         ).count()
         prefix = company_map.get(user.company_id) or "EMP"
 
-        total_leads, converted, base_points = _base_points_for_user(lead_q, user.id)
+        total_leads, converted, base_points = _base_points_for_user(lead_q, user.id, period)
         points = base_points
         target = 2000
 

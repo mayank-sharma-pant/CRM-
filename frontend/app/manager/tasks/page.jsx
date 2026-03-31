@@ -61,7 +61,7 @@ export default function ManagerTasksPage() {
         const task = tasks.find(t => t.id === id);
         if (!task) return;
 
-        const isCompleted = task.status === 'Completed';
+        const isCompleted = (task.status || '').toLowerCase() === 'completed';
         const nextStatus = isCompleted ? 'Pending' : 'Completed';
 
         try {
@@ -75,21 +75,26 @@ export default function ManagerTasksPage() {
 
     const getTasksForTab = () => {
         if (!tasks.length) return [];
-        // "All" should still be actionable work; hide Completed so ticked tasks disappear.
-        if (activeTab === 'all') return tasks.filter(t => t.status !== 'Completed');
+        
+        if (activeTab === 'all') return tasks.filter(t => (t.status || '').toLowerCase() !== 'completed');
+        if (activeTab === 'Completed') return tasks.filter(t => (t.status || '').toLowerCase() === 'completed');
+        
         const today = startOfDay(new Date());
         return tasks.filter(t => {
+            const isCompleted = (t.status || '').toLowerCase() === 'completed';
+            if (isCompleted) return false;
+            
             const dueRaw = t.due_date_iso || t.due_date;
             if (!dueRaw) return false;
             const due = parseTaskDueDate(dueRaw);
             if (!due) return false;
             const dueDay = startOfDay(due);
             if (activeTab === 'Overdue') {
-                return isPast(dueDay) && !isSameDay(dueDay, today) && t.status !== 'Completed';
+                return isPast(dueDay) && !isSameDay(dueDay, today);
             }
-            if (activeTab === 'Today') return isSameDay(dueDay, today) && t.status !== 'Completed';
+            if (activeTab === 'Today') return isSameDay(dueDay, today);
             if (activeTab === 'Upcoming') {
-                return isFuture(dueDay) && !isSameDay(dueDay, today) && t.status !== 'Completed';
+                return isFuture(dueDay) && !isSameDay(dueDay, today);
             }
             return false;
         });
@@ -144,7 +149,7 @@ export default function ManagerTasksPage() {
 
             <div className="max-w-5xl mx-auto px-6 space-y-4">
                 <div className="flex items-center gap-1 p-1 bg-surface-elevated/50 border border-border rounded-lg w-fit">
-                    {['all', 'Overdue', 'Today', 'Upcoming'].map((tab) => (
+                    {['all', 'Overdue', 'Today', 'Upcoming', 'Completed'].map((tab) => (
                         <button key={tab} onClick={() => setActiveTab(tab)}
                             className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider rounded-md transition-all ${activeTab === tab
                                 ? 'bg-surface text-accent shadow-sm ring-1 ring-border' : 'text-muted hover:text-secondary hover:bg-surface-elevated'}`}>
@@ -161,17 +166,19 @@ export default function ManagerTasksPage() {
                             ) : getTasksForTab().length === 0 ? (
                                 <div className="p-16 text-center text-muted text-[13px] font-medium italic">No tasks found.</div>
                             ) : (
-                                getTasksForTab().map((task) => (
+                                getTasksForTab().map((task) => {
+                                    const isCompleted = (task.status || '').toLowerCase() === 'completed';
+                                    return (
                                     <div key={task.id}
-                                        className={`group flex items-center gap-4 px-5 py-3 hover:bg-surface-elevated/20 transition-colors ${task.status === 'Completed' ? 'opacity-40 saturate-0' : ''}`}>
+                                        className={`group flex items-center gap-4 px-5 py-3 hover:bg-surface-elevated/20 transition-colors ${isCompleted ? 'opacity-40 saturate-0' : ''}`}>
                                         <button onClick={() => toggleTask(task.id)}
-                                            className={`shrink-0 w-4 h-4 rounded border transition-all flex items-center justify-center ${task.status === 'Completed'
+                                            className={`shrink-0 w-4 h-4 rounded border transition-all flex items-center justify-center ${isCompleted
                                                 ? 'bg-success border-success text-white' : 'border-border-strong hover:border-accent text-transparent bg-surface'}`}>
                                             <Check size={10} strokeWidth={4} />
                                         </button>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-3">
-                                                <span className={`text-[13px] font-bold text-primary group-hover:text-accent transition-colors ${task.status === 'Completed' ? 'line-through opacity-50' : ''}`}>
+                                                <span className={`text-[13px] font-bold text-primary group-hover:text-accent transition-colors ${isCompleted ? 'line-through opacity-50' : ''}`}>
                                                     {task.title}
                                                 </span>
                                                 {task.assigned_to && (
@@ -198,7 +205,8 @@ export default function ManagerTasksPage() {
                                             </div>
                                         </div>
                                     </div>
-                                ))
+                                    )
+                                })
                             )}
                         </div>
                     </div>
@@ -209,7 +217,7 @@ export default function ManagerTasksPage() {
                         <span>{getTasksForTab().length} tasks</span>
                         <div className="w-1 h-1 bg-border rounded-full" />
                         <span>
-                            Completion: {Math.round(((tasks.filter(t => t.status === 'Completed').length) / (tasks.length || 1)) * 100)}%
+                            Completion: {Math.round(((tasks.filter(t => (t.status || '').toLowerCase() === 'completed').length) / (tasks.length || 1)) * 100)}%
                         </span>
                     </div>
                     <div className="flex items-center gap-2">

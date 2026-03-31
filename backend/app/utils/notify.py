@@ -2,7 +2,7 @@
 Notification helpers.
 Creates in-app notification records for users.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 
 from sqlalchemy.orm import Session
@@ -85,7 +85,7 @@ def send_notification(
         if dedupe_match_message:
             dup_query = dup_query.filter(Notification.message == message)
         if (dedupe_window_seconds or 0) > 0:
-            cutoff = datetime.utcnow() - timedelta(seconds=int(dedupe_window_seconds or 0))
+            cutoff = datetime.now(timezone.utc) - timedelta(seconds=int(dedupe_window_seconds or 0))
             dup_query = dup_query.filter(Notification.created_at >= cutoff)
         if skip_if_unread_duplicate:
             dup_query = dup_query.filter(Notification.is_read == False)

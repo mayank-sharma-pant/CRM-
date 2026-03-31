@@ -16,11 +16,12 @@ export default function MDPointsPage() {
     const [performance, setPerformance] = useState([]);
     const [summary, setSummary] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [period, setPeriod] = useState('30d');
 
     const fetchPerformance = async () => {
         try {
             setLoading(true);
-            const res = await api.get('/md/points');
+            const res = await api.get('/md/points', { params: { period } });
             setPerformance(res.data.performance || []);
             setSummary(res.data.summary || null);
         } catch (err) {
@@ -34,7 +35,7 @@ export default function MDPointsPage() {
 
     useEffect(() => {
         fetchPerformance();
-    }, []);
+    }, [period]);
 
     if (loading) return <PointsSkeleton />;
 
@@ -101,8 +102,19 @@ export default function MDPointsPage() {
                         className="pl-9 pr-4 py-1.5 bg-surface-elevated border border-border rounded-md text-[11px] font-bold uppercase tracking-widest placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent min-w-[320px]"
                     />
                 </div>
-                <div className="text-[11px] font-bold text-muted uppercase tracking-widest">
-                    Calculated from conversions and lead ownership
+                <div className="flex items-center gap-3">
+                    <select
+                        value={period}
+                        onChange={(e) => setPeriod(e.target.value)}
+                        className="text-[11px] font-bold text-primary uppercase tracking-widest bg-surface-elevated border border-border rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-accent"
+                    >
+                        <option value="30d">Last 30 Days</option>
+                        <option value="year">Last 365 Days</option>
+                        <option value="all">Lifetime</option>
+                    </select>
+                    <div className="text-[11px] font-bold text-muted uppercase tracking-widest hidden sm:block">
+                        Calculated from conversions and lead ownership
+                    </div>
                 </div>
             </div>
 

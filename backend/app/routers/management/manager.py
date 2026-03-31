@@ -24,16 +24,6 @@ import json
 
 router = APIRouter()
 
-from app.models.hr.transfer_request import TeamTransferRequest
-from app.schemas.management import TransferRequestCreate, TransferRequestResponse
-from app.models.core.enums import InvoiceStatus
-from app.models.core.team import Team
-from app.models.core.team_membership import TeamMembership
-from app.models.sales.audit import AuditLog
-import json
-
-router = APIRouter()
-
 MANAGER_ROLES = {"manager", "md", "admin"}
 
 

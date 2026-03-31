@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import date
+from datetime import date, datetime, timezone
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, get_active_team_id
@@ -153,7 +153,7 @@ def create_invoice(
 
     # Handle due_days -> due_date
     from datetime import timedelta
-    issued = body.issued_date or date.today()
+    issued = body.issued_date or datetime.now(timezone.utc).date()
     due = body.due_date
     if not due and body.due_days is not None:
         due = issued + timedelta(days=body.due_days)

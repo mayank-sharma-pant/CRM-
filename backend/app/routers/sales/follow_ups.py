@@ -112,7 +112,7 @@ def get_todays_follow_ups(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get follow-ups scheduled for today"""
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     fu_query = apply_company_scope(db.query(FollowUp), FollowUp, current_user)
     # Role-based scoping
     if current_user.role == "sales":
@@ -161,7 +161,7 @@ def get_overdue_follow_ups(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get overdue follow-ups"""
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     fu_query = apply_company_scope(db.query(FollowUp), FollowUp, current_user)
     # Role-based scoping
     if current_user.role == "sales":

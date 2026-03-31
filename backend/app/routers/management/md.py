@@ -987,10 +987,10 @@ def get_md_teams(
         )
         member_ids = [m.id for m in members]
 
-        lead_count = db.query(Lead).filter(Lead.assigned_to_id.in_(member_ids)).count() if member_ids else 0
-        converted = db.query(Lead).filter(Lead.assigned_to_id.in_(member_ids), Lead.status == "Converted").count() if member_ids else 0
-        revenue = db.query(func.sum(Invoice.total)).filter(Invoice.created_by_id.in_(member_ids), Invoice.status == "Paid").scalar() or 0 if member_ids else 0
-        order_count = db.query(Invoice).filter(Invoice.created_by_id.in_(member_ids)).count() if member_ids else 0
+        lead_count = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.assigned_to_id.in_(member_ids)).count() if member_ids else 0
+        converted = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.assigned_to_id.in_(member_ids), Lead.status == "Converted").count() if member_ids else 0
+        revenue = apply_company_scope(db.query(func.sum(Invoice.total)), Invoice, current_user).filter(Invoice.created_by_id.in_(member_ids), Invoice.status == "Paid").scalar() or 0 if member_ids else 0
+        order_count = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.created_by_id.in_(member_ids)).count() if member_ids else 0
 
         manager = next((m for m in members if m.role == "manager"), None)
 
@@ -1112,7 +1112,7 @@ def get_custom_report(
         
     total_leads = lead_q.count()
     converted_leads = lead_q.filter(Lead.status == "Converted").count()
-    total_revenue = inv_sum_q.filter(Invoice.status != "Cancelled").scalar() or 0
+    total_revenue = inv_sum_q.filter(Invoice.status == "Paid").scalar() or 0
     total_invoices = inv_count_q.scalar() or 0
     
     chart_data = {}
@@ -1122,7 +1122,7 @@ def get_custom_report(
             name = src or "Unknown"
             chart_data[name] = {"name": name, "leads": cnt, "revenue": 0}
             
-        inv_groups = inv_sum_q.with_entities(Lead.source, func.sum(Invoice.total)).filter(Invoice.status != "Cancelled").group_by(Lead.source).all()
+        inv_groups = inv_sum_q.with_entities(Lead.source, func.sum(Invoice.total)).filter(Invoice.status == "Paid").group_by(Lead.source).all()
         for src, rev in inv_groups:
             name = src or "Unknown"
             if name not in chart_data:
@@ -1135,7 +1135,7 @@ def get_custom_report(
             name = srv or "Unknown"
             chart_data[name] = {"name": name, "leads": cnt, "revenue": 0}
             
-        inv_groups = inv_sum_q.with_entities(Lead.service_type, func.sum(Invoice.total)).filter(Invoice.status != "Cancelled").group_by(Lead.service_type).all()
+        inv_groups = inv_sum_q.with_entities(Lead.service_type, func.sum(Invoice.total)).filter(Invoice.status == "Paid").group_by(Lead.service_type).all()
         for srv, rev in inv_groups:
             name = srv or "Unknown"
             if name not in chart_data:
@@ -1148,7 +1148,7 @@ def get_custom_report(
             name = dt.strftime("%Y-%m-%d") if dt else "Unknown"
             chart_data[name] = {"name": name, "leads": cnt, "revenue": 0}
             
-        inv_groups = inv_sum_q.with_entities(cast(Invoice.created_at, SqlDate), func.sum(Invoice.total)).filter(Invoice.status != "Cancelled").group_by(cast(Invoice.created_at, SqlDate)).all()
+        inv_groups = inv_sum_q.with_entities(cast(Invoice.created_at, SqlDate), func.sum(Invoice.total)).filter(Invoice.status == "Paid").group_by(cast(Invoice.created_at, SqlDate)).all()
         for dt, rev in inv_groups:
             name = dt.strftime("%Y-%m-%d") if dt else "Unknown"
             if name not in chart_data:

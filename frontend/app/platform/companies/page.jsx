@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Building2, Search, Filter, Users, Eye } from 'lucide-react';
 import Link from 'next/link';
 
-const PLATFORM_API = '/platform';
+const PLATFORM_API = '/api/platform';
 
 export default function CompaniesListPage() {
     const [companies, setCompanies] = useState([]);
@@ -48,8 +48,7 @@ export default function CompaniesListPage() {
     };
 
     const filteredCompanies = companies.filter(c =>
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (c.domain && c.domain.toLowerCase().includes(searchTerm.toLowerCase()))
+        c.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -124,12 +123,7 @@ export default function CompaniesListPage() {
                                 {filteredCompanies.map((company) => (
                                     <tr key={company.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-6 py-4">
-                                            <div>
-                                                <p className="font-semibold text-slate-900">{company.name}</p>
-                                                {company.domain && (
-                                                    <p className="text-sm text-slate-500">{company.domain}</p>
-                                                )}
-                                            </div>
+                                            <p className="font-semibold text-slate-900">{company.name}</p>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex px-2.5 py-1 border text-xs font-semibold rounded-full ${getStatusBadge(company.status)}`}>

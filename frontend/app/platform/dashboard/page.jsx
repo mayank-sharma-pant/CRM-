@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Building2, Users, AlertCircle, TrendingUp, CheckCircle, Clock, ShieldCheck } from 'lucide-react';
 
-const PLATFORM_API = '/platform';
+const PLATFORM_API = '/api/platform';
 
 export default function PlatformDashboardPage() {
     const [metrics, setMetrics] = useState(null);

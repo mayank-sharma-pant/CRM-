@@ -14,7 +14,7 @@ import {
     X
 } from 'lucide-react';
 
-const PLATFORM_API = '/platform';
+const PLATFORM_API = '/api/platform';
 
 export default function PlatformLayout({ children }) {
     const router = useRouter();

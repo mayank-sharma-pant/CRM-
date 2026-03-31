@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Clock, Building2 } from 'lucide-react';
 
-const PLATFORM_API = '/platform';
+const PLATFORM_API = '/api/platform';
 
 export default function CompanyRequestsPage() {
     const [requests, setRequests] = useState([]);
@@ -116,9 +116,6 @@ export default function CompanyRequestsPage() {
                                         Company
                                     </th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Domain
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                         Requested
                                     </th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
@@ -139,9 +136,6 @@ export default function CompanyRequestsPage() {
                                                 </div>
                                                 <span className="font-semibold text-slate-900">{request.name}</span>
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-600">
-                                            {request.domain || <span className="text-slate-400 italic">None</span>}
                                         </td>
                                         <td className="px-6 py-4 text-slate-600 text-sm">
                                             {new Date(request.requested_at).toLocaleDateString()}

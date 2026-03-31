@@ -56,6 +56,7 @@ class CompanyStatus(str, enum.Enum):
     ACTIVE = "active"
     PENDING = "pending"
     SUSPENDED = "suspended"
+    REJECTED = "rejected"
 
 
 class TransferRequestStatus(str, enum.Enum):

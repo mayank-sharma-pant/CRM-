@@ -16,7 +16,7 @@ from app.models.core.company_settings import CompanySettings
 from app.utils.security import create_access_token, decode_access_token, verify_password
 
 router = APIRouter()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/platform/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/platform/auth/login")
 
 
 def _plan_to_id(plan: str | None) -> int:
@@ -161,14 +161,22 @@ def list_companies(
         query = query.filter(Company.status == status)
     companies = query.order_by(Company.created_at.desc()).all()
 
+    # Pre-fetch user counts in a single query
+    user_counts = dict(
+        db.query(User.company_id, sa_func.count(User.id))
+        .filter(User.company_id.isnot(None))
+        .group_by(User.company_id)
+        .all()
+    )
+
     return {
         "companies": [
             {
                 "id": c.id,
                 "name": c.name,
-                "domain": None,
                 "status": c.status,
                 "plan_id": _plan_to_id(c.plan),
+                "user_count": user_counts.get(c.id, 0),
                 "requested_at": c.created_at.isoformat() if c.created_at else None,
                 "created_at": c.created_at.isoformat() if c.created_at else None,
             }
@@ -188,7 +196,6 @@ def list_pending_companies(
             {
                 "id": c.id,
                 "name": c.name,
-                "domain": None,
                 "status": c.status,
                 "plan_id": _plan_to_id(c.plan),
                 "requested_at": c.created_at.isoformat() if c.created_at else None,
@@ -210,7 +217,6 @@ def get_company_detail(
     return {
         "id": company.id,
         "name": company.name,
-        "domain": None,
         "status": company.status,
         "plan_id": _plan_to_id(company.plan),
         "created_at": company.created_at.isoformat() if company.created_at else None,
@@ -260,7 +266,7 @@ def reject_company(
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
     company.status = "rejected"
-    company.updated_at = datetime.now()
+    company.updated_at = datetime.now(timezone.utc)
     db.commit()
     _create_platform_audit(db, current_user, f"company_rejected:{reason or 'no_reason'}", company_id=company_id)
     return {"message": "Company rejected"}
@@ -279,7 +285,7 @@ def update_company_status(
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
     company.status = new_status
-    company.updated_at = datetime.now()
+    company.updated_at = datetime.now(timezone.utc)
     db.commit()
     _create_platform_audit(db, current_user, f"company_status_changed:{new_status}", company_id=company_id)
     return {"message": "Company status updated"}
@@ -306,12 +312,12 @@ def get_platform_logs(
     since = datetime.now(timezone.utc) - timedelta(days=days)
     logs = (
         db.query(AuditLog)
-        .filter(AuditLog.timestamp >= since)
+        .filter(AuditLog.timestamp >= since, AuditLog.entity_type == "platform")
         .order_by(AuditLog.timestamp.desc())
         .limit(limit)
         .all()
     )
-    total = db.query(AuditLog).filter(AuditLog.timestamp >= since).count()
+    total = db.query(AuditLog).filter(AuditLog.timestamp >= since, AuditLog.entity_type == "platform").count()
     return {
         "logs": [
             {

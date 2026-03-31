@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Lock, Mail } from 'lucide-react';
 
 // Use same-origin proxy so browser doesn't hit CORS / connection issues
-const PLATFORM_API = '/platform';
+const PLATFORM_API = '/api/platform';
 
 export default function PlatformLoginPage() {
     const router = useRouter();

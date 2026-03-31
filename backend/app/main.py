@@ -98,7 +98,7 @@ app.include_router(invoices.router, prefix="/api/invoices", tags=["Invoices"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(ledgers.router) # Prefix is defined in the router itself
 app.include_router(leaves.router, prefix="/api/leaves", tags=["Leaves"])
-app.include_router(platform.router, prefix="/platform", tags=["Platform"])
+app.include_router(platform.router, prefix="/api/platform", tags=["Platform"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 app.include_router(export.router, prefix="/api/export", tags=["Export"])
 app.include_router(search.router, prefix="/api/search", tags=["Search"])

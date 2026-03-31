@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { CreditCard, Plus } from 'lucide-react';
 
-const PLATFORM_API = '/platform';
+const PLATFORM_API = '/api/platform';
 
 export default function PlansPage() {
     const [plans, setPlans] = useState([]);

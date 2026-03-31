@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Building2, Users, TrendingUp, FileText, CheckCircle2, Ban, ArrowLeft } from 'lucide-react';
 
-const PLATFORM_API = '/platform';
+const PLATFORM_API = '/api/platform';
 
 export default function CompanyDetailPage() {
     const params = useParams();
@@ -97,9 +97,6 @@ export default function CompanyDetailPage() {
             <div className="mb-8 flex items-start justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900">{company.name}</h1>
-                    {company.domain && (
-                        <p className="text-slate-600 mt-1">{company.domain}</p>
-                    )}
                 </div>
                 <span className={`inline-flex px-3 py-1.5 border text-sm font-semibold rounded-lg ${getStatusColor(company.status)}`}>
                     {company.status}

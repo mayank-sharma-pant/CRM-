@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Activity, Filter } from 'lucide-react';
 
-const PLATFORM_API = '/platform';
+const PLATFORM_API = '/api/platform';
 
 export default function SystemLogsPage() {
     const [logs, setLogs] = useState([]);
@@ -85,7 +85,7 @@ export default function SystemLogsPage() {
                                         Company ID
                                     </th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Admin ID
+                                        Performed By
                                     </th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                         IP Address

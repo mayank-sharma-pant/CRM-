@@ -6,7 +6,7 @@ import { Send, Loader2, Sparkles, SlidersHorizontal } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const DEFAULT_PARAMS = {
-  model: 'gemini-2.5-flash',
+  model: 'gpt-5.3-codex',
   temperature: 0.2,
   max_output_tokens: 1024,
   max_actions: 5,
@@ -15,6 +15,7 @@ const DEFAULT_PARAMS = {
 export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
   const { user } = useAuth();
   const canCommand = user?.role === 'md' || user?.role === 'manager';
+  const storageKey = user?.id ? `crm.ai.companyAssistant.messages.v1.${user.id}` : null;
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([
     {
@@ -53,6 +54,32 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
     };
   }, []);
 
+  // Restore chat history per-user (survives refresh + navigation).
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length) {
+        setMessages(parsed);
+      }
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
+
+  // Persist chat history per-user.
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(messages.slice(-60)));
+    } catch {
+      // ignore quota/serialization errors
+    }
+  }, [storageKey, messages]);
+
   const canOverrideParams = Boolean(paramsMeta?.can_override);
 
   const send = async () => {
@@ -63,7 +90,22 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
     setMessages((m) => [...m, { role: 'user', text: msg }]);
     setLoading(true);
     try {
-      const payload = { message: msg };
+      const recent = [...messages, { role: 'user', text: msg }]
+        .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string')
+        // Drop the initial assistant greeting to reduce noise.
+        .filter((m, idx) => !(idx === 0 && m.role === 'assistant'))
+        .slice(-12)
+        .map((m) => ({ role: m.role, text: m.text }));
+
+      const payload = {
+        message: msg,
+        context: {
+          role: user?.role || null,
+          user_id: user?.id || null,
+          recent_messages: recent,
+          page_title: title,
+        },
+      };
       if (canOverrideParams) {
         payload.ai_params = {
           model: aiParams.model,

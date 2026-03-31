@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     AI_RATE_LIMIT_PER_MINUTE: int = 20
     AI_MAX_ACTIONS_PER_REQUEST: int = 5
 
+    # AI (OpenAI)
+    # User indicated they set OPENAI_KEY in the environment.
+    OPENAI_KEY: Optional[str] = None
+    OPENAI_MODEL: str = "gpt-5.3-codex"
+
 
 settings = Settings()
 

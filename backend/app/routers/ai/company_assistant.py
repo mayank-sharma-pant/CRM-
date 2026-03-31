@@ -38,11 +38,9 @@ COMMAND_ACTIONS = {
     "remove_team_member",
     "create_ledger_entry",
 }
-ALLOWED_GEMINI_MODELS = {
-    "gemini-2.0-flash",
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-}
+ALLOWED_GEMINI_MODELS = {"gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"}
+# User requested GPT-5.3 Codex; allow it when OPENAI_KEY is configured.
+ALLOWED_OPENAI_MODELS = {"gpt-5.3-codex"}
 
 
 def _extract_first_json_object(text: str) -> dict:
@@ -57,7 +55,10 @@ def _extract_first_json_object(text: str) -> dict:
 
 
 def _server_default_ai_params() -> AIResolvedParams:
-    model = (settings.GEMINI_MODEL or "gemini-2.5-flash").strip() or "gemini-2.5-flash"
+    if settings.OPENAI_KEY:
+        model = (settings.OPENAI_MODEL or "gpt-5.3-codex").strip() or "gpt-5.3-codex"
+    else:
+        model = (settings.GEMINI_MODEL or "gemini-2.5-flash").strip() or "gemini-2.5-flash"
     try:
         max_actions = max(1, int(settings.AI_MAX_ACTIONS_PER_REQUEST))
     except (TypeError, ValueError):
@@ -89,8 +90,15 @@ def _resolve_ai_params(current_user: User, requested: AIRequestParams | None) ->
 
     if requested.model is not None:
         model = requested.model.strip()
-        if model not in ALLOWED_GEMINI_MODELS:
-            allowed = ", ".join(sorted(ALLOWED_GEMINI_MODELS))
+        allowed_models = set()
+        if settings.OPENAI_KEY:
+            allowed_models.update(ALLOWED_OPENAI_MODELS)
+        if settings.GEMINI_API_KEY:
+            allowed_models.update(ALLOWED_GEMINI_MODELS)
+        if not allowed_models:
+            raise HTTPException(status_code=503, detail="No AI provider configured (set OPENAI_KEY or GEMINI_API_KEY)")
+        if model not in allowed_models:
+            allowed = ", ".join(sorted(allowed_models))
             raise HTTPException(status_code=400, detail=f"Unsupported model '{model}'. Allowed: {allowed}")
         resolved.model = model
 
@@ -142,6 +150,75 @@ async def _gemini_plan(prompt: str, ai_params: AIResolvedParams) -> dict:
         return _extract_first_json_object(text)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI output was not valid JSON: {e}")
+
+
+def _extract_openai_output_text(payload: dict) -> str:
+    # Prefer the convenience field if present.
+    if isinstance(payload.get("output_text"), str) and payload["output_text"].strip():
+        return payload["output_text"]
+    # Fallback: scan outputs.
+    out = payload.get("output") or []
+    if isinstance(out, list):
+        parts: list[str] = []
+        for item in out:
+            if not isinstance(item, dict):
+                continue
+            content = item.get("content") or []
+            if not isinstance(content, list):
+                continue
+            for c in content:
+                if not isinstance(c, dict):
+                    continue
+                t = c.get("text")
+                if isinstance(t, str) and t.strip():
+                    parts.append(t)
+        if parts:
+            return "\n".join(parts)
+    raise ValueError("Unexpected OpenAI response format (no output text)")
+
+
+async def _openai_plan(prompt: str, ai_params: AIResolvedParams) -> dict:
+    if not settings.OPENAI_KEY:
+        raise HTTPException(status_code=503, detail="OPENAI_KEY not configured")
+
+    url = "https://api.openai.com/v1/responses"
+    headers = {"authorization": f"Bearer {settings.OPENAI_KEY}", "content-type": "application/json"}
+    body = {
+        "model": ai_params.model,
+        "input": prompt,
+        # Keep responses JSON-only; we still defensively extract JSON below.
+        "text": {"format": {"type": "json_object"}},
+        "temperature": ai_params.temperature,
+        "max_output_tokens": ai_params.max_output_tokens,
+    }
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.post(url, headers=headers, json=body)
+        if r.status_code >= 400:
+            detail = ""
+            try:
+                detail = r.json().get("error", {}).get("message", "")
+            except Exception:
+                detail = ""
+            raise HTTPException(status_code=502, detail=f"OpenAI error: {r.status_code}{(' - ' + detail) if detail else ''}")
+        data = r.json()
+
+    try:
+        text = _extract_openai_output_text(data)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Unexpected OpenAI response format: {e}")
+
+    try:
+        return _extract_first_json_object(text)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI output was not valid JSON: {e}")
+
+
+async def _ai_plan(prompt: str, ai_params: AIResolvedParams) -> dict:
+    # Prefer OpenAI when configured (user requested GPT-5.3 Codex).
+    if settings.OPENAI_KEY:
+        return await _openai_plan(prompt, ai_params)
+    return await _gemini_plan(prompt, ai_params)
 
 
 def _audit(db: Session, user: User, action: str, entity_type: str, entity_id: str | None, entity_name: str | None, before: dict | None, after: dict | None):
@@ -597,9 +674,14 @@ def _monthly_best_sales_exec(db: Session, current_user: User, year: int, month: 
 @router.get("/company-assistant/params", response_model=AIParamsResponse)
 def get_company_assistant_params(current_user: User = Depends(get_current_user)):
     _ensure_company_user(current_user)
+    allowed_models = set()
+    if settings.OPENAI_KEY:
+        allowed_models.update(ALLOWED_OPENAI_MODELS)
+    if settings.GEMINI_API_KEY:
+        allowed_models.update(ALLOWED_GEMINI_MODELS)
     return AIParamsResponse(
         can_override=current_user.role in AI_PARAM_OVERRIDE_ROLES,
-        allowed_models=sorted(ALLOWED_GEMINI_MODELS),
+        allowed_models=sorted(allowed_models),
         params=_server_default_ai_params(),
     )
 
@@ -659,8 +741,20 @@ async def company_assistant(
     db.refresh(conversation)
 
     try:
-        prompt = system + "\nUser: " + body.message.strip()
-        plan = await _gemini_plan(prompt, ai_params)
+        context_block = ""
+        if body.context is not None:
+            try:
+                # Keep prompt bounded even if client sends large context.
+                dumped = json.dumps(body.context, ensure_ascii=False)
+                if len(dumped) > 6000:
+                    dumped = dumped[:6000] + "…"
+                context_block = "\nContext (recent chat/history and UI state):\n" + dumped + "\n"
+            except Exception:
+                # Context is optional; ignore serialization issues.
+                context_block = ""
+
+        prompt = system + context_block + "User: " + body.message.strip()
+        plan = await _ai_plan(prompt, ai_params)
         if not isinstance(plan, dict):
             raise HTTPException(status_code=502, detail="AI output was not a JSON object")
 

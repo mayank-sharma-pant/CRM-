@@ -38,8 +38,9 @@ export default function ClientDetailPage() {
     const [client, setClient] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const isMD = pathname?.startsWith('/md');
     const isManager = pathname?.startsWith('/manager');
-    const basePath = isManager ? '/manager/clients' : '/sales/clients';
+    const basePath = isMD ? '/md/clients' : isManager ? '/manager/clients' : '/sales/clients';
 
     const fetchClientData = async () => {
         if (!params?.id) return;
@@ -64,9 +65,11 @@ export default function ClientDetailPage() {
                 tasks: data.tasks || [],
                 notes: data.notes || [],
                 invoices: data.invoices || [],
-                permissions: isManager
-                    ? { canEdit: false, canAddNote: false, canCreateTask: false }
-                    : { canEdit: true, canAddNote: true, canCreateTask: true }
+                permissions: isMD
+                    ? { canEdit: true, canAddNote: true, canCreateTask: true }
+                    : isManager
+                        ? { canEdit: false, canAddNote: false, canCreateTask: false }
+                        : { canEdit: true, canAddNote: true, canCreateTask: true }
             };
             setClient(clientData);
         } catch (err) {
@@ -312,7 +315,7 @@ export default function ClientDetailPage() {
                                 <div className="flex items-center gap-3">
                                     <button
                                         type="button"
-                                        onClick={() => router.push(`/sales/orders?clientId=${encodeURIComponent(params.id)}&clientName=${encodeURIComponent(client.name)}`)}
+                                        onClick={() => router.push(`/md/invoices?search=${encodeURIComponent(String(client.id || params.id))}`)}
                                         className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline"
                                     >
                                         View all
@@ -326,7 +329,7 @@ export default function ClientDetailPage() {
                                     client.invoices.map((inv) => (
                                         <div 
                                             key={inv.id} 
-                                            onClick={() => router.push(`${isManager ? '/manager' : '/sales'}/invoices/${inv.id}`)}
+                                            onClick={() => router.push(`/md/invoices?search=${encodeURIComponent(String(inv.id))}`)}
                                             className="group flex items-center justify-between px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer"
                                         >
                                             <div className="flex items-center gap-3">

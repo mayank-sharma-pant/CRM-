@@ -102,16 +102,13 @@ const ROLE_NAVIGATION = {
     md: [
         { name: 'Dashboard', href: '/md/dashboard', icon: 'LayoutDashboard' },
         { name: 'Revenue', href: '/md/revenue', icon: 'DollarSign' },
-        { name: 'Sales', href: '/md/sales', icon: 'TrendingUp' },
+        { name: 'Performance', href: '/md/performance', icon: 'TrendingUp' },
         { name: 'Teams', href: '/md/teams', icon: 'Users' },
         { name: 'Employee Lookup', href: '/md/employee-lookup', icon: 'UserSearch' },
-        { name: 'Performance', href: '/md/points', icon: 'Award' },
-        { name: 'Monitoring', href: '/md/monitoring', icon: 'Activity' },
         { name: 'Leads', href: '/md/leads', icon: 'Target' },
         { name: 'Clients', href: '/md/clients', icon: 'Briefcase' },
         { name: 'Stock', href: '/md/stock', icon: 'Package' },
         { name: 'Invoices', href: '/md/invoices', icon: 'Receipt' },
-        { name: 'Reports', href: '/md/reports', icon: 'PieChart' },
         { name: 'AI Assistant', href: '/md/assistant', icon: 'Sparkles' },
     ],
     purchase: [

@@ -46,7 +46,7 @@ export default function LeadDetailPage() {
       const res = await api.get(`/leads/${id}`);
       const data = res.data;
 
-      // Determine role from path (same as before)
+      const isMD = window.location.pathname.startsWith('/md');
       const isManager = window.location.pathname.startsWith('/manager');
 
       // Map permissions
@@ -55,7 +55,7 @@ export default function LeadDetailPage() {
         canConvert: !['Converted', 'Lost', 'Lost Client'].includes(data.status),
         canAddTask: true,
         canAddNote: true,
-        canReassign: isManager
+        canReassign: isManager || isMD
       };
 
       // Construct a simple timeline from tasks and notes
@@ -211,7 +211,8 @@ export default function LeadDetailPage() {
       });
       await api.put(`/leads/${id}`, { status: 'Converted' });
       alert("Converted successfully!");
-      router.push(window.location.pathname.startsWith('/manager') ? '/manager/clients' : '/sales/clients');
+      if (window.location.pathname.startsWith('/md')) router.push('/md/clients');
+      else router.push(window.location.pathname.startsWith('/manager') ? '/manager/clients' : '/sales/clients');
     } catch (err) {
       console.error("Conversion failed", err);
     }
@@ -235,7 +236,10 @@ export default function LeadDetailPage() {
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => router.push(window.location.pathname.startsWith('/manager') ? '/manager/leads' : '/sales/leads')}
+              onClick={() => {
+                if (window.location.pathname.startsWith('/md')) router.push('/md/leads');
+                else router.push(window.location.pathname.startsWith('/manager') ? '/manager/leads' : '/sales/leads');
+              }}
               className="p-2 -ml-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
             >
               <ArrowLeft size={18} />

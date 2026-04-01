@@ -8,6 +8,9 @@ async def _plan_no_actions(_prompt: str, _params=None) -> dict:
 
 
 def test_get_company_assistant_params_for_manager(client, db):
+    # Ensure at least one provider is "configured" for this test environment.
+    # (The API returns an empty allowed_models list when no keys are present.)
+    ai_router.settings.GEMINI_API_KEY = ai_router.settings.GEMINI_API_KEY or "test-key"
     company = create_company(db, name="Params Co", company_code="PAR")
     manager = create_active_user(
         db,
@@ -78,6 +81,7 @@ def test_manager_can_override_ai_params(client, db, monkeypatch):
         return {"say": "Using custom params", "actions": []}
 
     monkeypatch.setattr(ai_router, "_gemini_plan", _plan_capture)
+    ai_router.settings.GEMINI_API_KEY = ai_router.settings.GEMINI_API_KEY or "test-key"
     company = create_company(db, name="Override Co", company_code="OVR")
     manager = create_active_user(
         db,

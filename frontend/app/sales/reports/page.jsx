@@ -252,7 +252,7 @@ export default function Reports({
           </div>
 
           <div className="h-[350px] w-full">
-            <ChartWrapper width="100%" height="100%">
+            <ChartWrapper chartWidth={720} chartHeight={350}>
               <AreaChart data={overviewData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
@@ -316,7 +316,7 @@ export default function Reports({
           >
             <h3 className="text-sm font-bold text-primary mb-4">Pipeline Distribution</h3>
             <div className="w-full h-[280px]">
-              <ChartWrapper width="100%" height="100%">
+              <ChartWrapper chartWidth={720} chartHeight={280}>
                 <PieChart>
                   <Pie
                     data={leadsByStatusData}
@@ -347,7 +347,7 @@ export default function Reports({
           >
             <h3 className="text-sm font-bold text-primary mb-4">Top Sources</h3>
             <div className="w-full h-[280px]">
-              <ChartWrapper width="100%" height="100%">
+              <ChartWrapper chartWidth={720} chartHeight={280}>
                 <BarChart data={leadsBySourceData} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
                   <CartesianGrid horizontal={false} stroke={COLORS.grid} strokeDasharray="3 3" opacity={0.5} />
                   <XAxis type="number" hide />
@@ -366,6 +366,7 @@ export default function Reports({
                     radius={[0, 4, 4, 0]}
                     barSize={16}
                     animationDuration={1500}
+                    minPointSize={0}
                     background={{ fill: '#f1f5f9', radius: [0, 4, 4, 0] }}
                   />
                 </BarChart>

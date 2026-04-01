@@ -16,17 +16,8 @@ import {
     Search,
     ChevronRight
 } from 'lucide-react';
-import { useNotification } from '../../../contexts/NotificationContext';
-import dynamic from 'next/dynamic';
-
-const MomentumChart = dynamic(() => import('../../../components/charts/MomentumChart'), { 
-    ssr: false,
-    loading: () => <div className="w-full h-full bg-surface-elevated/5 animate-pulse rounded" />
-});
-const PipelineChart = dynamic(() => import('../../../components/charts/PipelineChart'), { 
-    ssr: false,
-    loading: () => <div className="w-full h-full bg-surface-elevated/5 animate-pulse rounded" />
-});
+import MomentumChart from '../../../components/charts/MomentumChart';
+import PipelineChart from '../../../components/charts/PipelineChart';
 
 export default function MDSalesPage() {
     const router = useRouter();
@@ -194,7 +185,11 @@ export default function MDSalesPage() {
                         </div>
                     </div>
                     <div className="h-[200px] w-full mb-6">
-                        <PipelineChart data={data.teamComparison} />
+                        <PipelineChart
+                            data={data.teamComparison}
+                            xDataKey="team"
+                            barDataKey={comparisonMetric}
+                        />
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">

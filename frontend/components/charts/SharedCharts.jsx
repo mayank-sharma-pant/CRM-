@@ -1,21 +1,19 @@
 'use client';
-import { 
+import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
-import { useState, useEffect } from 'react';
 
-// Common Pulse Placeholder
-const ChartLoading = ({ height = 140 }) => <div style={{ width: '100%', height: `${height}px` }} className="bg-surface-elevated/5 animate-pulse rounded" />;
+const ChartLoading = ({ height = 140 }) => (
+    <div style={{ width: '100%', height: `${height}px` }} className="bg-surface-elevated/5 animate-pulse rounded" />
+);
 
 export function RetentionChart({ data }) {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
-    if (!mounted || !data) return <ChartLoading height={140} />;
+    if (!data) return <ChartLoading height={140} />;
 
     return (
         <div style={{ width: '100%', height: '140px' }}>
-            <ResponsiveContainer width="100%" height={140}>
+            <ResponsiveContainer width="100%" height={140} minWidth={120} initialDimension={{ width: 640, height: 140 }}>
                 <LineChart data={data}>
                     <XAxis dataKey="date" hide />
                     <Tooltip contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: 'none', borderRadius: '4px', fontSize: '11px' }} />
@@ -27,13 +25,11 @@ export function RetentionChart({ data }) {
 }
 
 export function LiquidityChart({ data }) {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
-    if (!mounted || !data) return <ChartLoading height={120} />;
+    if (!data) return <ChartLoading height={120} />;
 
     return (
         <div style={{ width: '100%', height: '120px' }}>
-            <ResponsiveContainer width="100%" height={120}>
+            <ResponsiveContainer width="100%" height={120} minWidth={120} initialDimension={{ width: 640, height: 120 }}>
                 <PieChart>
                     <Pie
                         data={data}
@@ -47,7 +43,7 @@ export function LiquidityChart({ data }) {
                             <Cell key={`cell-chart-${index}`} fill={entry.color} />
                         ))}
                     </Pie>
-                    <Tooltip 
+                    <Tooltip
                         contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '10px' }}
                     />
                 </PieChart>
@@ -57,13 +53,11 @@ export function LiquidityChart({ data }) {
 }
 
 export function RevenueTrendChart({ data, compareEnabled }) {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
-    if (!mounted || !data) return <ChartLoading height={320} />;
+    if (!data) return <ChartLoading height={320} />;
 
     return (
         <div style={{ width: '100%', height: '320px' }}>
-            <ResponsiveContainer width="100%" height={320}>
+            <ResponsiveContainer width="100%" height={320} minWidth={120} initialDimension={{ width: 640, height: 320 }}>
                 <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="0" vertical={false} stroke="var(--color-border)" opacity={0.4} />
                     <XAxis
@@ -124,13 +118,11 @@ export function RevenueTrendChart({ data, compareEnabled }) {
 }
 
 export function ComponentBreakdownChart({ data }) {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
-    if (!mounted || !data) return <ChartLoading height={240} />;
+    if (!data) return <ChartLoading height={240} />;
 
     return (
         <div style={{ width: '100%', height: '240px' }}>
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={240} minWidth={120} initialDimension={{ width: 640, height: 240 }}>
                 <BarChart data={data} layout="vertical" barSize={16}>
                     <CartesianGrid strokeDasharray="0" horizontal={false} stroke="var(--color-border)" opacity={0.4} />
                     <XAxis type="number" hide />
@@ -148,7 +140,7 @@ export function ComponentBreakdownChart({ data }) {
                         cursor={{ fill: 'var(--color-surface-elevated)', opacity: 0.4 }}
                         contentStyle={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', fontSize: '11px', fontWeight: '700' }}
                     />
-                    <Bar dataKey="value" radius={[0, 2, 2, 0]}>
+                    <Bar dataKey="value" radius={[0, 2, 2, 0]} minPointSize={0}>
                         {data.map((entry, index) => (
                             <Cell key={`cell-breakdown-${index}`} fill={entry.fill || 'var(--color-accent)'} />
                         ))}

@@ -296,8 +296,8 @@ export default function CustomReportsPage() {
                                                 cursor={{ fill: 'var(--surface-elevated)' }}
                                             />
                                             <Legend wrapperStyle={{ fontSize: '12px' }} />
-                                            <Bar yAxisId="left" name="Revenue" dataKey="revenue" fill={chartColors.revenue} radius={[4, 4, 0, 0]} maxBarSize={60} />
-                                            <Bar yAxisId="right" name="New Leads" dataKey="leads" fill={chartColors.leads} radius={[4, 4, 0, 0]} maxBarSize={60} />
+                                            <Bar yAxisId="left" name="Revenue" dataKey="revenue" fill={chartColors.revenue} radius={[4, 4, 0, 0]} maxBarSize={60} minPointSize={0} />
+                                            <Bar yAxisId="right" name="New Leads" dataKey="leads" fill={chartColors.leads} radius={[4, 4, 0, 0]} maxBarSize={60} minPointSize={0} />
                                         </BarChart>
                                     )}
                                 </ChartWrapper>

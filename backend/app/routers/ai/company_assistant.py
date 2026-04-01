@@ -7,6 +7,7 @@ from collections import defaultdict, deque
 import time
 import json
 import re
+import difflib
 
 import httpx
 
@@ -14,6 +15,7 @@ from app.database import get_db
 from app.config import settings
 from app.utils.dependencies import get_current_user, apply_company_scope, is_platform_admin
 from app.models.core.user import User
+from app.models.core.enums import TaskPriority
 from app.models.core.team import Team
 from app.models.core.team_membership import TeamMembership
 from app.models.sales.audit import AuditLog
@@ -39,6 +41,7 @@ COMMAND_ACTIONS = {
     "create_ledger_entry",
     "create_top_performing_team",
     "create_team_with_members",
+    "create_task",
 }
 ALLOWED_GEMINI_MODELS = {"gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"}
 # User requested GPT-5.3 Codex; allow it when OPENAI_KEY is configured.
@@ -246,7 +249,7 @@ def _ensure_company_user(user: User):
 
 def _allowed_actions_for_role(role: str) -> set[str]:
     allowed = set(READ_ONLY_ACTIONS)
-    if role in COMMAND_ROLES:
+    if _role_value(role) in COMMAND_ROLES:
         allowed.update(COMMAND_ACTIONS)
     return allowed
 
@@ -293,6 +296,7 @@ def _build_system_prompt(role: str, allowed_actions: set[str]) -> str:
         "create_top_performing_team": '{"action":"create_top_performing_team","params":{"name": string, "size": int}}',
         "get_best_manager": '{"action":"get_best_manager","params":{"year": int, "month": int}}',
         "create_team_with_members": '{"action":"create_team_with_members","params":{"name": string, "manager_id": int, "member_ids": [int]}}',
+        "create_task": '{"action":"create_task","params":{"title": string, "assignee_id": int, "due_date": "YYYY-MM-DD"?, "priority": "low|medium|high"?, "description": string?}}',
     }
     allowed_specs = "\n".join(f"- {action_specs[a]}" for a in sorted(allowed_actions))
 
@@ -322,7 +326,45 @@ Rules:
 - Never output actions outside the allowed list.
 - If the user asks for disallowed changes, keep actions empty and explain in "say".
 - Use business_snapshot/revenue_summary for "what is going on" and revenue questions.{ledger_schema_block}
+- When the user asks to create a team and assign people, prefer create_team_with_members or create_top_performing_team over create_team + add_team_member loops.
+- When the user wants tasks assigned, use create_task (you may output multiple create_task actions).
 """
+
+
+def _role_value(role_or_user: object) -> str:
+    role = getattr(role_or_user, "role", role_or_user)
+    return str(getattr(role, "value", role)).strip().lower()
+
+
+def _coerce_allowed_action(action: str, allowed_actions: set[str]) -> str:
+    """Best-effort correction for small typos in action names (only within allowed actions)."""
+    a = (action or "").strip()
+    if not a:
+        return ""
+    if a in allowed_actions:
+        return a
+    close = difflib.get_close_matches(a, sorted(allowed_actions), n=1, cutoff=0.84)
+    return close[0] if close else a
+
+
+def _resolve_ledger_slug(raw: str) -> str:
+    """Normalize + fuzzy-match ledger slugs so tiny typos don't block entry creation."""
+    s = (raw or "").strip().lower()
+    s = re.sub(r"[\s\\-]+", "_", s)
+    s = re.sub(r"[^a-z0-9_]", "", s)
+    if not s:
+        return s
+    if s in ALL_LEDGERS:
+        return s
+    name_to_slug = {v.lower().replace(" ", "_"): k for k, v in ALL_LEDGERS.items()}
+    if s in name_to_slug:
+        return name_to_slug[s]
+    candidates = list(ALL_LEDGERS.keys()) + list(name_to_slug.keys())
+    close = difflib.get_close_matches(s, candidates, n=1, cutoff=0.78)
+    if not close:
+        return s
+    best = close[0]
+    return name_to_slug.get(best, best)
 
 
 def _normalize_action(action: str, params: dict) -> dict:
@@ -345,7 +387,7 @@ def _normalize_action(action: str, params: dict) -> dict:
         }
 
     if action == "create_ledger_entry":
-        slug = _require_non_empty_str(params, "ledger_slug").lower().replace(" ", "_").replace("-", "_")
+        slug = _resolve_ledger_slug(_require_non_empty_str(params, "ledger_slug"))
         if slug not in ALL_LEDGERS:
             raise ActionValidationError(f"Unknown ledger_slug '{slug}'")
         data = params.get("data")
@@ -426,6 +468,36 @@ def _normalize_action(action: str, params: dict) -> dict:
             raise ActionValidationError("'member_ids' cannot be empty")
             
         return {"name": name, "manager_id": manager_id, "member_ids": member_ids}
+
+    if action == "create_task":
+        title = _require_non_empty_str(params, "title")
+        assignee_id = _require_int(params, "assignee_id", min_value=1)
+        description = params.get("description")
+        if description is not None:
+            description = str(description).strip() or None
+
+        priority_raw = str(params.get("priority", "medium")).strip().lower()
+        priority_map = {"low": TaskPriority.LOW, "medium": TaskPriority.MEDIUM, "high": TaskPriority.HIGH}
+        if priority_raw not in priority_map:
+            raise ActionValidationError("'priority' must be low, medium, or high")
+
+        due_dt = None
+        due_date_raw = params.get("due_date")
+        if due_date_raw is not None and str(due_date_raw).strip():
+            txt = str(due_date_raw).strip()
+            try:
+                d = datetime.strptime(txt, "%Y-%m-%d").date()
+                due_dt = datetime(d.year, d.month, d.day)
+            except Exception as exc:
+                raise ActionValidationError("'due_date' must be YYYY-MM-DD") from exc
+
+        return {
+            "title": title,
+            "assignee_id": assignee_id,
+            "description": description,
+            "priority": priority_map[priority_raw],
+            "due_date": due_dt,
+        }
 
     raise ActionValidationError(f"Unknown action '{action}'")
 
@@ -524,12 +596,12 @@ def _add_member(db: Session, current_user: User, team_id: int, user_id: int) -> 
     if existing:
         return {"message": "already_member", "team_id": team_id, "user_id": user_id}
 
-    if target.role == "manager":
+    if _role_value(target) == "manager":
         from app.utils.validators import ensure_one_manager_per_team
         ensure_one_manager_per_team(db, team_id, exclude_user_id=target.id)
 
     from app.utils.validators import validate_team_membership_role
-    validate_team_membership_role(target.role)
+    validate_team_membership_role(_role_value(target))
 
     db.add(TeamMembership(company_id=current_user.company_id, team_id=team_id, user_id=user_id))
     if target.team_id is None:
@@ -576,10 +648,11 @@ def _remove_member(db: Session, current_user: User, team_id: int, user_id: int) 
 
 
 def _create_ledger_entry(db: Session, current_user: User, ledger_slug: str, data: dict) -> dict:
-    if current_user.role not in COMMAND_ROLES:
+    if _role_value(current_user) not in COMMAND_ROLES:
         raise HTTPException(status_code=403, detail="You are not allowed to create ledger entries via AI")
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="Company context required")
+    ledger_slug = _resolve_ledger_slug(ledger_slug)
     if ledger_slug not in ALL_LEDGERS:
         raise HTTPException(status_code=400, detail=f"Unknown ledger '{ledger_slug}'")
 
@@ -867,7 +940,7 @@ def _get_best_manager(db: Session, current_user: User, year: int, month: int) ->
 
 
 def _create_top_performing_team(db: Session, current_user: User, name: str, size: int) -> dict:
-    if current_user.role not in COMMAND_ROLES:
+    if _role_value(current_user) not in COMMAND_ROLES:
         raise HTTPException(status_code=403, detail="Un-authorized to create teams via AI")
     
     normalized_name = (name or "").strip()
@@ -910,25 +983,71 @@ def _create_top_performing_team(db: Session, current_user: User, name: str, size
     team_result = _create_team(db, current_user, normalized_name)
     team_id = team_result["id"]
     
-    _add_member(db, current_user, team_id, current_user.id)
+    # MD cannot be a team member (global role). If the caller is MD, pick the best manager
+    # (last 30 days revenue across their teams) to be the team lead.
+    manager_id = current_user.id
+    chosen_manager = None
+    if _role_value(current_user) == "md":
+        # Reuse the scoring logic used for best manager, but for last 30 days.
+        managers = apply_company_scope(db.query(User), User, current_user).filter(User.role == "manager").all()
+        if managers:
+            manager_ids = [m.id for m in managers]
+            m_memberships = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+                TeamMembership.user_id.in_(manager_ids)
+            ).all()
+            manager_teams = defaultdict(list)
+            managed_team_ids = set()
+            for tm in m_memberships:
+                manager_teams[tm.user_id].append(tm.team_id)
+                managed_team_ids.add(tm.team_id)
+            team_memberships = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+                TeamMembership.team_id.in_(managed_team_ids)
+            ).all()
+            team_to_members = defaultdict(list)
+            all_member_ids = set()
+            for tm in team_memberships:
+                team_to_members[tm.team_id].append(tm.user_id)
+                all_member_ids.add(tm.user_id)
+            inv_q = apply_company_scope(db.query(Invoice.created_by_id, func.sum(Invoice.total)), Invoice, current_user).filter(
+                Invoice.created_by_id.in_(list(all_member_ids)),
+                Invoice.status == "Paid",
+                Invoice.paid_date >= start_date.date()
+            ).group_by(Invoice.created_by_id)
+            inv_map = {uid: float(total or 0) for uid, total in inv_q.all()}
+            manager_scores = []
+            for m in managers:
+                total = 0.0
+                mems = set()
+                for t in manager_teams.get(m.id, []):
+                    for uid in team_to_members.get(t, []):
+                        mems.add(uid)
+                for uid in mems:
+                    total += inv_map.get(uid, 0.0)
+                manager_scores.append({"id": m.id, "name": m.full_name, "revenue": total})
+            manager_scores.sort(key=lambda x: x["revenue"], reverse=True)
+            chosen_manager = manager_scores[0] if manager_scores else None
+            if chosen_manager:
+                manager_id = chosen_manager["id"]
+
+    _add_member(db, current_user, team_id, manager_id)
     
     added_members = []
     for performer in top_performers:
         u = performer["user"]
-        if u.id == current_user.id:
+        if u.id == manager_id:
             continue
         _add_member(db, current_user, team_id, u.id)
         added_members.append({"id": u.id, "name": u.full_name, "revenue": performer["revenue"]})
         
     return {
         "team": team_result,
-        "manager_added": current_user.full_name,
+        "manager_added": chosen_manager["name"] if chosen_manager else current_user.full_name,
         "members_added": added_members
     }
 
 
 def _create_team_with_members(db: Session, current_user: User, name: str, manager_id: int, member_ids: list[int]) -> dict:
-    if current_user.role not in COMMAND_ROLES:
+    if _role_value(current_user) not in COMMAND_ROLES:
         raise HTTPException(status_code=403, detail="Un-authorized to create teams via AI")
     
     normalized_name = (name or "").strip()
@@ -940,19 +1059,66 @@ def _create_team_with_members(db: Session, current_user: User, name: str, manage
     
     added_members = []
     
-    _add_member(db, current_user, team_id, manager_id)
     manager = apply_company_scope(db.query(User), User, current_user).filter(User.id == manager_id).first()
+    if not manager:
+        raise HTTPException(status_code=404, detail="Manager not found")
+    if _role_value(manager) != "manager":
+        raise HTTPException(status_code=400, detail="manager_id must belong to a manager user")
+    _add_member(db, current_user, team_id, manager_id)
     added_members.append({"id": manager_id, "name": manager.full_name if manager else "Unknown", "role": "manager"})
     
+    skipped = []
     for uid in set(member_ids):
         if uid == manager_id:
             continue
-        _add_member(db, current_user, team_id, uid)
         u = apply_company_scope(db.query(User), User, current_user).filter(User.id == uid).first()
-        if u:
-            added_members.append({"id": uid, "name": u.full_name, "role": u.role})
+        if not u:
+            skipped.append({"id": uid, "reason": "not_found"})
+            continue
+        if _role_value(u) != "sales":
+            skipped.append({"id": uid, "reason": f"role_not_sales:{_role_value(u)}"})
+            continue
+        _add_member(db, current_user, team_id, uid)
+        added_members.append({"id": uid, "name": u.full_name, "role": _role_value(u)})
             
-    return {"team": team_result, "members_added": added_members}
+    return {"team": team_result, "members_added": added_members, "members_skipped": skipped}
+
+
+def _create_task(db: Session, current_user: User, title: str, assignee_id: int, description: str | None, priority: TaskPriority, due_date: datetime | None) -> dict:
+    if _role_value(current_user) not in COMMAND_ROLES:
+        raise HTTPException(status_code=403, detail="You are not allowed to create tasks via AI")
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="Company context required")
+
+    assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == assignee_id).first()
+    if not assignee:
+        raise HTTPException(status_code=404, detail="Assignee not found")
+
+    task = Task(
+        company_id=current_user.company_id,
+        title=title,
+        description=description,
+        assigned_to_id=assignee_id,
+        assigned_by_id=current_user.id,
+        is_manager_assigned=True,
+        priority=priority,
+        due_date=due_date,
+    )
+    db.add(task)
+    db.flush()
+    _audit(
+        db,
+        current_user,
+        "ai_task_created",
+        "task",
+        str(task.id),
+        task.title,
+        None,
+        {"assigned_to_id": assignee_id, "priority": str(getattr(priority, "value", priority)), "due_date": due_date.isoformat() if due_date else None},
+    )
+    db.commit()
+    db.refresh(task)
+    return {"id": task.id, "title": task.title, "assigned_to_id": task.assigned_to_id, "due_date": task.due_date.isoformat() if task.due_date else None}
 
 
 @router.get("/company-assistant/params", response_model=AIParamsResponse)
@@ -964,7 +1130,7 @@ def get_company_assistant_params(current_user: User = Depends(get_current_user))
     if settings.GEMINI_API_KEY:
         allowed_models.update(ALLOWED_GEMINI_MODELS)
     return AIParamsResponse(
-        can_override=current_user.role in AI_PARAM_OVERRIDE_ROLES,
+        can_override=_role_value(current_user) in AI_PARAM_OVERRIDE_ROLES,
         allowed_models=sorted(allowed_models),
         params=_server_default_ai_params(),
     )
@@ -1058,7 +1224,7 @@ async def company_assistant(
                     status_code=400,
                     detail=f"Invalid action payload at index {idx}: action must be an object",
                 )
-            action = str(raw_action.get("action", "")).strip()
+            action = _coerce_allowed_action(str(raw_action.get("action", "")).strip(), allowed_actions)
             if not action:
                 raise HTTPException(
                     status_code=400,
@@ -1120,6 +1286,16 @@ async def company_assistant(
                     current_user,
                     ledger_slug=normalized["ledger_slug"],
                     data=normalized["data"],
+                )
+            elif action == "create_task":
+                result = _create_task(
+                    db,
+                    current_user,
+                    title=normalized["title"],
+                    assignee_id=normalized["assignee_id"],
+                    description=normalized["description"],
+                    priority=normalized["priority"],
+                    due_date=normalized["due_date"],
                 )
             elif action == "revenue_summary":
                 result = _revenue_summary(

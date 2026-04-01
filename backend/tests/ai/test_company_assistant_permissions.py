@@ -1,4 +1,5 @@
 from app.models.core.team import Team
+from app.models.core.team_membership import TeamMembership
 from app.models.finance.ledger import LedgerEntry
 from app.routers.ai import company_assistant as ai_router
 from tests.helpers.auth import create_active_user, login_user
@@ -79,6 +80,21 @@ async def _plan_create_ledger_entry(_prompt: str, _params=None) -> dict:
     }
 
 
+async def _plan_create_ledger_entry_typo(_prompt: str, _params=None) -> dict:
+    return {
+        "say": "Adding ledger entry with typo slug",
+        "actions": [
+            {
+                "action": "create_ledger_entry",
+                "params": {
+                    "ledger_slug": "dali expenses",
+                    "data": {"date": "2026-03-27", "expense_type": "Ops", "amount": 123, "remarks": "Typo slug"},
+                },
+            }
+        ],
+    }
+
+
 def test_manager_can_create_financial_ledger_entry_via_ai(client, db, monkeypatch):
     monkeypatch.setattr(ai_router, "_gemini_plan", _plan_create_ledger_entry)
     company = create_company(db, name="Ledger Co", company_code="LGC")
@@ -99,6 +115,54 @@ def test_manager_can_create_financial_ledger_entry_via_ai(client, db, monkeypatc
     ).all()
     assert len(rows) == 1
     assert rows[0].data.get("expense_type") == "Ops"
+
+
+def test_manager_can_create_ledger_entry_even_with_small_slug_typos(client, db, monkeypatch):
+    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_create_ledger_entry_typo)
+    company = create_company(db, name="Ledger Typo Co", company_code="LTC")
+    manager = create_active_user(db, email="manager@ltc.co", role="manager", company_id=company.id, full_name="Ledger Typo Manager")
+
+    login_user(client, manager.email)
+    r = client.post("/api/ai/company-assistant", json={"message": "Add expense in dali ledger"})
+    assert r.status_code == 200
+    payload = r.json()
+    actions = payload.get("executed_actions", [])
+    assert actions
+    assert actions[0]["action"] == "create_ledger_entry"
+    assert actions[0]["result"]["ledger_slug"] == "daily_expenses"
+
+    rows = db.query(LedgerEntry).filter(LedgerEntry.company_id == company.id, LedgerEntry.ledger_slug == "daily_expenses").all()
+    assert len(rows) == 1
+
+
+async def _plan_md_create_top_team(_prompt: str, _params=None) -> dict:
+    return {
+        "say": "Create top team for MD",
+        "actions": [{"action": "create_top_performing_team", "params": {"name": "Alpha 1", "size": 2}}],
+    }
+
+
+def test_md_create_top_performing_team_adds_manager_not_md(client, db, monkeypatch):
+    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_md_create_top_team)
+    company = create_company(db, name="Top Team Co", company_code="TTC")
+    # Seed an MD, a manager (who can be added to teams), and a couple sales users.
+    md = create_active_user(db, email="md@ttc.co", role="md", company_id=company.id, full_name="Top MD")
+    manager = create_active_user(db, email="manager@ttc.co", role="manager", company_id=company.id, full_name="Top Manager")
+    sales1 = create_active_user(db, email="s1@ttc.co", role="sales", company_id=company.id, full_name="Sales One")
+    sales2 = create_active_user(db, email="s2@ttc.co", role="sales", company_id=company.id, full_name="Sales Two")
+
+    login_user(client, md.email)
+    r = client.post("/api/ai/company-assistant", json={"message": "Create a top team Alpha 1 with top sales"})
+    assert r.status_code == 200
+
+    team = db.query(Team).filter(Team.company_id == company.id, Team.name == "Alpha 1").first()
+    assert team is not None
+
+    # MD must not be in team memberships; manager should be present.
+    md_membership = db.query(TeamMembership).filter(TeamMembership.team_id == team.id, TeamMembership.user_id == md.id).first()
+    assert md_membership is None
+    mgr_membership = db.query(TeamMembership).filter(TeamMembership.team_id == team.id, TeamMembership.user_id == manager.id).first()
+    assert mgr_membership is not None
 
 
 async def _plan_bad_actions_shape(_prompt: str, _params=None) -> dict:

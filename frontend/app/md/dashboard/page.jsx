@@ -24,24 +24,9 @@ import {
     UserSearch,
     TrendingDown
 } from 'lucide-react';
-import dynamic from 'next/dynamic';
-
-const MomentumChart = dynamic(() => import('../../../components/charts/MomentumChart'), { 
-    ssr: false,
-    loading: () => <div className="w-full h-full bg-surface-elevated/5 animate-pulse rounded" />
-});
-const PipelineChart = dynamic(() => import('../../../components/charts/PipelineChart'), { 
-    ssr: false,
-    loading: () => <div className="w-full h-full bg-surface-elevated/5 animate-pulse rounded" />
-});
-const RetentionChart = dynamic(() => import('../../../components/charts/SharedCharts').then(mod => mod.RetentionChart), { 
-    ssr: false,
-    loading: () => <div className="w-full h-full bg-surface-elevated/5 animate-pulse rounded" />
-});
-const LiquidityChart = dynamic(() => import('../../../components/charts/SharedCharts').then(mod => mod.LiquidityChart), { 
-    ssr: false,
-    loading: () => <div className="w-full h-full bg-surface-elevated/5 animate-pulse rounded" />
-});
+import MomentumChart from '../../../components/charts/MomentumChart';
+import PipelineChart from '../../../components/charts/PipelineChart';
+import { RetentionChart, LiquidityChart } from '../../../components/charts/SharedCharts';
 
 import { useNotification } from '../../../contexts/NotificationContext';
 import KPICard from '../../../components/shared/KPICard';
@@ -177,7 +162,7 @@ export default function MDDashboard() {
                         <LinkText href="/md/sales">View Analytics</LinkText>
                     </div>
                     <div className="p-5 flex gap-6">
-                        <div className="flex-1 h-[220px]">
+                        <div className="flex-1 min-w-0 h-[220px]">
                             <MomentumChart data={data.salesMomentum.trend} />
                         </div>
                         <div className="w-[160px] flex flex-col justify-center gap-4 border-l border-border pl-5">
@@ -220,7 +205,7 @@ export default function MDDashboard() {
                         <LinkText href="/md/clients">Growth Matrix</LinkText>
                     </div>
                     <div className="p-5 flex gap-6">
-                        <div className="flex-1 h-[140px]">
+                        <div className="flex-1 min-w-0 h-[140px]">
                             <RetentionChart data={data.clientSnapshot.growth} />
                         </div>
                         <div className="w-[120px] space-y-3">

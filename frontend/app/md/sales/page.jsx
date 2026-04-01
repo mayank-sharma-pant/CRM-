@@ -16,10 +16,17 @@ import {
     Search,
     ChevronRight
 } from 'lucide-react';
-import {
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    BarChart, Bar, Cell
-} from 'recharts';
+import { useNotification } from '../../../contexts/NotificationContext';
+import dynamic from 'next/dynamic';
+
+const MomentumChart = dynamic(() => import('../../../components/charts/MomentumChart'), { 
+    ssr: false,
+    loading: () => <div className="w-full h-full bg-surface-elevated/5 animate-pulse rounded" />
+});
+const PipelineChart = dynamic(() => import('../../../components/charts/PipelineChart'), { 
+    ssr: false,
+    loading: () => <div className="w-full h-full bg-surface-elevated/5 animate-pulse rounded" />
+});
 
 export default function MDSalesPage() {
     const router = useRouter();
@@ -126,25 +133,7 @@ export default function MDSalesPage() {
                     </div>
 
                     <div className="h-[280px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={data.salesTrend}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.3} />
-                                <XAxis dataKey="date" stroke="var(--color-text-muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} />
-                                <YAxis stroke="var(--color-text-muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={v => trendMode === 'revenue' ? `₹${v / 1000}k` : v} />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}
-                                    cursor={{ stroke: 'var(--color-accent)', strokeWidth: 2 }}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey={trendMode}
-                                    stroke="var(--color-accent)"
-                                    strokeWidth={3}
-                                    dot={false}
-                                    activeDot={{ r: 4, fill: 'var(--color-accent)', stroke: 'white', strokeWidth: 2 }}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
+                        <MomentumChart data={data.salesTrend} />
                     </div>
 
                     <div className="flex items-start gap-3 p-3 bg-surface-elevated/30 rounded-md border border-border/50">
@@ -205,19 +194,7 @@ export default function MDSalesPage() {
                         </div>
                     </div>
                     <div className="h-[200px] w-full mb-6">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data.teamComparison} barSize={32}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.3} />
-                                <XAxis dataKey="team" stroke="var(--color-text-muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} />
-                                <YAxis stroke="var(--color-text-muted)" fontSize={11} fontWeight="bold" tickLine={false} axisLine={false} />
-                                <Tooltip cursor={{ fill: 'var(--color-surface-elevated)', opacity: 0.5 }} contentStyle={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', fontSize: '11px', fontWeight: 'bold' }} />
-                                <Bar dataKey={comparisonMetric} radius={[2, 2, 0, 0]}>
-                                    {data.teamComparison.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={index % 2 === 0 ? 'var(--color-accent)' : 'var(--color-text-secondary)'} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <PipelineChart data={data.teamComparison} />
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">

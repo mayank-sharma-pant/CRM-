@@ -10,10 +10,11 @@ import {
     CartesianGrid,
     Tooltip,
     Legend,
-    ResponsiveContainer,
     LineChart,
     Line
 } from 'recharts';
+import ChartWrapper from '../../../components/shared/ChartWrapper';
+
 import { Filter, Download, ArrowRight, DollarSign, Users, Target, CheckCircle } from 'lucide-react';
 
 export default function CustomReportsPage() {
@@ -234,7 +235,7 @@ export default function CustomReportsPage() {
 
                         <div className="h-80 w-full mb-4">
                             {data.chartData && data.chartData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ChartWrapper width="100%" height="100%">
                                     {groupBy === 'date' ? (
                                         <LineChart data={data.chartData}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
@@ -299,7 +300,7 @@ export default function CustomReportsPage() {
                                             <Bar yAxisId="right" name="New Leads" dataKey="leads" fill={chartColors.leads} radius={[4, 4, 0, 0]} maxBarSize={60} />
                                         </BarChart>
                                     )}
-                                </ResponsiveContainer>
+                                </ChartWrapper>
                             ) : (
                                 <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
                                     <BarChart size={48} className="mb-4 opacity-20" />

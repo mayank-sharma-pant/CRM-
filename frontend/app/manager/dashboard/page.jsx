@@ -169,7 +169,7 @@ export default function ManagerDashboard() {
                     <div className="bg-surface rounded border border-border p-4 shadow-sm">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="text-[12px] font-bold text-muted uppercase tracking-wider">Team Revenue Breakdown</h3>
-                            <span className="text-[13px] font-bold text-primary">${metrics.totalRevenue.toLocaleString()}</span>
+                            <span className="text-[13px] font-bold text-primary">₹{metrics.totalRevenue.toLocaleString()}</span>
                         </div>
                         <div className="flex h-2 rounded-full overflow-hidden bg-surface-elevated">
                             <div className="bg-success rounded-l-full transition-all" style={{ width: `${(metrics.paidRevenue / metrics.totalRevenue) * 100}%` }} />
@@ -178,11 +178,11 @@ export default function ManagerDashboard() {
                         <div className="flex items-center gap-4 mt-2">
                             <div className="flex items-center gap-1.5">
                                 <div className="w-2 h-2 rounded-full bg-success" />
-                                <span className="text-[11px] font-semibold text-secondary">Paid: ${metrics.paidRevenue.toLocaleString()}</span>
+                                <span className="text-[11px] font-semibold text-secondary">Paid: ₹{metrics.paidRevenue.toLocaleString()}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <div className="w-2 h-2 rounded-full bg-warning" />
-                                <span className="text-[11px] font-semibold text-secondary">Outstanding: ${metrics.outstandingRevenue.toLocaleString()}</span>
+                                <span className="text-[11px] font-semibold text-secondary">Outstanding: ₹{metrics.outstandingRevenue.toLocaleString()}</span>
                             </div>
                         </div>
                     </div>

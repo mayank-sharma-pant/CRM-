@@ -177,8 +177,8 @@ def get_md_revenue(
     """MD Revenue Performance Dashboard"""
     inv_q = apply_company_scope(db.query(Invoice), Invoice, current_user)
     
-    now = datetime.now(timezone.utc)
-    start_of_today = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+    now = datetime.now()  # Use naive datetimes for SQLite compatibility
+    start_of_today = datetime(now.year, now.month, now.day)
     d30_ago = start_of_today - timedelta(days=30)
     d60_ago = start_of_today - timedelta(days=60)
     
@@ -239,12 +239,17 @@ def get_md_revenue(
             Invoice.created_at >= prev_week_start,
             Invoice.created_at < week_start
         ).with_entities(func.sum(Invoice.total)).scalar() or 0
-        delta_pct = int(((week_rev - prev_week_rev) / max(prev_week_rev, 1)) * 100)
+        
+        # Ensure Decimals are handled for division and formatted as float for client
+        f_week_rev = float(week_rev)
+        f_prev_rev = float(prev_week_rev)
+        
+        delta_pct = int(((f_week_rev - f_prev_rev) / max(f_prev_rev, 1)) * 100)
         delta_str = f"+{delta_pct}%" if delta_pct > 0 else f"{delta_pct}%"
         summary_table.append({
             "id": w + 1,
             "period": f"{week_start.strftime('%b %d')} - {week_end.strftime('%b %d')}",
-            "revenue": f"₹{week_rev:,.0f}",
+            "revenue": f"₹{f_week_rev:,.0f}",
             "delta": delta_str
         })
     
@@ -254,7 +259,7 @@ def get_md_revenue(
     for idx, inv in enumerate(overdue_invoices[:5]):
         client_q = apply_company_scope(db.query(Client), Client, current_user)
         client = client_q.filter(Client.id == inv.client_id).first() if inv.client_id else None
-        days_overdue = (datetime.now(timezone.utc).date() - inv.due_date).days if inv.due_date else 0
+        days_overdue = (datetime.now().date() - inv.due_date).days if inv.due_date else 0
         risks.append({
             "id": idx + 1,
             "signal": f"Overdue: {client.name if client else 'Unknown'} {inv.invoice_number}",

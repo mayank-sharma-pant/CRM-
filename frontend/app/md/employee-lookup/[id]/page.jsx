@@ -18,8 +18,10 @@ import {
 } from 'lucide-react';
 import api from '@/services/api';
 import {
-    LineChart, Line, ResponsiveContainer, CartesianGrid, XAxis, Tooltip
+    LineChart, Line, CartesianGrid, XAxis, Tooltip
 } from 'recharts';
+import ChartWrapper from '../../../../components/shared/ChartWrapper';
+
 
 export default function EmployeeDetailPage() {
     const { id } = useParams();
@@ -180,7 +182,7 @@ export default function EmployeeDetailPage() {
                     </div>
                 </div>
                 <div className="h-[240px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ChartWrapper width="100%" height="100%">
                         <LineChart data={(trends[trendTab] || []).map((v, i) => ({ day: dayLabels[i] || `D${i+1}`, value: v }))}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.3} />
                             <XAxis dataKey="day" stroke="var(--muted)" fontSize={11} tickLine={false} axisLine={false} dy={8} />
@@ -195,7 +197,7 @@ export default function EmployeeDetailPage() {
                             />
                             <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 3, fill: 'var(--accent)' }} activeDot={{ r: 5 }} />
                         </LineChart>
-                    </ResponsiveContainer>
+                    </ChartWrapper>
                 </div>
             </div>
 

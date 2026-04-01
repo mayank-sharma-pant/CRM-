@@ -8,6 +8,8 @@ const nextConfig = {
     // Prefer this app’s lockfile when a parent directory also has package-lock.json (quiets Playwright/dev noise).
     outputFileTracingRoot: join(__dirname),
 
+    transpilePackages: ['recharts', 'react-smooth'],
+
     async rewrites() {
         const backend = process.env.BACKEND_URL || 'http://127.0.0.1:8000';
         return [

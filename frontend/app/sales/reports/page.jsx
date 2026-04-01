@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import api from '../../../services/api';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart
+  Tooltip, Legend, PieChart, Pie, Cell, Area, AreaChart
 } from 'recharts';
+import ChartWrapper from '../../../components/shared/ChartWrapper';
+
 import { motion } from 'framer-motion';
 import { VARIANTS, TRANSITIONS } from '../../../lib/motion';
 import {
@@ -250,7 +252,7 @@ export default function Reports({
           </div>
 
           <div className="h-[350px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartWrapper width="100%" height="100%">
               <AreaChart data={overviewData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
@@ -300,7 +302,7 @@ export default function Reports({
                   animationDuration={1500}
                 />
               </AreaChart>
-            </ResponsiveContainer>
+            </ChartWrapper>
           </div>
         </motion.section>
 
@@ -314,7 +316,7 @@ export default function Reports({
           >
             <h3 className="text-sm font-bold text-primary mb-4">Pipeline Distribution</h3>
             <div className="w-full h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ChartWrapper width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={leadsByStatusData}
@@ -334,7 +336,7 @@ export default function Reports({
                   />
                   <Legend verticalAlign="bottom" height={36} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '11px' }} />
                 </PieChart>
-              </ResponsiveContainer>
+              </ChartWrapper>
             </div>
           </motion.div>
 
@@ -345,7 +347,7 @@ export default function Reports({
           >
             <h3 className="text-sm font-bold text-primary mb-4">Top Sources</h3>
             <div className="w-full h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ChartWrapper width="100%" height="100%">
                 <BarChart data={leadsBySourceData} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
                   <CartesianGrid horizontal={false} stroke={COLORS.grid} strokeDasharray="3 3" opacity={0.5} />
                   <XAxis type="number" hide />
@@ -367,7 +369,7 @@ export default function Reports({
                     background={{ fill: '#f1f5f9', radius: [0, 4, 4, 0] }}
                   />
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartWrapper>
             </div>
           </motion.div>
 

@@ -17,10 +17,16 @@ import {
 } from 'lucide-react';
 import { useNotification } from '../../../contexts/NotificationContext';
 import Skeleton, { CardSkeleton } from '../../../components/shared/Skeleton';
-import {
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    BarChart, Bar, Cell
-} from 'recharts';
+import dynamic from 'next/dynamic';
+
+const RevenueTrendChart = dynamic(() => import('../../../components/charts/SharedCharts').then(mod => mod.RevenueTrendChart), { 
+    ssr: false,
+    loading: () => <div className="w-full h-[320px] bg-surface-elevated/5 animate-pulse rounded" />
+});
+const ComponentBreakdownChart = dynamic(() => import('../../../components/charts/SharedCharts').then(mod => mod.ComponentBreakdownChart), { 
+    ssr: false,
+    loading: () => <div className="w-full h-[240px] bg-surface-elevated/5 animate-pulse rounded" />
+});
 
 export default function MDRevenuePage() {
     const router = useRouter();
@@ -141,62 +147,7 @@ export default function MDRevenuePage() {
                 </div>
 
                 <div className="h-[320px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={data.revenueTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="0" vertical={false} stroke="var(--color-border)" opacity={0.4} />
-                            <XAxis
-                                dataKey="date"
-                                stroke="var(--color-text-muted)"
-                                fontSize={10}
-                                fontPadding={10}
-                                fontWeight={700}
-                                tickLine={false}
-                                axisLine={false}
-                                dy={10}
-                            />
-                            <YAxis
-                                stroke="var(--color-text-muted)"
-                                fontSize={10}
-                                fontWeight={700}
-                                tickLine={false}
-                                axisLine={false}
-                                tickFormatter={v => `₹${v / 1000}k`}
-                                dx={-4}
-                            />
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: 'var(--color-surface)',
-                                    border: '1px solid var(--color-border)',
-                                    borderRadius: '4px',
-                                    fontSize: '11px',
-                                    fontWeight: '700',
-                                    color: 'var(--color-text-primary)',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                                }}
-                                itemStyle={{ color: 'var(--color-accent)' }}
-                                cursor={{ stroke: 'var(--color-accent)', strokeWidth: 1.5 }}
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="value"
-                                stroke="var(--color-accent)"
-                                strokeWidth={3}
-                                dot={false}
-                                activeDot={{ r: 4, fill: 'var(--color-accent)', stroke: 'var(--color-surface)', strokeWidth: 2 }}
-                            />
-                            {compareEnabled && (
-                                <Line
-                                    type="monotone"
-                                    dataKey="avg"
-                                    stroke="var(--color-text-secondary)"
-                                    strokeWidth={2}
-                                    strokeDasharray="4 4"
-                                    dot={false}
-                                    opacity={0.5}
-                                />
-                            )}
-                        </LineChart>
-                    </ResponsiveContainer>
+                    <RevenueTrendChart data={data.revenueTrend} compareEnabled={compareEnabled} />
                 </div>
 
                 {/* Footer Insight */}
@@ -247,31 +198,7 @@ export default function MDRevenuePage() {
                 <div className="col-span-12 lg:col-span-5 bg-surface rounded-md border border-border shadow-sm p-5">
                     <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight mb-5">Component Breakdown</h3>
                     <div className="h-[240px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={breakdownData} layout="vertical" barSize={16}>
-                                <CartesianGrid strokeDasharray="0" horizontal={false} stroke="var(--color-border)" opacity={0.4} />
-                                <XAxis type="number" hide />
-                                <YAxis
-                                    dataKey="name"
-                                    type="category"
-                                    stroke="var(--color-text-muted)"
-                                    fontSize={10}
-                                    fontWeight={700}
-                                    tickLine={false}
-                                    axisLine={false}
-                                    width={80}
-                                />
-                                <Tooltip
-                                    cursor={{ fill: 'var(--color-surface-elevated)', opacity: 0.4 }}
-                                    contentStyle={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', fontSize: '11px', fontWeight: '700' }}
-                                />
-                                <Bar dataKey="value" radius={[0, 2, 2, 0]}>
-                                    {breakdownData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.fill || 'var(--color-accent)'} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <ComponentBreakdownChart data={breakdownData} />
                     </div>
                 </div>
             </div>

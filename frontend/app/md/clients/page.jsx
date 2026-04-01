@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import api from '../../../services/api';
 import { downloadCSV } from '../../../services/export';
 import {
-    ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, Legend
+    AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, Legend
 } from 'recharts';
+import ChartWrapper from '../../../components/shared/ChartWrapper';
+
 import {
     Briefcase, TrendingUp, ChevronRight, Calendar, Download, ShieldAlert, Users
 } from 'lucide-react';
@@ -84,7 +86,7 @@ export default function MDClientsPage() {
                 <div className="col-span-12 lg:col-span-7 bg-surface rounded-md border border-border shadow-sm p-5">
                     <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight mb-8">Growth Trajectory</h3>
                     <div className="h-[280px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ChartWrapper width="100%" height="100%">
                             <AreaChart data={data.growthTrend}>
                                 <defs>
                                     <linearGradient id="colorGrowth" x1="0" y1="0" x2="0" y2="1">
@@ -98,7 +100,7 @@ export default function MDClientsPage() {
                                 <Tooltip contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }} />
                                 <Area type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={3} fillOpacity={1} fill="url(#colorGrowth)" />
                             </AreaChart>
-                        </ResponsiveContainer>
+                        </ChartWrapper>
                     </div>
                 </div>
 
@@ -107,7 +109,7 @@ export default function MDClientsPage() {
                         <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Portfolio Integrity</h3>
                     </div>
                     <div className="h-[240px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ChartWrapper width="100%" height="100%">
                             <PieChart>
                                 <Pie
                                     data={data.healthDistribution}
@@ -128,7 +130,7 @@ export default function MDClientsPage() {
                                 <Tooltip contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }} />
                                 <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'black', textTransform: 'uppercase', letterSpacing: '0.05em', paddingTop: '20px' }} />
                             </PieChart>
-                        </ResponsiveContainer>
+                        </ChartWrapper>
                     </div>
                 </div>
             </div>

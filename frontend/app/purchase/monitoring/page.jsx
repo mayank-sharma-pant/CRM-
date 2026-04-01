@@ -15,8 +15,10 @@ import {
     Calendar
 } from 'lucide-react';
 import {
-    LineChart, Line, ResponsiveContainer
+    LineChart, Line
 } from 'recharts';
+import ChartWrapper from '../../../components/shared/ChartWrapper';
+
 
 export default function PurchaseMonitoringPage() {
     const router = useRouter();
@@ -155,11 +157,11 @@ export default function PurchaseMonitoringPage() {
                 <div className="col-span-12 lg:col-span-4 bg-surface rounded-md border border-border shadow-sm p-5">
                     <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight mb-4">Risk Trajectory</h3>
                     <div className="h-[80px] w-full mb-4">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ChartWrapper width="100%" height="100%">
                             <LineChart data={data.riskTrend}>
                                 <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={3} dot={false} />
                             </LineChart>
-                        </ResponsiveContainer>
+                        </ChartWrapper>
                     </div>
                     <p className="text-[12px] text-secondary font-bold uppercase tracking-tight mb-1 opacity-70">Detection Volume</p>
                     <p className="text-[13px] text-primary font-bold">{data.trendSummary}</p>

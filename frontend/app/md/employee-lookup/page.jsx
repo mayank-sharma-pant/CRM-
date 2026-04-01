@@ -21,8 +21,10 @@ import {
 } from 'lucide-react';
 import api from '@/services/api';
 import {
-    LineChart, Line, ResponsiveContainer, CartesianGrid, XAxis, Tooltip
+    LineChart, Line, CartesianGrid, XAxis, Tooltip
 } from 'recharts';
+import ChartWrapper from '../../../components/shared/ChartWrapper';
+
 
 function buildEmployeeView(employeePayload) {
     // Basic mapping from API payload to this page's richer UI shape.
@@ -263,14 +265,14 @@ export default function MDEmployeeLookupPage() {
                                 </div>
                             </div>
                             <div className="h-[220px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ChartWrapper width="100%" height="100%">
                                     <LineChart data={employee.trends[trendTab].map((v, i) => ({ i, value: v }))}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.3} />
                                         <XAxis dataKey="i" hide />
                                         <Tooltip contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', fontSize: '11px', fontWeight: 'bold' }} />
                                         <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={3} dot={false} />
                                     </LineChart>
-                                </ResponsiveContainer>
+                                </ChartWrapper>
                             </div>
                         </div>
 

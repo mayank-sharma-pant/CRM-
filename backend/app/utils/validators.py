@@ -46,3 +46,15 @@ def validate_manager_constraints_for_user(db: Session, user: User, target_role: 
         
     for tid in team_ids_to_check:
         ensure_one_manager_per_team(db, tid, exclude_user_id=user.id)
+
+def validate_team_membership_role(user_role: str):
+    """
+    Prevents MD and Purchase roles from being added to specific teams.
+    These roles operate at the company level.
+    """
+    role_str = str(user_role.value) if hasattr(user_role, "value") else str(user_role)
+    if role_str in ["md", "purchase"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Role '{role_str}' cannot be assigned to a specific team. Access is global."
+        )

@@ -79,7 +79,7 @@ export default function MDTeamsPage() {
                 <KPICard
                     label="Total Revenue"
                     value={`₹${teams.reduce((s, t) => s + t.revenue, 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-                    icon={<DollarSign size={18} className="text-emerald-500" />}
+                    icon={<TrendingUp size={18} className="text-emerald-500" />}
                 />
             </div>
 
@@ -121,7 +121,7 @@ export default function MDTeamsPage() {
                                     <div className="text-right hidden md:block">
                                         <div className="text-[10px] text-muted uppercase tracking-widest font-black">Revenue</div>
                                         <div className="text-[14px] font-black text-primary tabular-nums">
-                                            ${team.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                            ₹{team.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                         </div>
                                     </div>
                                     <div className="text-right hidden md:block">

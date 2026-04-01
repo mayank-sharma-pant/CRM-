@@ -4,27 +4,45 @@ import { useState, useEffect } from 'react';
 import api from '../../../services/api';
 import { useRouter } from 'next/navigation';
 import {
+    Activity,
+    Users,
     TrendingUp,
-    TrendingDown,
-    Minus,
+    Receipt,
+    Globe,
+    AlertCircle,
     ArrowUpRight,
+    ArrowDownRight,
+    Search,
+    Filter,
     AlertTriangle,
     DollarSign,
-    Activity,
     Award,
-    Receipt,
     RefreshCw,
-    Search,
     Calendar,
     Bell,
     ChevronRight,
     UserSearch,
-    Users
+    TrendingDown
 } from 'lucide-react';
-import {
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    BarChart, Bar, Cell, PieChart, Pie
-} from 'recharts';
+import dynamic from 'next/dynamic';
+
+const MomentumChart = dynamic(() => import('../../../components/charts/MomentumChart'), { 
+    ssr: false,
+    loading: () => <div className="w-full h-full bg-surface-elevated/5 animate-pulse rounded" />
+});
+const PipelineChart = dynamic(() => import('../../../components/charts/PipelineChart'), { 
+    ssr: false,
+    loading: () => <div className="w-full h-full bg-surface-elevated/5 animate-pulse rounded" />
+});
+const RetentionChart = dynamic(() => import('../../../components/charts/SharedCharts').then(mod => mod.RetentionChart), { 
+    ssr: false,
+    loading: () => <div className="w-full h-full bg-surface-elevated/5 animate-pulse rounded" />
+});
+const LiquidityChart = dynamic(() => import('../../../components/charts/SharedCharts').then(mod => mod.LiquidityChart), { 
+    ssr: false,
+    loading: () => <div className="w-full h-full bg-surface-elevated/5 animate-pulse rounded" />
+});
+
 import { useNotification } from '../../../contexts/NotificationContext';
 import KPICard from '../../../components/shared/KPICard';
 
@@ -160,16 +178,7 @@ export default function MDDashboard() {
                     </div>
                     <div className="p-5 flex gap-6">
                         <div className="flex-1 h-[220px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={data.salesMomentum.trend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="var(--color-border)" opacity={0.3} />
-                                    <XAxis dataKey="date" stroke="var(--color-text-muted)" fontSize={10} tickLine={false} axisLine={false} dy={10} />
-                                    <YAxis stroke="var(--color-text-muted)" fontSize={10} tickLine={false} axisLine={false} />
-                                    <Tooltip contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: '1px solid var(--color-border)', borderRadius: '4px', fontSize: '11px' }} cursor={{ stroke: 'var(--color-accent)', strokeWidth: 1 }} />
-                                    <Line type="monotone" dataKey="revenue" stroke="var(--color-accent)" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-                                    <Line type="monotone" dataKey="sales" stroke="var(--color-success)" strokeWidth={2.5} dot={false} />
-                                </LineChart>
-                            </ResponsiveContainer>
+                            <MomentumChart data={data.salesMomentum.trend} />
                         </div>
                         <div className="w-[160px] flex flex-col justify-center gap-4 border-l border-border pl-5">
                             {data.salesMomentum.outcomes.map((outcome, i) => (
@@ -192,16 +201,7 @@ export default function MDDashboard() {
                     </div>
                     <div className="p-5 flex-1 flex flex-col">
                         <div className="h-[120px] w-full mb-4">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={data.pipelineSummary.stageDistribution} barSize={16}>
-                                    <XAxis dataKey="stage" hide />
-                                    <Bar dataKey="count" radius={[2, 2, 0, 0]}>
-                                        {data.pipelineSummary.stageDistribution.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={index % 2 === 0 ? 'var(--color-accent)' : 'var(--color-accent-subtle)'} />
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
+                            <PipelineChart data={data.pipelineSummary.stageDistribution} />
                         </div>
                         <div className="space-y-2">
                             <InsightTile label="Primary Stage" value={data.pipelineSummary.topStage} />
@@ -221,13 +221,7 @@ export default function MDDashboard() {
                     </div>
                     <div className="p-5 flex gap-6">
                         <div className="flex-1 h-[140px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={data.clientSnapshot.growth}>
-                                    <XAxis dataKey="date" hide />
-                                    <Tooltip contentStyle={{ backgroundColor: 'var(--color-surface-elevated)', border: 'none', borderRadius: '4px', fontSize: '11px' }} />
-                                    <Line type="step" dataKey="count" stroke="var(--color-success)" strokeWidth={2} dot={false} />
-                                </LineChart>
-                            </ResponsiveContainer>
+                            <RetentionChart data={data.clientSnapshot.growth} />
                         </div>
                         <div className="w-[120px] space-y-3">
                             <div>
@@ -250,22 +244,9 @@ export default function MDDashboard() {
                         </div>
                         <LinkText href="/md/invoices">View Ledger</LinkText>
                     </div>
-                    <div className="p-5 flex items-center gap-8">
-                        <div className="h-28 w-28 relative">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie data={data.financeSnapshot.invoiceHealth} innerRadius={35} outerRadius={50} paddingAngle={4} dataKey="value">
-                                        {data.financeSnapshot.invoiceHealth.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                </PieChart>
-                            </ResponsiveContainer>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="text-[14px] font-black text-secondary tabular-nums">
-                                    {(data.financeSnapshot.counts.paid || 0) + (data.financeSnapshot.counts.outstanding || 0)}
-                                </span>
-                            </div>
+                    <div className="p-5 flex gap-4">
+                        <div className="w-[120px] h-[120px]">
+                            <LiquidityChart data={data.financeSnapshot.invoiceHealth} />
                         </div>
                         <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-2">
                             <StatRow label="Invoiced" value={data.financeSnapshot.counts.paid} color="text-success" />

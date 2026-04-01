@@ -14,8 +14,10 @@ import {
     Calendar
 } from 'lucide-react';
 import {
-    LineChart, Line, ResponsiveContainer
+    LineChart, Line
 } from 'recharts';
+import ChartWrapper from '../../../components/shared/ChartWrapper';
+
 
 // Signal definitions for each alert type (read-only reference)
 const SIGNAL_DEFINITIONS = {
@@ -177,7 +179,7 @@ export default function MDMonitoringPage() {
                 <div className="col-span-12 lg:col-span-4 bg-surface rounded-md border border-border shadow-sm p-5">
                     <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight mb-4">Risk Trajectory</h3>
                     <div className="h-[80px] w-full mb-4">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ChartWrapper width="100%" height="100%">
                             <LineChart data={data.riskTrend}>
                                 <Line
                                     type="monotone"
@@ -187,7 +189,7 @@ export default function MDMonitoringPage() {
                                     dot={false}
                                 />
                             </LineChart>
-                        </ResponsiveContainer>
+                        </ChartWrapper>
                     </div>
                     <p className="text-[12px] text-secondary font-bold uppercase tracking-tight mb-1 opacity-70">Detection Volume</p>
                     <p className="text-[13px] text-primary font-bold">{data.trendSummary || 'System parameters stabilized.'}</p>
@@ -392,11 +394,11 @@ function AlertDrawer({ alert, onClose, riskTrend, router }) {
                     <div>
                         <h4 className="text-[10px] text-muted uppercase tracking-widest font-black mb-3">Trajectory Vector</h4>
                         <div className="h-[60px] w-full bg-surface-elevated/20 rounded-md border border-border p-2">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ChartWrapper width="100%" height="100%">
                                 <LineChart data={riskTrend}>
                                     <Line type="monotone" dataKey="value" stroke="var(--color-accent)" strokeWidth={2} dot={false} />
                                 </LineChart>
-                            </ResponsiveContainer>
+                            </ChartWrapper>
                         </div>
                     </div>
 

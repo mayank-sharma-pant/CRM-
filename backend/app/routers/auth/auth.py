@@ -44,14 +44,21 @@ _RATE_LIMITS = {
 
 def _set_auth_cookie(response: Response, token: str):
     """Utility to set the access_token cookie with secure defaults."""
+    secure = settings.AUTH_COOKIE_SECURE if settings.AUTH_COOKIE_SECURE is not None else (settings.ENVIRONMENT == "production")
+    samesite = (settings.AUTH_COOKIE_SAMESITE or "lax").strip().lower()
+    if samesite not in ("lax", "strict", "none"):
+        samesite = "lax"
+    # If SameSite=None, Secure must be true (browser requirement).
+    if samesite == "none":
+        secure = True
     response.set_cookie(
         key="access_token",
         value=token,
         httponly=True,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         expires=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        samesite="lax",
-        secure=settings.ENVIRONMENT == "production",
+        samesite=samesite,
+        secure=secure,
     )
 
 
@@ -292,11 +299,17 @@ def login_otp(request: Request, response: Response, payload: OTPLoginRequest, db
 @router.post("/logout", response_model=MessageResponse)
 def logout(response: Response):
     """Clear the authentication cookie."""
+    secure = settings.AUTH_COOKIE_SECURE if settings.AUTH_COOKIE_SECURE is not None else (settings.ENVIRONMENT == "production")
+    samesite = (settings.AUTH_COOKIE_SAMESITE or "lax").strip().lower()
+    if samesite not in ("lax", "strict", "none"):
+        samesite = "lax"
+    if samesite == "none":
+        secure = True
     response.delete_cookie(
         key="access_token",
         httponly=True,
-        samesite="lax",
-        secure=settings.ENVIRONMENT == "production"
+        samesite=samesite,
+        secure=secure,
     )
     return {"message": "Logged out successfully"}
 

@@ -38,6 +38,13 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str = "https://crm.perioxia.com"
 
+    # Auth cookie settings
+    # - If frontend and backend are on different sites (different registrable domain),
+    #   browsers will NOT send cookies on XHR/fetch unless SameSite=None and Secure=true.
+    # - For same-site deployments (recommended), Lax is fine.
+    AUTH_COOKIE_SAMESITE: str = "lax"  # "lax" | "strict" | "none"
+    AUTH_COOKIE_SECURE: Optional[bool] = None  # defaults to True in production
+
     # AI (Gemini)
     GEMINI_API_KEY: Optional[str] = None
     GEMINI_MODEL: str = "gemini-2.5-flash"

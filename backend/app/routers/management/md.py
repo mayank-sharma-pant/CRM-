@@ -279,8 +279,8 @@ def get_md_revenue(
 
     # Dynamic AI growth insights
     ai_insights = []
-    if total_revenue > 0 and outstanding > total_revenue * 0.3:
-        ai_insights.append({"tag": "Liquidity", "title": "High AR vs Collected", "evidence": [f"{int((outstanding/total_revenue)*100)}% of revenue is pending."]})
+    if float(total_revenue) > 0 and float(outstanding) > float(total_revenue) * 0.3:
+        ai_insights.append({"tag": "Liquidity", "title": "High AR vs Collected", "evidence": [f"{int((float(outstanding)/float(total_revenue))*100)}% of revenue is pending."]})
     elif growth_pct < 0:
         ai_insights.append({"tag": "Contraction", "title": "Negative Growth", "evidence": [f"Down {abs(growth_pct)}% from last 30d."]})
     else:
@@ -1148,14 +1148,21 @@ def get_custom_report(
             chart_data[name]["revenue"] = float(rev or 0)
             
     else: # date
-        lead_groups = lead_q.with_entities(cast(Lead.created_at, SqlDate), func.count(Lead.id)).group_by(cast(Lead.created_at, SqlDate)).all()
+        # Use substring or strftime for robust SQLite date grouping without casting to Date object
+        lead_groups = lead_q.with_entities(func.strftime('%Y-%m-%d', Lead.created_at), func.count(Lead.id)).group_by(func.strftime('%Y-%m-%d', Lead.created_at)).all()
         for dt, cnt in lead_groups:
-            name = dt.strftime("%Y-%m-%d") if dt else "Unknown"
+            if dt:
+                name = dt
+            else:
+                name = "Unknown"
             chart_data[name] = {"name": name, "leads": cnt, "revenue": 0}
             
-        inv_groups = inv_sum_q.with_entities(cast(Invoice.created_at, SqlDate), func.sum(Invoice.total)).filter(Invoice.status == "Paid").group_by(cast(Invoice.created_at, SqlDate)).all()
+        inv_groups = inv_sum_q.with_entities(func.strftime('%Y-%m-%d', Invoice.created_at), func.sum(Invoice.total)).filter(Invoice.status == "Paid").group_by(func.strftime('%Y-%m-%d', Invoice.created_at)).all()
         for dt, rev in inv_groups:
-            name = dt.strftime("%Y-%m-%d") if dt else "Unknown"
+            if dt:
+                name = dt
+            else:
+                name = "Unknown"
             if name not in chart_data:
                 chart_data[name] = {"name": name, "leads": 0, "revenue": 0}
             chart_data[name]["revenue"] = float(rev or 0)

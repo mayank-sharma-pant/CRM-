@@ -1,6 +1,7 @@
 from app.models.core.team import Team
 from app.models.core.team_membership import TeamMembership
 from app.models.finance.ledger import LedgerEntry
+from app.models.sales.task import Task
 from app.routers.ai import company_assistant as ai_router
 from tests.helpers.auth import create_active_user, login_user
 from tests.helpers.factories import create_company
@@ -196,3 +197,78 @@ def test_ai_malformed_action_item_or_params_returns_structured_errors(client, db
     r = client.post("/api/ai/company-assistant", json={"message": "Do malformed actions"})
     assert r.status_code == 400
     assert "params must be an object" in r.json()["detail"].lower()
+
+
+async def _plan_create_task(_prompt: str, _params=None) -> dict:
+    return {
+        "say": "Assigning task",
+        "actions": [
+            {
+                "action": "create_task",
+                "params": {
+                    "title": "Call VIP lead",
+                    "assignee_id": 0,  # patched per test
+                    "due_date": "2026-03-27",
+                    "priority": "high",
+                    "description": "Follow up on the pending quotation.",
+                },
+            }
+        ],
+    }
+
+
+def test_sales_cannot_execute_create_task_action(client, db, monkeypatch):
+    async def _plan_with_assignee(_prompt: str, _params=None) -> dict:
+        plan = await _plan_create_task(_prompt, _params)
+        return plan
+
+    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_with_assignee)
+    company = create_company(db, name="AI Task Co", company_code="ATC")
+    sales = create_active_user(db, email="sales@atc.co", role="sales", company_id=company.id, full_name="Task Sales")
+    assignee = create_active_user(db, email="assignee@atc.co", role="sales", company_id=company.id, full_name="Task Assignee")
+
+    # Patch the plan to point to a valid assignee ID.
+    async def _plan_patched(_prompt: str, _params=None) -> dict:
+        plan = await _plan_create_task(_prompt, _params)
+        plan["actions"][0]["params"]["assignee_id"] = assignee.id
+        return plan
+
+    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_patched)
+
+    login_user(client, sales.email)
+    r = client.post("/api/ai/company-assistant", json={"message": "Assign task to the sales rep"})
+    assert r.status_code == 200
+    actions = r.json().get("executed_actions", [])
+    assert actions
+    assert actions[0]["action"] == "create_task"
+    assert actions[0]["result"]["status"] == "skipped"
+    assert actions[0]["result"]["reason"] == "action_not_allowed_for_role"
+
+    assert db.query(Task).filter(Task.company_id == company.id).count() == 0
+
+
+def test_manager_can_create_task_via_ai(client, db, monkeypatch):
+    company = create_company(db, name="AI Task Manager Co", company_code="ATM")
+    manager = create_active_user(db, email="manager@atm.co", role="manager", company_id=company.id, full_name="Task Manager")
+    assignee = create_active_user(db, email="assignee@atm.co", role="sales", company_id=company.id, full_name="Task Assignee")
+
+    async def _plan_patched(_prompt: str, _params=None) -> dict:
+        plan = await _plan_create_task(_prompt, _params)
+        plan["actions"][0]["params"]["assignee_id"] = assignee.id
+        return plan
+
+    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_patched)
+
+    login_user(client, manager.email)
+    r = client.post("/api/ai/company-assistant", json={"message": "Create a task for the assignee"})
+    assert r.status_code == 200
+    actions = r.json().get("executed_actions", [])
+    assert actions
+    assert actions[0]["action"] == "create_task"
+    assert actions[0]["result"]["assigned_to_id"] == assignee.id
+
+    rows = db.query(Task).filter(Task.company_id == company.id, Task.assigned_to_id == assignee.id).all()
+    assert len(rows) == 1
+    assert rows[0].title == "Call VIP lead"
+    assert rows[0].assigned_by_id == manager.id
+    assert rows[0].is_manager_assigned is True

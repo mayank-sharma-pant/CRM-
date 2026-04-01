@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timezone, date, timedelta
@@ -528,7 +529,8 @@ def _parse_json_list(raw: str | None) -> list[dict]:
 
 
 def _serialize_actions(actions: list[AIExecutedAction]) -> str:
-    return json.dumps([a.model_dump() for a in actions])
+    # `params`/`result` may contain datetimes or Enums; normalize to JSON-safe types.
+    return json.dumps(jsonable_encoder(actions))
 
 
 def _conversation_to_response(conv: AIConversation) -> AIChatResponse:

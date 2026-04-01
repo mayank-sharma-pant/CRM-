@@ -57,7 +57,8 @@ module.exports = defineConfig({
       timeout: 120000,
     },
     {
-      command: 'npm run dev -- --hostname 127.0.0.1 --port 3001',
+      // Use production server for E2E to avoid dev-only Next overlays/devtools crashes.
+      command: 'npm run build && npm run start -- --hostname 127.0.0.1 --port 3001',
       cwd: '.',
       env: {
         // Next rewrites read BACKEND_URL (see next.config.mjs)

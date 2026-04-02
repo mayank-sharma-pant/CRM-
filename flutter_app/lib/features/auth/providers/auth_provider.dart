@@ -1,4 +1,6 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:perioxia_crm/core/network/api_exception.dart';
 import 'package:perioxia_crm/data/models/user.dart';
 import 'package:perioxia_crm/data/repositories/auth_repository.dart';
 
@@ -45,11 +47,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _repo.login(email, password);
       state = AuthState(status: AuthStatus.authenticated, user: user);
+    } on DioException catch (e) {
+      final msg = ApiException.fromDioError(e).message;
+      state = AuthState(status: AuthStatus.error, error: msg);
     } catch (e) {
-      state = AuthState(
-        status: AuthStatus.error,
-        error: e.toString(),
-      );
+      state = AuthState(status: AuthStatus.error, error: 'Login failed. Please try again.');
+    }
+  }
+
+  Future<void> requestOtp(String email) async {
+    await _repo.requestOtp(email);
+  }
+
+  Future<void> loginOtp(String email, String otpCode) async {
+    state = state.copyWith(status: AuthStatus.loading, error: null);
+    try {
+      final user = await _repo.loginOtp(email, otpCode);
+      state = AuthState(status: AuthStatus.authenticated, user: user);
+    } on DioException catch (e) {
+      final msg = ApiException.fromDioError(e).message;
+      state = AuthState(status: AuthStatus.error, error: msg);
+    } catch (e) {
+      state = AuthState(status: AuthStatus.error, error: 'OTP verification failed.');
     }
   }
 
@@ -59,6 +78,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } finally {
       state = const AuthState(status: AuthStatus.unauthenticated);
     }
+  }
+
+  String get dashboardRoute {
+    final role = state.user?.role ?? 'sales';
+    return '/dashboard';
   }
 }
 

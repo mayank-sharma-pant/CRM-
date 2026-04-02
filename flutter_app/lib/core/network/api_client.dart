@@ -38,8 +38,10 @@ class ApiClient {
     String path, {
     dynamic data,
     Options? options,
+    Map<String, dynamic>? queryParameters,
   }) =>
-      dio.post<T>(path, data: data, options: options);
+      dio.post<T>(path,
+          data: data, options: options, queryParameters: queryParameters);
 
   Future<Response<T>> put<T>(String path, {dynamic data}) =>
       dio.put<T>(path, data: data);

@@ -55,6 +55,42 @@ class _AdminTeamDetailScreenState extends ConsumerState<AdminTeamDetailScreen> {
     ctrl.dispose();
   }
 
+  Future<void> _changeManager() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Change manager'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(hintText: 'New manager user ID'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Set')),
+        ],
+      ),
+    );
+    final id = int.tryParse(ctrl.text.trim());
+    ctrl.dispose();
+    if (ok == true && id != null) {
+      await ref
+          .read(companyAdminRepositoryProvider)
+          .updateTeam(widget.teamId, managerId: id);
+      ref.invalidate(companyAdminTeamDetailProvider(widget.teamId));
+      ref.invalidate(companyAdminTeamsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Manager updated')));
+      }
+    }
+  }
+
   Future<void> _addMember() async {
     final ctrl = TextEditingController();
     final ok = await showDialog<bool>(
@@ -115,6 +151,10 @@ class _AdminTeamDetailScreenState extends ConsumerState<AdminTeamDetailScreen> {
           final name = d['name']?.toString() ?? '';
           final members =
               List<Map<String, dynamic>>.from(d['members'] ?? []);
+          final mgr = d['manager'];
+          final mgrName = mgr is Map
+              ? (mgr['name']?.toString() ?? mgr['full_name']?.toString())
+              : mgr?.toString();
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -133,6 +173,31 @@ class _AdminTeamDetailScreenState extends ConsumerState<AdminTeamDetailScreen> {
               ),
               Text('${d['member_count'] ?? members.length} members',
                   style: const TextStyle(color: AppColors.textMuted)),
+              if (mgrName != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.manage_accounts, size: 18),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text('Manager: $mgrName',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 13)),
+                    ),
+                    TextButton(
+                      onPressed: _changeManager,
+                      child: const Text('Change'),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                const SizedBox(height: 4),
+                TextButton.icon(
+                  onPressed: _changeManager,
+                  icon: const Icon(Icons.manage_accounts, size: 18),
+                  label: const Text('Assign manager'),
+                ),
+              ],
               const Divider(height: 24),
               ...members.map((m) {
                 final uid = m['id'] as int;

@@ -32,8 +32,11 @@ final crmPlatformCompanyDetailProvider =
 });
 
 final crmPlatformLogsProvider =
-    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  return ref.read(crmPlatformRepositoryProvider).getLogs(days: 14, limit: 100);
+    FutureProvider.autoDispose.family<Map<String, dynamic>, int>(
+        (ref, days) async {
+  return ref
+      .read(crmPlatformRepositoryProvider)
+      .getLogs(days: days, limit: 100);
 });
 
 final crmPlatformPlansProvider =

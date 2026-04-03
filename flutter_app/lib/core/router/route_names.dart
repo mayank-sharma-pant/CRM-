@@ -21,6 +21,7 @@ class RouteNames {
   static const String settings = 'settings';
   static const String profile = 'profile';
   static const String performance = 'performance';
+  static const String salesReports = 'salesReports';
   static const String managerReports = 'managerReports';
   static const String more = 'more';
   static const String revenue = 'revenue';
@@ -28,11 +29,16 @@ class RouteNames {
   static const String employeeLookup = 'employeeLookup';
   static const String employeeDetail = 'employeeDetail';
   static const String mdInvoices = 'mdInvoices';
+  static const String mdPoints = 'mdPoints';
+  static const String mdReports = 'mdReports';
   static const String adminUsers = 'adminUsers';
   static const String adminUserDetail = 'adminUserDetail';
   static const String adminTeamsRoute = 'adminTeamsRoute';
   static const String adminTeamDetail = 'adminTeamDetail';
   static const String adminApprovalsRoute = 'adminApprovalsRoute';
+  static const String adminHierarchy = 'adminHierarchy';
+  static const String adminAuditLog = 'adminAuditLog';
+  static const String adminSettings = 'adminSettings';
   static const String purchaseSales = 'purchaseSales';
   static const String purchaseSaleDetail = 'purchaseSaleDetail';
   static const String purchaseInvoices = 'purchaseInvoices';

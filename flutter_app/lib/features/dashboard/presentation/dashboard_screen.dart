@@ -50,27 +50,44 @@ class DashboardScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Lead KPI row
+              // KPI grid (parity with web sales dashboard)
               Row(
                 children: [
                   Expanded(
                       child: _KpiCard(
                           label: 'Total Leads',
+                          subLabel: 'active pipeline',
                           value: '${data.totalLeads}',
                           icon: Icons.people_outline,
                           color: AppColors.primary)),
                   const SizedBox(width: 10),
                   Expanded(
                       child: _KpiCard(
-                          label: 'Closed',
+                          label: 'Closed Leads',
+                          subLabel: 'converted',
                           value: '${data.closedLeads}',
                           icon: Icons.check_circle_outline,
                           color: AppColors.success)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                      child: _KpiCard(
+                          label: 'Conversion Rate',
+                          subLabel: 'win velocity',
+                          value: '${data.conversionRate}%',
+                          icon: Icons.percent,
+                          color: AppColors.accent)),
                   const SizedBox(width: 10),
                   Expanded(
                       child: _KpiCard(
-                          label: 'Rate',
-                          value: '${data.conversionRate}%',
+                          label: 'My Revenue',
+                          subLabel: 'total invoiced',
+                          value: data.totalRevenue >= 1000
+                              ? '₹${(data.totalRevenue / 1000).toStringAsFixed(1)}k'
+                              : _currFmt.format(data.totalRevenue),
                           icon: Icons.trending_up,
                           color: AppColors.accent)),
                 ],
@@ -126,7 +143,10 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 10),
                 ...data.priorityTasks.take(5).map(
-                    (t) => _PriorityTaskCard(task: t)),
+                    (t) => _PriorityTaskCard(
+                        task: t,
+                        onTap: () => context.push('/tasks'),
+                      )),
                 const SizedBox(height: 16),
               ],
 
@@ -148,12 +168,14 @@ class DashboardScreen extends ConsumerWidget {
 
 class _KpiCard extends StatelessWidget {
   final String label;
+  final String? subLabel;
   final String value;
   final IconData icon;
   final Color color;
 
   const _KpiCard({
     required this.label,
+    this.subLabel,
     required this.value,
     required this.icon,
     required this.color,
@@ -183,6 +205,14 @@ class _KpiCard extends StatelessWidget {
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textSecondary)),
+          if (subLabel != null) ...[
+            const SizedBox(height: 2),
+            Text(subLabel!,
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textMuted)),
+          ],
         ],
       ),
     );
@@ -323,12 +353,18 @@ class _QuickActionChip extends StatelessWidget {
 
 class _PriorityTaskCard extends StatelessWidget {
   final Map<String, dynamic> task;
-  const _PriorityTaskCard({required this.task});
+  final VoidCallback onTap;
+  const _PriorityTaskCard({required this.task, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final isOverdue = task['statusReason'] == 'OVERDUE';
-    return Container(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -370,7 +406,12 @@ class _PriorityTaskCard extends StatelessWidget {
           if (task['dueDate'] != null)
             Text(task['dueDate'],
                 style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+          const SizedBox(width: 4),
+          Icon(Icons.chevron_right,
+              size: 18, color: AppColors.textMuted.withOpacity(0.6)),
         ],
+      ),
+        ),
       ),
     );
   }

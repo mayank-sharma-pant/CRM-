@@ -39,3 +39,19 @@ final companyAdminTransfersProvider =
         status: 'pending',
       );
 });
+
+final companyAdminHierarchyProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  return ref.read(companyAdminRepositoryProvider).getHierarchy();
+});
+
+final companyAdminAuditLogProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>, int>(
+        (ref, days) async {
+  return ref.read(companyAdminRepositoryProvider).getAuditLog(days: days);
+});
+
+final companyAdminSettingsProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  return ref.read(companyAdminRepositoryProvider).getSettings();
+});

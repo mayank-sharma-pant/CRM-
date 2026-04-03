@@ -143,6 +143,21 @@ class MoreScreen extends ConsumerWidget {
               onTap: () => context.push('/admin-approvals'),
             ),
             _MenuItem(
+              icon: Icons.account_tree_outlined,
+              label: 'Hierarchy',
+              onTap: () => context.push('/admin-hierarchy'),
+            ),
+            _MenuItem(
+              icon: Icons.history_outlined,
+              label: 'Audit log',
+              onTap: () => context.push('/admin-audit-log'),
+            ),
+            _MenuItem(
+              icon: Icons.settings_applications_outlined,
+              label: 'Company settings',
+              onTap: () => context.push('/admin-settings'),
+            ),
+            _MenuItem(
               icon: Icons.people_outline,
               label: 'Leads',
               onTap: () => context.push('/leads'),
@@ -246,6 +261,16 @@ class MoreScreen extends ConsumerWidget {
               onTap: () => context.push('/md-invoices'),
             ),
             _MenuItem(
+              icon: Icons.workspace_premium_outlined,
+              label: 'Points / Incentives',
+              onTap: () => context.push('/md-points'),
+            ),
+            _MenuItem(
+              icon: Icons.pie_chart_outline,
+              label: 'Reports',
+              onTap: () => context.push('/md-reports'),
+            ),
+            _MenuItem(
               icon: Icons.inventory_2_outlined,
               label: 'Stock / Inventory',
               onTap: () => context.push('/stock'),
@@ -312,6 +337,11 @@ class MoreScreen extends ConsumerWidget {
               icon: Icons.bar_chart_outlined,
               label: 'Performance',
               onTap: () => context.push('/performance'),
+            ),
+            _MenuItem(
+              icon: Icons.pie_chart_outline,
+              label: 'Reports',
+              onTap: () => context.push('/sales-reports'),
             ),
             _MenuItem(
               icon: Icons.auto_awesome_outlined,

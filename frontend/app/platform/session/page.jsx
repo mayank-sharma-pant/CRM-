@@ -39,8 +39,32 @@ export default function PlatformSessionPage() {
 
     if (error || !me) {
         return (
-            <div className="p-8">
-                <p className="text-red-600 font-medium">{error || 'Unknown error'}</p>
+            <div className="p-8 flex items-center justify-center">
+                <div className="max-w-xl w-full bg-white rounded-xl border border-red-200 p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                        <ShieldCheck className="text-red-600" size={24} />
+                        <h2 className="text-lg font-bold text-slate-900">Platform session problem</h2>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-4">
+                        {error === 'No platform token'
+                            ? 'No platform admin token was found in this browser. To continue, sign in to the platform admin console.'
+                            : 'Your platform admin session could not be validated. This usually means your token has expired or was cleared.'}
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                        <a
+                            href="/platform/login"
+                            className="inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                        >
+                            Go to platform login
+                        </a>
+                        <a
+                            href="/"
+                            className="inline-flex items-center justify-center px-4 py-2.5 border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm font-medium rounded-lg transition-colors"
+                        >
+                            Back to CRM
+                        </a>
+                    </div>
+                </div>
             </div>
         );
     }

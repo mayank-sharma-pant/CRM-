@@ -72,9 +72,11 @@ class CompanyAdminRepository {
     return Map<String, dynamic>.from(r.data);
   }
 
-  Future<void> updateTeam(int teamId, {String? name}) async {
-    await _api.put(ApiEndpoints.adminTeam(teamId),
-        data: {if (name != null) 'name': name});
+  Future<void> updateTeam(int teamId, {String? name, int? managerId}) async {
+    await _api.put(ApiEndpoints.adminTeam(teamId), data: {
+      if (name != null) 'name': name,
+      if (managerId != null) 'manager_id': managerId,
+    });
   }
 
   Future<void> deleteTeam(int teamId) async {
@@ -145,5 +147,24 @@ class CompanyAdminRepository {
       'status': 'rejected',
       if (comment != null && comment.isNotEmpty) 'admin_comment': comment,
     });
+  }
+
+  Future<Map<String, dynamic>> getSettings() async {
+    final r = await _api.get(ApiEndpoints.adminSettings);
+    return Map<String, dynamic>.from(r.data);
+  }
+
+  Future<void> updateSettings(Map<String, dynamic> body) async {
+    await _api.put(ApiEndpoints.adminSettings, data: body);
+  }
+
+  Future<Map<String, dynamic>> getInvites() async {
+    final r = await _api.get(ApiEndpoints.adminInvites);
+    return Map<String, dynamic>.from(r.data);
+  }
+
+  Future<Map<String, dynamic>> createInvite(Map<String, dynamic> body) async {
+    final r = await _api.post(ApiEndpoints.adminInvites, data: body);
+    return Map<String, dynamic>.from(r.data);
   }
 }

@@ -3,13 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:perioxia_crm/core/theme/app_colors.dart';
 import 'package:perioxia_crm/features/dashboard/providers/dashboard_provider.dart';
-import 'package:perioxia_crm/shared/widgets/loading_indicator.dart';
 import 'package:perioxia_crm/shared/widgets/error_banner.dart';
+import 'package:perioxia_crm/shared/widgets/loading_indicator.dart';
 
-final _currFmt = NumberFormat.compactCurrency(symbol: '₹', decimalDigits: 0);
+/// Parity with web `PerformanceView` + `/sales/performance` (only `GET /leads/dashboard` data).
+final _inrWhole = NumberFormat('#,##0', 'en_IN');
 
 class PerformanceScreen extends ConsumerWidget {
   const PerformanceScreen({super.key});
+
+  static const double _twoColBreakpoint = 900;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,183 +31,203 @@ class PerformanceScreen extends ConsumerWidget {
         ),
         data: (data) => RefreshIndicator(
           onRefresh: () async => ref.invalidate(dashboardProvider),
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              const Text('Leads Metrics',
-                  style: TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              Row(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wideMetrics = constraints.maxWidth >= 600;
+              final wideTwoCol = constraints.maxWidth >= _twoColBreakpoint;
+
+              final metricsBlock = wideMetrics
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _TopMetricCard(
+                            label: 'Total Leads',
+                            value: '${data.totalLeads}',
+                            icon: Icons.people_outline,
+                            accent: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _TopMetricCard(
+                            label: 'Conversion Rate',
+                            value: '${data.conversionRate}%',
+                            icon: Icons.track_changes_outlined,
+                            accent: AppColors.success,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _TopMetricCard(
+                            label: 'Revenue Sourced',
+                            value: '₹${_inrWhole.format(data.myRevenue)}',
+                            icon: Icons.trending_up,
+                            accent: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        _TopMetricCard(
+                          label: 'Total Leads',
+                          value: '${data.totalLeads}',
+                          icon: Icons.people_outline,
+                          accent: AppColors.primary,
+                          fullWidth: true,
+                        ),
+                        const SizedBox(height: 12),
+                        _TopMetricCard(
+                          label: 'Conversion Rate',
+                          value: '${data.conversionRate}%',
+                          icon: Icons.track_changes_outlined,
+                          accent: AppColors.success,
+                          fullWidth: true,
+                        ),
+                        const SizedBox(height: 12),
+                        _TopMetricCard(
+                          label: 'Revenue Sourced',
+                          value: '₹${_inrWhole.format(data.myRevenue)}',
+                          icon: Icons.trending_up,
+                          accent: AppColors.primary,
+                          fullWidth: true,
+                        ),
+                      ],
+                    );
+
+              final taskCard = _SectionCard(
+                title: 'Task Execution',
+                icon: Icons.check_circle_outline,
+                child: Column(
+                  children: [
+                    _TaskRow(
+                      label: 'Completed',
+                      value: data.taskCompleted,
+                      dotColor: AppColors.success,
+                    ),
+                    const SizedBox(height: 10),
+                    _TaskRow(
+                      label: 'In Progress',
+                      value: data.taskInProgress,
+                      dotColor: AppColors.primary,
+                    ),
+                    const SizedBox(height: 10),
+                    _TaskRow(
+                      label: 'Overdue',
+                      value: data.taskOverdue,
+                      dotColor: AppColors.error,
+                      emphasizeValue: true,
+                    ),
+                  ],
+                ),
+              );
+
+              final activityCard = _SectionCard(
+                title: 'Recent Activity',
+                icon: Icons.calendar_today_outlined,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ActivitySubsection(
+                      heading: 'This Week',
+                      children: [
+                        _ActivityRow(
+                            label: 'New Leads',
+                            value: '${data.newLeadsThisWeek}'),
+                        _ActivityRow(
+                            label: 'Tasks Done',
+                            value: '${data.tasksDoneThisWeek}'),
+                        _ActivityRow(
+                            label: 'Orders Made', value: '${data.myOrders}'),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    _ActivitySubsection(
+                      heading: 'Pipeline Health',
+                      children: [
+                        _ActivityRow(
+                          label: 'Stalled Leads (14d+)',
+                          value: '${data.stalledLeads}',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+
+              final taskActivityRow = wideTwoCol
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: taskCard),
+                        const SizedBox(width: 16),
+                        Expanded(child: activityCard),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        taskCard,
+                        const SizedBox(height: 16),
+                        activityCard,
+                      ],
+                    );
+
+              return ListView(
+                padding: const EdgeInsets.all(16),
                 children: [
-                  _MetricCard(
-                    label: 'Total Leads',
-                    value: '${data.totalLeads}',
-                    icon: Icons.people_outline,
-                    color: AppColors.primary,
+                  Text(
+                    'Real-time sales execution metrics',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                   ),
-                  const SizedBox(width: 12),
-                  _MetricCard(
-                    label: 'Closed Deals',
-                    value: '${data.closedLeads}',
-                    icon: Icons.handshake_outlined,
-                    color: AppColors.success,
+                  const SizedBox(height: 16),
+                  metricsBlock,
+                  const SizedBox(height: 20),
+                  taskActivityRow,
+                  const SizedBox(height: 24),
+                  Divider(
+                      height: 1,
+                      color: Theme.of(context).dividerColor.withOpacity(0.2)),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Text(
+                      'Snapshot as of ${DateFormat.yMMMd().format(DateTime.now())}',
+                      style: TextStyle(
+                          fontSize: 11, color: AppColors.textMuted),
+                    ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _MetricCard(
-                    label: 'Conversion Rate',
-                    value: '${data.conversionRate}%',
-                    icon: Icons.trending_up,
-                    color: AppColors.accent,
-                  ),
-                  const SizedBox(width: 12),
-                  _MetricCard(
-                    label: 'Active Tasks',
-                    value: '${data.activeTasks}',
-                    icon: Icons.task_alt,
-                    color: AppColors.warning,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Revenue
-              const Text('Revenue',
-                  style: TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              _RevenueSection(data: data),
-              const SizedBox(height: 24),
-
-              // Pipeline health
-              if (data.leadsByStatus.isNotEmpty) ...[
-                const Text('Pipeline Health',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 12),
-                _PipelineBar(items: data.leadsByStatus, total: data.totalLeads),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 6,
-                  children: data.leadsByStatus.map((item) {
-                    final status = item['status']?.toString() ?? '';
-                    final count = item['count'] ?? 0;
-                    return _LegendItem(
-                        status: status,
-                        count: count,
-                        color: _statusColor(status));
-                  }).toList(),
-                ),
-              ],
-              const SizedBox(height: 24),
-
-              // Footer
-              Center(
-                child: Text(
-                  'Data as of ${DateFormat('MMM d, yyyy – h:mm a').format(DateTime.now())}',
-                  style: TextStyle(
-                      fontSize: 11, color: AppColors.textMuted),
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
     );
   }
-
-  static Color _statusColor(String status) {
-    switch (status) {
-      case 'New':
-        return AppColors.info;
-      case 'Contacted':
-        return AppColors.primary;
-      case 'Qualified':
-      case 'Active':
-        return AppColors.accent;
-      case 'Proposal':
-        return AppColors.warning;
-      case 'Converted':
-        return AppColors.success;
-      case 'Lost':
-        return AppColors.error;
-      default:
-        return AppColors.textMuted;
-    }
-  }
 }
 
-class _MetricCard extends StatelessWidget {
+class _TopMetricCard extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  final Color color;
+  final Color accent;
+  final bool fullWidth;
 
-  const _MetricCard({
+  const _TopMetricCard({
     required this.label,
     required this.value,
     required this.icon,
-    required this.color,
+    required this.accent,
+    this.fullWidth = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-              color: Theme.of(context).dividerColor.withOpacity(0.15)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: color),
-                const Spacer(),
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration:
-                      BoxDecoration(shape: BoxShape.circle, color: color),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 26, fontWeight: FontWeight.w800, color: color)),
-            const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RevenueSection extends StatelessWidget {
-  final DashboardData data;
-  const _RevenueSection({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    final paidPct =
-        data.totalRevenue > 0 ? data.paidRevenue / data.totalRevenue : 0.0;
     return Container(
+      width: fullWidth ? double.infinity : null,
       padding: const EdgeInsets.all(16),
+      constraints: const BoxConstraints(minHeight: 120),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
@@ -212,43 +235,33 @@ class _RevenueSection extends StatelessWidget {
             color: Theme.of(context).dividerColor.withOpacity(0.15)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Total Revenue',
-                  style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600)),
-              Text(_currFmt.format(data.totalRevenue),
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w800)),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: SizedBox(
-              height: 12,
-              child: LinearProgressIndicator(
-                value: paidPct.clamp(0.0, 1.0),
-                backgroundColor: AppColors.warning.withOpacity(0.2),
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(AppColors.success),
-              ),
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+              color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              _RevChip(
-                  color: AppColors.success,
-                  label: 'Paid',
-                  value: _currFmt.format(data.paidRevenue)),
-              _RevChip(
-                  color: AppColors.warning,
-                  label: 'Outstanding',
-                  value: _currFmt.format(data.outstandingRevenue)),
+              Expanded(
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: accent,
+                  ),
+                ),
+              ),
+              Icon(icon, size: 22, color: accent.withOpacity(0.35)),
             ],
           ),
         ],
@@ -257,86 +270,166 @@ class _RevenueSection extends StatelessWidget {
   }
 }
 
-class _RevChip extends StatelessWidget {
-  final Color color;
-  final String label;
-  final String value;
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Widget child;
 
-  const _RevChip(
-      {required this.color, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-        ),
-        const SizedBox(width: 6),
-        Text('$label: ',
-            style:
-                TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-        Text(value,
-            style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700, color: color)),
-      ],
-    );
-  }
-}
-
-class _PipelineBar extends StatelessWidget {
-  final List<Map<String, dynamic>> items;
-  final int total;
-  const _PipelineBar({required this.items, required this.total});
+  const _SectionCard({
+    required this.title,
+    required this.icon,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (total == 0) return const SizedBox.shrink();
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: SizedBox(
-        height: 14,
-        child: Row(
-          children: items.map((item) {
-            final count = (item['count'] as num?)?.toInt() ?? 0;
-            final pct = count / total;
-            final status = item['status']?.toString() ?? '';
-            return Expanded(
-              flex: (pct * 100).round().clamp(1, 100),
-              child: Container(color: PerformanceScreen._statusColor(status)),
-            );
-          }).toList(),
-        ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: Theme.of(context).dividerColor.withOpacity(0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: AppColors.textMuted),
+              const SizedBox(width: 8),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
       ),
     );
   }
 }
 
-class _LegendItem extends StatelessWidget {
-  final String status;
-  final int count;
-  final Color color;
+class _TaskRow extends StatelessWidget {
+  final String label;
+  final int value;
+  final Color dotColor;
+  final bool emphasizeValue;
 
-  const _LegendItem(
-      {required this.status, required this.count, required this.color});
+  const _TaskRow({
+    required this.label,
+    required this.value,
+    required this.dotColor,
+    this.emphasizeValue = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withOpacity(0.35),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+            color: Theme.of(context).dividerColor.withOpacity(0.08)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w500)),
+          ),
+          Text(
+            '$value',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: emphasizeValue ? AppColors.error : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Left border + padding like web `pl-4 border-l-2`.
+class _ActivitySubsection extends StatelessWidget {
+  final String heading;
+  final List<Widget> children;
+
+  const _ActivitySubsection({
+    required this.heading,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        Text(
+          heading.toUpperCase(),
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
+            color: AppColors.textMuted,
+          ),
         ),
-        const SizedBox(width: 4),
-        Text('$status ($count)',
-            style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.only(left: 14),
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(
+                color: Theme.of(context).dividerColor.withOpacity(0.35),
+                width: 2,
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class _ActivityRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ActivityRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          Text(value,
+              style:
+                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 }

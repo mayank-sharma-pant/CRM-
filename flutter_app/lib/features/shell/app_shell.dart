@@ -97,7 +97,10 @@ class AppShell extends ConsumerWidget {
           location.startsWith('/tasks') ||
           location.startsWith('/follow-ups') ||
           location.startsWith('/orders') ||
-          location.startsWith('/invoices')) return 4;
+          location.startsWith('/invoices') ||
+          location.startsWith('/admin-hierarchy') ||
+          location.startsWith('/admin-audit-log') ||
+          location.startsWith('/admin-settings')) return 4;
       return 0;
     }
     if (md) {
@@ -164,7 +167,8 @@ class AppShell extends ConsumerWidget {
         location.startsWith('/orders') ||
         location.startsWith('/assistant') ||
         location.startsWith('/follow-ups') ||
-        location.startsWith('/performance')) return 4;
+        location.startsWith('/performance') ||
+        location.startsWith('/sales-reports')) return 4;
     return 0;
   }
 

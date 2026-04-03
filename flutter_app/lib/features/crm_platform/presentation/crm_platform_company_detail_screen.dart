@@ -31,6 +31,11 @@ class CrmPlatformCompanyDetailScreen extends ConsumerWidget {
         data: (d) {
           final stats = Map<String, dynamic>.from(d['statistics'] ?? {});
           final st = d['status']?.toString() ?? '';
+          final createdAt =
+              (d['created_at']?.toString().split('T').first) ?? '—';
+          final approvedAt =
+              (d['approved_at']?.toString().split('T').first) ?? '';
+          final planLabel = _planNameForId(d['plan_id']);
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -40,6 +45,11 @@ class CrmPlatformCompanyDetailScreen extends ConsumerWidget {
                       fontSize: 22, fontWeight: FontWeight.w800)),
               Text('Status: $st',
                   style: TextStyle(color: AppColors.textSecondary)),
+              const SizedBox(height: 8),
+              if (planLabel.isNotEmpty)
+                _R('Plan', planLabel),
+              _R('Created', createdAt),
+              if (approvedAt.isNotEmpty) _R('Approved', approvedAt),
               const Divider(height: 24),
               _R('Users', '${stats['users'] ?? '—'}'),
               _R('Leads', '${stats['leads'] ?? '—'}'),
@@ -182,6 +192,21 @@ class CrmPlatformCompanyDetailScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+}
+
+String _planNameForId(dynamic planIdRaw) {
+  final planId =
+      planIdRaw is int ? planIdRaw : int.tryParse(planIdRaw?.toString() ?? '');
+  switch (planId) {
+    case 1:
+      return 'Starter';
+    case 2:
+      return 'Growth';
+    case 3:
+      return 'Enterprise';
+    default:
+      return planId == null ? '' : 'Plan $planId';
   }
 }
 

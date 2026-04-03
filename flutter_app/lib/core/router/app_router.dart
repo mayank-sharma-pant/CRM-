@@ -7,6 +7,7 @@ import 'package:perioxia_crm/features/auth/presentation/login_screen.dart';
 import 'package:perioxia_crm/features/auth/providers/auth_provider.dart';
 import 'package:perioxia_crm/features/shell/app_shell.dart';
 import 'package:perioxia_crm/features/dashboard/presentation/dashboard_entry.dart';
+import 'package:perioxia_crm/features/dashboard/presentation/sales_reports_screen.dart';
 import 'package:perioxia_crm/features/leads/presentation/leads_entry.dart';
 import 'package:perioxia_crm/features/leads/presentation/lead_detail_screen.dart';
 import 'package:perioxia_crm/features/clients/presentation/clients_entry.dart';
@@ -31,12 +32,17 @@ import 'package:perioxia_crm/features/md/presentation/md_teams_screen.dart';
 import 'package:perioxia_crm/features/md/presentation/md_employee_lookup_screen.dart';
 import 'package:perioxia_crm/features/md/presentation/md_employee_detail_screen.dart';
 import 'package:perioxia_crm/features/md/presentation/md_invoices_screen.dart';
+import 'package:perioxia_crm/features/md/presentation/md_points_screen.dart';
+import 'package:perioxia_crm/features/md/presentation/md_reports_screen.dart';
 import 'package:perioxia_crm/features/md/presentation/md_access_gate.dart';
 import 'package:perioxia_crm/features/company_admin/presentation/admin_users_screen.dart';
 import 'package:perioxia_crm/features/company_admin/presentation/admin_user_detail_screen.dart';
 import 'package:perioxia_crm/features/company_admin/presentation/admin_teams_screen.dart';
 import 'package:perioxia_crm/features/company_admin/presentation/admin_team_detail_screen.dart';
 import 'package:perioxia_crm/features/company_admin/presentation/admin_approvals_screen.dart';
+import 'package:perioxia_crm/features/company_admin/presentation/admin_hierarchy_screen.dart';
+import 'package:perioxia_crm/features/company_admin/presentation/admin_audit_log_screen.dart';
+import 'package:perioxia_crm/features/company_admin/presentation/admin_settings_screen.dart';
 import 'package:perioxia_crm/features/crm_platform/presentation/crm_platform_gate.dart';
 import 'package:perioxia_crm/features/crm_platform/presentation/crm_platform_companies_screen.dart';
 import 'package:perioxia_crm/features/crm_platform/presentation/crm_platform_company_detail_screen.dart';
@@ -132,6 +138,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const AdminApprovalsScreen(),
           ),
           GoRoute(
+            path: '/admin-hierarchy',
+            name: RouteNames.adminHierarchy,
+            builder: (_, __) => const AdminHierarchyScreen(),
+          ),
+          GoRoute(
+            path: '/admin-audit-log',
+            name: RouteNames.adminAuditLog,
+            builder: (_, __) => const AdminAuditLogScreen(),
+          ),
+          GoRoute(
+            path: '/admin-settings',
+            name: RouteNames.adminSettings,
+            builder: (_, __) => const AdminSettingsScreen(),
+          ),
+          GoRoute(
             path: '/platform-companies',
             name: RouteNames.platformCompanies,
             builder: (_, __) => const CrmPlatformGate(
@@ -198,8 +219,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/purchase-invoices',
             name: RouteNames.purchaseInvoices,
-            builder: (_, __) => const PurchaseGate(
-              child: PurchaseInvoicesScreen(),
+            builder: (_, state) => PurchaseGate(
+              child: PurchaseInvoicesScreen(
+                initialStatusFilter: state.extra is String
+                    ? state.extra as String
+                    : null,
+              ),
             ),
           ),
           GoRoute(
@@ -323,6 +348,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const PerformanceEntry(),
           ),
           GoRoute(
+            path: '/sales-reports',
+            name: RouteNames.salesReports,
+            builder: (_, __) => const SalesReportsScreen(),
+          ),
+          GoRoute(
             path: '/revenue',
             name: RouteNames.revenue,
             builder: (_, __) => const MdGate(child: MdRevenueScreen()),
@@ -352,6 +382,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/md-invoices',
             name: RouteNames.mdInvoices,
             builder: (_, __) => const MdGate(child: MdInvoicesScreen()),
+          ),
+          GoRoute(
+            path: '/md-points',
+            name: RouteNames.mdPoints,
+            builder: (_, __) => const MdGate(child: MdPointsScreen()),
+          ),
+          GoRoute(
+            path: '/md-reports',
+            name: RouteNames.mdReports,
+            builder: (_, __) => const MdGate(child: MdReportsScreen()),
           ),
           GoRoute(
             path: '/reports',

@@ -15,7 +15,8 @@ class MoreScreen extends ConsumerWidget {
     final isMgr = user?.isManager ?? false;
     final isMd = user?.isMD ?? false;
     final isAdmin = user?.isAdmin ?? false;
-    final mdLike = isMd || isAdmin;
+    final isPurchase = user?.isPurchase ?? false;
+    final isPlatformCrm = user?.isPlatformAdmin ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -89,7 +90,124 @@ class MoreScreen extends ConsumerWidget {
             const SizedBox(height: 20),
           ],
 
-          if (mdLike) ...[
+          if (isPlatformCrm) ...[
+            _SectionLabel(label: 'CRM Platform'),
+            const SizedBox(height: 6),
+            _MenuItem(
+              icon: Icons.pending_actions_outlined,
+              label: 'Pending signups',
+              onTap: () => context.push('/platform-pending'),
+            ),
+            _MenuItem(
+              icon: Icons.business_outlined,
+              label: 'All companies',
+              onTap: () => context.push('/platform-companies'),
+            ),
+            _MenuItem(
+              icon: Icons.list_alt_outlined,
+              label: 'Audit log',
+              onTap: () => context.push('/platform-logs'),
+            ),
+            _MenuItem(
+              icon: Icons.workspace_premium_outlined,
+              label: 'Plans',
+              onTap: () => context.push('/platform-plans'),
+            ),
+            _MenuItem(
+              icon: Icons.verified_user_outlined,
+              label: 'Platform session',
+              onTap: () => context.push('/platform-session'),
+            ),
+            _MenuItem(
+              icon: Icons.auto_awesome_outlined,
+              label: 'AI Assistant',
+              onTap: () => context.push('/assistant'),
+            ),
+            const SizedBox(height: 12),
+          ] else if (isAdmin) ...[
+            _SectionLabel(label: 'Administration'),
+            const SizedBox(height: 6),
+            _MenuItem(
+              icon: Icons.people_outline,
+              label: 'Staff',
+              onTap: () => context.push('/admin-users'),
+            ),
+            _MenuItem(
+              icon: Icons.groups_outlined,
+              label: 'Teams',
+              onTap: () => context.push('/admin-teams'),
+            ),
+            _MenuItem(
+              icon: Icons.how_to_reg_outlined,
+              label: 'Approvals',
+              onTap: () => context.push('/admin-approvals'),
+            ),
+            _MenuItem(
+              icon: Icons.people_outline,
+              label: 'Leads',
+              onTap: () => context.push('/leads'),
+            ),
+            _MenuItem(
+              icon: Icons.business_outlined,
+              label: 'Clients',
+              onTap: () => context.push('/clients'),
+            ),
+            _MenuItem(
+              icon: Icons.check_circle_outline,
+              label: 'Tasks',
+              onTap: () => context.push('/tasks'),
+            ),
+            _MenuItem(
+              icon: Icons.bar_chart_outlined,
+              label: 'Performance',
+              onTap: () => context.push('/performance'),
+            ),
+            _MenuItem(
+              icon: Icons.inventory_2_outlined,
+              label: 'Stock / Inventory',
+              onTap: () => context.push('/stock'),
+            ),
+            _MenuItem(
+              icon: Icons.auto_awesome_outlined,
+              label: 'AI Assistant',
+              onTap: () => context.push('/assistant'),
+            ),
+            const SizedBox(height: 12),
+          ] else if (isPurchase) ...[
+            _SectionLabel(label: 'Purchase'),
+            const SizedBox(height: 6),
+            _MenuItem(
+              icon: Icons.fact_check_outlined,
+              label: 'Sales approvals',
+              onTap: () => context.push('/purchase-sales'),
+            ),
+            _MenuItem(
+              icon: Icons.receipt_long_outlined,
+              label: 'Invoices',
+              onTap: () => context.push('/purchase-invoices'),
+            ),
+            _MenuItem(
+              icon: Icons.analytics_outlined,
+              label: 'Monitoring',
+              onTap: () => context.push('/purchase-monitoring'),
+            ),
+            _MenuItem(
+              icon: Icons.business_outlined,
+              label: 'Clients',
+              onTap: () => context.push('/clients'),
+            ),
+            _MenuItem(
+              icon: Icons.inventory_2_outlined,
+              label: 'Stock / Inventory',
+              onTap: () => context.push('/stock'),
+            ),
+            _MenuItem(
+              icon: Icons.auto_awesome_outlined,
+              label: 'AI Assistant',
+              onTap: () => context.push('/assistant'),
+            ),
+            const SizedBox(height: 12),
+          ] else if (isMd) ...[
             _SectionLabel(label: 'Executive'),
             const SizedBox(height: 6),
             _MenuItem(

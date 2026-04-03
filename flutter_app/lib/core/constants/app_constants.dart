@@ -12,6 +12,9 @@ class AppConstants {
 
   /// Token storage key.
   static const String tokenStorageKey = 'access_token';
+
+  /// Bearer for `/api/platform/*` (CRM / tenant operator). Obtained via platform login.
+  static const String platformAccessTokenKey = 'platform_access_token';
   static const String activeTeamKey = 'active_team_id';
 
   /// Pagination defaults.

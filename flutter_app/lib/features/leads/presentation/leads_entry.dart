@@ -15,7 +15,7 @@ class LeadsEntry extends ConsumerWidget {
     if (role == 'manager') {
       return const ManagerLeadsListScreen();
     }
-    if (role == 'md' || role == 'admin') {
+    if (role == 'md') {
       return const MdLeadsListScreen();
     }
     return const LeadsListScreen();

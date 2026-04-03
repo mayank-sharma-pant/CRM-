@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:perioxia_crm/core/network/api_exception.dart';
 import 'package:perioxia_crm/data/models/user.dart';
 import 'package:perioxia_crm/data/repositories/auth_repository.dart';
+import 'package:perioxia_crm/features/crm_platform/providers/crm_platform_providers.dart';
 
 enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
 
@@ -27,8 +28,9 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repo;
+  final Ref _ref;
 
-  AuthNotifier(this._repo) : super(const AuthState()) {
+  AuthNotifier(this._repo, this._ref) : super(const AuthState()) {
     checkAuth();
   }
 
@@ -46,6 +48,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading, error: null);
     try {
       final user = await _repo.login(email, password);
+      if (_isPlatformAdminUser(user)) {
+        try {
+          await _repo.obtainPlatformToken(email, password);
+          _ref.invalidate(platformTokenPresentProvider);
+        } catch (_) {
+          // Platform UI will prompt; main CRM session still works.
+        }
+      }
       state = AuthState(status: AuthStatus.authenticated, user: user);
     } on DioException catch (e) {
       final msg = ApiException.fromDioError(e).message;
@@ -76,16 +86,39 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       await _repo.logout();
     } finally {
+      _ref.invalidate(platformTokenPresentProvider);
       state = const AuthState(status: AuthStatus.unauthenticated);
     }
   }
 
-  String get dashboardRoute {
-    final role = state.user?.role ?? 'sales';
-    return '/dashboard';
+  /// For platform admins who signed in with OTP: obtain platform JWT using password.
+  /// Returns `null` on success, or an error message.
+  Future<String?> exchangePlatformTokenWithPassword(String password) async {
+    final u = state.user;
+    if (u == null) return 'Not signed in';
+    final email = u.email;
+    if (email.isEmpty) return 'No email on file';
+    if (password.isEmpty) return 'Enter your password';
+    if (!_isPlatformAdminUser(u)) {
+      return 'Not a platform operator account';
+    }
+    try {
+      await _repo.obtainPlatformToken(email, password);
+      _ref.invalidate(platformTokenPresentProvider);
+      return null;
+    } on DioException catch (e) {
+      return ApiException.fromDioError(e).message;
+    } catch (_) {
+      return 'Could not obtain platform token';
+    }
   }
+
+  String get dashboardRoute => '/dashboard';
+
+  static bool _isPlatformAdminUser(User u) =>
+      u.role == 'admin' && u.companyId == null;
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier(ref.read(authRepositoryProvider));
+  return AuthNotifier(ref.read(authRepositoryProvider), ref);
 });

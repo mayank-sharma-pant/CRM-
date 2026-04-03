@@ -51,7 +51,7 @@ export default function PlatformLoginPage() {
 
             // Platform routes use bearer token auth.
             localStorage.setItem('platform_token', data.access_token);
-            router.push('/platform/dashboard');
+            router.push('/platform/requests');
         } catch (err) {
             setError(err.message);
         } finally {

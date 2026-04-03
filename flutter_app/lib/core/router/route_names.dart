@@ -28,4 +28,20 @@ class RouteNames {
   static const String employeeLookup = 'employeeLookup';
   static const String employeeDetail = 'employeeDetail';
   static const String mdInvoices = 'mdInvoices';
+  static const String adminUsers = 'adminUsers';
+  static const String adminUserDetail = 'adminUserDetail';
+  static const String adminTeamsRoute = 'adminTeamsRoute';
+  static const String adminTeamDetail = 'adminTeamDetail';
+  static const String adminApprovalsRoute = 'adminApprovalsRoute';
+  static const String purchaseSales = 'purchaseSales';
+  static const String purchaseSaleDetail = 'purchaseSaleDetail';
+  static const String purchaseInvoices = 'purchaseInvoices';
+  static const String purchaseInvoiceDetail = 'purchaseInvoiceDetail';
+  static const String purchaseMonitoring = 'purchaseMonitoring';
+  static const String platformCompanies = 'platformCompanies';
+  static const String platformCompanyDetail = 'platformCompanyDetail';
+  static const String platformPending = 'platformPending';
+  static const String platformLogs = 'platformLogs';
+  static const String platformPlans = 'platformPlans';
+  static const String platformSession = 'platformSession';
 }

@@ -25,6 +25,12 @@ class User {
   bool get isPurchase => role == 'purchase';
   bool get isAdmin => role == 'admin';
 
+  /// Company-scoped administrator (uses `/api/admin/*` for their company).
+  bool get isCompanyAdmin => role == 'admin' && companyId != null;
+
+  /// Platform operator (`admin` with no company) — full tenant scope on backend.
+  bool get isPlatformAdmin => role == 'admin' && companyId == null;
+
   factory User.fromJson(Map<String, dynamic> json) => User(
         id: json['id'] as int,
         email: json['email'] as String,

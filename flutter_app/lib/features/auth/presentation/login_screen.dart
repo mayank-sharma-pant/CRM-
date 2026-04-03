@@ -75,7 +75,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     ref.listen<AuthState>(authProvider, (_, next) {
       if (next.status == AuthStatus.authenticated) {
-        context.go('/dashboard');
+        final u = next.user;
+        if (u != null && u.isPlatformAdmin) {
+          context.go('/platform-pending');
+        } else {
+          context.go('/dashboard');
+        }
       }
     });
 

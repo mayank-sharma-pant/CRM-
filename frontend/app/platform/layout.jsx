@@ -11,7 +11,8 @@ import {
     Activity,
     LogOut,
     Menu,
-    X
+    X,
+    ShieldCheck
 } from 'lucide-react';
 
 const PLATFORM_API = '/api/platform';
@@ -73,12 +74,14 @@ export default function PlatformLayout({ children }) {
         );
     }
 
+    // Pending first after dashboard (same priority as mobile CRM platform)
     const navigation = [
-        { name: 'Dashboard', href: '/platform/dashboard', icon: LayoutDashboard },
-        { name: 'Company Requests', href: '/platform/requests', icon: FileText },
-        { name: 'Companies', href: '/platform/companies', icon: Building2 },
-        { name: 'Plans', href: '/platform/plans', icon: CreditCard },
-        { name: 'System Logs', href: '/platform/logs', icon: Activity }
+        { name: 'Dashboard', href: '/platform/dashboard', icon: LayoutDashboard, prefix: false },
+        { name: 'Pending signups', href: '/platform/requests', icon: FileText, prefix: false },
+        { name: 'Companies', href: '/platform/companies', icon: Building2, prefix: true },
+        { name: 'Audit log', href: '/platform/logs', icon: Activity, prefix: false },
+        { name: 'Plans', href: '/platform/plans', icon: CreditCard, prefix: false },
+        { name: 'Platform session', href: '/platform/session', icon: ShieldCheck, prefix: false }
     ];
 
     return (
@@ -104,7 +107,9 @@ export default function PlatformLayout({ children }) {
                 {/* Navigation */}
                 <nav className="flex-1 p-4 space-y-2">
                     {navigation.map((item) => {
-                        const isActive = pathname === item.href;
+                        const isActive = item.prefix
+                            ? pathname === item.href || pathname.startsWith(`${item.href}/`)
+                            : pathname === item.href;
                         return (
                             <Link
                                 key={item.name}

@@ -1,13 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { CheckCircle, XCircle, Clock, Building2 } from 'lucide-react';
+import RejectCompanyModal from '../../../components/platform/RejectCompanyModal';
 
 const PLATFORM_API = '/api/platform';
 
 export default function CompanyRequestsPage() {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [rejectTarget, setRejectTarget] = useState(null);
 
     useEffect(() => {
         fetchPendingRequests();
@@ -57,41 +60,39 @@ export default function CompanyRequestsPage() {
         }
     };
 
-    const handleReject = async (companyId, companyName) => {
-        if (!companyId) {
-            alert('Error: Company ID is missing');
-            return;
-        }
-        const reason = prompt(`Reject company "${companyName}"?\n\nEnter rejection reason:`);
-        if (!reason) return;
-
+    const confirmReject = async (reason) => {
+        const companyId = rejectTarget?.id;
+        setRejectTarget(null);
+        if (!companyId) return;
         try {
             const token = localStorage.getItem('platform_token');
-            const response = await fetch(
-                `${PLATFORM_API}/companies/${companyId}/reject?reason=${encodeURIComponent(reason)}`,
-                {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }
-            );
-
+            const q = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+            const response = await fetch(`${PLATFORM_API}/companies/${companyId}/reject${q}`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+            });
             if (response.ok) {
-                alert(`Company "${companyName}" rejected`);
                 fetchPendingRequests();
             } else {
                 const data = await response.json().catch(() => ({}));
                 alert(`Failed to reject: ${data.detail || response.statusText}`);
             }
-        } catch (error) {
+        } catch {
             alert('Network error: Failed to reject company');
         }
     };
 
     return (
         <div className="p-8">
+            <RejectCompanyModal
+                open={!!rejectTarget}
+                title={rejectTarget ? `Reject "${rejectTarget.name}"` : 'Reject'}
+                onClose={() => setRejectTarget(null)}
+                onConfirm={confirmReject}
+            />
             {/* Header */}
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-slate-900">Company Requests</h1>
+                <h1 className="text-3xl font-bold text-slate-900">Pending signups</h1>
                 <p className="text-slate-600 mt-1">Review and approve new company signups</p>
             </div>
 
@@ -124,6 +125,9 @@ export default function CompanyRequestsPage() {
                                     <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                         Actions
                                     </th>
+                                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Details
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -155,13 +159,27 @@ export default function CompanyRequestsPage() {
                                                     Approve
                                                 </button>
                                                 <button
-                                                    onClick={() => handleReject(request.id, request.name)}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setRejectTarget({
+                                                            id: request.id,
+                                                            name: request.name,
+                                                        })
+                                                    }
                                                     className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
                                                 >
                                                     <XCircle size={16} />
                                                     Reject
                                                 </button>
                                             </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <Link
+                                                href={`/platform/companies/${request.id}`}
+                                                className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                                            >
+                                                Open
+                                            </Link>
                                         </td>
                                     </tr>
                                 ))}

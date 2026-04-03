@@ -92,10 +92,20 @@ class ApiEndpoints {
   static const String mdPerformanceMonthly = '/api/md/performance/monthly';
   static const String mdTransferRequest = '/api/md/transfer-request';
 
-  // Purchase
+  // Purchase (`purchase`, `md`, `admin` per backend)
   static const String purchaseDashboard = '/api/purchase/dashboard';
   static const String purchaseSales = '/api/purchase/sales';
-  static const String purchaseStock = '/api/purchase/stock';
+  static String purchaseSale(int id) => '/api/purchase/sales/$id';
+  static String purchaseSaleApprove(int id) => '/api/purchase/sales/$id/approve';
+  static String purchaseSaleReject(int id) => '/api/purchase/sales/$id/reject';
+  static const String purchaseInvoices = '/api/purchase/invoices';
+  static String purchaseInvoice(int id) => '/api/purchase/invoices/$id';
+  static String purchaseInvoiceSend(int id) => '/api/purchase/invoices/$id/send';
+  static String purchaseInvoiceMarkPaid(int id) =>
+      '/api/purchase/invoices/$id/mark-paid';
+  static String purchaseInvoiceReminder(int id) =>
+      '/api/purchase/invoices/$id/send-reminder';
+  static const String purchaseMonitoring = '/api/purchase/monitoring';
 
   // Invoices / Orders
   static const String invoices = '/api/invoices';
@@ -125,8 +135,50 @@ class ApiEndpoints {
   // Bug report
   static const String bugReport = '/api/bug-report';
 
-  // Admin
-  static const String adminDashboard = '/api/admin/dashboard';
+  // Company / platform admin (`role == admin`, `/api/admin/*`)
+  static const String adminDashboardStats = '/api/admin/dashboard/stats';
+  static const String adminUsers = '/api/admin/users';
+  static String adminUser(int id) => '/api/admin/users/$id';
+  static String adminUserActivate(int id) => '/api/admin/users/$id/activate';
+  static String adminUserDisable(int id) => '/api/admin/users/$id/disable';
+  static String adminUserDelete(int id) => '/api/admin/users/$id';
+  static const String adminTeams = '/api/admin/teams';
+  static String adminTeam(int id) => '/api/admin/teams/$id';
+  static String adminTeamMembers(int teamId) => '/api/admin/teams/$teamId/members';
+  static String adminTeamMember(int teamId, int userId) =>
+      '/api/admin/teams/$teamId/members/$userId';
   static const String adminApprovals = '/api/admin/approvals';
-  static const String adminAudit = '/api/admin/audit';
+  static String adminApprove(int userId) =>
+      '/api/admin/approvals/$userId/approve';
+  static String adminReject(int userId) =>
+      '/api/admin/approvals/$userId/reject';
+  static const String adminHierarchy = '/api/admin/hierarchy';
+  static const String adminAuditLog = '/api/admin/audit-log';
+  static const String adminSettings = '/api/admin/settings';
+  static const String adminInvites = '/api/admin/invites';
+  static const String adminTransferRequests = '/api/admin/transfer-requests';
+  static String adminTransferApprove(int id) =>
+      '/api/admin/transfer-requests/$id/approve';
+  static String adminTransferReject(int id) =>
+      '/api/admin/transfer-requests/$id/reject';
+
+  /// Legacy alias — prefer [adminDashboardStats].
+  static const String adminDashboard = adminDashboardStats;
+  static const String adminAudit = adminAuditLog;
+
+  // CRM platform operator (`/api/platform/*`, Bearer token from platform auth)
+  static const String platformAuthLogin = '/api/platform/auth/login';
+  static const String platformAuthMe = '/api/platform/auth/me';
+  static const String platformMetricsDashboard = '/api/platform/metrics/dashboard';
+  static const String platformCompanies = '/api/platform/companies';
+  static const String platformCompaniesPending = '/api/platform/companies/pending';
+  static String platformCompany(int id) => '/api/platform/companies/$id';
+  static String platformCompanyApprove(int id) =>
+      '/api/platform/companies/$id/approve';
+  static String platformCompanyReject(int id) =>
+      '/api/platform/companies/$id/reject';
+  static String platformCompanyStatus(int id) =>
+      '/api/platform/companies/$id/status';
+  static const String platformPlans = '/api/platform/plans';
+  static const String platformLogs = '/api/platform/logs';
 }

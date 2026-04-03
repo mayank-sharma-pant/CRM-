@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CreditCard, Plus } from 'lucide-react';
+import { CreditCard } from 'lucide-react';
 
 const PLATFORM_API = '/api/platform';
 
@@ -34,15 +34,9 @@ export default function PlansPage() {
     return (
         <div className="p-8">
             {/* Header */}
-            <div className="mb-8 flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Subscription Plans</h1>
-                    <p className="text-slate-600 mt-1">Manage pricing and features</p>
-                </div>
-                <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
-                    <Plus size={20} />
-                    Create Plan
-                </button>
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-slate-900">Subscription Plans</h1>
+                <p className="text-slate-600 mt-1">Catalog from the API (read-only)</p>
             </div>
 
             {/* Plans Grid */}
@@ -85,9 +79,6 @@ export default function PlansPage() {
                                     </span>
                                 </div>
                             </div>
-                            <button className="w-full px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded-lg transition-colors">
-                                Edit Plan
-                            </button>
                         </div>
                     ))}
                 </div>

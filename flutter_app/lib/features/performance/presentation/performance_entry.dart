@@ -10,7 +10,7 @@ class PerformanceEntry extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(authProvider).user?.role;
-    if (role == 'md' || role == 'admin') {
+    if (role == 'md') {
       return const MdPerformanceScreen();
     }
     return const PerformanceScreen();

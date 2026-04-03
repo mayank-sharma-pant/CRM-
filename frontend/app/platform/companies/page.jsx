@@ -80,6 +80,7 @@ export default function CompaniesListPage() {
                     <option value="active">Active</option>
                     <option value="pending">Pending</option>
                     <option value="suspended">Suspended</option>
+                    <option value="rejected">Rejected</option>
                 </select>
             </div>
 

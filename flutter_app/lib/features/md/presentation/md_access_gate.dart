@@ -7,8 +7,8 @@ import 'package:perioxia_crm/features/auth/providers/auth_provider.dart';
 class MdAccess {
   MdAccess._();
 
-  static bool allowed(String? role) =>
-      role == 'md' || role == 'admin';
+  /// MD-only routes (company admins use `/admin-*` and `/api/admin/*`).
+  static bool allowed(String? role) => role == 'md';
 }
 
 class MdGate extends ConsumerWidget {

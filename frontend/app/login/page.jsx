@@ -22,7 +22,7 @@ export default function Login() {
     const handleRedirect = (userObj) => {
         const role = userObj?.role || 'sales';
         if (role === 'admin' && !userObj.company_id) {
-            router.push('/platform/dashboard');
+            router.push('/platform/requests');
             return;
         }
         const routes = {

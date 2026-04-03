@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Building2, Users, AlertCircle, TrendingUp, CheckCircle, Clock, ShieldCheck } from 'lucide-react';
 
 const PLATFORM_API = '/api/platform';
@@ -177,8 +178,31 @@ export default function PlatformDashboardPage() {
                             );
                         })}
                         {(!metrics?.plan_distribution || metrics.plan_distribution.length === 0) && (
-                            <p className="text-slate-400 text-sm italic">No active companies yet</p>
+                            <p className="text-slate-400 text-sm italic">No plan data yet</p>
                         )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Business volume (all tenants) — matches mobile CRM platform dashboard */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
+                <h2 className="text-lg font-bold text-slate-900 mb-4">Business volume (all tenants)</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="rounded-lg border border-slate-200 p-4">
+                        <p className="text-xs font-semibold text-slate-500 uppercase">Leads</p>
+                        <p className="text-2xl font-bold text-slate-900">{metrics?.business_metrics?.leads ?? '—'}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 p-4">
+                        <p className="text-xs font-semibold text-slate-500 uppercase">Clients</p>
+                        <p className="text-2xl font-bold text-slate-900">{metrics?.business_metrics?.clients ?? '—'}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 p-4">
+                        <p className="text-xs font-semibold text-slate-500 uppercase">Tasks</p>
+                        <p className="text-2xl font-bold text-slate-900">{metrics?.business_metrics?.tasks ?? '—'}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 p-4">
+                        <p className="text-xs font-semibold text-slate-500 uppercase">Invoices</p>
+                        <p className="text-2xl font-bold text-slate-900">{metrics?.business_metrics?.invoices ?? '—'}</p>
                     </div>
                 </div>
             </div>
@@ -218,36 +242,36 @@ export default function PlatformDashboardPage() {
             <div className="bg-white rounded-xl border border-slate-200 p-6">
                 <h2 className="text-lg font-bold text-slate-900 mb-4">Quick Actions</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <a
+                    <Link
                         href="/platform/requests"
                         className="flex items-center gap-3 p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                     >
                         <Clock className="text-amber-600" size={24} />
                         <div>
-                            <p className="font-semibold text-slate-900">Review Requests</p>
+                            <p className="font-semibold text-slate-900">Pending signups</p>
                             <p className="text-sm text-slate-600">{metrics?.companies?.pending || 0} pending</p>
                         </div>
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                         href="/platform/companies"
                         className="flex items-center gap-3 p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                     >
                         <Building2 className="text-blue-600" size={24} />
                         <div>
-                            <p className="font-semibold text-slate-900">Manage Companies</p>
-                            <p className="text-sm text-slate-600">View all companies</p>
+                            <p className="font-semibold text-slate-900">All companies</p>
+                            <p className="text-sm text-slate-600">Filter by status</p>
                         </div>
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                         href="/platform/plans"
                         className="flex items-center gap-3 p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                     >
                         <TrendingUp className="text-green-600" size={24} />
                         <div>
-                            <p className="font-semibold text-slate-900">Manage Plans</p>
-                            <p className="text-sm text-slate-600">Configure pricing</p>
+                            <p className="font-semibold text-slate-900">Plans</p>
+                            <p className="text-sm text-slate-600">Subscription catalog</p>
                         </div>
-                    </a>
+                    </Link>
                 </div>
             </div>
         </div>

@@ -94,6 +94,9 @@ class DashboardScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
 
+              _ExecutionSnapshot(data: data),
+              const SizedBox(height: 12),
+
               // Revenue card
               if (data.totalRevenue > 0)
                 _RevenueCard(data: data),
@@ -161,6 +164,95 @@ class DashboardScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ExecutionSnapshot extends StatelessWidget {
+  final DashboardData data;
+  const _ExecutionSnapshot({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: Theme.of(context).dividerColor.withOpacity(0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Execution snapshot',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _ExecChip(
+                  label: 'Tasks done',
+                  value: '${data.tasksDoneThisWeek}',
+                  color: AppColors.success),
+              _ExecChip(
+                  label: 'New leads (7d)',
+                  value: '${data.newLeadsThisWeek}',
+                  color: AppColors.info),
+              _ExecChip(
+                  label: 'Completed',
+                  value: '${data.taskCompleted}',
+                  color: AppColors.primary),
+              _ExecChip(
+                  label: 'In progress',
+                  value: '${data.taskInProgress}',
+                  color: AppColors.accent),
+              _ExecChip(
+                  label: 'Overdue',
+                  value: '${data.taskOverdue}',
+                  color: AppColors.error),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExecChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _ExecChip({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$label ',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w800, color: color)),
+        ],
       ),
     );
   }

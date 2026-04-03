@@ -307,11 +307,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Forgot password
                     TextButton(
-                      onPressed: () {
-                        // TODO: navigate to forgot password
-                      },
+                      onPressed: () => context.push('/signup'),
+                      child: Text(
+                        'Create company account',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => context.push('/forgot-password'),
                       child: Text(
                         'Forgot your password?',
                         style: TextStyle(

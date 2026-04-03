@@ -99,6 +99,11 @@ class MoreScreen extends ConsumerWidget {
               onTap: () => context.push('/platform-pending'),
             ),
             _MenuItem(
+              icon: Icons.inbox_outlined,
+              label: 'Company requests',
+              onTap: () => context.push('/platform-requests'),
+            ),
+            _MenuItem(
               icon: Icons.business_outlined,
               label: 'All companies',
               onTap: () => context.push('/platform-companies'),
@@ -329,6 +334,11 @@ class MoreScreen extends ConsumerWidget {
               onTap: () => context.push('/orders'),
             ),
             _MenuItem(
+              icon: Icons.description_outlined,
+              label: 'Invoices',
+              onTap: () => context.push('/invoices'),
+            ),
+            _MenuItem(
               icon: Icons.inventory_2_outlined,
               label: 'Stock / Inventory',
               onTap: () => context.push('/stock'),
@@ -353,6 +363,16 @@ class MoreScreen extends ConsumerWidget {
 
           _SectionLabel(label: 'General'),
           const SizedBox(height: 6),
+          _MenuItem(
+            icon: Icons.bug_report_outlined,
+            label: 'Report a bug',
+            onTap: () => context.push('/report-bug'),
+          ),
+          _MenuItem(
+            icon: Icons.menu_book_outlined,
+            label: 'Financial ledgers',
+            onTap: () => context.push('/finance-ledgers'),
+          ),
           _MenuItem(
             icon: Icons.notifications_outlined,
             label: 'Notifications',

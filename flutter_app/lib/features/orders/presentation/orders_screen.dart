@@ -22,7 +22,10 @@ final _ordersProvider =
 final _currFmt = NumberFormat.compactCurrency(symbol: '₹', decimalDigits: 0);
 
 class OrdersScreen extends ConsumerStatefulWidget {
-  const OrdersScreen({super.key});
+  /// Web `/sales/orders` title: "My Sourced Orders". Default matches legacy `/orders` route.
+  final String appBarTitle;
+
+  const OrdersScreen({super.key, this.appBarTitle = 'My Orders'});
 
   @override
   ConsumerState<OrdersScreen> createState() => _OrdersScreenState();
@@ -56,8 +59,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Orders',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        title: Text(widget.appBarTitle,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
         bottom: TabBar(
           controller: _tabCtrl,
           labelStyle:

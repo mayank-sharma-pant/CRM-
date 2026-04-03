@@ -4,6 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:perioxia_crm/core/router/go_router_refresh.dart';
 import 'package:perioxia_crm/core/router/route_names.dart';
 import 'package:perioxia_crm/features/auth/presentation/login_screen.dart';
+import 'package:perioxia_crm/features/auth/presentation/forgot_password_screen.dart';
+import 'package:perioxia_crm/features/auth/presentation/signup_screen.dart';
+import 'package:perioxia_crm/features/auth/presentation/accept_invite_screen.dart';
+import 'package:perioxia_crm/features/support/presentation/bug_report_screen.dart';
+import 'package:perioxia_crm/features/leaves/presentation/leave_settings_screen.dart';
+import 'package:perioxia_crm/features/settings/presentation/notification_preferences_screen.dart';
+import 'package:perioxia_crm/features/finance/presentation/financial_ledgers_screen.dart';
+import 'package:perioxia_crm/features/finance/presentation/ledger_detail_screen.dart';
 import 'package:perioxia_crm/features/auth/providers/auth_provider.dart';
 import 'package:perioxia_crm/features/shell/app_shell.dart';
 import 'package:perioxia_crm/features/dashboard/presentation/dashboard_entry.dart';
@@ -70,18 +78,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final auth = ref.read(authProvider);
       final loc = state.matchedLocation;
 
+      bool isAuthPublicPath(String path) {
+        return path == '/login' ||
+            path == '/signup' ||
+            path == '/forgot-password' ||
+            path.startsWith('/accept-invite/');
+      }
+
       if (auth.status == AuthStatus.initial ||
           auth.status == AuthStatus.loading) {
         return null;
       }
       if (auth.status == AuthStatus.error) {
-        return loc == '/login' ? null : '/login';
+        return isAuthPublicPath(loc) ? null : '/login';
       }
       if (auth.status == AuthStatus.unauthenticated) {
-        return loc == '/login' ? null : '/login';
+        return isAuthPublicPath(loc) ? null : '/login';
       }
       if (auth.status == AuthStatus.authenticated) {
         if (loc == '/login') {
+          return auth.user?.isPlatformAdmin == true
+              ? '/platform-pending'
+              : '/dashboard';
+        }
+        if (isAuthPublicPath(loc)) {
           return auth.user?.isPlatformAdmin == true
               ? '/platform-pending'
               : '/dashboard';
@@ -94,6 +114,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/login',
         name: RouteNames.login,
         builder: (_, __) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        name: RouteNames.forgotPassword,
+        builder: (_, __) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/signup',
+        name: RouteNames.signup,
+        builder: (_, __) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: '/accept-invite/:token',
+        name: RouteNames.acceptInvite,
+        builder: (_, state) => AcceptInviteScreen(
+          token: state.pathParameters['token']!,
+        ),
       ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
@@ -306,11 +343,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const ManagerOrdersScreen(),
           ),
           GoRoute(
-            path: '/invoices/:id',
-            name: RouteNames.invoiceDetail,
-            builder: (_, state) => InvoiceDetailScreen(
-              invoiceId: int.parse(state.pathParameters['id']!),
+            path: '/invoices',
+            name: RouteNames.invoicesList,
+            builder: (_, __) => const OrdersScreen(
+              appBarTitle: 'My Sourced Orders',
             ),
+            routes: [
+              GoRoute(
+                path: ':id',
+                name: RouteNames.invoiceDetail,
+                builder: (_, state) => InvoiceDetailScreen(
+                  invoiceId: int.parse(state.pathParameters['id']!),
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: '/more',
@@ -351,6 +397,40 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/sales-reports',
             name: RouteNames.salesReports,
             builder: (_, __) => const SalesReportsScreen(),
+          ),
+          GoRoute(
+            path: '/report-bug',
+            name: RouteNames.bugReport,
+            builder: (_, __) => const BugReportScreen(),
+          ),
+          GoRoute(
+            path: '/settings/leave',
+            name: RouteNames.leaveSettings,
+            builder: (_, __) => const LeaveSettingsScreen(),
+          ),
+          GoRoute(
+            path: '/settings/notification-preferences',
+            name: RouteNames.notificationPreferences,
+            builder: (_, __) => const NotificationPreferencesScreen(),
+          ),
+          GoRoute(
+            path: '/finance-ledgers',
+            name: RouteNames.financeLedgers,
+            builder: (_, __) => const FinancialLedgersScreen(),
+            routes: [
+              GoRoute(
+                path: ':slug',
+                name: RouteNames.ledgerDetail,
+                builder: (_, state) => LedgerDetailScreen(
+                  slug: state.pathParameters['slug']!,
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/platform-requests',
+            name: RouteNames.platformRequests,
+            redirect: (_, __) => '/platform-pending',
           ),
           GoRoute(
             path: '/revenue',

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:perioxia_crm/core/constants/api_endpoints.dart';
 import 'package:perioxia_crm/core/network/api_client.dart';
 import 'package:perioxia_crm/core/network/api_exception.dart';
@@ -172,6 +173,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
 
           const SizedBox(height: 32),
+          const Divider(),
+          const SizedBox(height: 16),
+
+          const Text('Account & support',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          ListTile(
+            leading: const Icon(Icons.event_busy_outlined),
+            title: const Text('Leave requests'),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            contentPadding: EdgeInsets.zero,
+            onTap: () => context.push('/settings/leave'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.notifications_active_outlined),
+            title: const Text('Notification categories'),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            contentPadding: EdgeInsets.zero,
+            onTap: () => context.push('/settings/notification-preferences'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.bug_report_outlined),
+            title: const Text('Report a bug'),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            contentPadding: EdgeInsets.zero,
+            onTap: () => context.push('/report-bug'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.menu_book_outlined),
+            title: const Text('Financial ledgers'),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            contentPadding: EdgeInsets.zero,
+            onTap: () => context.push('/finance-ledgers'),
+          ),
+
+          const SizedBox(height: 24),
           const Divider(),
           const SizedBox(height: 16),
 

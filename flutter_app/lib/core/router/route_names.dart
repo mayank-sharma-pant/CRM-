@@ -2,6 +2,9 @@ class RouteNames {
   RouteNames._();
 
   static const String login = 'login';
+  static const String forgotPassword = 'forgotPassword';
+  static const String signup = 'signup';
+  static const String acceptInvite = 'acceptInvite';
   static const String dashboard = 'dashboard';
   static const String team = 'team';
   static const String teamMember = 'teamMember';
@@ -14,6 +17,7 @@ class RouteNames {
   static const String orders = 'orders';
   static const String managerOrders = 'managerOrders';
   static const String invoiceDetail = 'invoiceDetail';
+  static const String invoicesList = 'invoicesList';
   static const String notifications = 'notifications';
   static const String stock = 'stock';
   static const String invoices = 'invoices';
@@ -22,6 +26,12 @@ class RouteNames {
   static const String profile = 'profile';
   static const String performance = 'performance';
   static const String salesReports = 'salesReports';
+  static const String financeLedgers = 'financeLedgers';
+  static const String ledgerDetail = 'ledgerDetail';
+  static const String platformRequests = 'platformRequests';
+  static const String bugReport = 'bugReport';
+  static const String leaveSettings = 'leaveSettings';
+  static const String notificationPreferences = 'notificationPreferences';
   static const String managerReports = 'managerReports';
   static const String more = 'more';
   static const String revenue = 'revenue';

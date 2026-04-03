@@ -11,6 +11,8 @@ class ApiEndpoints {
   static const String loginOtp = '/api/auth/login-otp';
   static const String changePassword = '/api/auth/change-password';
   static const String forgotPassword = '/api/auth/forgot-password';
+  static const String resetPassword = '/api/auth/reset-password';
+  static String acceptInvite(String token) => '/api/auth/accept-invite/$token';
 
   // Leads
   static const String leads = '/api/leads';
@@ -132,8 +134,11 @@ class ApiEndpoints {
   // Documents
   static const String documents = '/api/documents';
 
-  // Bug report
+  // Bug report (multipart POST: message, category, optional files[])
   static const String bugReport = '/api/bug-report';
+
+  // Leaves (HR)
+  static String leaveApprove(int id) => '/api/leaves/$id/approve';
 
   // Company / platform admin (`role == admin`, `/api/admin/*`)
   static const String adminDashboardStats = '/api/admin/dashboard/stats';

@@ -60,4 +60,57 @@ class AuthRepository {
     );
     return User.fromJson(response.data['user']);
   }
+
+  Future<void> forgotPassword(String email) async {
+    await _api.post(ApiEndpoints.forgotPassword, data: {'email': email});
+  }
+
+  Future<void> resetPassword({
+    required String email,
+    required String otpCode,
+    required String newPassword,
+  }) async {
+    await _api.post(
+      ApiEndpoints.resetPassword,
+      data: {
+        'email': email,
+        'otp_code': otpCode,
+        'new_password': newPassword,
+      },
+    );
+  }
+
+  /// New company registration (pending platform approval). Sets session cookie on success.
+  Future<Map<String, dynamic>> signup({
+    required String email,
+    required String fullName,
+    required String password,
+    String? companyName,
+    String? phone,
+  }) async {
+    final response = await _api.post(
+      ApiEndpoints.signup,
+      data: {
+        'email': email,
+        'full_name': fullName,
+        'password': password,
+        if (companyName != null && companyName.isNotEmpty)
+          'company_name': companyName,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+      },
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Complete invite link. Sets session cookie on success.
+  Future<Map<String, dynamic>> acceptInvite({
+    required String token,
+    required String password,
+  }) async {
+    final response = await _api.post(
+      ApiEndpoints.acceptInvite(token),
+      data: {'password': password},
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
 }

@@ -78,7 +78,9 @@ class AppShell extends ConsumerWidget {
           location.startsWith('/notifications') ||
           location.startsWith('/platform-plans') ||
           location.startsWith('/platform-session') ||
-          location.startsWith('/assistant')) return 4;
+          location.startsWith('/assistant') ||
+          location.startsWith('/report-bug') ||
+          location.startsWith('/finance-ledgers')) return 4;
       return 0;
     }
     if (companyAdmin) {
@@ -100,7 +102,9 @@ class AppShell extends ConsumerWidget {
           location.startsWith('/invoices') ||
           location.startsWith('/admin-hierarchy') ||
           location.startsWith('/admin-audit-log') ||
-          location.startsWith('/admin-settings')) return 4;
+          location.startsWith('/admin-settings') ||
+          location.startsWith('/report-bug') ||
+          location.startsWith('/finance-ledgers')) return 4;
       return 0;
     }
     if (md) {
@@ -120,7 +124,9 @@ class AppShell extends ConsumerWidget {
           location.startsWith('/tasks') ||
           location.startsWith('/follow-ups') ||
           location.startsWith('/orders') ||
-          location.startsWith('/invoices')) return 4;
+          location.startsWith('/invoices') ||
+          location.startsWith('/report-bug') ||
+          location.startsWith('/finance-ledgers')) return 4;
       return 0;
     }
     if (manager) {
@@ -137,7 +143,9 @@ class AppShell extends ConsumerWidget {
           location.startsWith('/manager-orders') ||
           location.startsWith('/clients') ||
           location.startsWith('/invoices') ||
-          location.startsWith('/orders')) return 4;
+          location.startsWith('/orders') ||
+          location.startsWith('/report-bug') ||
+          location.startsWith('/finance-ledgers')) return 4;
       return 0;
     }
     if (purchase) {
@@ -152,7 +160,9 @@ class AppShell extends ConsumerWidget {
           location.startsWith('/assistant') ||
           location.startsWith('/clients') ||
           location.startsWith('/purchase-monitoring') ||
-          location.startsWith('/invoices')) return 4;
+          location.startsWith('/invoices') ||
+          location.startsWith('/report-bug') ||
+          location.startsWith('/finance-ledgers')) return 4;
       return 0;
     }
     if (location.startsWith('/leads')) return 1;
@@ -168,7 +178,9 @@ class AppShell extends ConsumerWidget {
         location.startsWith('/assistant') ||
         location.startsWith('/follow-ups') ||
         location.startsWith('/performance') ||
-        location.startsWith('/sales-reports')) return 4;
+        location.startsWith('/sales-reports') ||
+        location.startsWith('/report-bug') ||
+        location.startsWith('/finance-ledgers')) return 4;
     return 0;
   }
 

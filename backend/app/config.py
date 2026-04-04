@@ -59,6 +59,47 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+
+def _warn_if_production_urls_point_to_localhost() -> None:
+    """Catch the common deploy mistake: Railway/Render env still has localhost."""
+    if (settings.ENVIRONMENT or "").lower() != "production":
+        return
+    fe = (settings.FRONTEND_URL or "").strip().lower()
+    if "localhost" in fe or "127.0.0.1" in fe:
+        warnings.warn(
+            "FRONTEND_URL is set to localhost/127.0.0.1 while ENVIRONMENT=production. "
+            "Browsers will block cookies/CORS for your real site. Set FRONTEND_URL to your "
+            "live CRM origin (e.g. https://crm.perioxia.com) in the host environment, not only in a local .env file.",
+            stacklevel=1,
+        )
+    origins = [
+        o.strip()
+        for o in (settings.CORS_ORIGINS or "").split(",")
+        if o.strip()
+    ]
+    if not origins:
+        return
+    has_public_https = any(
+        o.lower().startswith("https://")
+        and "localhost" not in o.lower()
+        and "127.0.0.1" not in o.lower()
+        for o in origins
+    )
+    only_loopback = all(
+        "localhost" in o.lower() or "127.0.0.1" in o.lower() for o in origins
+    )
+    if only_loopback or not has_public_https:
+        warnings.warn(
+            "CORS_ORIGINS has no public https origin while ENVIRONMENT=production. "
+            "Set CORS_ORIGINS to your live frontend URL(s), e.g. "
+            "https://crm.perioxia.com (comma-separated). Remove duplicate keys in .env — "
+            "only one CORS_ORIGINS line; hosting dashboards often override .env.",
+            stacklevel=1,
+        )
+
+
+_warn_if_production_urls_point_to_localhost()
+
 if settings.SECRET_KEY.startswith(_INSECURE_KEY_PREFIX):
     warnings.warn(
         "SECRET_KEY is still the default placeholder! "

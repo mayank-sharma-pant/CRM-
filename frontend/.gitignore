@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env: ignore extras; allow committed root `.env` (production template)
 .env*
+!.env
 
 # vercel
 .vercel

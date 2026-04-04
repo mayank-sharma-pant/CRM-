@@ -72,8 +72,11 @@ async def global_exception_handler(request: Request, exc: Exception):
         return JSONResponse(status_code=500, content={"detail": "Internal server error"})
     return JSONResponse(status_code=500, content={"detail": f"{type(exc).__name__}: {exc}"})
 
-# CORS Configuration 
-allowed_origins = settings.CORS_ORIGINS.split(",") if settings.CORS_ORIGINS else ["http://localhost:3000"]
+# CORS Configuration (trim whitespace; duplicate .env keys can silently pick the wrong value)
+_raw_origins = settings.CORS_ORIGINS.split(",") if settings.CORS_ORIGINS else []
+allowed_origins = [o.strip() for o in _raw_origins if o.strip()] or [
+    "http://localhost:3000"
+]
 
 app.add_middleware(
     CORSMiddleware,

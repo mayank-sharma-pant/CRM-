@@ -123,9 +123,12 @@ export default function PlatformLoginPage() {
                         </button>
                     </form>
 
-                    <div className="mt-6 pt-6 border-t border-slate-200">
+                    <div className="mt-6 pt-6 border-t border-slate-200 space-y-2">
                         <p className="text-xs text-slate-500 text-center">
-                            Platform Admin access is restricted to authorized personnel only.
+                            Platform admins are system accounts with no company (not the same as your company admin on the main CRM login).
+                        </p>
+                        <p className="text-xs text-slate-500 text-center">
+                            Company users: sign in at <span className="font-medium text-slate-600">/login</span>.
                         </p>
                     </div>
                 </div>

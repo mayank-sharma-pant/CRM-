@@ -29,6 +29,9 @@ def _require_platform_admin(token: str, db: Session) -> User:
     if payload is None:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     email = payload.get("sub")
+    if not email or not str(email).strip():
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    email_norm = str(email).strip().lower()
     user = (
         db.query(User)
         .options(
@@ -42,11 +45,13 @@ def _require_platform_admin(token: str, db: Session) -> User:
                 User.is_active,
             )
         )
-        .filter(User.email == email)
+        .filter(sa_func.lower(User.email) == email_norm)
         .first()
     )
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    if user.status == "disabled":
+        raise HTTPException(status_code=403, detail="User account is disabled")
     if not (user.role == "admin" and user.company_id is None):
         raise HTTPException(status_code=403, detail="Platform admin access required")
     return user
@@ -92,8 +97,16 @@ def platform_login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session
     )
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
+    if user.status == "disabled":
+        raise HTTPException(status_code=403, detail="User account is disabled")
     if not (user.role == "admin" and user.company_id is None):
-        raise HTTPException(status_code=403, detail="Platform admin access required")
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Not a platform administrator. This login is only for system admins "
+                "without a company. Use the main CRM sign-in at /login for your company account."
+            ),
+        )
 
     token = create_access_token(data={"sub": user.email, "role": user.role}, audience="platform")
     return {

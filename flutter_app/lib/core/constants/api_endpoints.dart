@@ -130,6 +130,8 @@ class ApiEndpoints {
   // Ledgers
   static const String ledgers = '/api/ledgers';
   static String ledgerBySlug(String slug) => '/api/ledgers/$slug';
+  static String ledgerEntry(String slug, int entryId) =>
+      '/api/ledgers/$slug/$entryId';
 
   // Documents
   static const String documents = '/api/documents';

@@ -132,11 +132,22 @@ def _ensure_client_for_converted_lead(db: Session, lead: Lead, current_user: Use
 
 @router.get("/dashboard", response_model=SalesDashboardResponse)
 def get_sales_dashboard(
+    period: Optional[str] = Query(None, description="Filter period: week, month, year, or omit for all-time"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get sales executive dashboard with metrics and priority tasks"""
+    # Period-based date cutoff
+    period_cutoff = None
+    now_utc = datetime.now(timezone.utc)
+    if period == "week":
+        period_cutoff = now_utc - timedelta(days=7)
+    elif period == "month":
+        period_cutoff = now_utc - timedelta(days=30)
+    elif period == "year":
+        period_cutoff = now_utc - timedelta(days=365)
+
     # Get real counts from database (company-scoped)
     lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
     
@@ -154,6 +165,10 @@ def get_sales_dashboard(
             lead_query = lead_query.filter(False)
         else:
             lead_query = lead_query.filter(Lead.team_id == active_team_id)
+
+    if period_cutoff:
+        lead_query = lead_query.filter(Lead.created_at >= period_cutoff)
+
     total_leads = lead_query.count()
     converted_leads = lead_query.filter(Lead.status == LeadStatus.CONVERTED).count()
     conversion_rate = int((converted_leads / total_leads * 100)) if total_leads > 0 else 0
@@ -222,6 +237,8 @@ def get_sales_dashboard(
     
     # Revenue and Order calculations (company-scoped)
     inv_query = apply_company_scope(db.query(Invoice), Invoice, current_user)
+    if period_cutoff:
+        inv_query = inv_query.filter(Invoice.created_at >= period_cutoff)
     my_orders_count = 0
     my_orders_revenue = 0.0
     

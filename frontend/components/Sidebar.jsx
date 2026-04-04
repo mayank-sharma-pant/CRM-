@@ -102,7 +102,6 @@ const ROLE_NAVIGATION = {
     md: [
         { name: 'Dashboard', href: '/md/dashboard', icon: 'LayoutDashboard' },
         { name: 'Revenue', href: '/md/revenue', icon: 'DollarSign' },
-        { name: 'Performance', href: '/md/performance', icon: 'TrendingUp' },
         { name: 'Teams', href: '/md/teams', icon: 'Users' },
         { name: 'Employee Lookup', href: '/md/employee-lookup', icon: 'UserSearch' },
         { name: 'Leads', href: '/md/leads', icon: 'Target' },

@@ -71,9 +71,21 @@ export default function NotificationDropdown() {
         }
     };
 
+    const parseNotificationInstant = (dateStr) => {
+        if (!dateStr) return NaN;
+        let s = String(dateStr).trim();
+        // ISO datetime without offset: DB/API often sends UTC wall time; JS would parse as *local* → wrong "5h" skew.
+        const hasOffset = /[zZ]$|[+-]\d{2}:\d{2}$|[+-]\d{4}$/.test(s);
+        if (!hasOffset && s.includes('T')) s = `${s}Z`;
+        const t = new Date(s).getTime();
+        return Number.isNaN(t) ? NaN : t;
+    };
+
     const timeAgo = (dateStr) => {
-        if (!dateStr) return '';
-        const diff = Date.now() - new Date(dateStr).getTime();
+        const then = parseNotificationInstant(dateStr);
+        if (Number.isNaN(then)) return '';
+        const diff = Date.now() - then;
+        if (diff < 0) return 'now';
         const mins = Math.floor(diff / 60000);
         if (mins < 1) return 'now';
         if (mins < 60) return `${mins}m`;

@@ -53,13 +53,17 @@ export default function LeadDetailPage() {
       // Determine role from path (same as before)
       const isManager = window.location.pathname.startsWith('/manager');
 
-      // Map permissions
+      // Manager cannot reassign if a sales exec created the lead or if it's converted
+      const salesCreated = data.created_by_role === 'sales';
+      const isConvertedStatus = ['Converted'].includes(data.status);
+      const canReassign = isManager && !salesCreated && !isConvertedStatus;
+
       data.permissions = {
         canEdit: !['Converted', 'Lost', 'Lost Client'].includes(data.status),
         canConvert: !['Converted', 'Lost', 'Lost Client'].includes(data.status),
         canAddTask: true,
         canAddNote: true,
-        canReassign: isManager
+        canReassign
       };
 
       // Construct a simple timeline from tasks and notes
@@ -409,7 +413,11 @@ export default function LeadDetailPage() {
               </div>
               <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between text-xs">
                 <span className="text-slate-500">Assignee</span>
-                <span className="font-medium text-slate-900 dark:text-white">{lead.assignee}</span>
+                {lead.assigned_to_id ? (
+                  <span className="font-medium text-slate-900 dark:text-white">{lead.assignee}</span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-50 text-amber-700 border border-amber-200">Open to Anyone</span>
+                )}
               </div>
             </div>
           </div>

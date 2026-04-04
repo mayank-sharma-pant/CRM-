@@ -219,7 +219,12 @@ export default function Leads() {
                     >
                       <Link href={`${basePath}/${lead.id}`} className={`flex items-center gap-4 px-5 py-2.5 hover:bg-surface-elevated/30 transition-all group ${isMuted ? 'opacity-50' : ''} ${idx % 2 !== 0 ? 'bg-surface-elevated/10' : ''}`}>
                         <div className="w-[30%] min-w-[180px]">
-                          <p className={`text-[13px] font-bold truncate ${isMuted ? 'text-muted' : 'text-primary'}`}>{lead.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className={`text-[13px] font-bold truncate ${isMuted ? 'text-muted' : 'text-primary'}`}>{lead.name}</p>
+                            {!lead.assigned_to_id && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 shrink-0">Open</span>
+                            )}
+                          </div>
                           {lead.company && (
                             <p className="text-[11px] text-muted font-bold truncate flex items-center gap-1 opacity-70 uppercase tracking-tight">
                               <Briefcase size={10} strokeWidth={2.5} /> {lead.company}

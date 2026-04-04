@@ -12,6 +12,20 @@ const DEFAULT_PARAMS = {
   max_actions: 5,
 };
 
+function isAiProviderMissingError(detail) {
+  const s =
+    typeof detail === 'string'
+      ? detail
+      : Array.isArray(detail)
+        ? detail.map((x) => String(x)).join(' ')
+        : '';
+  return (
+    s.includes('No AI provider configured') ||
+    s.includes('OPENAI_KEY') ||
+    s.includes('GEMINI_API_KEY')
+  );
+}
+
 export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
   const { user } = useAuth();
   const canCommand = user?.role === 'md' || user?.role === 'manager';
@@ -125,7 +139,13 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
         : '';
       setMessages((m) => [...m, { role: 'assistant', text: `${data.message || 'Done.'}${actionText}${usedParams}` }]);
     } catch (e) {
-      const detail = e?.response?.data?.detail || e?.message || 'Request failed';
+      const raw = e?.response?.data?.detail;
+      const detail =
+        typeof raw === 'string'
+          ? raw
+          : Array.isArray(raw)
+            ? raw.map((x) => (typeof x === 'object' && x?.msg ? x.msg : String(x))).join('; ')
+            : e?.message || 'Request failed';
       setError(detail);
       setMessages((m) => [...m, { role: 'assistant', text: `I couldn't run that: ${detail}` }]);
     } finally {
@@ -161,8 +181,18 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
 
         <div className="border-t border-border p-3">
           {error && (
-            <div className="mb-2 text-xs font-bold text-error">
-              {error}
+            <div className="mb-2 space-y-2">
+              <div className="text-xs font-bold text-error">{error}</div>
+              {isAiProviderMissingError(error) && (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-secondary leading-relaxed">
+                  <strong className="text-primary">This is a server configuration issue.</strong> OpenAI or Gemini API
+                  keys are not set on your <strong>backend</strong> (e.g. AWS / hosting env vars). Add{' '}
+                  <code className="rounded bg-surface px-1 py-0.5 text-[11px]">OPENAI_KEY</code> or{' '}
+                  <code className="rounded bg-surface px-1 py-0.5 text-[11px]">GEMINI_API_KEY</code>, redeploy or restart
+                  the API, then try again. <strong>AI Params</strong> below only changes model and temperature — it
+                  cannot supply API keys.
+                </div>
+              )}
             </div>
           )}
           <div className="mb-3">
@@ -177,6 +207,12 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
           </div>
           {paramsOpen && (
             <div className="mb-3 rounded-md border border-border bg-page p-3 space-y-3">
+              <p className="text-[11px] text-muted leading-relaxed border-b border-border/60 pb-2">
+                Adjusts model and generation limits for your requests.{' '}
+                <span className="text-secondary font-medium">
+                  API keys are configured only on the server (environment variables), not in this panel.
+                </span>
+              </p>
               {!canOverrideParams && (
                 <div className="text-xs text-muted">
                   You can view defaults. Only Admin/MD/Manager can override AI params.

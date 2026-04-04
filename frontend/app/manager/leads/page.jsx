@@ -190,12 +190,13 @@ export default function Leads() {
   const renderListView = () => (
     <div className="max-w-[1400px] mx-auto px-6 py-4">
       <div className="bg-surface rounded border border-border overflow-hidden shadow-sm">
-        <div className="hidden lg:flex items-center gap-4 px-5 py-2.5 bg-surface-elevated/50 border-b border-border">
-          <div className="w-[30%] text-[10px] font-black text-muted uppercase tracking-widest">Lead Entity</div>
-          <div className="w-[20%] text-[10px] font-black text-muted uppercase tracking-widest text-center">Status</div>
-          <div className="flex-1 text-[10px] font-black text-muted uppercase tracking-widest">Next Engagement</div>
-          <div className="w-8"></div>
-        </div>
+          <div className="hidden lg:flex items-center gap-4 px-5 py-2.5 bg-surface-elevated/50 border-b border-border">
+            <div className="w-[25%] text-[10px] font-black text-muted uppercase tracking-widest">Lead Entity</div>
+            <div className="w-[15%] text-[10px] font-black text-muted uppercase tracking-widest text-center">Status</div>
+            <div className="w-[20%] text-[10px] font-black text-muted uppercase tracking-widest">Assigned To</div>
+            <div className="flex-1 text-[10px] font-black text-muted uppercase tracking-widest">Next Engagement</div>
+            <div className="w-8"></div>
+          </div>
         <div className="divide-y divide-border/50">
           {filteredLeads.length === 0 ? (
             <div className="p-12 text-center text-muted text-[13px] font-medium italic">No leads found in this view.</div>
@@ -206,7 +207,7 @@ export default function Leads() {
 
               return (
                 <Link key={lead.id} href={`${basePath}/${lead.id}`} className={`flex items-center gap-4 px-5 py-2.5 hover:bg-surface-elevated/30 transition-all group ${isMuted ? 'opacity-50' : ''} ${idx % 2 !== 0 ? 'bg-surface-elevated/10' : ''}`}>
-                  <div className="w-[30%] min-w-[180px]">
+                  <div className="w-[25%] min-w-[160px]">
                     <p className={`text-[13px] font-bold truncate ${isMuted ? 'text-muted' : 'text-primary'}`}>{lead.name}</p>
                     {lead.company && (
                       <p className="text-[11px] text-muted font-bold truncate flex items-center gap-1 opacity-70 uppercase tracking-tight">
@@ -214,10 +215,17 @@ export default function Leads() {
                       </p>
                     )}
                   </div>
-                  <div className="w-[20%] flex justify-center">
+                  <div className="w-[15%] flex justify-center">
                     <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${STATUS_STYLES[lead.status] || STATUS_STYLES['Active']}`}>
                       {lead.status}
                     </span>
+                  </div>
+                  <div className="w-[20%] min-w-0">
+                    {lead.assigned_to_name ? (
+                      <span className="text-[12px] font-bold text-primary truncate block">{lead.assigned_to_name}</span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm bg-amber-50 text-amber-700 border-amber-200">Open</span>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     {signal.text && (
@@ -282,6 +290,14 @@ export default function Leads() {
                           <Briefcase size={10} strokeWidth={2.5} /> {lead.company}
                         </p>
                       )}
+
+                      <div className="mb-1">
+                        {lead.assigned_to_name ? (
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate block">{lead.assigned_to_name}</span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">Open</span>
+                        )}
+                      </div>
 
                       {signal.text && (
                         <div className={`mt-2 text-[10px] font-bold ${isMuted ? 'text-muted' : signal.color.replace('font-semibold', '').replace('font-medium', '')} bg-surface-elevated/50 px-2 py-1 rounded w-fit`}>

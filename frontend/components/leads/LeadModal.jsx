@@ -1,19 +1,25 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { X, Loader2 } from 'lucide-react';
 import api from '../../services/api';
 
 export default function LeadModal({ isOpen, onClose, onRefresh }) {
+    const pathname = usePathname();
+    const isManager = pathname?.startsWith('/manager') || pathname?.startsWith('/md');
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [teams, setTeams] = useState([]);
+    const [teamMembers, setTeamMembers] = useState([]);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         phone: '',
         company: '',
         team_id: '',
+        assigned_to_id: '',
         source: '',
         service_type: '',
         notes: ''
@@ -25,7 +31,6 @@ export default function LeadModal({ isOpen, onClose, onRefresh }) {
             try {
                 const res = await api.get('/teams/mine');
                 setTeams(res.data?.teams || []);
-                // Default selection: active team if present, else first team
                 const active = res.data?.active_team_id;
                 if (!formData.team_id) {
                     if (active) {
@@ -42,6 +47,19 @@ export default function LeadModal({ isOpen, onClose, onRefresh }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
+    useEffect(() => {
+        if (!isOpen || !isManager) return;
+        const loadMembers = async () => {
+            try {
+                const res = await api.get('/leads/team-members');
+                setTeamMembers(res.data?.members || []);
+            } catch {
+                setTeamMembers([]);
+            }
+        };
+        loadMembers();
+    }, [isOpen, isManager]);
+
     if (!isOpen) return null;
 
     const handleChange = (e) => {
@@ -57,13 +75,14 @@ export default function LeadModal({ isOpen, onClose, onRefresh }) {
             const payload = {
                 ...formData,
                 team_id: formData.team_id ? parseInt(formData.team_id, 10) : undefined,
+                assigned_to_id: formData.assigned_to_id ? parseInt(formData.assigned_to_id, 10) : undefined,
             };
+            if (!payload.assigned_to_id) delete payload.assigned_to_id;
             await api.post('/leads', payload);
             onRefresh();
             onClose();
-            // Reset form
             setFormData({
-                name: '', email: '', phone: '', company: '', team_id: '', source: '', service_type: '', notes: ''
+                name: '', email: '', phone: '', company: '', team_id: '', assigned_to_id: '', source: '', service_type: '', notes: ''
             });
         } catch (err) {
             console.error("Create lead failed", err);
@@ -142,6 +161,26 @@ export default function LeadModal({ isOpen, onClose, onRefresh }) {
                                     </option>
                                 ))}
                             </select>
+                        </div>
+                    )}
+
+                    {isManager && (
+                        <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assign To</label>
+                            <select
+                                name="assigned_to_id"
+                                value={formData.assigned_to_id}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                            >
+                                <option value="">Open to Anyone</option>
+                                {teamMembers.map((m) => (
+                                    <option key={m.id} value={String(m.id)}>
+                                        {m.full_name} ({m.email})
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-[10px] text-slate-400">&ldquo;Open to Anyone&rdquo; lets any sales exec in the team claim this lead.</p>
                         </div>
                     )}
 

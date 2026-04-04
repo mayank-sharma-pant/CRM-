@@ -433,7 +433,16 @@ def reassign_lead(
     
     if active_team_id is None or lead.team_id != active_team_id:
         raise HTTPException(status_code=403, detail="Lead does not belong to your team")
-    
+
+    # Cannot reassign converted leads or leads created by a sales exec
+    lead_status_val = lead.status.value if hasattr(lead.status, "value") else str(lead.status)
+    if lead_status_val == "Converted":
+        raise HTTPException(status_code=403, detail="Cannot reassign a converted lead")
+    if lead.created_by_id:
+        creator = db.query(User).filter(User.id == lead.created_by_id).first()
+        if creator and _role_value(creator.role) == "sales":
+            raise HTTPException(status_code=403, detail="Cannot reassign a lead created by a sales executive")
+
     new_assignee = (
         apply_company_scope(db.query(User), User, current_user)
         .join(TeamMembership, TeamMembership.user_id == User.id)

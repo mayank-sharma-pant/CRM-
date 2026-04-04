@@ -143,7 +143,10 @@ def get_sales_dashboard(
     # Role-based scoping for leads
     if _user_role_str(current_user) == "sales":
         if active_team_id is not None:
-            lead_query = lead_query.filter(Lead.assigned_to_id == current_user.id, Lead.team_id == active_team_id)
+            lead_query = lead_query.filter(
+                Lead.team_id == active_team_id,
+                or_(Lead.assigned_to_id == current_user.id, Lead.assigned_to_id.is_(None)),
+            )
         else:
             lead_query = lead_query.filter(Lead.assigned_to_id == current_user.id)
     elif _user_role_str(current_user) == "manager":
@@ -321,11 +324,13 @@ def list_leads(
     # Apply role-based scoping
     if _user_role_str(current_user) == "sales":
         if active_team_id is not None:
-            query = query.filter(Lead.assigned_to_id == current_user.id, Lead.team_id == active_team_id)
+            query = query.filter(
+                Lead.team_id == active_team_id,
+                or_(Lead.assigned_to_id == current_user.id, Lead.assigned_to_id.is_(None)),
+            )
         else:
             query = query.filter(Lead.assigned_to_id == current_user.id)
     elif _user_role_str(current_user) == "manager":
-        # Managers see leads assigned to their team (or explicitly owned by the manager)
         if active_team_id is None:
             query = query.filter(False)
         else:
@@ -341,6 +346,13 @@ def list_leads(
         )
     total = query.count()
     leads = query.order_by(Lead.created_at.desc()).offset(skip).limit(limit).all()
+
+    assignee_ids = {l.assigned_to_id for l in leads if l.assigned_to_id}
+    assignee_map = {}
+    if assignee_ids:
+        for u in db.query(User).filter(User.id.in_(assignee_ids)).all():
+            assignee_map[u.id] = u.full_name
+
     return {
         "items": [
             {
@@ -352,6 +364,8 @@ def list_leads(
                 "status": lead.status,
                 "source": lead.source,
                 "service_type": lead.service_type,
+                "assigned_to_id": lead.assigned_to_id,
+                "assigned_to_name": assignee_map.get(lead.assigned_to_id) if lead.assigned_to_id else None,
                 "created_at": lead.created_at.strftime("%Y-%m-%d") if lead.created_at else None,
                 "last_contacted_at": lead.last_contacted_at.isoformat() if lead.last_contacted_at else None,
                 "last_response_at": lead.last_response_at.isoformat() if lead.last_response_at else None,
@@ -378,8 +392,10 @@ def get_lead(
         raise HTTPException(status_code=404, detail="Lead not found")
         
     # Apply role-based scoping
-    if _user_role_str(current_user) == "sales" and lead.assigned_to_id != current_user.id:
-        raise HTTPException(status_code=403, detail="You do not have access to this lead")
+    if _user_role_str(current_user) == "sales":
+        own_or_open = (lead.assigned_to_id == current_user.id) or (lead.assigned_to_id is None and lead.team_id == active_team_id)
+        if not own_or_open:
+            raise HTTPException(status_code=403, detail="You do not have access to this lead")
     if _user_role_str(current_user) == "manager":
         if active_team_id is None or lead.team_id != active_team_id:
             raise HTTPException(status_code=403, detail="You do not have access to this team's lead")
@@ -417,6 +433,7 @@ def get_lead(
     
     # Fetch assignee name
     assignee = db.query(User).filter(User.id == lead.assigned_to_id).first() if lead.assigned_to_id else None
+    creator = db.query(User).filter(User.id == lead.created_by_id).first() if lead.created_by_id else None
 
     converted_client = apply_company_scope(db.query(Client), Client, current_user).filter(
         Client.converted_from_lead_id == lead.id
@@ -434,14 +451,40 @@ def get_lead(
         "notes": lead.notes,
         "tasks": tasks_list,
         "notes_list": notes_list,
-        "assignee": assignee.full_name if assignee else "Unassigned",
+        "assignee": assignee.full_name if assignee else "Open to Anyone",
         "assigned_to_id": lead.assigned_to_id,
+        "created_by_id": lead.created_by_id,
+        "created_by_name": creator.full_name if creator else None,
+        "created_by_role": _user_role_str(creator) if creator else None,
         "team_id": lead.team_id,
         "converted_client_id": converted_client.id if converted_client else None,
         "created_at": isoformat_utc(lead.created_at),
         "last_contacted_at": isoformat_utc(lead.last_contacted_at),
         "last_response_at": isoformat_utc(lead.last_response_at),
         "next_task": isoformat_utc(lead.next_follow_up),
+    }
+
+
+@router.get("/team-members")
+def list_team_members_for_assignment(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    """Return sales execs in the active team (for the assign-to dropdown)."""
+    if active_team_id is None:
+        return {"members": []}
+    members = (
+        apply_company_scope(db.query(User), User, current_user)
+        .join(TeamMembership, TeamMembership.user_id == User.id)
+        .filter(TeamMembership.team_id == active_team_id, User.role == "sales")
+        .all()
+    )
+    return {
+        "members": [
+            {"id": m.id, "full_name": m.full_name, "email": m.email}
+            for m in members
+        ]
     }
 
 
@@ -558,6 +601,7 @@ def create_lead(
         notes=lead_data.notes if hasattr(lead_data, 'notes') else None,
         status=LeadStatus.ACTIVE,
         assigned_to_id=assigned_to_id,
+        created_by_id=current_user.id,
         team_id=team_id
     )
     
@@ -667,7 +711,16 @@ def update_lead(
     if getattr(lead_data, "assigned_to_id", None) is not None:
         if _user_role_str(current_user) == "sales":
             raise HTTPException(status_code=403, detail="Sales executives cannot reassign leads")
-        
+
+        # Managers cannot reassign leads that a sales exec created or that are already converted
+        if _user_role_str(current_user) == "manager":
+            if _lead_status_value(lead) == LeadStatus.CONVERTED.value:
+                raise HTTPException(status_code=403, detail="Cannot reassign a converted lead")
+            if lead.created_by_id:
+                creator = db.query(User).filter(User.id == lead.created_by_id).first()
+                if creator and _user_role_str(creator) == "sales":
+                    raise HTTPException(status_code=403, detail="Cannot reassign a lead created by a sales executive")
+
         assignee = apply_company_scope(
             db.query(User), User, current_user
         ).filter(User.id == lead_data.assigned_to_id).first()
@@ -781,6 +834,34 @@ def update_lead_status(
         db.commit()
 
     return {"message": "Status updated successfully", "status": lead.status}
+
+
+@router.post("/{lead_id}/claim")
+def claim_lead(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    """Sales exec claims an open (unassigned) lead for themselves."""
+    if _user_role_str(current_user) != "sales":
+        raise HTTPException(status_code=403, detail="Only sales executives can claim leads")
+
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
+    if lead.assigned_to_id is not None:
+        raise HTTPException(status_code=400, detail="This lead is already assigned")
+
+    if active_team_id is not None and lead.team_id != active_team_id:
+        raise HTTPException(status_code=403, detail="Lead does not belong to your active team")
+
+    lead.assigned_to_id = current_user.id
+    log_activity(db, user=current_user, action='claimed', entity_type='lead',
+                 entity_id=lead.id, entity_name=lead.name, after=current_user.full_name)
+    db.commit()
+    return {"message": f"Lead claimed successfully", "lead_id": lead.id}
 
 
 @router.delete("/{lead_id}", response_model=MessageResponse)

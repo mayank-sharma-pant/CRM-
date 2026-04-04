@@ -23,6 +23,7 @@ class Lead(Base):
     
     # Ownership
     assigned_to_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     
     # Tracking dates
@@ -37,7 +38,8 @@ class Lead(Base):
     
     # Relationships
     tenant = relationship("Company", backref="leads", foreign_keys=[company_id])
-    assigned_to = relationship("User", back_populates="leads")
+    assigned_to = relationship("User", back_populates="leads", foreign_keys=[assigned_to_id])
+    created_by = relationship("User", foreign_keys=[created_by_id])
     team = relationship("Team", back_populates="leads")
     tasks = relationship("Task", back_populates="lead", cascade="all, delete-orphan")
     follow_ups = relationship("FollowUp", back_populates="lead", cascade="all, delete-orphan")

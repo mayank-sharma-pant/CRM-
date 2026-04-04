@@ -40,6 +40,7 @@ export default function LeadDetailPage() {
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
   const [syncingClient, setSyncingClient] = useState(false);
+  const [claiming, setClaiming] = useState(false);
 
   useEffect(() => {
     fetchLeadData();
@@ -53,13 +54,16 @@ export default function LeadDetailPage() {
       // Determine role from path (same as before)
       const isManager = window.location.pathname.startsWith('/manager');
 
-      // Map permissions
+      const salesCreated = data.created_by_role === 'sales';
+      const isConvertedStatus = ['Converted'].includes(data.status);
+      const canReassign = isManager && !salesCreated && !isConvertedStatus;
+
       data.permissions = {
         canEdit: !['Converted', 'Lost', 'Lost Client'].includes(data.status),
         canConvert: !['Converted', 'Lost', 'Lost Client'].includes(data.status),
         canAddTask: true,
         canAddNote: true,
-        canReassign: isManager
+        canReassign
       };
 
       // Construct a simple timeline from tasks and notes
@@ -224,6 +228,18 @@ export default function LeadDetailPage() {
     }
   };
 
+  const handleClaimLead = async () => {
+    try {
+      setClaiming(true);
+      await api.post(`/leads/${id}/claim`);
+      fetchLeadData();
+    } catch (err) {
+      alert(err.response?.data?.detail || "Failed to claim lead");
+    } finally {
+      setClaiming(false);
+    }
+  };
+
   const handleAddNote = () => {
     setIsNoteModalOpen(true);
   };
@@ -238,6 +254,8 @@ export default function LeadDetailPage() {
   const statusStr = typeof lead.status === 'string' ? lead.status : lead.status?.value ?? String(lead.status);
   const isConverted = statusStr === 'Converted';
   const missingClientRecord = isConverted && lead.converted_client_id == null;
+  const isSalesPage = pathname?.startsWith('/sales');
+  const isOpenLead = !lead.assigned_to_id;
 
   return ( <>
     <div className="bg-slate-50 dark:bg-slate-900 min-h-full font-sans text-slate-900 dark:text-slate-100 pb-12">
@@ -275,6 +293,16 @@ export default function LeadDetailPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {isSalesPage && isOpenLead && (
+              <button
+                onClick={handleClaimLead}
+                disabled={claiming}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {claiming && <Loader2 size={14} className="animate-spin" />}
+                Claim this Lead
+              </button>
+            )}
             {lead.permissions?.canReassign && (
               <button 
                 onClick={() => setIsReassignModalOpen(true)}
@@ -409,7 +437,11 @@ export default function LeadDetailPage() {
               </div>
               <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between text-xs">
                 <span className="text-slate-500">Assignee</span>
-                <span className="font-medium text-slate-900 dark:text-white">{lead.assignee}</span>
+                {lead.assigned_to_id ? (
+                  <span className="font-medium text-slate-900 dark:text-white">{lead.assignee}</span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-50 text-amber-700 border border-amber-200">Open to Anyone</span>
+                )}
               </div>
             </div>
           </div>

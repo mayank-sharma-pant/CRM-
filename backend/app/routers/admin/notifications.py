@@ -2,6 +2,8 @@
 Notifications API
 Endpoints for listing, marking read, and creating notifications.
 """
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -15,6 +17,17 @@ from app.models.sales.notification import Notification
 from app.utils.notify import NOTIFICATION_CATEGORIES, normalize_notification_category, get_user_muted_notification_categories
 
 router = APIRouter()
+
+
+def _isoformat_utc(dt: datetime | None) -> str | None:
+    """Serialize for JSON so browsers parse as UTC (Z), not ambiguous local time."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return dt.isoformat().replace("+00:00", "Z")
 
 
 class NotificationPreferencesBody(BaseModel):
@@ -60,7 +73,7 @@ def list_notifications(
                 "type": n.type,
                 "link": n.link,
                 "is_read": n.is_read,
-                "created_at": n.created_at.isoformat() if n.created_at else None
+                "created_at": _isoformat_utc(n.created_at)
             }
             for n in notifications
         ],

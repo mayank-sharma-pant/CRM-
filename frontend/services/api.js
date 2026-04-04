@@ -1,10 +1,9 @@
 import axios from 'axios';
-const configuredApiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || '').trim();
-const preferProxy = process.env.NODE_ENV !== 'production';
 
-// In non-production, always prefer Next.js same-origin rewrite proxy
-// (/api -> backend) to avoid CORS/host-resolution inconsistencies.
-const API_BASE_URL = preferProxy ? '' : configuredApiBaseUrl;
+// Always same-origin `/api` so Next.js rewrites (next.config.mjs → BACKEND_URL) handle the hop.
+// The browser never calls AWS directly → no CORS. Do not set NEXT_PUBLIC_API_URL to another host
+// unless you also configure CORS on the API for https://crm.perioxia.com.
+const API_BASE_URL = '';
 const ACTIVE_TEAM_KEY = 'crm.activeTeamId';
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
@@ -30,7 +29,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (!error.response) {
-      console.warn('NETWORK_ERROR: Backend potentially unreachable at', API_BASE_URL);
+      console.warn('NETWORK_ERROR: Backend unreachable (check /api rewrite and BACKEND_URL)');
     }
 
     if (error.response?.status === 401) {

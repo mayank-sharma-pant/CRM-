@@ -134,10 +134,7 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
         .map((a) => `${a.action} ${a.result?.id ? `(#${a.result.id})` : ''}`.trim())
         .filter(Boolean);
       const actionText = actions.length ? `\n\nExecuted:\n- ${actions.join('\n- ')}` : '';
-      const usedParams = data?.used_params
-        ? `\n\nParams: ${data.used_params.model} | temp ${data.used_params.temperature} | tokens ${data.used_params.max_output_tokens} | actions ${data.used_params.max_actions}`
-        : '';
-      setMessages((m) => [...m, { role: 'assistant', text: `${data.message || 'Done.'}${actionText}${usedParams}` }]);
+      setMessages((m) => [...m, { role: 'assistant', text: `${data.message || 'Done.'}${actionText}` }]);
     } catch (e) {
       const raw = e?.response?.data?.detail;
       const detail =
@@ -195,85 +192,6 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
               )}
             </div>
           )}
-          <div className="mb-3">
-            <button
-              type="button"
-              onClick={() => setParamsOpen((v) => !v)}
-              className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-secondary hover:bg-surface-elevated/40"
-            >
-              <SlidersHorizontal size={14} />
-              AI Params
-            </button>
-          </div>
-          {paramsOpen && (
-            <div className="mb-3 rounded-md border border-border bg-page p-3 space-y-3">
-              <p className="text-[11px] text-muted leading-relaxed border-b border-border/60 pb-2">
-                Adjusts model and generation limits for your requests.{' '}
-                <span className="text-secondary font-medium">
-                  API keys are configured only on the server (environment variables), not in this panel.
-                </span>
-              </p>
-              {!canOverrideParams && (
-                <div className="text-xs text-muted">
-                  You can view defaults. Only Admin/MD/Manager can override AI params.
-                </div>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label className="text-xs text-secondary space-y-1 block">
-                  <span className="font-semibold">Model</span>
-                  <select
-                    value={aiParams.model}
-                    disabled={!canOverrideParams}
-                    onChange={(e) => setAiParams((p) => ({ ...p, model: e.target.value }))}
-                    className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-primary disabled:opacity-70"
-                  >
-                    {(paramsMeta?.allowed_models || [DEFAULT_PARAMS.model]).map((model) => (
-                      <option key={model} value={model}>{model}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-xs text-secondary space-y-1 block">
-                  <span className="font-semibold">Temperature (0-1)</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={aiParams.temperature}
-                    disabled={!canOverrideParams}
-                    onChange={(e) => setAiParams((p) => ({ ...p, temperature: e.target.value }))}
-                    className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-primary disabled:opacity-70"
-                  />
-                </label>
-                <label className="text-xs text-secondary space-y-1 block">
-                  <span className="font-semibold">Max Output Tokens</span>
-                  <input
-                    type="number"
-                    min="128"
-                    max="4096"
-                    step="1"
-                    value={aiParams.max_output_tokens}
-                    disabled={!canOverrideParams}
-                    onChange={(e) => setAiParams((p) => ({ ...p, max_output_tokens: e.target.value }))}
-                    className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-primary disabled:opacity-70"
-                  />
-                </label>
-                <label className="text-xs text-secondary space-y-1 block">
-                  <span className="font-semibold">Max Actions</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max={paramsMeta?.params?.max_actions || 20}
-                    step="1"
-                    value={aiParams.max_actions}
-                    disabled={!canOverrideParams}
-                    onChange={(e) => setAiParams((p) => ({ ...p, max_actions: e.target.value }))}
-                    className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-primary disabled:opacity-70"
-                  />
-                </label>
-              </div>
-            </div>
-          )}
           <div className="flex gap-2">
             <textarea
               value={input}
@@ -288,10 +206,10 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
             <button
               onClick={send}
               disabled={loading}
-              className="h-[44px] px-3 rounded-md bg-accent text-white font-bold text-sm hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+              className="h-auto p-4 my-2 rounded-full bg-accent text-white font-bold text-sm hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {loading ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
-              Send
+              
             </button>
           </div>
         </div>

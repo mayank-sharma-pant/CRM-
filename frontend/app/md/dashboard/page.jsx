@@ -8,19 +8,11 @@ import {
     Users,
     TrendingUp,
     Receipt,
-    Globe,
-    AlertCircle,
     ArrowUpRight,
-    ArrowDownRight,
-    Search,
-    Filter,
     AlertTriangle,
-    DollarSign,
-    Award,
     RefreshCw,
     Calendar,
     Bell,
-    ChevronRight,
     UserSearch,
     TrendingDown
 } from 'lucide-react';
@@ -30,6 +22,7 @@ import { RetentionChart, LiquidityChart } from '../../../components/charts/Share
 
 import { useNotification } from '../../../contexts/NotificationContext';
 import KPICard from '../../../components/shared/KPICard';
+import Skeleton, { CardSkeleton } from '../../../components/shared/Skeleton';
 
 export default function MDDashboard() {
     const router = useRouter();
@@ -321,47 +314,6 @@ function LinkText({ href, children }) {
     );
 }
 
-import Skeleton, { CardSkeleton } from '../../../components/shared/Skeleton';
-
-function RevenueSkeleton() {
-    return (
-        <div className="mx-auto max-w-[1440px] px-6 py-4 space-y-6 bg-page min-h-screen">
-            <div className="flex justify-between py-4 border-b border-border">
-                <div className="space-y-2">
-                    <Skeleton className="h-7 w-48" />
-                    <Skeleton className="h-4 w-60 opacity-60" />
-                </div>
-                <Skeleton className="h-9 w-32" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {[...Array(3)].map((_, i) => <CardSkeleton key={i} />)}
-            </div>
-            <div className="bg-surface border border-border rounded-xl p-6 space-y-4">
-                <div className="flex items-center justify-between border-b border-border pb-4">
-                   <Skeleton className="h-5 w-48" />
-                   <div className="flex gap-2">
-                        <Skeleton className="h-7 w-16" />
-                        <Skeleton className="h-7 w-16" />
-                   </div>
-                </div>
-                <Skeleton className="h-[380px] w-full rounded-lg shadow-sm" />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div className="lg:col-span-7 bg-surface border border-border rounded-xl p-6 space-y-4">
-                    <Skeleton className="h-5 w-32" />
-                    <Skeleton className="h-[260px] w-full rounded-lg" />
-                </div>
-                <div className="lg:col-span-5 bg-surface border border-border rounded-xl p-6 space-y-4">
-                    <Skeleton className="h-5 w-32" />
-                    <div className="space-y-3">
-                        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
 function DashboardSkeleton() {
     return (
         <div className="mx-auto max-w-[1440px] px-6 py-4 space-y-6 bg-page min-h-screen">
@@ -397,18 +349,4 @@ function DashboardSkeleton() {
             </div>
         </div>
     );
-}
-
-// --- UTILS ---
-
-function getTrendBarColor(trend) {
-    if (trend === 'up') return 'bg-emerald-500';
-    if (trend === 'down') return 'bg-red-500';
-    return 'bg-slate-400';
-}
-
-function getSeverityDot(severity) {
-    if (severity === 'High') return 'bg-red-500 shadow shadow-red-200 dark:shadow-none';
-    if (severity === 'Medium') return 'bg-amber-500 shadow shadow-amber-200 dark:shadow-none';
-    return 'bg-blue-500';
 }

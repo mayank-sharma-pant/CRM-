@@ -58,23 +58,29 @@ The backend is organized into functional domains to maximize maintainability and
 ## 📁 Project Structure
 
 ```text
-CRM-/
-├── backend/                # FastAPI Application
+CRM-/                          # Monorepo root (npm workspaces; see package.json)
+├── package.json               # Root scripts: npm run dev / build → frontend workspace
+├── scripts/                   # Optional repo utilities (e.g. run-all-tests.ps1)
+├── backend/                   # FastAPI application
 │   ├── app/
-│   │   ├── models/         # SQLAlchemy Models (Domain-grouped)
-│   │   ├── routers/        # API Endpoints (Domain-grouped)
-│   │   ├── schemas/        # Pydantic Models (Domain-grouped)
-│   │   ├── utils/          # Security & Notification helpers
-│   │   └── database.py     # Session management
-│   ├── alembic/            # Database version control
-│   └── tests/              # Pytest suite
-├── frontend/               # Next.js Application
-│   ├── app/                # Layouts & Pages (App Router)
-│   ├── components/         # Reusable UI primitives
-│   ├── contexts/           # Auth & Theme states
-│   └── services/           # API integration Layer
-└── database/               # Relational Schema Design
+│   │   ├── models/            # SQLAlchemy models (domain folders: core, sales, finance, hr, ops)
+│   │   ├── routers/           # API routes (domain folders + main.py wiring)
+│   │   ├── schemas/           # Pydantic request/response models
+│   │   ├── utils/             # Security, email, audit, helpers
+│   │   ├── middleware/        # HTTP middleware
+│   │   └── database.py        # Engine & session
+│   ├── alembic/               # Migrations (alembic upgrade head)
+│   └── tests/                 # Pytest
+├── frontend/                  # Next.js 15 (App Router)
+│   ├── app/                   # Routes & layouts by role (/sales, /manager, /md, /platform, …)
+│   ├── components/            # Shared UI (charts, finance, leads, platform, …)
+│   ├── contexts/              # Auth, notifications
+│   ├── services/              # API client (axios)
+│   └── jsconfig.json          # Path alias @/* → ./*
+└── flutter_app/               # Flutter mobile client (separate from web)
 ```
+
+Schema is defined and evolved via **Alembic** under `backend/alembic/` (no separate `database/` folder in this repo).
 
 ## ⚙️ Configuration (.env)
 
@@ -118,6 +124,16 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 ### 2. Frontend Setup
+
+From the **repository root** (recommended; uses the workspace):
+
+```bash
+npm install
+npm run dev
+```
+
+Or from `frontend/` directly:
+
 ```bash
 cd frontend
 npm install

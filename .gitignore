@@ -1,3 +1,6 @@
+# Local scratch (do not commit)
+tmp/
+
 # Dependencies
 node_modules/
 frontend/node_modules/

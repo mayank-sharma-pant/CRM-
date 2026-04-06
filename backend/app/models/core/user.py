@@ -35,7 +35,11 @@ class User(Base):
     manager = relationship("User", remote_side=[id], backref="direct_reports")
     
     # Lead and Client ownership
-    leads = relationship("Lead", back_populates="assigned_to")
+    leads = relationship(
+        "Lead",
+        back_populates="assigned_to",
+        foreign_keys="Lead.assigned_to_id",
+    )
     clients = relationship("Client", back_populates="assigned_to")
     
     # Tasks

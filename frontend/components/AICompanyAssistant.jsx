@@ -33,22 +33,9 @@ const TOOL_DISPLAY_NAMES = {
   add_team_member: 'Add team member',
   remove_team_member: 'Remove team member',
   delete_team: 'Delete team',
-  create_lead: 'Create lead',
   list_teams: 'List teams',
   list_company_users: 'List company users',
-  list_leads: 'List leads',
   list_tasks: 'List tasks',
-  update_lead: 'Update lead',
-  update_lead_status: 'Update lead status',
-  assign_lead: 'Assign lead',
-  add_lead_note: 'Add lead note',
-  convert_lead: 'Convert lead',
-  delete_lead: 'Delete lead',
-  claim_lead: 'Claim lead',
-  create_follow_up: 'Schedule follow-up',
-  complete_follow_up: 'Complete follow-up',
-  reschedule_follow_up: 'Reschedule follow-up',
-  delete_follow_up: 'Delete follow-up',
   update_task: 'Update task',
   complete_task: 'Complete task',
   delete_task: 'Delete task',
@@ -201,17 +188,6 @@ function summarizeToolResult(actionName, params, result) {
       }
       return null;
     }
-    case 'create_lead': {
-      if (result.id != null) {
-        const bits = [`New lead #${result.id}: “${result.name || 'Lead'}”.`];
-        if (result.email) bits.push(`Email: ${result.email}.`);
-        if (result.company) bits.push(`Company: ${result.company}.`);
-        if (result.assigned_to_id) bits.push(`Assigned to user #${result.assigned_to_id}.`);
-        if (result.team_id) bits.push(`Team #${result.team_id}.`);
-        return { lines: bits };
-      }
-      return null;
-    }
     case 'list_teams': {
       const teams = result.teams;
       if (!Array.isArray(teams)) return null;
@@ -238,19 +214,6 @@ function summarizeToolResult(actionName, params, result) {
         ],
       };
     }
-    case 'list_leads': {
-      const leads = result.leads;
-      if (!Array.isArray(leads)) return null;
-      const preview = leads
-        .slice(0, 4)
-        .map((l) => (l && l.name ? `“${l.name}” (#${l.id})` : `#${l?.id}`))
-        .join(', ');
-      return {
-        lines: [
-          `${leads.length} lead(s)${preview ? `: ${preview}` : ''}${leads.length > 4 ? ' …' : ''}.`,
-        ],
-      };
-    }
     case 'list_tasks': {
       const tasks = result.tasks;
       if (!Array.isArray(tasks)) return null;
@@ -263,80 +226,6 @@ function summarizeToolResult(actionName, params, result) {
           `${tasks.length} task(s)${preview ? `: ${preview}` : ''}${tasks.length > 4 ? ' …' : ''}.`,
         ],
       };
-    }
-    case 'update_lead_status': {
-      if (result.lead_id != null && result.status != null) {
-        return { lines: [`Lead #${result.lead_id} is now “${result.status}”.`] };
-      }
-      return null;
-    }
-    case 'assign_lead': {
-      if (result.lead_id != null && result.assigned_to_id != null) {
-        return { lines: [`Lead #${result.lead_id} assigned to user #${result.assigned_to_id}.`] };
-      }
-      return null;
-    }
-    case 'add_lead_note': {
-      if (result.note_id != null && result.lead_id != null) {
-        return { lines: [`Note #${result.note_id} added to lead #${result.lead_id}.`] };
-      }
-      return null;
-    }
-    case 'convert_lead': {
-      if (result.lead_id != null) {
-        const lines = [];
-        if (result.message) lines.push(String(result.message));
-        if (result.client_id != null) lines.push(`Client #${result.client_id} (from lead #${result.lead_id}).`);
-        else lines.push(`Lead #${result.lead_id} conversion processed.`);
-        return { lines };
-      }
-      return null;
-    }
-    case 'delete_lead': {
-      if (result.deleted_lead_id != null) {
-        return { lines: [`Lead #${result.deleted_lead_id} was deleted.`] };
-      }
-      return null;
-    }
-    case 'claim_lead': {
-      if (result.lead_id != null) {
-        return {
-          lines: [
-            `Lead #${result.lead_id} claimed${result.claimed_by != null ? ` (user #${result.claimed_by})` : ''}.`,
-          ],
-        };
-      }
-      return null;
-    }
-    case 'update_lead': {
-      if (result.lead_id != null && result.updated) {
-        return { lines: [`Lead #${result.lead_id} updated.`] };
-      }
-      return null;
-    }
-    case 'create_follow_up': {
-      if (result.follow_up_id != null) {
-        return { lines: [`Follow-up #${result.follow_up_id} for lead #${result.lead_id ?? '—'}.`] };
-      }
-      return null;
-    }
-    case 'complete_follow_up': {
-      if (result.follow_up_id != null) {
-        return { lines: [`Follow-up #${result.follow_up_id} marked completed.`] };
-      }
-      return null;
-    }
-    case 'reschedule_follow_up': {
-      if (result.follow_up_id != null && result.scheduled_date) {
-        return { lines: [`Follow-up #${result.follow_up_id} moved to ${result.scheduled_date}.`] };
-      }
-      return null;
-    }
-    case 'delete_follow_up': {
-      if (result.deleted_follow_up_id != null) {
-        return { lines: [`Follow-up #${result.deleted_follow_up_id} deleted.`] };
-      }
-      return null;
     }
     case 'complete_task': {
       if (result.task_id != null) {
@@ -483,15 +372,9 @@ function toolOutcome(result) {
     result.member_stats != null ||
     result.teams_managed != null ||
     result.top_manager !== undefined ||
-    result.note_id != null ||
-    result.follow_up_id != null ||
-    result.deleted_follow_up_id != null ||
-    result.deleted_lead_id != null ||
     result.deleted_task_id != null ||
-    result.claimed_by != null ||
-    result.client_id != null ||
+    result.deleted_task_id != null ||
     result.updated === true ||
-    (result.lead_id != null && result.assigned_to_id != null) ||
     (result.task_id != null && result.status != null && result.ok !== false);
   if (looksOk || (result.status == null && result.ok !== false)) {
     return { tone: 'success', badge: 'done', headline: null, hint: null };
@@ -869,7 +752,7 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
                   : canCommand
                     ? 'Try: "Create team Alpha and add an expense entry to daily_expenses"'
                     : canCreateLead
-                      ? 'Try: "Create a lead named Jane Doe, email jane@example.com, company Acme"'
+                      ? 'Try: "List teams" or "Create a task for Alex due Friday"'
                       : 'Try: "What is today revenue and current business snapshot?"'
               }
               className="flex-1 min-h-[44px] max-h-32 resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"

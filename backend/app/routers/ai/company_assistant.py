@@ -16,7 +16,7 @@ from app.database import get_db
 from app.config import settings
 from app.utils.dependencies import get_current_user, apply_company_scope, is_platform_admin
 from app.models.core.user import User
-from app.models.core.enums import TaskPriority, LeadStatus
+from app.models.core.enums import TaskPriority
 from app.models.core.team import Team
 from app.models.core.team_membership import TeamMembership
 from app.models.sales.audit import AuditLog
@@ -46,7 +46,6 @@ READ_ONLY_ACTIONS = {
     "get_best_manager",
     "list_teams",
     "list_company_users",
-    "list_leads",
     "list_tasks",
 }
 COMMAND_ACTIONS = {
@@ -58,35 +57,13 @@ COMMAND_ACTIONS = {
     "create_top_performing_team",
     "create_team_with_members",
     "create_task",
-    "create_lead",
-    "update_lead",
-    "update_lead_status",
-    "assign_lead",
-    "add_lead_note",
-    "convert_lead",
-    "delete_lead",
-    "claim_lead",
-    "create_follow_up",
-    "complete_follow_up",
-    "reschedule_follow_up",
-    "delete_follow_up",
     "update_task",
     "complete_task",
     "delete_task",
 }
-# Sales reps: leads/tasks/follow-ups on their own scope (no team/ledger admin commands).
+# Sales reps: task tools on their own scope (no team/ledger admin commands).
 SALES_AI_EXTRA = frozenset(
     {
-        "claim_lead",
-        "add_lead_note",
-        "update_lead_status",
-        "convert_lead",
-        "delete_lead",
-        "update_lead",
-        "create_follow_up",
-        "complete_follow_up",
-        "reschedule_follow_up",
-        "delete_follow_up",
         "update_task",
         "complete_task",
         "delete_task",
@@ -302,7 +279,6 @@ def _allowed_actions_for_role(role: str) -> set[str]:
     if r in COMMAND_ROLES:
         allowed.update(COMMAND_ACTIONS)
     elif r == "sales":
-        allowed.add("create_lead")
         allowed.update(SALES_AI_EXTRA)
     return allowed
 
@@ -350,22 +326,9 @@ def _build_system_prompt(role: str, allowed_actions: set[str], max_actions: int)
         "get_best_manager": '{"action":"get_best_manager","params":{"year": int, "month": int}}',
         "create_team_with_members": '{"action":"create_team_with_members","params":{"name": string, "manager_id": int, "member_ids": [int]}}',
         "create_task": '{"action":"create_task","params":{"title": string, "assignee_id": int, "due_date": "YYYY-MM-DD"?, "priority": "low|medium|high"?, "description": string?}}',
-        "create_lead": '{"action":"create_lead","params":{"name": string, "email"?: string, "phone"?: string, "company"?: string, "source"?: string, "service_type"?: string, "notes"?: string, "assigned_to_id"?: int, "team_id"?: int}}',
         "list_teams": '{"action":"list_teams","params":{}}',
         "list_company_users": '{"action":"list_company_users","params":{"role"?: "sales"|"manager"|"admin"|"md"|"purchase"|"all"}}',
-        "list_leads": '{"action":"list_leads","params":{"limit"?: int, "status"?: string}}',
         "list_tasks": '{"action":"list_tasks","params":{"limit"?: int}}',
-        "update_lead": '{"action":"update_lead","params":{"lead_id": int, "name"?: string, "email"?: string, "phone"?: string, "company"?: string, "notes"?: string, "source"?: string, "service_type"?: string}}',
-        "update_lead_status": '{"action":"update_lead_status","params":{"lead_id": int, "status": string}}',
-        "assign_lead": '{"action":"assign_lead","params":{"lead_id": int, "assigned_to_id": int}}',
-        "add_lead_note": '{"action":"add_lead_note","params":{"lead_id": int, "content": string}}',
-        "convert_lead": '{"action":"convert_lead","params":{"lead_id": int}}',
-        "delete_lead": '{"action":"delete_lead","params":{"lead_id": int}}',
-        "claim_lead": '{"action":"claim_lead","params":{"lead_id": int}}',
-        "create_follow_up": '{"action":"create_follow_up","params":{"lead_id": int, "scheduled_date": "YYYY-MM-DD", "scheduled_time"?: "HH:MM", "notes"?: string}}',
-        "complete_follow_up": '{"action":"complete_follow_up","params":{"follow_up_id": int, "outcome": string}}',
-        "reschedule_follow_up": '{"action":"reschedule_follow_up","params":{"follow_up_id": int, "new_date": "YYYY-MM-DD", "new_time"?: "HH:MM", "reason"?: string}}',
-        "delete_follow_up": '{"action":"delete_follow_up","params":{"follow_up_id": int}}',
         "update_task": '{"action":"update_task","params":{"task_id": int, "title"?: string, "status"?: string, "priority"?: string, "due_date"?: string}}',
         "complete_task": '{"action":"complete_task","params":{"task_id": int}}',
         "delete_task": '{"action":"delete_task","params":{"task_id": int}}',
@@ -403,8 +366,7 @@ Rules:
 - Use business_snapshot/revenue_summary for "what is going on" and revenue questions.{ledger_schema_block}
 - When the user asks to create a team and assign people, prefer create_team_with_members or create_top_performing_team over create_team + add_team_member loops.
 - When the user wants tasks assigned, use create_task (you may output multiple create_task actions).
-- To add a sales lead, use create_lead with at least name; include email/phone when known. For sales/manager users, team_id or the UI active team context is required unless team_id is explicit in params.
-- Use list_teams and list_company_users to discover team_id and user ids. For managers and sales, Context often includes active_team_id; list_leads and list_tasks need that team for manager-scoped views (and sales tasks/leads filter by assignment and optionally that team).
+- Use list_teams and list_company_users to discover ids. For managers, Context often includes active_team_id; list_tasks uses that team for manager-scoped views.
 """
 
 
@@ -598,28 +560,6 @@ def _normalize_action(action: str, params: dict) -> dict:
             "due_date": due_dt,
         }
 
-    if action == "create_lead":
-        name = _require_non_empty_str(params, "name")
-        if len(name) > 255:
-            raise ActionValidationError("'name' must be <= 255 characters")
-        assigned_to_id = None
-        if params.get("assigned_to_id") is not None and str(params.get("assigned_to_id")).strip() != "":
-            assigned_to_id = _require_int({"assigned_to_id": params.get("assigned_to_id")}, "assigned_to_id", min_value=1)
-        team_id = None
-        if params.get("team_id") is not None and str(params.get("team_id")).strip() != "":
-            team_id = _require_int({"team_id": params.get("team_id")}, "team_id", min_value=1)
-        return {
-            "name": name,
-            "email": _ai_opt_str(params, "email", 255),
-            "phone": _ai_opt_str(params, "phone", 50),
-            "company": _ai_opt_str(params, "company", 255),
-            "source": _ai_opt_str(params, "source", 100),
-            "service_type": _ai_opt_str(params, "service_type", 100),
-            "notes": _ai_opt_str(params, "notes", 8000),
-            "assigned_to_id": assigned_to_id,
-            "team_id": team_id,
-        }
-
     if action == "list_teams":
         return {}
 
@@ -628,77 +568,12 @@ def _normalize_action(action: str, params: dict) -> dict:
         role_f = str(r).strip().lower() if r is not None and str(r).strip() else None
         return {"role": role_f}
 
-    if action == "list_leads":
-        try:
-            lim = int(params.get("limit", 20))
-        except (TypeError, ValueError):
-            lim = 20
-        st = params.get("status")
-        st = str(st).strip() if st is not None and str(st).strip() else None
-        return {"limit": lim, "status": st}
-
     if action == "list_tasks":
         try:
             lim = int(params.get("limit", 20))
         except (TypeError, ValueError):
             lim = 20
         return {"limit": lim}
-
-    if action == "update_lead_status":
-        return {
-            "lead_id": _require_int(params, "lead_id", min_value=1),
-            "status": _require_non_empty_str(params, "status"),
-        }
-
-    if action == "assign_lead":
-        return {
-            "lead_id": _require_int(params, "lead_id", min_value=1),
-            "assigned_to_id": _require_int(params, "assigned_to_id", min_value=1),
-        }
-
-    if action == "add_lead_note":
-        return {
-            "lead_id": _require_int(params, "lead_id", min_value=1),
-            "content": _require_non_empty_str(params, "content"),
-        }
-
-    if action in {"convert_lead", "delete_lead", "claim_lead"}:
-        return {"lead_id": _require_int(params, "lead_id", min_value=1)}
-
-    if action == "update_lead":
-        lid = _require_int(params, "lead_id", min_value=1)
-        out: dict = {"lead_id": lid}
-        for k in ("name", "email", "phone", "company", "notes", "source", "service_type"):
-            if k in params and params[k] is not None and str(params[k]).strip() != "":
-                out[k] = params[k]
-        if len(out) <= 1:
-            raise ActionValidationError("Provide at least one field to update (name, email, phone, company, notes, source, service_type)")
-        return out
-
-    if action == "create_follow_up":
-        return {
-            "lead_id": _require_int(params, "lead_id", min_value=1),
-            "scheduled_date": _require_non_empty_str(params, "scheduled_date"),
-            "scheduled_time": _ai_opt_str(params, "scheduled_time", 8),
-            "notes": _ai_opt_str(params, "notes", 4000),
-        }
-
-    if action == "complete_follow_up":
-        return {
-            "follow_up_id": _require_int(params, "follow_up_id", min_value=1),
-            "outcome": _require_non_empty_str(params, "outcome"),
-        }
-
-    if action == "reschedule_follow_up":
-        return {
-            "follow_up_id": _require_int(params, "follow_up_id", min_value=1),
-            "new_date": _require_non_empty_str(params, "new_date"),
-            "new_time": _ai_opt_str(params, "new_time", 8),
-            "reason": _ai_opt_str(params, "reason", 500),
-        }
-
-    if action == "delete_follow_up":
-        return {"follow_up_id": _require_int(params, "follow_up_id", min_value=1)}
 
     if action == "complete_task":
         return {"task_id": _require_int(params, "task_id", min_value=1)}
@@ -822,15 +697,10 @@ def _lines_for_tool_feedback(action: str, result: object) -> list[str]:
         users = result.get("users")
         if isinstance(users, list):
             lines.append(f"{action}: returned {len(users)} user(s); see “What ran” for ids.")
-    if action == "list_leads":
-        leads = result.get("leads")
-        if isinstance(leads, list):
-            lines.append(f"{action}: returned {len(leads)} lead(s); see “What ran” for ids.")
     if action == "list_tasks":
         tasks = result.get("tasks")
         if isinstance(tasks, list):
             lines.append(f"{action}: returned {len(tasks)} task(s); see “What ran” for ids.")
-
     return lines
 
 
@@ -1475,158 +1345,6 @@ def _create_task(db: Session, current_user: User, title: str, assignee_id: int, 
     return {"id": task.id, "title": task.title, "assigned_to_id": task.assigned_to_id, "due_date": task.due_date.isoformat() if task.due_date else None}
 
 
-def _create_lead_for_ai(
-    db: Session,
-    current_user: User,
-    f: dict,
-    context: dict | None,
-) -> dict:
-    """Create a lead; mirrors /api/leads rules (duplicates, team, assignment) without FastAPI deps."""
-    if current_user.company_id is None:
-        return {
-            "ok": False,
-            "summary": "Company context required.",
-            "suggestion": "Link your user to a company.",
-        }
-
-    role = _role_value(current_user)
-    ctx_team = _ctx_active_team_id(context)
-    name = (f.get("name") or "").strip()
-    email_raw = f.get("email")
-    phone_raw = f.get("phone")
-    company_name = f.get("company")
-    source = f.get("source")
-    service_type = f.get("service_type")
-    notes = f.get("notes")
-    assigned_to_id = f.get("assigned_to_id")
-    team_id_param = f.get("team_id")
-
-    assigned_to_res = assigned_to_id
-    if assigned_to_res is not None:
-        assignee = apply_company_scope(db.query(User), User, current_user).filter(User.id == assigned_to_res).first()
-        if not assignee:
-            return {"ok": False, "summary": "Assigned user not found in your company."}
-        if role == "manager":
-            tid = team_id_param if team_id_param is not None else ctx_team
-            if tid is None:
-                return {
-                    "ok": False,
-                    "summary": "Managers need a team to assign leads.",
-                    "suggestion": "Set team_id on the action or select a team in the app header.",
-                }
-            mgr_ok = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
-                TeamMembership.team_id == tid,
-                TeamMembership.user_id == current_user.id,
-            ).first()
-            if not mgr_ok:
-                return {"ok": False, "summary": "You are not a member of the chosen team."}
-            in_team = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
-                TeamMembership.team_id == tid,
-                TeamMembership.user_id == assignee.id,
-            ).first()
-            if not in_team:
-                return {
-                    "ok": False,
-                    "summary": "That assignee is not on the selected team.",
-                    "suggestion": "Pick a sales user who belongs to the team.",
-                }
-    elif role == "sales":
-        assigned_to_res = current_user.id
-
-    if team_id_param is not None:
-        team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == team_id_param).first()
-        if not team:
-            return {"ok": False, "summary": "Team not found."}
-        if role in ("sales", "manager"):
-            member = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
-                TeamMembership.team_id == team_id_param,
-                TeamMembership.user_id == current_user.id,
-            ).first()
-            if not member:
-                return {"ok": False, "summary": "You are not a member of the selected team."}
-        team_id = team_id_param
-    else:
-        if role in ("sales", "manager"):
-            if ctx_team is None:
-                return {
-                    "ok": False,
-                    "summary": "Sales and managers need a team for new leads.",
-                    "suggestion": "Select a team in the app or pass team_id in the action.",
-                }
-            team_id = ctx_team
-        else:
-            team_id = ctx_team
-
-    normalized_email = normalize_email(email_raw) if email_raw else None
-    normalized_phone = normalize_phone(phone_raw) if phone_raw else None
-
-    if normalized_email:
-        dup_lead = apply_company_scope(db.query(Lead.id), Lead, current_user).filter(
-            func.lower(Lead.email) == normalized_email
-        ).first()
-        if dup_lead:
-            return {"ok": False, "summary": f"A lead with email '{email_raw}' already exists."}
-        dup_client = apply_company_scope(db.query(Client.id), Client, current_user).filter(
-            func.lower(Client.email) == normalized_email
-        ).first()
-        if dup_client:
-            return {
-                "ok": False,
-                "summary": "A client already exists with this email.",
-                "suggestion": "Open Clients instead of creating a duplicate lead.",
-            }
-    if normalized_phone:
-        dup_lead_p = apply_company_scope(db.query(Lead.id), Lead, current_user).filter(Lead.phone == normalized_phone).first()
-        if dup_lead_p:
-            return {"ok": False, "summary": "A lead with this phone number already exists."}
-        dup_client_p = apply_company_scope(db.query(Client.id), Client, current_user).filter(Client.phone == normalized_phone).first()
-        if dup_client_p:
-            return {
-                "ok": False,
-                "summary": "A client already exists with this phone number.",
-                "suggestion": "Use Clients instead of duplicating.",
-            }
-
-    new_lead = Lead(
-        company_id=current_user.company_id,
-        name=name,
-        email=normalized_email,
-        phone=normalized_phone,
-        company=(company_name or "").strip() or None,
-        source=(source or "").strip() or None,
-        service_type=(service_type or "").strip() or None,
-        notes=(notes or "").strip() or None,
-        status=LeadStatus.ACTIVE,
-        assigned_to_id=assigned_to_res,
-        created_by_id=current_user.id,
-        team_id=team_id,
-    )
-    db.add(new_lead)
-    db.commit()
-    db.refresh(new_lead)
-    log_activity(
-        db,
-        user=current_user,
-        action="created",
-        entity_type="lead",
-        entity_id=new_lead.id,
-        entity_name=new_lead.name,
-    )
-    db.commit()
-    st = new_lead.status
-    status_val = st.value if hasattr(st, "value") else str(st)
-    return {
-        "id": new_lead.id,
-        "name": new_lead.name,
-        "email": new_lead.email,
-        "phone": new_lead.phone,
-        "company": new_lead.company,
-        "status": status_val,
-        "assigned_to_id": new_lead.assigned_to_id,
-        "team_id": new_lead.team_id,
-    }
-
-
 @router.get("/company-assistant/params", response_model=AIParamsResponse)
 def get_company_assistant_params(current_user: User = Depends(get_current_user)):
     _ensure_company_user(current_user)
@@ -1851,85 +1569,8 @@ async def company_assistant(
                 result = aca.ai_list_teams(db, current_user)
             elif action == "list_company_users":
                 result = aca.ai_list_company_users(db, current_user, normalized.get("role"))
-            elif action == "list_leads":
-                result = aca.ai_list_leads(
-                    db,
-                    current_user,
-                    normalized["limit"],
-                    normalized.get("status"),
-                    body.context,
-                )
             elif action == "list_tasks":
                 result = aca.ai_list_tasks(db, current_user, normalized["limit"], body.context)
-            elif action == "update_lead_status":
-                result = aca.ai_update_lead_status(
-                    db,
-                    current_user,
-                    normalized["lead_id"],
-                    normalized["status"],
-                    body.context,
-                )
-            elif action == "assign_lead":
-                result = aca.ai_assign_lead(
-                    db,
-                    current_user,
-                    normalized["lead_id"],
-                    normalized["assigned_to_id"],
-                    body.context,
-                )
-            elif action == "add_lead_note":
-                result = aca.ai_add_lead_note(
-                    db,
-                    current_user,
-                    normalized["lead_id"],
-                    normalized["content"],
-                    body.context,
-                )
-            elif action == "convert_lead":
-                result = aca.ai_convert_lead(db, current_user, normalized["lead_id"], body.context)
-            elif action == "delete_lead":
-                result = aca.ai_delete_lead(db, current_user, normalized["lead_id"], body.context)
-            elif action == "claim_lead":
-                result = aca.ai_claim_lead(db, current_user, normalized["lead_id"], body.context)
-            elif action == "update_lead":
-                fields = {k: v for k, v in normalized.items() if k != "lead_id"}
-                result = aca.ai_update_lead_fields(
-                    db,
-                    current_user,
-                    normalized["lead_id"],
-                    fields,
-                    body.context,
-                )
-            elif action == "create_follow_up":
-                result = aca.ai_create_follow_up(
-                    db,
-                    current_user,
-                    normalized["lead_id"],
-                    normalized["scheduled_date"],
-                    normalized.get("scheduled_time"),
-                    normalized.get("notes"),
-                    body.context,
-                )
-            elif action == "complete_follow_up":
-                result = aca.ai_complete_follow_up(
-                    db,
-                    current_user,
-                    normalized["follow_up_id"],
-                    normalized["outcome"],
-                    body.context,
-                )
-            elif action == "reschedule_follow_up":
-                result = aca.ai_reschedule_follow_up(
-                    db,
-                    current_user,
-                    normalized["follow_up_id"],
-                    normalized["new_date"],
-                    normalized.get("new_time"),
-                    normalized.get("reason"),
-                    body.context,
-                )
-            elif action == "delete_follow_up":
-                result = aca.ai_delete_follow_up(db, current_user, normalized["follow_up_id"], body.context)
             elif action == "complete_task":
                 result = aca.ai_complete_task(db, current_user, normalized["task_id"], body.context)
             elif action == "delete_task":
@@ -1943,8 +1584,6 @@ async def company_assistant(
                     fields,
                     body.context,
                 )
-            elif action == "create_lead":
-                result = _create_lead_for_ai(db, current_user, normalized, body.context)
             else:
                 executed_map[idx] = AIExecutedAction(
                     action=action,

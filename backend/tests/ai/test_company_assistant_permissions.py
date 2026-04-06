@@ -40,11 +40,12 @@ async def _plan_create_team(_prompt: str, _params=None) -> dict:
     }
 
 
-def test_only_manager_and_md_can_execute_mutating_team_actions(client, db, monkeypatch):
+def test_sales_cannot_mutate_but_manager_md_admin_can_create_team(client, db, monkeypatch):
     monkeypatch.setattr(ai_router, "_gemini_plan", _plan_create_team)
     company = create_company(db, name="Mutate Co", company_code="MTC")
     sales = create_active_user(db, email="sales@mt.co", role="sales", company_id=company.id, full_name="Sales User")
     manager = create_active_user(db, email="manager@mt.co", role="manager", company_id=company.id, full_name="Manager User")
+    admin = create_active_user(db, email="admin@mt.co", role="admin", company_id=company.id, full_name="Admin User")
 
     login_user(client, sales.email)
     r_sales = client.post("/api/ai/company-assistant", json={"message": "Create team Alpha Team"})
@@ -64,6 +65,16 @@ def test_only_manager_and_md_can_execute_mutating_team_actions(client, db, monke
     assert actions_manager[0]["action"] == "create_team"
     assert actions_manager[0]["result"]["name"] == "Alpha Team"
     assert db.query(Team).filter(Team.company_id == company.id, Team.name == "Alpha Team").count() == 1
+
+    client.headers.pop("Authorization", None)
+    login_user(client, admin.email)
+    r_admin = client.post("/api/ai/company-assistant", json={"message": "Create team Bravo Team"})
+    assert r_admin.status_code == 200
+    actions_admin = r_admin.json().get("executed_actions", [])
+    assert actions_admin
+    assert actions_admin[0]["action"] == "create_team"
+    assert actions_admin[0]["result"]["name"] == "Bravo Team"
+    assert db.query(Team).filter(Team.company_id == company.id, Team.name == "Bravo Team").count() == 1
 
 
 async def _plan_create_ledger_entry(_prompt: str, _params=None) -> dict:

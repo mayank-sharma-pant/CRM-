@@ -34,6 +34,8 @@ class AIChatResponse(BaseModel):
     message: str
     executed_actions: List[AIExecutedAction] = []
     used_params: Optional[AIResolvedParams] = None
+    # Optional model chain-of-thought (also persisted for idempotent replays).
+    reasoning: Optional[str] = None
 
 
 class AIParamsResponse(BaseModel):

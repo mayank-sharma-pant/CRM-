@@ -20,7 +20,7 @@ export default function TopBar() {
     };
 
     return (
-        <header className="bg-surface border-b border-border h-14 flex items-center justify-between px-6">
+        <header className="relative z-40 bg-surface border-b border-border h-14 flex items-center justify-between px-6">
             {/* Left - Search or Branding */}
             {user?.role === 'md' ? (
                 <div className="flex items-center gap-4">

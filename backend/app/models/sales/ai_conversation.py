@@ -16,6 +16,7 @@ class AIConversation(Base):
     user_message = Column(Text, nullable=False)
     context_json = Column(Text, nullable=True)
     ai_message = Column(Text, nullable=True)
+    ai_reasoning = Column(Text, nullable=True)
     planned_actions_json = Column(Text, nullable=True)
     executed_actions_json = Column(Text, nullable=True)
     error_detail = Column(Text, nullable=True)

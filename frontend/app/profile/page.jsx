@@ -8,7 +8,6 @@ import {
     Mail, 
     Phone, 
     Shield, 
-    Building, 
     Key, 
     AlertCircle, 
     CheckCircle,
@@ -105,12 +104,6 @@ export default function ProfilePage() {
                                         {user.role}
                                     </span>
                                 </div>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                                    <Building size={12} /> Company ID
-                                </label>
-                                <p className="text-secondary font-medium">{user.company_id || 'Platform Admin'}</p>
                             </div>
                         </div>
                     </section>

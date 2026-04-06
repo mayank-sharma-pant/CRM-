@@ -82,9 +82,6 @@ export default function SystemLogsPage() {
                                         Action
                                     </th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Company ID
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                         Performed By
                                     </th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
@@ -102,9 +99,6 @@ export default function SystemLogsPage() {
                                             <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${getActionColor(log.action)}`}>
                                                 {log.action}
                                             </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-600">
-                                            {log.company_id || <span className="text-slate-400 italic">System</span>}
                                         </td>
                                         <td className="px-6 py-4 text-slate-600">{log.performed_by}</td>
                                         <td className="px-6 py-4 text-slate-600 font-mono text-xs">

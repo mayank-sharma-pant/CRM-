@@ -7,7 +7,7 @@ import api from '../../services/api';
 
 export default function LeadModal({ isOpen, onClose, onRefresh }) {
     const pathname = usePathname();
-    const isManager = pathname?.startsWith('/manager') || pathname?.startsWith('/md');
+    const isManager = pathname?.startsWith('/manager');
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -49,16 +49,22 @@ export default function LeadModal({ isOpen, onClose, onRefresh }) {
 
     useEffect(() => {
         if (!isOpen || !isManager) return;
+        if (!formData.team_id) {
+            setTeamMembers([]);
+            return;
+        }
         const loadMembers = async () => {
             try {
-                const res = await api.get('/leads/team-members');
+                const res = await api.get('/leads/team-members', {
+                    params: { team_id: parseInt(formData.team_id, 10) },
+                });
                 setTeamMembers(res.data?.members || []);
             } catch {
                 setTeamMembers([]);
             }
         };
         loadMembers();
-    }, [isOpen, isManager]);
+    }, [isOpen, isManager, formData.team_id]);
 
     if (!isOpen) return null;
 

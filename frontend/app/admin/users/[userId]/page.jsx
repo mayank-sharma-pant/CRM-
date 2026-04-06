@@ -228,12 +228,6 @@ export default function UserDetailPage() {
                                 </p>
                             </div>
                             <div>
-                                <span className="text-slate-500">Company</span>
-                                <p className="font-medium text-slate-800 dark:text-slate-200">
-                                    {user.company_id || '—'}
-                                </p>
-                            </div>
-                            <div>
                                 <span className="text-slate-500">Active</span>
                                 <p className="font-medium text-slate-800 dark:text-slate-200">
                                     {user.is_active ? 'Yes' : 'No'}

@@ -44,20 +44,11 @@ def list_clients(
     if getattr(current_user, 'role', '') == 'sales':
         query = query.filter(Client.assigned_to_id == current_user.id)
     elif getattr(current_user, 'role', '') == 'manager':
-        if active_team_id is not None:
-            query = query.filter(Client.team_id == active_team_id)
+        # Managers are strictly scoped to their active team.
+        if active_team_id is None:
+            query = query.filter(False)
         else:
-            # Fallback: show clients from all teams the manager belongs to
-            member_team_ids = [
-                tm.team_id for tm in
-                apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
-                .filter(TeamMembership.user_id == current_user.id)
-                .all()
-            ]
-            if member_team_ids:
-                query = query.filter(Client.team_id.in_(member_team_ids))
-            else:
-                query = query.filter(False)
+            query = query.filter(Client.team_id == active_team_id)
     
     if search:
         search_pattern = f"%{search}%"

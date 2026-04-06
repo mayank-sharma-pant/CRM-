@@ -346,7 +346,23 @@ def list_leads(
                 or_(Lead.assigned_to_id == current_user.id, Lead.assigned_to_id.is_(None)),
             )
         else:
-            query = query.filter(Lead.assigned_to_id == current_user.id)
+            # Fallback: if the client didn't send X-Team-Id and user has no primary team,
+            # still allow "open to anyone" leads from any team the user belongs to.
+            member_team_ids = [
+                tm.team_id
+                for tm in apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+                .filter(TeamMembership.user_id == current_user.id)
+                .all()
+            ]
+            if member_team_ids:
+                query = query.filter(
+                    or_(
+                        Lead.assigned_to_id == current_user.id,
+                        (Lead.assigned_to_id.is_(None) & Lead.team_id.in_(member_team_ids)),
+                    )
+                )
+            else:
+                query = query.filter(Lead.assigned_to_id == current_user.id)
     elif _user_role_str(current_user) == "manager":
         if active_team_id is None:
             query = query.filter(False)
@@ -484,17 +500,33 @@ def get_lead(
 
 @router.get("/team-members")
 def list_team_members_for_assignment(
+    team_id: Optional[int] = Query(None, description="Team to list sales execs for (manager only)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Return sales execs in the active team (for the assign-to dropdown)."""
-    if active_team_id is None:
+    requested_team_id = team_id
+    if requested_team_id is not None:
+        # Managers can only fetch members for their own team
+        if _user_role_str(current_user) != "manager":
+            raise HTTPException(status_code=403, detail="Only managers can query team members by team_id")
+        member = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+            TeamMembership.team_id == requested_team_id,
+            TeamMembership.user_id == current_user.id,
+        ).first()
+        if not member:
+            raise HTTPException(status_code=403, detail="You are not a member of the selected team")
+        team_scope_id = requested_team_id
+    else:
+        team_scope_id = active_team_id
+
+    if team_scope_id is None:
         return {"members": []}
     members = (
         apply_company_scope(db.query(User), User, current_user)
         .join(TeamMembership, TeamMembership.user_id == User.id)
-        .filter(TeamMembership.team_id == active_team_id, User.role == "sales")
+        .filter(TeamMembership.team_id == team_scope_id, User.role == "sales")
         .all()
     )
     return {

@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '../../components/Sidebar';
 import ThemeToggle from '../../components/ThemeToggle';
-import { Bell, Search, LogOut, User, Settings, Loader2 } from 'lucide-react';
+import { Search, LogOut, User, Settings, Loader2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import NotificationDropdown from '../../components/NotificationDropdown';
 
 export default function AdminLayout({ children }) {
     const router = useRouter();
@@ -67,10 +68,7 @@ export default function AdminLayout({ children }) {
                         <div className="flex items-center gap-3 border-l border-slate-200 dark:border-slate-700 pl-4 ml-2">
                             <ThemeToggle />
 
-                            <button className="relative p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
-                                <Bell size={20} />
-                                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-800"></span>
-                            </button>
+                            <NotificationDropdown />
 
                             {/* Profile + Logout dropdown */}
                             <div className="relative">

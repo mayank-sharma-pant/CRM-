@@ -102,7 +102,7 @@ export default function Leads() {
 
     try {
       await api.patch(`/leads/${leadId}/status`, { status: newStatus });
-      showToast(`Lead moved to ${newStatus}`, 'success');
+      showToast(`Lead moved to ${newStatus === 'Converted' ? 'Client' : newStatus}`, 'success');
     } catch (err) {
       console.error(err);
       setLeads(previousLeads); // Revert on failure
@@ -259,7 +259,7 @@ export default function Leads() {
                       </div>
                       <div className="w-[15%] flex justify-center">
                         <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${STATUS_STYLES[lead.status] || STATUS_STYLES['Active']}`}>
-                          {lead.status}
+                          {lead.status === 'Converted' ? 'Client' : lead.status}
                         </span>
                       </div>
                       <div className="w-[20%] min-w-0">

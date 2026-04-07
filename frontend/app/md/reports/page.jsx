@@ -219,7 +219,7 @@ export default function CustomReportsPage() {
                   subtitle={`Across ${kpis.totalInvoices || 0} invoices`} />
                 <KpiCard label="Total Leads" value={totalLeads} icon={Users} color="text-blue-600" bgColor="bg-blue-50 dark:bg-blue-900/20"
                   subtitle="Pipeline opportunities" />
-                <KpiCard label="Converted" value={kpis.convertedLeads || 0} icon={Target} color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-900/20"
+                <KpiCard label="Client" value={kpis.convertedLeads || 0} icon={Target} color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-900/20"
                   subtitle={`${winRate}% win rate`} />
                 <KpiCard label="Active Filter" value={gridData.length} icon={Briefcase} color="text-violet-600" bgColor="bg-violet-50 dark:bg-violet-900/20"
                   subtitle={`${source === 'All' ? 'All sources' : source} · ${serviceType === 'All' ? 'All products' : serviceType}`} />

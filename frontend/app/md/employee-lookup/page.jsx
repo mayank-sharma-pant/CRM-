@@ -43,7 +43,7 @@ function buildEmployeeView(employeePayload) {
         reportingTo: 'N/A',
         kpis: [
             { label: 'Leads Handled', value: String(leads), sub: 'Company-scope' },
-            { label: 'Converted Deals', value: String(converted), sub: 'Rolling window' },
+            { label: 'Client Deals', value: String(converted), sub: 'Rolling window' },
             { label: 'Team Avg Leads', value: String(employeePayload?.team_performance?.avg_leads_per_member || 0), sub: 'Team Benchmark' },
             { label: 'Conversion Yield', value: leads ? `${Math.round((converted / leads) * 100)}%` : '0%', sub: 'Approximate' },
         ],

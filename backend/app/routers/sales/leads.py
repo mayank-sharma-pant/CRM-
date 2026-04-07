@@ -510,8 +510,8 @@ def list_team_members_for_assignment(
     requested_team_id = team_id
     if requested_team_id is not None:
         # Managers can only fetch members for their own team
-        if _user_role_str(current_user) != "manager":
-            raise HTTPException(status_code=403, detail="Only managers can query team members by team_id")
+        if _user_role_str(current_user) not in ("manager", "md"):
+            raise HTTPException(status_code=403, detail="Only managers/MDs can query team members by team_id")
         member = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
             TeamMembership.team_id == requested_team_id,
             TeamMembership.user_id == current_user.id,

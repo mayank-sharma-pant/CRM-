@@ -132,7 +132,7 @@ export default function TeamMemberDetailPage() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
-                                    <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Converted</p>
+                                    <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Client</p>
                                     <p className="text-lg font-bold text-emerald-700">{metrics.leads.converted}</p>
                                 </div>
                                 <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">

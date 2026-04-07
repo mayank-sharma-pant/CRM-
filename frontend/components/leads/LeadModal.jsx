@@ -7,7 +7,7 @@ import api from '../../services/api';
 
 export default function LeadModal({ isOpen, onClose, onRefresh }) {
     const pathname = usePathname();
-    const isManager = pathname?.startsWith('/manager');
+    const isManager = pathname?.startsWith('/manager') || pathname?.startsWith('/md');
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -58,8 +58,10 @@ export default function LeadModal({ isOpen, onClose, onRefresh }) {
                 const res = await api.get('/leads/team-members', {
                     params: { team_id: parseInt(formData.team_id, 10) },
                 });
+                console.log('[LeadModal] team-members response:', res.data);
                 setTeamMembers(res.data?.members || []);
-            } catch {
+            } catch (err) {
+                console.error('[LeadModal] Failed to fetch team members:', err?.response?.status, err?.response?.data);
                 setTeamMembers([]);
             }
         };

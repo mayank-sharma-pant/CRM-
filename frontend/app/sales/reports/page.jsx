@@ -179,7 +179,7 @@ export default function Reports({ dashboardEndpoint = '/leads/dashboard' }) {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <StatCard label="Total Leads" value={m.total_leads || 0} icon={Users} color="text-blue-600" bgColor="bg-blue-50 dark:bg-blue-900/20" />
             <StatCard label="Active" value={m.active_leads || 0} icon={Zap} color="text-indigo-600" bgColor="bg-indigo-50 dark:bg-indigo-900/20" subtitle="In pipeline" />
-            <StatCard label="Converted" value={m.closed_leads || 0} icon={Target} color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-900/20" />
+            <StatCard label="Client" value={m.closed_leads || 0} icon={Target} color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-900/20" />
             <StatCard label="Lost" value={m.lost_leads || 0} icon={TrendingDown} color="text-red-500" bgColor="bg-red-50 dark:bg-red-900/20" />
             <StatCard label="Stalled" value={m.stalled_leads || 0} icon={Clock} color="text-amber-600" bgColor="bg-amber-50 dark:bg-amber-900/20" subtitle="No activity 14d+" />
             <StatCard label="Win Rate" value={m.conversion_rate || 0} icon={TrendingUp} color="text-violet-600" bgColor="bg-violet-50 dark:bg-violet-900/20" suffix="%" />

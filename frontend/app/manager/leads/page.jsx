@@ -15,7 +15,7 @@ import {
 const TABS = [
   { id: 'all', label: 'All Leads' },
   { id: 'Active', label: 'Active' },
-  { id: 'Converted', label: 'Converted' },
+  { id: 'Converted', label: 'Client' },
   { id: 'Lost', label: 'Lost' }
 ];
 
@@ -263,7 +263,7 @@ export default function Leads() {
           >
             <div className="flex items-center justify-between mb-3 px-1">
               <h3 className="text-[12px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                {colStatus}
+                {colStatus === 'Converted' ? 'Client' : colStatus}
                 <span className="text-[10px] bg-surface text-muted px-1.5 py-0.5 rounded border border-border">{colLeads.length}</span>
               </h3>
             </div>

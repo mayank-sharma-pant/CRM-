@@ -284,10 +284,10 @@ export default function LeadDetailPage() {
                   Update Status <ChevronDown size={14} />
                 </button>
                 <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl hidden group-hover:block z-30 overflow-hidden">
-                  {['New', 'Contacted', 'Qualified', 'Proposal', 'Lost', 'Lost Client'].map(status => (
+                  {['Active', 'Lost', 'Convert to Client'].map(status => (
                     <button
                       key={status}
-                      onClick={() => handleUpdateStatus(status)}
+                      onClick={() => status === 'Convert to Client' ? handleConvert() : handleUpdateStatus(status)}
                       className="w-full text-left px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                     >
                       {status}

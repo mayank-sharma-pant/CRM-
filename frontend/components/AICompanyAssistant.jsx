@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import api, { getActiveTeamId } from '../services/api';
-import { Send, Loader2, Sparkles, Brain, CheckCircle2, Circle, Wrench } from 'lucide-react';
+import { Send, Loader2, Sparkles, CheckCircle2, Circle, Wrench } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const DEFAULT_PARAMS = {
@@ -272,7 +272,7 @@ function normalizeStoredMessages(parsed) {
       return {
         role: m.role,
         text: typeof m.text === 'string' ? m.text : '',
-        reasoning: typeof m.reasoning === 'string' ? m.reasoning : m.reasoning || null,
+        reasoning: null,
         executedActions: Array.isArray(m.executedActions) ? m.executedActions : [],
       };
     }
@@ -606,8 +606,7 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
           : executedActions.length
             ? 'Done — see tool results below.'
             : 'Done.';
-      const reasoning =
-        typeof data.reasoning === 'string' && data.reasoning.trim() ? data.reasoning.trim() : null;
+      const reasoning = null;
 
       setMessages((m) => [
         ...m,
@@ -661,20 +660,6 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
                 <div className="whitespace-pre-wrap text-primary">{m.text}</div>
               ) : (
                 <div className="space-y-2">
-                  {m.reasoning ? (
-                    <details
-                      open
-                      className="rounded-md border border-border/70 bg-surface-elevated/25 overflow-hidden"
-                    >
-                      <summary className="cursor-pointer flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-muted hover:bg-surface-elevated/40 transition-colors marker:text-muted">
-                        <Brain size={14} className="text-accent shrink-0" aria-hidden />
-                        Thinking
-                      </summary>
-                      <div className="px-3 pb-3 pt-0 text-xs text-secondary leading-relaxed whitespace-pre-wrap border-t border-border/40">
-                        {m.reasoning}
-                      </div>
-                    </details>
-                  ) : null}
                   <div className="whitespace-pre-wrap text-primary">{m.text}</div>
                   {m.executedActions && m.executedActions.length > 0 ? (
                     <details className="rounded-md border border-border/80 bg-surface-elevated/20 overflow-hidden">

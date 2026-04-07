@@ -37,10 +37,8 @@ export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = 
             
             // Prevent assigning tasks to upper management based on current user's role
             if (currentUserRole.includes('sales')) {
-                fetchedUsers = fetchedUsers.filter(u => {
-                    const r = String(u.role || '').toLowerCase();
-                    return !r.includes('admin') && !r.includes('md') && !r.includes('manager');
-                });
+                setUsers([]);
+                return;
             } else if (currentUserRole.includes('manager')) {
                 fetchedUsers = fetchedUsers.filter(u => {
                     const r = String(u.role || '').toLowerCase();
@@ -157,24 +155,26 @@ export default function TaskModal({ isOpen, onClose, onRefresh, currentLeadId = 
                         </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assign To (Optional)</label>
-                        <div className="relative">
-                            <select
-                                name="assigned_to"
-                                value={formData.assigned_to}
-                                onChange={handleChange}
-                                className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                            >
-                                <option value="">Self</option>
-                                {users.map(u => (
-                                    <option key={u.id} value={u.id}>{u.full_name}</option>
-                                ))}
-                            </select>
-                            <UserIcon size={14} className="absolute left-3 top-3 text-slate-400" />
+                    {!String(user?.role || '').toLowerCase().includes('sales') && (
+                        <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assign To (Optional)</label>
+                            <div className="relative">
+                                <select
+                                    name="assigned_to"
+                                    value={formData.assigned_to}
+                                    onChange={handleChange}
+                                    className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                                >
+                                    <option value="">Self</option>
+                                    {users.map(u => (
+                                        <option key={u.id} value={u.id}>{u.full_name}</option>
+                                    ))}
+                                </select>
+                                <UserIcon size={14} className="absolute left-3 top-3 text-slate-400" />
+                            </div>
+                            <p className="text-[10px] text-slate-400 italic">Leave empty to assign to yourself.</p>
                         </div>
-                        <p className="text-[10px] text-slate-400 italic">Leave empty to assign to yourself.</p>
-                    </div>
+                    )}
 
                     <div className="space-y-1.5">
                         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Description</label>

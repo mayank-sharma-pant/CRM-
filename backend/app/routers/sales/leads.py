@@ -23,6 +23,7 @@ from app.schemas.sales import (
     SalesDashboardResponse, SalesDashboardMetrics, SalesDashboardTask,
 )
 from app.schemas.admin import MessageResponse
+from app.models.core.enums import UserRole
 
 router = APIRouter()
 
@@ -526,7 +527,7 @@ def list_team_members_for_assignment(
     members = (
         apply_company_scope(db.query(User), User, current_user)
         .join(TeamMembership, TeamMembership.user_id == User.id)
-        .filter(TeamMembership.team_id == team_scope_id, User.role == "sales")
+        .filter(TeamMembership.team_id == team_scope_id, User.role == UserRole.SALES)
         .all()
     )
     return {

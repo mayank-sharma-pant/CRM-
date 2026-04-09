@@ -65,6 +65,22 @@ export default function Leads() {
       let data = Array.isArray(raw) ? raw : [];
       data = data.map((l) => ({ ...l, status: normalizeLeadStatus(l.status) }));
 
+      // Some deployments return only assigned_to_id (no assigned_to_name). Resolve names from team users.
+      const missingNames = data.some((l) => l?.assigned_to_id && !l?.assigned_to_name);
+      if (missingNames) {
+        try {
+          const ures = await api.get('/users', { params: { role: 'all', limit: 500 } });
+          const users = Array.isArray(ures.data?.items) ? ures.data.items : [];
+          const idToName = new Map(users.map((u) => [u.id, u.full_name || u.email || `User #${u.id}`]));
+          data = data.map((l) => {
+            if (!l?.assigned_to_id || l?.assigned_to_name) return l;
+            return { ...l, assigned_to_name: idToName.get(l.assigned_to_id) || null };
+          });
+        } catch {
+          // ignore - show Open fallback
+        }
+      }
+
       setLeads(data);
     } catch (err) {
       console.error("Failed to fetch leads", err);

@@ -411,8 +411,57 @@ def list_leads(
         "limit": limit,
     }
 
+@router.get("/team-members")
+def list_team_members_for_assignment(
+    team_id: Optional[int] = Query(None, description="Team to list sales execs for (manager only)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    """Return sales execs in the active team (for the assign-to dropdown)."""
+    requested_team_id = team_id
+    if requested_team_id is not None:
+        # Managers can only fetch members for a team they manage (or belong to)
+        if _user_role_str(current_user) != "manager":
+            raise HTTPException(status_code=403, detail="Only managers can query team members by team_id")
+        is_member = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+            TeamMembership.team_id == requested_team_id,
+            TeamMembership.user_id == current_user.id,
+        ).first()
+        if not is_member:
+            team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == requested_team_id).first()
+            if not team:
+                raise HTTPException(status_code=404, detail="Team not found")
+            if getattr(team, "manager_id", None) != current_user.id:
+                raise HTTPException(status_code=403, detail="You are not allowed to view members for this team")
+        team_scope_id = requested_team_id
+    else:
+        team_scope_id = active_team_id
 
-@router.get("/{lead_id}")
+    if team_scope_id is None:
+        return {"members": []}
+    # Prefer explicit TeamMembership rows (multi-team), but also support legacy primary team_id on User.
+    members = (
+        apply_company_scope(db.query(User), User, current_user)
+        .join(TeamMembership, TeamMembership.user_id == User.id)
+        .filter(TeamMembership.team_id == team_scope_id, User.role == "sales")
+        .all()
+    )
+    if not members:
+        members = (
+            apply_company_scope(db.query(User), User, current_user)
+            .filter(User.team_id == team_scope_id, User.role == "sales")
+            .all()
+        )
+    return {
+        "members": [
+            {"id": m.id, "full_name": m.full_name, "email": m.email}
+            for m in members
+        ]
+    }
+
+
+@router.get("/{lead_id:int}")
 def get_lead(
     lead_id: int,
     db: Session = Depends(get_db),
@@ -495,45 +544,6 @@ def get_lead(
         "last_contacted_at": isoformat_utc(lead.last_contacted_at),
         "last_response_at": isoformat_utc(lead.last_response_at),
         "next_task": isoformat_utc(lead.next_follow_up),
-    }
-
-
-@router.get("/team-members")
-def list_team_members_for_assignment(
-    team_id: Optional[int] = Query(None, description="Team to list sales execs for (manager only)"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    active_team_id: Optional[int] = Depends(get_active_team_id),
-):
-    """Return sales execs in the active team (for the assign-to dropdown)."""
-    requested_team_id = team_id
-    if requested_team_id is not None:
-        # Managers can only fetch members for their own team
-        if _user_role_str(current_user) != "manager":
-            raise HTTPException(status_code=403, detail="Only managers can query team members by team_id")
-        member = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
-            TeamMembership.team_id == requested_team_id,
-            TeamMembership.user_id == current_user.id,
-        ).first()
-        if not member:
-            raise HTTPException(status_code=403, detail="You are not a member of the selected team")
-        team_scope_id = requested_team_id
-    else:
-        team_scope_id = active_team_id
-
-    if team_scope_id is None:
-        return {"members": []}
-    members = (
-        apply_company_scope(db.query(User), User, current_user)
-        .join(TeamMembership, TeamMembership.user_id == User.id)
-        .filter(TeamMembership.team_id == team_scope_id, User.role == "sales")
-        .all()
-    )
-    return {
-        "members": [
-            {"id": m.id, "full_name": m.full_name, "email": m.email}
-            for m in members
-        ]
     }
 
 
@@ -674,7 +684,7 @@ def create_lead(
     }
 
 
-@router.api_route("/{lead_id}", methods=["PUT", "PATCH"])
+@router.api_route("/{lead_id:int}", methods=["PUT", "PATCH"])
 def update_lead(
     lead_id: int,
     lead_data: LeadUpdate,
@@ -832,7 +842,7 @@ def update_lead(
     }
 
 
-@router.patch("/{lead_id}/status")
+@router.patch("/{lead_id:int}/status")
 def update_lead_status(
     lead_id: int,
     status_data: LeadStatusUpdate,
@@ -885,7 +895,7 @@ def update_lead_status(
     return {"message": "Status updated successfully", "status": lead.status}
 
 
-@router.post("/{lead_id}/claim")
+@router.post("/{lead_id:int}/claim")
 def claim_lead(
     lead_id: int,
     db: Session = Depends(get_db),
@@ -913,7 +923,7 @@ def claim_lead(
     return {"message": f"Lead claimed successfully", "lead_id": lead.id}
 
 
-@router.delete("/{lead_id}", response_model=MessageResponse)
+@router.delete("/{lead_id:int}", response_model=MessageResponse)
 def delete_lead(
     lead_id: int,
     db: Session = Depends(get_db),
@@ -948,7 +958,7 @@ def delete_lead(
     return {"message": f"Lead {lead_id} deleted successfully"}
 
 
-@router.get("/{lead_id}/notes")
+@router.get("/{lead_id:int}/notes")
 def list_lead_notes(
     lead_id: int,
     db: Session = Depends(get_db),
@@ -981,7 +991,7 @@ def list_lead_notes(
     ]
 
 
-@router.post("/{lead_id}/notes", status_code=status.HTTP_201_CREATED)
+@router.post("/{lead_id:int}/notes", status_code=status.HTTP_201_CREATED)
 def add_lead_note(
     lead_id: int,
     content: str = Query(..., min_length=1),
@@ -1021,7 +1031,7 @@ def add_lead_note(
     }
 
 
-@router.post("/{lead_id}/convert")
+@router.post("/{lead_id:int}/convert")
 def convert_lead(
     lead_id: int,
     db: Session = Depends(get_db),

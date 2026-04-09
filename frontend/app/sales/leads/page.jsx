@@ -17,7 +17,7 @@ import {
 const TABS = [
   { id: 'all', label: 'All Leads' },
   { id: 'Active', label: 'Active' },
-  { id: 'Converted', label: 'Converted' },
+  { id: 'Converted', label: 'Client' },
   { id: 'Lost', label: 'Lost' }
 ];
 
@@ -233,7 +233,7 @@ export default function Leads() {
                         </div>
                         <div className="w-[20%] flex justify-center">
                           <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${STATUS_STYLES[lead.status] || STATUS_STYLES['Active']}`}>
-                            {lead.status}
+                            {lead.status === 'Converted' ? 'Client' : lead.status}
                           </span>
                         </div>
                         <div className="flex-1 min-w-0">

@@ -23,6 +23,7 @@ from app.schemas.sales import (
     SalesDashboardResponse, SalesDashboardMetrics, SalesDashboardTask,
 )
 from app.schemas.admin import MessageResponse
+from app.models.core.enums import UserRole
 
 router = APIRouter()
 

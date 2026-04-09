@@ -18,7 +18,7 @@ import {
 const TABS = [
   { id: 'all', label: 'All Leads' },
   { id: 'Active', label: 'Active' },
-  { id: 'Converted', label: 'Converted' },
+  { id: 'Converted', label: 'Client' },
   { id: 'Lost', label: 'Lost' }
 ];
 
@@ -102,7 +102,7 @@ export default function Leads() {
 
     try {
       await api.patch(`/leads/${leadId}/status`, { status: newStatus });
-      showToast(`Lead moved to ${newStatus}`, 'success');
+      showToast(`Lead moved to ${newStatus === 'Converted' ? 'Client' : newStatus}`, 'success');
     } catch (err) {
       console.error(err);
       setLeads(previousLeads); // Revert on failure
@@ -259,7 +259,7 @@ export default function Leads() {
                       </div>
                       <div className="w-[15%] flex justify-center">
                         <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${STATUS_STYLES[lead.status] || STATUS_STYLES['Active']}`}>
-                          {lead.status}
+                          {lead.status === 'Converted' ? 'Client' : lead.status}
                         </span>
                       </div>
                       <div className="w-[20%] min-w-0">
@@ -307,7 +307,7 @@ export default function Leads() {
           >
             <div className="flex items-center justify-between mb-3 px-1">
               <h3 className="text-[12px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                {colStatus}
+                {colStatus === 'Converted' ? 'Client' : colStatus}
                 <span className="text-[10px] bg-surface text-muted px-1.5 py-0.5 rounded border border-border">{colLeads.length}</span>
               </h3>
             </div>

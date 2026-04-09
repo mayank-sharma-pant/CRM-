@@ -152,7 +152,7 @@ export default function MDTeamsPage() {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         <KPICard label="Total Leads" value={totalLeads} icon={Target} color="text-blue-600" bgColor="bg-blue-50 dark:bg-blue-900/20" />
-                        <KPICard label="Converted" value={totalConverted} icon={CheckCircle} color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-900/20" />
+                        <KPICard label="Client" value={totalConverted} icon={CheckCircle} color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-900/20" />
                         <KPICard label="Win Rate" value={overallWinRate} icon={TrendingUp} color="text-violet-600" bgColor="bg-violet-50 dark:bg-violet-900/20" suffix="%" />
                         <KPICard label="Revenue" value={Math.round(totalRevenue)} icon={DollarSign} color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-900/20" prefix="₹" />
                         <KPICard label="Orders" value={totalOrders} icon={Briefcase} color="text-indigo-600" bgColor="bg-indigo-50 dark:bg-indigo-900/20" />

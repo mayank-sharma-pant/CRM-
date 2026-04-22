@@ -103,7 +103,8 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
         const confirmed = window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`);
         if (!confirmed) return;
         try {
-            await api.delete(`/inventory/${id}`);
+            // Some hosting layers block DELETE; backend provides POST alias for compatibility.
+            await api.post(`/inventory/${id}/delete`);
             fetchItems(false);
         } catch (err) {
             const detail = err.response?.data?.detail;

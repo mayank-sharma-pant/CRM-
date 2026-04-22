@@ -245,3 +245,22 @@ def delete_stock_item(
     db.delete(item)
     db.commit()
     return {"detail": "Stock item deleted successfully", "id": stock_item_id}
+
+
+@router.post("/{stock_item_id}/delete")
+def delete_stock_item_via_post(
+    stock_item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_inventory_manage_user),
+):
+    """
+    Some hosting/proxy layers block non-GET/POST verbs (e.g. DELETE) and return 405.
+    This endpoint is a compatibility alias for the same delete behavior.
+    """
+    item = apply_company_scope(db.query(StockItem), StockItem, current_user).filter(StockItem.id == stock_item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Stock item not found")
+
+    db.delete(item)
+    db.commit()
+    return {"detail": "Stock item deleted successfully", "id": stock_item_id}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
-import { Package, Plus, Search, AlertTriangle } from 'lucide-react';
+import { Package, Plus, Minus, Search, AlertTriangle, Trash2 } from 'lucide-react';
 
 const STOCK_POLL_INTERVAL_MS = 30000;
 
@@ -96,6 +96,18 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
         } catch (err) {
             const detail = err.response?.data?.detail;
             alert(typeof detail === 'string' ? detail : 'Failed to update quantity');
+        }
+    };
+
+    const deleteItem = async (id, name) => {
+        const confirmed = window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`);
+        if (!confirmed) return;
+        try {
+            await api.delete(`/inventory/${id}`);
+            fetchItems(false);
+        } catch (err) {
+            const detail = err.response?.data?.detail;
+            alert(typeof detail === 'string' ? detail : 'Failed to delete stock item');
         }
     };
 
@@ -269,7 +281,7 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
                                     </td>
                                     {canManage && (
                                         <td className="py-4 px-6 text-right">
-                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex items-center justify-end gap-2">
                                                 <button
                                                     onClick={() => adjustQty(item.id, +1)}
                                                     title="Add Stock"
@@ -280,9 +292,16 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
                                                 <button
                                                     onClick={() => adjustQty(item.id, -1)}
                                                     title="Remove Stock"
+                                                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-border bg-surface-elevated hover:bg-warning/10 hover:border-warning/30 hover:text-warning transition-all"
+                                                >
+                                                    <Minus size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteItem(item.id, item.name)}
+                                                    title="Delete Item"
                                                     className="w-8 h-8 flex items-center justify-center rounded-lg border border-border bg-surface-elevated hover:bg-error/10 hover:border-error/30 hover:text-error transition-all"
                                                 >
-                                                    <div className="w-2.5 h-[2px] bg-current rounded-full" />
+                                                    <Trash2 size={14} />
                                                 </button>
                                             </div>
                                         </td>

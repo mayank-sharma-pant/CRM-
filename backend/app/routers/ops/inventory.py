@@ -230,3 +230,18 @@ def adjust_stock_item_quantity(
     db.commit()
     db.refresh(item)
     return _serialize_stock(item)
+
+
+@router.delete("/{stock_item_id}")
+def delete_stock_item(
+    stock_item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_inventory_manage_user),
+):
+    item = apply_company_scope(db.query(StockItem), StockItem, current_user).filter(StockItem.id == stock_item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Stock item not found")
+
+    db.delete(item)
+    db.commit()
+    return {"detail": "Stock item deleted successfully", "id": stock_item_id}

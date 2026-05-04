@@ -48,7 +48,7 @@ ROLE_PERMISSIONS = {
         "daily_expenses": "edit",
         "cash_bank_balance": "view",
         "pdc_given": "edit",
-        "pdc_received": "view",
+        "pdc_received": "edit",
         "account_transfer_purchase": "edit",
         "account_transfer_sales": "edit",
     },
@@ -71,7 +71,7 @@ ROLE_PERMISSIONS = {
         "cash_bank_balance": "edit",
         "payments_received": "edit",
         "daily_expenses": "edit",
-        "pdc_received": "view",
+        "pdc_received": "edit",
         "account_transfer_sales": "edit",
     },
     "admin": {},  # platform_admin: no access. company_admin handled below.

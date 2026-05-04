@@ -145,7 +145,7 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search by name / SKU / category..."
-                        className="w-full pl-11 pr-4 py-2.5 bg-surface-elevated/50 border border-border/40 rounded-lg text-sm text-primary placeholder:text-muted/40 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                        className="w-full pl-11 pr-4 py-2.5 bg-white border border-border/40 rounded-lg text-sm text-black placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
                     />
                 </div>
                 <div className="px-4 py-2 bg-surface-elevated/40 rounded-lg border border-border/30 text-[10px] font-black uppercase tracking-widest text-muted whitespace-nowrap">

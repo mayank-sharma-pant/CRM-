@@ -43,13 +43,13 @@ ROLE_PERMISSIONS = {
     "manager": {
         "stock_register": "view",
         "payments_made": "view",
-        "payments_received": "view",
-        "daily_expenses": "view",
+        "payments_received": "edit",
+        "daily_expenses": "edit",
         "cash_bank_balance": "view",
-        "pdc_given": "view",
+        "pdc_given": "edit",
         "pdc_received": "view",
-        "account_transfer_purchase": "view",
-        "account_transfer_sales": "view",
+        "account_transfer_purchase": "edit",
+        "account_transfer_sales": "edit",
     },
     "md": {
         "stock_register": "edit",
@@ -68,10 +68,10 @@ ROLE_PERMISSIONS = {
         "account_transfer_purchase": "edit",
         "pdc_given": "edit",
         "cash_bank_balance": "edit",
-        "payments_received": "view",
-        "daily_expenses": "view",
+        "payments_received": "edit",
+        "daily_expenses": "edit",
         "pdc_received": "view",
-        "account_transfer_sales": "view",
+        "account_transfer_sales": "edit",
     },
     "admin": {},  # platform_admin: no access. company_admin handled below.
 }

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.core.user import User
 from app.models.ops.stock_item import StockItem
+from app.models.finance.ledger import LedgerEntry
 from app.utils.dependencies import get_current_user, apply_company_scope, is_platform_admin
 
 
@@ -149,6 +150,27 @@ def create_stock_item(
     db.add(item)
     db.commit()
     db.refresh(item)
+    
+    if item.quantity > 0:
+        ledger_entry = LedgerEntry(
+            company_id=current_user.company_id,
+            ledger_slug="stock_register",
+            data={
+                "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                "product": item.name,
+                "category": item.category or "",
+                "brand": "",
+                "qty_in": item.quantity,
+                "qty_out": 0,
+                "purchase_rate": float(item.unit_price or 0),
+                "sale_rate": 0,
+                "remarks": "Initial stock creation"
+            },
+            created_by=current_user.id
+        )
+        db.add(ledger_entry)
+        db.commit()
+        
     return _serialize_stock(item)
 
 
@@ -227,6 +249,29 @@ def adjust_stock_item_quantity(
     item.quantity = new_qty
     item.updated_by_id = current_user.id
     item.updated_at = datetime.now(timezone.utc)
+    
+    qty_change = int(body.quantity_change)
+    qty_in = qty_change if qty_change > 0 else 0
+    qty_out = -qty_change if qty_change < 0 else 0
+    
+    ledger_entry = LedgerEntry(
+        company_id=current_user.company_id,
+        ledger_slug="stock_register",
+        data={
+            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "product": item.name,
+            "category": item.category or "",
+            "brand": "",
+            "qty_in": qty_in,
+            "qty_out": qty_out,
+            "purchase_rate": float(item.unit_price or 0),
+            "sale_rate": 0,
+            "remarks": body.note or ("Stock added" if qty_change > 0 else "Stock removed")
+        },
+        created_by=current_user.id
+    )
+    db.add(ledger_entry)
+    
     db.commit()
     db.refresh(item)
     return _serialize_stock(item)

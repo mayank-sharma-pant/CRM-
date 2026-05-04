@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, is_platform_admin
 from app.models.core.user import User
 from app.models.finance.ledger import LedgerEntry
+from app.models.ops.stock_item import StockItem
 from app.database import get_db
 import json
 
@@ -294,6 +295,34 @@ def get_ledger_data(
             row_data = (entry.data or {}).copy()
             row_data['id'] = entry.id
             rows.append(row_data)
+        
+        # For stock_register: also include current inventory items not already in ledger
+        if ledger_slug == "stock_register":
+            stock_query = apply_company_scope(db.query(StockItem), StockItem, current_user)
+            stock_items = stock_query.all()
+            
+            # Collect product names already in ledger rows
+            existing_products = set()
+            for row in rows:
+                product_name = row.get("product", "")
+                if product_name:
+                    existing_products.add(product_name.strip().lower())
+            
+            # Add stock items not yet recorded in ledger
+            for idx, si in enumerate(stock_items):
+                if si.name and si.name.strip().lower() not in existing_products:
+                    rows.append({
+                        "id": -(idx + 1),  # negative id to indicate auto-generated
+                        "date": si.updated_at.strftime("%Y-%m-%d") if si.updated_at else (si.created_at.strftime("%Y-%m-%d") if si.created_at else ""),
+                        "product": si.name,
+                        "category": si.category or "",
+                        "brand": "",
+                        "qty_in": int(si.quantity or 0),
+                        "qty_out": 0,
+                        "purchase_rate": float(si.unit_price or 0),
+                        "sale_rate": 0,
+                        "remarks": f"Current stock (SKU: {si.sku or 'N/A'})"
+                    })
             
         # Get columns definition
         columns = get_ledger_columns(ledger_slug)

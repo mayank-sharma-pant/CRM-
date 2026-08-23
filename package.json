@@ -5,6 +5,7 @@
   "scripts": {
     "build": "npm run build --workspace=frontend",
     "dev": "npm run dev --workspace=frontend",
+    "dev-all": "bash scripts/dev-all.sh",
     "start": "npm run start --workspace=frontend"
   }
 }

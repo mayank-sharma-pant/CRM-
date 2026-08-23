@@ -1,6 +1,9 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from app.database import get_db
 from app.routers.auth import auth
 from app.routers.admin import users, admin, platform, notifications
 from app.routers.sales import leads, tasks, clients, follow_ups, search, timeline
@@ -121,5 +124,13 @@ def root():
     return resp
 
 @app.get("/health")
-def health_check():
-    return {"status": "healthy"}
+def health_check(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        logging.getLogger("health").exception("Health check DB probe failed")
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "database": "down"},
+        )
+    return {"status": "healthy", "database": "up"}

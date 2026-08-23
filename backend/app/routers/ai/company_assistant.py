@@ -1277,17 +1277,20 @@ def _create_team_with_members(db: Session, current_user: User, name: str, manage
     normalized_name = (name or "").strip()
     if not normalized_name:
         raise HTTPException(status_code=400, detail="Team name is required")
-        
-    team_result = _create_team(db, current_user, normalized_name)
-    team_id = team_result["id"]
-    
-    added_members = []
-    
+
+    # Validate the manager BEFORE creating the team, so a bad manager_id cannot
+    # leave an orphaned team behind (each helper self-commits, so there is no
+    # outer transaction to roll the team back).
     manager = apply_company_scope(db.query(User), User, current_user).filter(User.id == manager_id).first()
     if not manager:
         raise HTTPException(status_code=404, detail="Manager not found")
     if _role_value(manager) != "manager":
         raise HTTPException(status_code=400, detail="manager_id must belong to a manager user")
+
+    team_result = _create_team(db, current_user, normalized_name)
+    team_id = team_result["id"]
+
+    added_members = []
     _add_member(db, current_user, team_id, manager_id)
     added_members.append({"id": manager_id, "name": manager.full_name if manager else "Unknown", "role": "manager"})
     
@@ -1358,6 +1361,76 @@ def get_company_assistant_params(current_user: User = Depends(get_current_user))
         allowed_models=sorted(allowed_models),
         params=_server_default_ai_params(),
     )
+
+
+class _UnsupportedActionError(Exception):
+    """Raised when a role-allowed action has no dispatch implementation."""
+
+
+def _execute_action(db: Session, current_user: User, action: str, normalized: dict, context) -> dict:
+    """Run one AI action and return its result dict. Raises HTTPException on a
+    business error and _UnsupportedActionError for an unknown action."""
+    if action == "create_team":
+        return _create_team(db, current_user, name=normalized["name"])
+    if action == "delete_team":
+        return _delete_team(db, current_user, team_id=normalized["team_id"])
+    if action == "add_team_member":
+        return _add_member(db, current_user, team_id=normalized["team_id"], user_id=normalized["user_id"])
+    if action == "remove_team_member":
+        return _remove_member(db, current_user, team_id=normalized["team_id"], user_id=normalized["user_id"])
+    if action == "monthly_best_sales_exec":
+        return _monthly_best_sales_exec(db, current_user, year=normalized["year"], month=normalized["month"])
+    if action == "create_ledger_entry":
+        return _create_ledger_entry(db, current_user, ledger_slug=normalized["ledger_slug"], data=normalized["data"])
+    if action == "create_task":
+        return _create_task(
+            db,
+            current_user,
+            title=normalized["title"],
+            assignee_id=normalized["assignee_id"],
+            description=normalized["description"],
+            priority=normalized["priority"],
+            due_date=normalized["due_date"],
+        )
+    if action == "revenue_summary":
+        return _revenue_summary(
+            db,
+            current_user,
+            period=normalized["period"],
+            year=normalized["year"],
+            month=normalized["month"],
+            day=normalized["day"],
+        )
+    if action == "business_snapshot":
+        return _business_snapshot(db, current_user)
+    if action == "team_performance_summary":
+        return _team_performance_summary(db, current_user, period=normalized["period"])
+    if action == "get_best_manager":
+        return _get_best_manager(db, current_user, year=normalized["year"], month=normalized["month"])
+    if action == "create_team_with_members":
+        return _create_team_with_members(
+            db,
+            current_user,
+            name=normalized["name"],
+            manager_id=normalized["manager_id"],
+            member_ids=normalized["member_ids"],
+        )
+    if action == "create_top_performing_team":
+        return _create_top_performing_team(db, current_user, name=normalized["name"], size=normalized["size"])
+    if action == "list_teams":
+        return aca.ai_list_teams(db, current_user)
+    if action == "list_company_users":
+        return aca.ai_list_company_users(db, current_user, normalized.get("role"))
+    if action == "list_tasks":
+        return aca.ai_list_tasks(db, current_user, normalized["limit"], context)
+    if action == "complete_task":
+        return aca.ai_complete_task(db, current_user, normalized["task_id"], context)
+    if action == "delete_task":
+        return aca.ai_delete_task(db, current_user, normalized["task_id"], context)
+    if action == "update_task":
+        fields = {k: v for k, v in normalized.items() if k != "task_id"}
+        return aca.ai_update_task(db, current_user, normalized["task_id"], fields, context)
+    raise _UnsupportedActionError(action)
 
 
 @router.post("/company-assistant", response_model=AIChatResponse)
@@ -1484,115 +1557,49 @@ async def company_assistant(
             action_inputs.append((idx, action, normalized))
 
         for idx, action, normalized in action_inputs:
-            if action == "create_team":
-                result = _create_team(db, current_user, name=normalized["name"])
-            elif action == "delete_team":
-                result = _delete_team(db, current_user, team_id=normalized["team_id"])
-            elif action == "add_team_member":
-                result = _add_member(
-                    db,
-                    current_user,
-                    team_id=normalized["team_id"],
-                    user_id=normalized["user_id"],
-                )
-            elif action == "remove_team_member":
-                result = _remove_member(
-                    db,
-                    current_user,
-                    team_id=normalized["team_id"],
-                    user_id=normalized["user_id"],
-                )
-            elif action == "monthly_best_sales_exec":
-                result = _monthly_best_sales_exec(
-                    db,
-                    current_user,
-                    year=normalized["year"],
-                    month=normalized["month"],
-                )
-            elif action == "create_ledger_entry":
-                result = _create_ledger_entry(
-                    db,
-                    current_user,
-                    ledger_slug=normalized["ledger_slug"],
-                    data=normalized["data"],
-                )
-            elif action == "create_task":
-                result = _create_task(
-                    db,
-                    current_user,
-                    title=normalized["title"],
-                    assignee_id=normalized["assignee_id"],
-                    description=normalized["description"],
-                    priority=normalized["priority"],
-                    due_date=normalized["due_date"],
-                )
-            elif action == "revenue_summary":
-                result = _revenue_summary(
-                    db,
-                    current_user,
-                    period=normalized["period"],
-                    year=normalized["year"],
-                    month=normalized["month"],
-                    day=normalized["day"],
-                )
-            elif action == "business_snapshot":
-                result = _business_snapshot(db, current_user)
-            elif action == "team_performance_summary":
-                result = _team_performance_summary(
-                    db,
-                    current_user,
-                    period=normalized["period"],
-                )
-            elif action == "get_best_manager":
-                result = _get_best_manager(
-                    db,
-                    current_user,
-                    year=normalized["year"],
-                    month=normalized["month"],
-                )
-            elif action == "create_team_with_members":
-                result = _create_team_with_members(
-                    db,
-                    current_user,
-                    name=normalized["name"],
-                    manager_id=normalized["manager_id"],
-                    member_ids=normalized["member_ids"]
-                )
-            elif action == "create_top_performing_team":
-                result = _create_top_performing_team(
-                    db,
-                    current_user,
-                    name=normalized["name"],
-                    size=normalized["size"]
-                )
-            elif action == "list_teams":
-                result = aca.ai_list_teams(db, current_user)
-            elif action == "list_company_users":
-                result = aca.ai_list_company_users(db, current_user, normalized.get("role"))
-            elif action == "list_tasks":
-                result = aca.ai_list_tasks(db, current_user, normalized["limit"], body.context)
-            elif action == "complete_task":
-                result = aca.ai_complete_task(db, current_user, normalized["task_id"], body.context)
-            elif action == "delete_task":
-                result = aca.ai_delete_task(db, current_user, normalized["task_id"], body.context)
-            elif action == "update_task":
-                fields = {k: v for k, v in normalized.items() if k != "task_id"}
-                result = aca.ai_update_task(
-                    db,
-                    current_user,
-                    normalized["task_id"],
-                    fields,
-                    body.context,
-                )
-            else:
+            try:
+                result = _execute_action(db, current_user, action, normalized, body.context)
+            except _UnsupportedActionError:
                 executed_map[idx] = AIExecutedAction(
                     action=action,
                     params=normalized,
                     result={"status": "skipped", "reason": "unsupported_action"},
                 )
                 continue
+            except HTTPException as exc:
+                # A single failing action must not abort the turn: record it as a
+                # per-action error and audit the failed attempt.
+                executed_map[idx] = AIExecutedAction(
+                    action=action,
+                    params=normalized,
+                    result={"status": "error", "detail": exc.detail},
+                )
+                if action in COMMAND_ACTIONS:
+                    log_activity(
+                        db,
+                        user=current_user,
+                        action=f"ai:{action}:failed",
+                        entity_type="ai_action",
+                        entity_id=None,
+                        entity_name=action,
+                        after=json.dumps({"params": normalized, "error": exc.detail}, default=str),
+                    )
+                continue
 
             executed_map[idx] = AIExecutedAction(action=action, params=normalized, result=result)
+
+            # Audit trail: every AI-driven mutation records who did what, in which
+            # company, with the payload and result. Read-only actions are not logged.
+            if action in COMMAND_ACTIONS:
+                log_activity(
+                    db,
+                    user=current_user,
+                    action=f"ai:{action}",
+                    entity_type="ai_action",
+                    entity_id=None,
+                    entity_name=action,
+                    after=json.dumps({"params": normalized, "result": result}, default=str),
+                )
 
         executed = [executed_map[idx] for idx in range(len(selected_actions)) if idx in executed_map]
 

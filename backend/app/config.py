@@ -101,6 +101,12 @@ def _warn_if_production_urls_point_to_localhost() -> None:
 _warn_if_production_urls_point_to_localhost()
 
 if settings.SECRET_KEY.startswith(_INSECURE_KEY_PREFIX):
+    if (settings.ENVIRONMENT or "").lower() == "production":
+        raise RuntimeError(
+            "SECRET_KEY is still the default placeholder while ENVIRONMENT=production. "
+            "Set a strong random key (>=32 chars) in the host environment before booting. "
+            "Refusing to start with a guessable signing key."
+        )
     warnings.warn(
         "SECRET_KEY is still the default placeholder! "
         "Set a strong random key in .env before deploying to production.",

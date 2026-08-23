@@ -53,6 +53,7 @@ class LoginUserInfo(BaseModel):
 
 class LoginResponse(BaseModel):
     access_token: str
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
     user: LoginUserInfo
 

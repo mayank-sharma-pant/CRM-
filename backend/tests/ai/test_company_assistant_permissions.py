@@ -33,10 +33,15 @@ def test_ai_assistant_is_available_to_all_company_roles(client, db, monkeypatch)
         assert isinstance(payload.get("executed_actions"), list)
 
 
-async def _plan_create_team(_prompt: str, _params=None) -> dict:
+async def _plan_create_team(prompt: str, _params=None) -> dict:
+    # Derive the team name from the user's message so each caller creates a
+    # distinct team. A hardcoded name made the admin re-create the manager's
+    # team and hit a duplicate-name 400 unrelated to the role check under test.
+    message = prompt.split("User:")[-1].strip()
+    name = message.replace("Create team", "", 1).strip() or "Alpha Team"
     return {
         "say": "Trying to create team",
-        "actions": [{"action": "create_team", "params": {"name": "Alpha Team"}}],
+        "actions": [{"action": "create_team", "params": {"name": name}}],
     }
 
 

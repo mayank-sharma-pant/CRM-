@@ -1,0 +1,190 @@
+# Perioxia CRM — Implementation Plan
+
+> Companion to [PRODUCT_ROADMAP.md](./PRODUCT_ROADMAP.md). The roadmap decides *what* and *why*.
+> This file decides *how*, *in what order*, and *how we know a phase is done*.
+> Grounded in the code as of 24 Aug 2026 (verified, not assumed).
+
+**Ground rule (from roadmap §8):** each phase ships to production before the next starts. No phase N+1 while N is unverified.
+
+---
+
+## Blocking decision before Phase 1 (decide now, costs a week if wrong)
+
+**Payment provider: Razorpay vs Stripe.** Roadmap §12 leaves this open; it blocks Phase 1 and Phase 2's payment link.
+
+**Recommendation: Razorpay.** The buyer signals in the roadmap point India-first — INR pricing anchored to Zoho India (§1), GST invoices, WhatsApp (Interakt/Gupshup), Kylas/LeadSquared as the real alternatives (§5). Stripe does not support collecting from India-domiciled businesses well; Razorpay is the local default and also does subscriptions.
+
+**What flips it to Stripe:** if the first design-partner companies are outside India, or you want one provider for global expansion from day one. Decide before writing any billing code — the webhook shape, SDK, and checkout differ enough that a switch mid-Phase-1 wastes ~a week.
+
+Everything below assumes Razorpay; the structure is provider-agnostic (an adapter, not provider calls sprinkled through routers).
+
+---
+
+## Phase 0 — Trust (2–4 weeks)
+
+**Goal:** cross-tenant leaks and "fake SaaS" become impossible, proven by an automated test.
+
+Order matters: tenancy first (biggest risk), then the cheap boot/health fixes, then auth hardening.
+
+### Progress log
+
+- **0.3 boot + health — DONE.** `config.py` refuses to boot on the placeholder `SECRET_KEY` when `ENVIRONMENT=production`; `/health` runs `SELECT 1` and returns 503 on DB failure. Covered by `tests/test_health_and_config.py` (4 tests).
+- **0.2 tenancy matrix — SUBSTANTIALLY DONE (39 tests, all green).** `tests/tenancy/test_cross_tenant_object_access.py` proves, each paired with a positive control, that company B's admin gets no cross-tenant access while company A's owner succeeds, across:
+  - **read-by-id:** leads, clients, tasks, follow-ups, invoices, documents
+  - **delete/mark-by-id:** leads, clients, tasks, follow-ups, documents, stock, **ledger entries, notifications**
+  - **mutate-by-id (PATCH/PUT, valid bodies):** leads, clients, tasks, follow-ups, stock
+  - **list-scope:** users
+  - **The current opt-in `apply_company_scope` + `ensure_company_access` is holding on every path tested — no leak found.** Positive controls earned their keep: they caught a vacuous pass (document download 404'd for the owner too, on a missing file, not scoping), fixed before the result was trusted. Valid request bodies on the mutation cases ensure a 404 proves the *scope* check, not body rejection.
+  - Also fixed a test-infra trap: the process-global auth rate limiter tripped across repeated logins and masked results with 429s; reset per-test.
+- **Residual (deferred, with rationale):** **teams** (only `GET /mine`, inherently caller-scoped — low leak surface) and **AI reads** (needs the LLM path; covered at the tool/permission layer by `tests/ai/`). Not blocking the 0.2 gate.
+- **Pre-existing red tests — both fixed (were masking real signal).**
+  - `test_sales_cannot_mutate_but_manager_md_admin_can_create_team`: **test bug**, not product. The mock hardcoded team name "Alpha Team", so the admin re-created the manager's team and hit the correct duplicate-name 400. Product logic (role gating + duplicate rejection) is right; fixed the mock to derive the name from the message. Flagged for 0.5: a single failing AI action 400s the *whole* turn instead of returning a per-action error.
+  - `test_manager_task_create_notifies_sales_assignee`: **time-bomb test**. Hardcoded `due_date=2026-05-05` aged into the past (today 2026-08-24); the endpoint correctly rejects past due dates. Fixed to a `now + 30 days` date. Sibling tests share this hardcoded-date pattern — worth a sweep.
+- **0.4 refresh tokens + logout revoke — DONE (5 tests, `tests/auth/test_refresh_tokens.py`).** Stateful rotating refresh tokens (opaque random token, only SHA-256 hash stored in `refresh_tokens`). Login (password + OTP) issues a refresh token (body + HttpOnly cookie, Secure in prod). New `POST /api/auth/refresh` rotates on use; **reuse of an already-rotated token revokes the entire chain** (theft signal). Logout revokes the presented token server-side and clears both cookies. Files: `app/models/core/refresh_token.py`, helpers in `app/utils/security.py`, endpoints in `app/routers/auth/auth.py`, `LoginResponse.refresh_token`.
+  - **Residual window (documented decision):** access tokens stay stateless (≤30 min); after logout the session dies once the access token expires because it can no longer be refreshed. A hard "kill access token now" would need a denylist/`token_version` — deferred as scope creep.
+  - **Production DB note:** the `refresh_tokens` table auto-creates in tests via `create_all`. Prod must create it via the project's `create_missing_tables.py` convention (Alembic already has **two heads** — a pre-existing branch — so a migration was deliberately NOT added here to avoid silently rewriting migration topology; resolve the heads separately).
+- **0.5 AI action audit — DONE (audit portion; 3 tests, `tests/ai/test_ai_audit.py`).** Every executed AI mutation (`COMMAND_ACTIONS`) now writes an `AuditLog` row via the existing `log_activity` helper: `action="ai:<tool>"`, `entity_type="ai_action"`, actor (`admin_id`), `company_id`, and `after_value` = JSON of `{params, result}`. Read-only actions and role-denied (skipped) actions are not logged. Insertion at `company_assistant.py` execution loop; commits in the same transaction as the actions.
+  - **Role restriction was already in place** (not a gap): `_allowed_actions_for_role` gives sales only `READ_ONLY_ACTIONS + SALES_AI_EXTRA` (own-task tools), so sales cannot create/delete teams or ledgers — the skipped-action test confirms it. The real 0.5 gap was the missing audit trail, now closed.
+  - **AI follow-ups — DONE (3 tests, `tests/ai/test_ai_graceful_actions.py`).** (1) A failing *execution-phase* action no longer aborts the turn: each action is wrapped in a per-action `try/except HTTPException`, returning `{"status":"error","detail":...}` for that action while others still run (turn stays 200). Validation-phase 400s (malformed shape/params) are unchanged and still tested. The dispatch was extracted into `_execute_action(...)`. (2) Failed *executed* attempts are now audited as `ai:<action>:failed`. Also reordered `_create_team_with_members` to validate `manager_id` **before** creating the team, closing the orphan-team hole a bad manager_id would otherwise leave.
+  - **Deliberately NOT done (surfaced, not smuggled):** full transactional isolation of *every* multi-step partial failure would require removing self-`commit()` from ~15 helper functions across `company_assistant.py` + `assistant_crm_actions.py` (they each own their transaction, which is why SAVEPOINTs conflict). That's an architecture refactor, out of scope for a follow-up; the common composite failure (bad manager) is closed by validate-first, and simple actions are already atomic (validate → mutate+commit). Role-*denied* attempts remain unaudited by design (they never execute; see the denied-not-audited test).
+- **Suite: 139 passing, 0 failing.**
+
+### 0.1 Tenant isolation at the database, not the helper
+
+**Reframed by the 0.2 evidence:** the sampled object-access paths are *not* leaking today (see progress log), so RLS is now **defense-in-depth**, not urgent leak-plugging. Do it because "isolation you can prove" is the selling point and a helper can be forgotten on the *next* endpoint — not because a specific leak was found. Priority accordingly: finish the test matrix (0.2) first; it is the guardrail that catches a future missed scope regardless of whether RLS lands.
+
+Today `apply_company_scope` (`app/utils/dependencies.py:19`) is opt-in — one missed call leaks another company. 384 call sites means one *could* be wrong (none found yet in the sampled set).
+
+- Add `backend/app/tenancy.py`: a request-scoped mechanism that sets the active `company_id` on the DB session.
+- **Pick one** (enumerate before choosing):
+  - **Postgres RLS** — `CREATE POLICY` on every tenant table using `current_setting('app.company_id')`; set it per request via `SET LOCAL app.company_id = :cid`. Strongest; the DB enforces it even if application code forgets. More Alembic work.
+  - **Session `SET` + a mandatory query filter mixin** — lighter, but still application-enforced. Weaker guarantee.
+  - **Recommendation: RLS.** The whole selling point (§1.1, §11) is "isolation you can prove." RLS is the provable version; a helper is not.
+- Wire `SET LOCAL app.company_id` into the `get_db` dependency after auth resolves the user's company.
+- Platform-admin queries (cross-tenant by design) need an explicit bypass role/path — do not let the bypass become the default.
+
+**Touch:** `app/database.py`, new `app/tenancy.py`, Alembic migration (enable RLS + policies), `app/utils/dependencies.py`.
+
+### 0.2 Tenancy test matrix
+
+Expand `backend/tests/tenancy/` (currently only `test_multi_tenancy.py`) to cover **every** tenant resource: leads, clients, invoices, ledgers, documents, stock, users, teams, notifications, tasks, follow-ups, AI reads.
+
+- Two seeded companies A and B. For each resource: user A gets 404 (not 403) on GET/PATCH/DELETE of B's row.
+- One parametrized test over a resource list beats twelve copy-pasted tests.
+
+**This is the Phase 0 exit gate.**
+
+### 0.3 Boot + health honesty (cheap, do in a day)
+
+- `config.py:103` currently `warnings.warn` on placeholder `SECRET_KEY` → change to **raise** when `ENV == production`. Keep the warning in dev.
+- `main.py:124` `/health` → execute `SELECT 1`; return 503 if it fails. Add `/health/ready` vs `/health/live` if you want k8s-style splits later (not now).
+
+### 0.4 Auth hardening
+
+- **Refresh tokens:** config has `REFRESH_TOKEN_EXPIRE_DAYS` (`config.py:28`) but the auth router never issues one. Add: issue refresh on login, rotate on use, store a revocation list (or a `token_version` on User), revoke on logout.
+- HttpOnly + Secure cookie in production only.
+- Kill the client-only route guard as a *security* claim (roadmap §6.3) — API stays the source of truth. (Full UI unification is Phase 2; here just stop pretending the guard is security.)
+
+### 0.5 AI action audit
+
+`app/utils/audit.py` exists; the AI assistant can mutate CRM data (`app/routers/ai/company_assistant.py`, `assistant_crm_actions.py`).
+
+- Every mutating AI tool call persists: tool name, actor user, company_id, payload, result.
+- Restrict by role: sales role → read + own tasks only; no team/ledger deletion by the model.
+- Add a dry-run mode (return the intended change without committing) for the dangerous tools.
+
+**Phase 0 done when:** two seeded companies; user A cannot GET/PATCH/DELETE any of B's resources; test suite green; `/health` fails when Postgres is down; prod boot refuses the placeholder key.
+
+---
+
+## Phase 1 — Charge money (2–3 weeks)
+
+**Goal:** a stranger signs up, pays in test mode, hits a seat limit, and cannot add the over-limit user.
+
+### 1.1 Real plans schema (replace the hardcoded literal)
+
+`app/routers/admin/platform.py:307` returns a Python literal; `Company.plan` is a free String. Replace with tables:
+
+- `plans` — id, name, price_monthly, currency, max_users, max_teams, max_storage_gb (nullable = unlimited), is_active.
+- `subscriptions` — company_id, plan_id, provider, provider_subscription_id, status, current_period_end, seats.
+- Seed the three existing tiers (Starter/Growth/Enterprise) via migration so nothing breaks.
+- `/plans` reads the table; platform admin can edit.
+
+**Touch:** new `app/models/billing/plan.py` + `subscription.py`, Alembic, `app/routers/admin/platform.py` (replace literal), new `app/routers/billing/`.
+
+### 1.2 Payment provider adapter
+
+- `app/services/billing/` with a thin interface: `create_checkout`, `handle_webhook`, `cancel`, `list_invoices`. Razorpay implementation behind it.
+- Webhook endpoint (no JWT, verify signature) → update `subscriptions.status`. **Idempotent** — Razorpay retries; a double webhook must not double-charge state.
+- Secrets in env only; never in code.
+
+### 1.3 Self-serve signup (remove the human bottleneck)
+
+Roadmap §6.2: company signup is currently a ticket (`status=PENDING` until platform admin). HubSpot is minutes.
+
+- Signup → company `TRIAL` (active, time-boxed) **or** pay → `ACTIVE`. Drop the mandatory admin approval for the default path; keep suspend/reject for abuse.
+- Billing portal: upgrade, cancel, view the CRM's own invoices.
+
+### 1.4 Limit enforcement
+
+- On add-user / add-team / upload: check the subscription's limits, return a clear 402/403 with the limit and the upgrade path.
+- Storage: sum document sizes per company against `max_storage_gb`.
+
+**Phase 1 done when:** stranger signs up → pays test mode → adds users up to `max_users` → the (max+1)th add fails with an upgrade prompt. Automated test asserts the failed seat.
+
+---
+
+## Phase 2 — One sales loop (4–8 weeks)
+
+**Goal (roadmap §11):** a design-partner company runs web form → cadence → quote → paid invoice for 30 days. No HR/stock work in this phase.
+
+Build in dependency order — each is demoable alone:
+
+1. **Deal object** (foundation for the rest). New `app/models/sales/deal.py`: amount, currency, expected_close, probability, pipeline_id, stage_id. Company-configurable stages (move stages out of the Python enum → a `pipeline_stages` table). This is the "money on the pipeline" the MD page currently fakes with `won * 10k` (§6.2).
+2. **Public web form → lead.** Public router, no JWT, signed form id, honeypot, company branding. Frontend `/f/[slug]`. Captures `source`.
+3. **Custom fields** on lead/deal/client (text/number/date/picklist). `custom_field_defs` + values table scoped by company_id. Needed before real customers, cheap to add early.
+4. **Quote → invoice → payment link.** Quote model (PDF), accept/reject → invoice (already exists, add PDF + payment link via the Phase 1 adapter).
+5. **Workflow engine v0.** `workflow_rules` table; trigger on lead created / stage changed / quote accepted; actions: assign round-robin, create task, notify, send email. In-request execution for v0; queue later.
+6. **Cadence.** Sequence of follow-ups with due dates (day 1 SMS, day 3 call, day 7 email).
+7. **Email from CRM.** SMTP send + log first; Gmail OAuth second.
+8. **Tags, recycle bin (soft delete), merge duplicates** on email/phone.
+9. **Reminders:** in-app (exists) + email; WhatsApp (Interakt/Gupshup) if India confirmed.
+
+**Concurrent structural work — UI unification (§6.1):** collapse the five role apps into one object surface. Make `frontend/app/sales/leads/` canonical; manager/MD/purchase reuse the same components and only get wider row scope. Do this incrementally per object (leads first) rather than a big-bang rewrite.
+
+**Phase 2 done when:** the end-to-end plumber demo runs and one design partner uses it live for 30 days.
+
+---
+
+## Phases 3–5 — deferred (pull only on real pull)
+
+Per roadmap §8, build these **only** when a trial user asks twice or a lost deal cites the gap. Not scheduled here on purpose — scheduling them now is the "clone Zoho" trap the roadmap warns against.
+
+- **Phase 3** (match Zoho Standard where compared): meetings + call log, multiple pipelines, saved reports, public API keys, TOTP 2FA, import mapper, GST invoice, WhatsApp templates, minimal Flutter (lead/follow-up/invoice only).
+- **Phase 4** (Professional extras, post-revenue): blueprint, products price book + tax, customer portal, forecasting, territory assignment, sandbox, SSO.
+- **Phase 5** (paid add-ons): enrichment, predictive AI, telephony, Tally/QuickBooks sync, custom modules, marketplace.
+
+---
+
+## Cross-cutting cleanups (do alongside, not as a phase)
+
+From roadmap §6, these are cheap and reduce trust risk — fold into whichever phase touches the area:
+
+- Remove **fabricated testimonials** and unshipped landing claims (§6.1) — legal/trust risk the day a buyer checks. Do before any public launch, independent of phases.
+- Fix **brand drift** (Perioxia vs repo `CRM-` vs `local-service-crm-frontend`).
+- Delete the pile of `tmp_*.py` / `check_*.py` / `test_*.py` scripts at `backend/` root (not in `tests/`) — they're dev debris, not the suite.
+
+---
+
+## Sequencing summary
+
+```
+Decide Razorpay/Stripe  ──►  Phase 0 (trust)  ──►  Phase 1 (money)  ──►  Phase 2 (sales loop)  ──►  pull-based 3–5
+        (now)                 2–4 wks              2–3 wks               4–8 wks
+```
+
+**Verification checkpoints (roadmap §11):**
+- Phase 0: tenancy tests green on all resources.
+- Phase 1: first test-mode payment + a failed 11th seat.
+- Phase 2: one design partner, web form → paid invoice, 30 days.
+- No stock/HR/AI feature work until that loop exists.

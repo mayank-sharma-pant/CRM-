@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from collections import defaultdict, deque
 from time import time
 import secrets
@@ -16,7 +17,15 @@ from app.models.core.user import User
 from app.models.core.company import Company
 from app.models.core.otp import OTPCode
 from app.schemas.admin import UserCreate, UserResponse, Token, LoginResponse, MeResponse, MessageResponse
-from app.utils.security import verify_password, get_password_hash, create_access_token, decode_access_token
+from app.utils.security import (
+    verify_password,
+    get_password_hash,
+    create_access_token,
+    decode_access_token,
+    generate_refresh_token,
+    hash_refresh_token,
+)
+from app.models.core.refresh_token import RefreshToken
 from app.utils.dependencies import get_current_user
 from app.utils.email_service import send_otp_email
 from sqlalchemy import func as sa_func
@@ -60,6 +69,43 @@ def _set_auth_cookie(response: Response, token: str):
         samesite=samesite,
         secure=secure,
     )
+
+
+def _refresh_cookie_kwargs() -> dict:
+    secure = settings.AUTH_COOKIE_SECURE if settings.AUTH_COOKIE_SECURE is not None else (settings.ENVIRONMENT == "production")
+    samesite = (settings.AUTH_COOKIE_SAMESITE or "lax").strip().lower()
+    if samesite not in ("lax", "strict", "none"):
+        samesite = "lax"
+    if samesite == "none":
+        secure = True
+    return {"httponly": True, "samesite": samesite, "secure": secure}
+
+
+def _set_refresh_cookie(response: Response, token: str):
+    max_age = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
+    response.set_cookie(
+        key="refresh_token",
+        value=token,
+        max_age=max_age,
+        expires=max_age,
+        **_refresh_cookie_kwargs(),
+    )
+
+
+def _clear_refresh_cookie(response: Response):
+    response.delete_cookie(key="refresh_token", **_refresh_cookie_kwargs())
+
+
+def _issue_refresh_token(db: Session, user: User) -> str:
+    """Create a new refresh-token row and return the raw token (shown once)."""
+    raw, token_hash = generate_refresh_token()
+    expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    db.add(RefreshToken(user_id=user.id, token_hash=token_hash, expires_at=expires_at))
+    return raw
+
+
+def _extract_refresh_token(request: Request, body_token: Optional[str]) -> Optional[str]:
+    return (body_token or "").strip() or request.cookies.get("refresh_token")
 
 
 class OTPRequest(BaseModel):
@@ -208,9 +254,13 @@ def login(request: Request, response: Response, form_data: OAuth2PasswordRequest
 
     access_token = create_access_token(data={"sub": user.email, "role": user.role})
     _set_auth_cookie(response, access_token)
+    refresh_token = _issue_refresh_token(db, user)
+    db.commit()
+    _set_refresh_cookie(response, refresh_token)
 
     return {
         "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
         "user": {
             "id": user.id,
@@ -283,8 +333,71 @@ def login_otp(request: Request, response: Response, payload: OTPLoginRequest, db
 
     access_token = create_access_token(data={"sub": user.email, "role": user.role})
     _set_auth_cookie(response, access_token)
+    refresh_token = _issue_refresh_token(db, user)
+    db.commit()
+    _set_refresh_cookie(response, refresh_token)
     return {
         "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "company_id": user.company_id,
+        },
+    }
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: Optional[str] = None
+
+
+@router.post("/refresh", response_model=LoginResponse)
+def refresh(request: Request, response: Response, body: RefreshRequest | None = None, db: Session = Depends(get_db)):
+    """Exchange a valid refresh token for a new access token, rotating the
+    refresh token. Reusing an already-rotated token revokes the whole chain."""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+    )
+    raw = _extract_refresh_token(request, body.refresh_token if body else None)
+    if not raw:
+        raise credentials_exception
+
+    record = db.query(RefreshToken).filter(RefreshToken.token_hash == hash_refresh_token(raw)).first()
+    if record is None:
+        raise credentials_exception
+
+    # Reuse of a rotated/revoked token is a theft signal: kill every live token
+    # for this user so a stolen token cannot outlive the legitimate session.
+    if record.revoked:
+        db.query(RefreshToken).filter(
+            RefreshToken.user_id == record.user_id, RefreshToken.revoked == False  # noqa: E712
+        ).update({"revoked": True})
+        db.commit()
+        raise credentials_exception
+
+    expires_at = record.expires_at
+    if expires_at.tzinfo is None:  # SQLite stores naive datetimes; treat as UTC
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at <= datetime.now(timezone.utc):
+        raise credentials_exception
+
+    user = db.query(User).filter(User.id == record.user_id).first()
+    if user is None or not user.is_active or user.status == "disabled":
+        raise credentials_exception
+
+    record.revoked = True
+    access_token = create_access_token(data={"sub": user.email, "role": user.role})
+    new_refresh = _issue_refresh_token(db, user)
+    db.commit()
+
+    _set_auth_cookie(response, access_token)
+    _set_refresh_cookie(response, new_refresh)
+    return {
+        "access_token": access_token,
+        "refresh_token": new_refresh,
         "token_type": "bearer",
         "user": {
             "id": user.id,
@@ -297,8 +410,15 @@ def login_otp(request: Request, response: Response, payload: OTPLoginRequest, db
 
 
 @router.post("/logout", response_model=MessageResponse)
-def logout(response: Response):
-    """Clear the authentication cookie."""
+def logout(request: Request, response: Response, body: RefreshRequest | None = None, db: Session = Depends(get_db)):
+    """Revoke the presented refresh token and clear the auth cookies."""
+    raw = _extract_refresh_token(request, body.refresh_token if body else None)
+    if raw:
+        db.query(RefreshToken).filter(
+            RefreshToken.token_hash == hash_refresh_token(raw), RefreshToken.revoked == False  # noqa: E712
+        ).update({"revoked": True})
+        db.commit()
+
     secure = settings.AUTH_COOKIE_SECURE if settings.AUTH_COOKIE_SECURE is not None else (settings.ENVIRONMENT == "production")
     samesite = (settings.AUTH_COOKIE_SAMESITE or "lax").strip().lower()
     if samesite not in ("lax", "strict", "none"):
@@ -311,6 +431,7 @@ def logout(response: Response):
         samesite=samesite,
         secure=secure,
     )
+    _clear_refresh_cookie(response)
     return {"message": "Logged out successfully"}
 
 

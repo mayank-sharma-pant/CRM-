@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
@@ -26,6 +28,17 @@ def create_access_token(
     expire = now_utc + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire, "aud": audience})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def generate_refresh_token() -> tuple[str, str]:
+    """Return (raw_token, token_hash). The raw token is given to the client;
+    only the hash is persisted."""
+    raw = secrets.token_urlsafe(32)
+    return raw, hash_refresh_token(raw)
+
+
+def hash_refresh_token(raw: str) -> str:
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def decode_access_token(token: str, audience: Optional[str] = None) -> Optional[dict]:

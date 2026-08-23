@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.models.core.team import Team
 from app.models.core.team_membership import TeamMembership
@@ -82,9 +82,12 @@ def test_manager_task_create_notifies_sales_assignee(client, db):
     )
     db.commit()
 
+    # Future date relative to now — the manager endpoint rejects past due dates,
+    # so a hardcoded date would time-bomb the test once that date passes.
+    due_date = (datetime.now(timezone.utc).date() + timedelta(days=30)).isoformat()
     login_user(client, manager.email)
     response = client.post(
-        f"/api/manager/tasks?title=Prepare quotation&assignee_id={sales.id}&due_date=2026-05-05&priority=medium"
+        f"/api/manager/tasks?title=Prepare quotation&assignee_id={sales.id}&due_date={due_date}&priority=medium"
     )
     assert response.status_code == 200, response.text
 

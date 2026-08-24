@@ -26,3 +26,14 @@ def test_seed_is_per_company(db):
     b = ensure_default_pipeline(db, company_id=2)
     assert a.id != b.id
     assert db.query(Pipeline).count() == 2
+
+
+def test_signup_seeds_default_pipeline(client, db):
+    from app.models.sales.pipeline import Pipeline
+    resp = client.post("/api/auth/signup", json={
+        "email": "founder@new.com", "password": "pw123456",
+        "full_name": "Founder", "company_name": "NewCo",
+    })
+    assert resp.status_code in (200, 201), resp.text
+    # the new company should have its default pipeline
+    assert db.query(Pipeline).filter(Pipeline.is_default == True).count() >= 1  # noqa: E712

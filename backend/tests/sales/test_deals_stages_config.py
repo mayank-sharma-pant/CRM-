@@ -1,5 +1,14 @@
+import pytest
+
+from app.utils.rate_limit import auth_limiter
 from tests.helpers.auth import create_active_user, login_user
 from tests.helpers.factories import create_company
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limit():
+    auth_limiter._buckets.clear()
+    yield
 
 
 def _co(db, code="C1"):
@@ -35,6 +44,19 @@ def test_admin_can_create_stage_sales_cannot(client, db):
         "stage_type": "open", "default_probability": 0,
     })
     assert denied.status_code == 403
+
+
+def test_admin_create_stage_rejects_invalid_stage_type(client, db):
+    company = _co(db)
+    admin = create_active_user(db, email="admin@c1.com", role="admin", company_id=company.id)
+    login_user(client, admin.email)
+    client.post("/api/deals", json={"title": "seed", "amount": "1"})
+    pipe_id = client.get("/api/deals/pipelines").json()["items"][0]["id"]
+    resp = client.post("/api/deals/stages", json={
+        "pipeline_id": pipe_id, "name": "Bogus", "position": 9,
+        "stage_type": "not-a-type", "default_probability": 0,
+    })
+    assert resp.status_code == 400
 
 
 def test_admin_can_rename_stage(client, db):

@@ -6,22 +6,98 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
+from sqlalchemy import or_
+
 from app.database import get_db
-from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, get_active_team_id
 from app.utils.audit import log_activity
 from app.models.core.user import User
+from app.models.core.team import Team
+from app.models.core.team_membership import TeamMembership
 from app.models.core.enums import DealStageType
 from app.models.sales.deal import Deal
+from app.models.sales.lead import Lead
+from app.models.sales.client import Client
 from app.models.sales.pipeline import Pipeline, PipelineStage
 from app.services.sales.pipeline_seed import ensure_default_pipeline
 from app.schemas.sales.deal import DealCreate, DealUpdate, DealStageUpdate, StageCreate, StageUpdate
 
 router = APIRouter()
 
+_VALID_STAGE_TYPES = {t.value for t in DealStageType}
+
 
 def _role(user: User) -> str:
     r = getattr(user, "role", None)
     return str(getattr(r, "value", r)) if r is not None else ""
+
+
+def _validate_ownership_refs(db: Session, current_user: User, *, assigned_to_id=None,
+                              team_id=None, lead_id=None, client_id=None) -> None:
+    """Ensure any provided ownership refs resolve within the caller's company."""
+    checks = (
+        ("assigned_to_id", assigned_to_id, User),
+        ("team_id", team_id, Team),
+        ("lead_id", lead_id, Lead),
+        ("client_id", client_id, Client),
+    )
+    for field, value, model in checks:
+        if value is None:
+            continue
+        found = apply_company_scope(db.query(model), model, current_user).filter(
+            model.id == value
+        ).first()
+        if found is None:
+            raise HTTPException(status_code=400, detail=f"{field} not found in your company")
+
+
+def _apply_role_scope(db: Session, query, current_user: User, active_team_id: Optional[int]):
+    """Mirror leads.py's role-based row scoping (see get_leads) for deals."""
+    role = _role(current_user)
+    if role == "sales":
+        if active_team_id is not None:
+            query = query.filter(
+                Deal.team_id == active_team_id,
+                or_(Deal.assigned_to_id == current_user.id, Deal.assigned_to_id.is_(None)),
+            )
+        else:
+            # Fallback: no active team header/primary team set — still allow
+            # "open to anyone" deals from any team the user belongs to.
+            member_team_ids = [
+                tm.team_id
+                for tm in apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+                .filter(TeamMembership.user_id == current_user.id)
+                .all()
+            ]
+            if member_team_ids:
+                query = query.filter(
+                    or_(
+                        Deal.assigned_to_id == current_user.id,
+                        (Deal.assigned_to_id.is_(None) & Deal.team_id.in_(member_team_ids)),
+                    )
+                )
+            else:
+                query = query.filter(Deal.assigned_to_id == current_user.id)
+    elif role == "manager":
+        if active_team_id is None:
+            query = query.filter(False)
+        else:
+            query = query.filter(Deal.team_id == active_team_id)
+    return query
+
+
+def _ensure_deal_row_access(deal: Deal, current_user: User, active_team_id: Optional[int]) -> None:
+    """Mirror leads.py get_lead's role check on by-id access."""
+    role = _role(current_user)
+    if role == "sales":
+        own_or_open = (deal.assigned_to_id == current_user.id) or (
+            deal.assigned_to_id is None and deal.team_id == active_team_id
+        )
+        if not own_or_open:
+            raise HTTPException(status_code=403, detail="You do not have access to this deal")
+    elif role == "manager":
+        if active_team_id is None or deal.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You do not have access to this team's deal")
 
 
 def _get_stage(db: Session, current_user: User, stage_id: int) -> Optional[PipelineStage]:
@@ -65,6 +141,11 @@ def create_deal(payload: DealCreate, db: Session = Depends(get_db),
         raise HTTPException(status_code=400, detail="amount must be >= 0")
     if payload.probability is not None and not (0 <= payload.probability <= 100):
         raise HTTPException(status_code=400, detail="probability must be between 0 and 100")
+    _validate_ownership_refs(
+        db, current_user,
+        assigned_to_id=payload.assigned_to_id, team_id=payload.team_id,
+        lead_id=payload.lead_id, client_id=payload.client_id,
+    )
 
     pipeline_id = payload.pipeline_id
     stage_id = payload.stage_id
@@ -111,14 +192,12 @@ def create_deal(payload: DealCreate, db: Session = Depends(get_db),
 
 @router.get("")
 def list_deals(db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+               active_team_id: Optional[int] = Depends(get_active_team_id),
                pipeline_id: Optional[int] = Query(None), stage_id: Optional[int] = Query(None),
                assigned_to_id: Optional[int] = Query(None),
                skip: int = 0, limit: int = 100):
     query = apply_company_scope(db.query(Deal), Deal, current_user)
-    if _role(current_user) == "sales":
-        query = query.filter(
-            (Deal.assigned_to_id == current_user.id) | (Deal.assigned_to_id.is_(None))
-        )
+    query = _apply_role_scope(db, query, current_user, active_team_id)
     if pipeline_id is not None:
         query = query.filter(Deal.pipeline_id == pipeline_id)
     if stage_id is not None:
@@ -141,27 +220,36 @@ def list_deals(db: Session = Depends(get_db), current_user: User = Depends(get_c
 
 @router.get("/{deal_id:int}")
 def get_deal(deal_id: int, db: Session = Depends(get_db),
-             current_user: User = Depends(get_current_user)):
+             current_user: User = Depends(get_current_user),
+             active_team_id: Optional[int] = Depends(get_active_team_id)):
     deal = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.id == deal_id).first()
     if deal is None:
         raise HTTPException(status_code=404, detail="Deal not found")
     ensure_company_access(deal, current_user)
+    _ensure_deal_row_access(deal, current_user, active_team_id)
     stage = _get_stage(db, current_user, deal.stage_id)
     return _serialize_deal(deal, stage)
 
 
 @router.patch("/{deal_id:int}")
 def update_deal(deal_id: int, payload: DealUpdate, db: Session = Depends(get_db),
-                current_user: User = Depends(get_current_user)):
+                current_user: User = Depends(get_current_user),
+                active_team_id: Optional[int] = Depends(get_active_team_id)):
     deal = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.id == deal_id).first()
     if deal is None:
         raise HTTPException(status_code=404, detail="Deal not found")
     ensure_company_access(deal, current_user)
+    _ensure_deal_row_access(deal, current_user, active_team_id)
     data = payload.model_dump(exclude_unset=True)
     if "amount" in data and data["amount"] is not None and data["amount"] < 0:
         raise HTTPException(status_code=400, detail="amount must be >= 0")
     if "probability" in data and data["probability"] is not None and not (0 <= data["probability"] <= 100):
         raise HTTPException(status_code=400, detail="probability must be between 0 and 100")
+    _validate_ownership_refs(
+        db, current_user,
+        assigned_to_id=data.get("assigned_to_id"), team_id=data.get("team_id"),
+        lead_id=data.get("lead_id"), client_id=data.get("client_id"),
+    )
     for field, value in data.items():
         setattr(deal, field, value)
     audit_after = {**data, "amount": str(data["amount"])} if data.get("amount") is not None else data
@@ -175,11 +263,13 @@ def update_deal(deal_id: int, payload: DealUpdate, db: Session = Depends(get_db)
 
 @router.delete("/{deal_id:int}")
 def delete_deal(deal_id: int, db: Session = Depends(get_db),
-                current_user: User = Depends(get_current_user)):
+                current_user: User = Depends(get_current_user),
+                active_team_id: Optional[int] = Depends(get_active_team_id)):
     deal = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.id == deal_id).first()
     if deal is None:
         raise HTTPException(status_code=404, detail="Deal not found")
     ensure_company_access(deal, current_user)
+    _ensure_deal_row_access(deal, current_user, active_team_id)
     log_activity(db, user=current_user, action="deleted", entity_type="deal",
                  entity_id=deal.id, entity_name=deal.title)
     db.delete(deal)
@@ -189,11 +279,13 @@ def delete_deal(deal_id: int, db: Session = Depends(get_db),
 
 @router.patch("/{deal_id:int}/stage")
 def move_deal_stage(deal_id: int, payload: DealStageUpdate, db: Session = Depends(get_db),
-                    current_user: User = Depends(get_current_user)):
+                    current_user: User = Depends(get_current_user),
+                    active_team_id: Optional[int] = Depends(get_active_team_id)):
     deal = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.id == deal_id).first()
     if deal is None:
         raise HTTPException(status_code=404, detail="Deal not found")
     ensure_company_access(deal, current_user)
+    _ensure_deal_row_access(deal, current_user, active_team_id)
     stage = _get_stage(db, current_user, payload.stage_id)
     if stage is None or stage.pipeline_id != deal.pipeline_id:
         raise HTTPException(status_code=400, detail="stage does not belong to deal's pipeline")
@@ -214,6 +306,7 @@ def move_deal_stage(deal_id: int, payload: DealStageUpdate, db: Session = Depend
 
 @router.get("/board")
 def deal_board(db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+               active_team_id: Optional[int] = Depends(get_active_team_id),
                pipeline_id: Optional[int] = Query(None)):
     if pipeline_id is None:
         default_pipeline = ensure_default_pipeline(db, current_user.company_id)
@@ -224,10 +317,7 @@ def deal_board(db: Session = Depends(get_db), current_user: User = Depends(get_c
     ).order_by(PipelineStage.position).all()
 
     deals_q = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.pipeline_id == pipeline_id)
-    if _role(current_user) == "sales":
-        deals_q = deals_q.filter(
-            (Deal.assigned_to_id == current_user.id) | (Deal.assigned_to_id.is_(None))
-        )
+    deals_q = _apply_role_scope(db, deals_q, current_user, active_team_id)
     deals = deals_q.all()
 
     by_stage = {s.id: [] for s in stages}
@@ -304,6 +394,8 @@ def create_stage(payload: StageCreate, db: Session = Depends(get_db),
         raise HTTPException(status_code=404, detail="Pipeline not found")
     if not (0 <= payload.default_probability <= 100):
         raise HTTPException(status_code=400, detail="default_probability must be 0..100")
+    if payload.stage_type is not None and payload.stage_type not in _VALID_STAGE_TYPES:
+        raise HTTPException(status_code=400, detail="stage_type must be one of: open, won, lost")
     stage = PipelineStage(
         company_id=current_user.company_id, pipeline_id=pipeline.id, name=payload.name,
         position=payload.position, stage_type=payload.stage_type,
@@ -327,6 +419,8 @@ def update_stage(stage_id: int, payload: StageUpdate, db: Session = Depends(get_
     data = payload.model_dump(exclude_unset=True)
     if "default_probability" in data and data["default_probability"] is not None and not (0 <= data["default_probability"] <= 100):
         raise HTTPException(status_code=400, detail="default_probability must be 0..100")
+    if "stage_type" in data and data["stage_type"] is not None and data["stage_type"] not in _VALID_STAGE_TYPES:
+        raise HTTPException(status_code=400, detail="stage_type must be one of: open, won, lost")
     for field, value in data.items():
         setattr(stage, field, value)
     db.commit()

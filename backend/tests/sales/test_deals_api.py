@@ -1,6 +1,15 @@
+import pytest
+
 from app.models.sales.pipeline import Pipeline, PipelineStage
+from app.utils.rate_limit import auth_limiter
 from tests.helpers.auth import create_active_user, login_user
 from tests.helpers.factories import create_company
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limit():
+    auth_limiter._buckets.clear()
+    yield
 
 
 def _company_with_admin(db, code="C1"):
@@ -43,6 +52,17 @@ def test_create_deal_rejects_stage_from_other_pipeline(client, db):
     resp = client.post("/api/deals", json={
         "title": "mismatch", "amount": "1",
         "pipeline_id": default_pipe.id, "stage_id": foreign.id,
+    })
+    assert resp.status_code == 400
+
+
+def test_create_deal_rejects_foreign_company_assignee(client, db):
+    company, admin = _company_with_admin(db)
+    other = create_company(db, name="Other", company_code="C2")
+    foreign = create_active_user(db, email="x@c2.com", role="sales", company_id=other.id)
+    login_user(client, admin.email)
+    resp = client.post("/api/deals", json={
+        "title": "leak", "amount": "1", "assigned_to_id": foreign.id,
     })
     assert resp.status_code == 400
 

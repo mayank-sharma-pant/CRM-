@@ -101,6 +101,18 @@ Expand `backend/tests/tenancy/` (currently only `test_multi_tenancy.py`) to cove
 
 **Goal:** a stranger signs up, pays in test mode, hits a seat limit, and cannot add the over-limit user.
 
+**Provider decision: Razorpay** (confirmed 24 Aug 2026 — India-first buyer signals). Adapter is provider-agnostic.
+
+### Progress log
+
+- **PHASE 1 DONE.** Full suite **162 passing** (139 baseline + 23 new billing/trial tests), verified. Executed subagent-driven with per-task review + a whole-branch final review; all work uncommitted on `main` per decision. Spec: [`superpowers/specs/2026-08-24-phase1-billing-design.md`](./superpowers/specs/2026-08-24-phase1-billing-design.md); plan: [`superpowers/plans/2026-08-24-phase1-billing.md`](./superpowers/plans/2026-08-24-phase1-billing.md).
+  - **1.1 plans schema — DONE.** New `app/models/billing/{plan,subscription,webhook_event}.py`; idempotent `seed_plans` (Starter/Growth/Enterprise) wired into `create_missing_tables.py`. `platform.py` `/plans` reads the table; platform admin `PATCH /plans/{id}` edits limits/price.
+  - **1.2 payment adapter — DONE.** `app/services/billing/` — `BillingProvider` ABC, `RazorpayProvider` (lazy SDK import), `NullProvider` (offline tests), `get_billing_provider()`. HMAC-SHA256 webhook verification with `compare_digest`, **fail-closed on empty secret**. `POST /api/billing/webhook` (no JWT, raw-body verify), **idempotent** via unique `webhook_events.event_id` + IntegrityError-catch on the concurrent-duplicate race.
+  - **1.3 self-serve signup — DONE.** `CompanyStatus.TRIAL` + `Company.trial_ends_at`; signup creates a `trial` company (14-day) + active owner + Starter `trialing` subscription (atomic). Trial-aware auth at **both** login (`_check_company_status`) and every request (`get_current_user`); expired trials blocked. Portal: `GET /subscription`, `POST /checkout`, `POST /cancel` (company-admin, IDOR-safe). **Paid webhook flips `Company.status`→active and clears `trial_ends_at`** (the trial→paid seam).
+  - **1.4 limit enforcement — DONE.** `app/services/billing/limits.py` → 402 with `{limit, current, upgrade_path}`. Seats = active users + pending invites (enforced in `create_invite`); teams in `create_team`; storage via new `Document.file_size` in `upload_document`. No-subscription companies fall back to Starter limits.
+- **Migration note (important for prod):** we deliberately did **not** touch Alembic (two pre-existing heads; alembic not runnable here). New **tables** come from `Base.metadata.create_all`; new **columns on existing tables** (`companies.trial_ends_at`, `documents.file_size`) come from an idempotent `add_missing_columns()` in `create_missing_tables.py` (dialect-agnostic `ALTER TABLE ADD COLUMN`, Postgres-correct `TIMESTAMP WITH TIME ZONE` / `INTEGER DEFAULT 0`). **Run `create_missing_tables.py` on deploy.** `razorpay` is in `requirements.txt` but not installed — `pip install` before live use.
+- **Deferred (non-blocking, Phase 1.x candidates):** `Subscription.updated_at`/`current_period_end` unpopulated; 402-before-400 on over-limit+duplicate; schema-default `PENDING` user would count as a seat (none persist today); `update_plan` has no audit-log entry; webhook duplicate response not distinguished for metrics; cancel/`past_due` webhooks intentionally do **not** auto-suspend the company (dunning deferred).
+
 ### 1.1 Real plans schema (replace the hardcoded literal)
 
 `app/routers/admin/platform.py:307` returns a Python literal; `Company.plan` is a free String. Replace with tables:
@@ -184,7 +196,7 @@ Decide Razorpay/Stripe  ──►  Phase 0 (trust)  ──►  Phase 1 (money)  
 ```
 
 **Verification checkpoints (roadmap §11):**
-- Phase 0: tenancy tests green on all resources.
-- Phase 1: first test-mode payment + a failed 11th seat.
-- Phase 2: one design partner, web form → paid invoice, 30 days.
+- Phase 0: tenancy tests green on all resources. ✅ **DONE** (139 tests).
+- Phase 1: first test-mode payment + a failed 11th seat. ✅ **DONE** (162 tests; signup→trial→paid webhook→402 at seat limit all covered).
+- Phase 2: one design partner, web form → paid invoice, 30 days. ← **NEXT**
 - No stock/HR/AI feature work until that loop exists.

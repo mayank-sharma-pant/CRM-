@@ -1,9 +1,18 @@
 from decimal import Decimal
 
+import pytest
+
 from app.models.sales.pipeline import Pipeline, PipelineStage
 from app.models.core.enums import DealStageType
+from app.utils.rate_limit import auth_limiter
 from tests.helpers.auth import create_active_user, login_user
 from tests.helpers.factories import create_company
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limit():
+    auth_limiter._buckets.clear()
+    yield
 
 
 def _setup(client, db):

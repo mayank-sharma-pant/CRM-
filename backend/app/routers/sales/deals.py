@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
@@ -9,10 +10,11 @@ from app.database import get_db
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access
 from app.utils.audit import log_activity
 from app.models.core.user import User
+from app.models.core.enums import DealStageType
 from app.models.sales.deal import Deal
 from app.models.sales.pipeline import Pipeline, PipelineStage
 from app.services.sales.pipeline_seed import ensure_default_pipeline
-from app.schemas.sales.deal import DealCreate, DealUpdate
+from app.schemas.sales.deal import DealCreate, DealUpdate, DealStageUpdate
 
 router = APIRouter()
 
@@ -183,3 +185,81 @@ def delete_deal(deal_id: int, db: Session = Depends(get_db),
     db.delete(deal)
     db.commit()
     return {"message": "Deal deleted"}
+
+
+@router.patch("/{deal_id:int}/stage")
+def move_deal_stage(deal_id: int, payload: DealStageUpdate, db: Session = Depends(get_db),
+                    current_user: User = Depends(get_current_user)):
+    deal = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.id == deal_id).first()
+    if deal is None:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    ensure_company_access(deal, current_user)
+    stage = _get_stage(db, current_user, payload.stage_id)
+    if stage is None or stage.pipeline_id != deal.pipeline_id:
+        raise HTTPException(status_code=400, detail="stage does not belong to deal's pipeline")
+
+    before_stage = deal.stage_id
+    deal.stage_id = stage.id
+    if stage.stage_type in (DealStageType.WON, DealStageType.LOST):
+        deal.closed_at = deal.closed_at or datetime.utcnow()
+    else:
+        deal.closed_at = None
+    log_activity(db, user=current_user, action="stage_changed", entity_type="deal",
+                 entity_id=deal.id, entity_name=deal.title,
+                 before=json.dumps({"stage_id": before_stage}), after=json.dumps({"stage_id": stage.id}))
+    db.commit()
+    db.refresh(deal)
+    return _serialize_deal(deal, stage)
+
+
+@router.get("/board")
+def deal_board(db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+               pipeline_id: Optional[int] = Query(None)):
+    if pipeline_id is None:
+        default_pipeline = ensure_default_pipeline(db, current_user.company_id)
+        pipeline_id = default_pipeline.id
+
+    stages = apply_company_scope(db.query(PipelineStage), PipelineStage, current_user).filter(
+        PipelineStage.pipeline_id == pipeline_id
+    ).order_by(PipelineStage.position).all()
+
+    deals_q = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.pipeline_id == pipeline_id)
+    if _role(current_user) == "sales":
+        deals_q = deals_q.filter(
+            (Deal.assigned_to_id == current_user.id) | (Deal.assigned_to_id.is_(None))
+        )
+    deals = deals_q.all()
+
+    by_stage = {s.id: [] for s in stages}
+    for d in deals:
+        by_stage.setdefault(d.stage_id, []).append(d)
+
+    open_forecast = Decimal("0")
+    won_value = Decimal("0")
+    stage_blocks = []
+    for s in stages:
+        s_deals = by_stage.get(s.id, [])
+        stage_total = sum((d.amount or Decimal("0")) for d in s_deals) or Decimal("0")
+        weighted = Decimal("0")
+        for d in s_deals:
+            amt = d.amount or Decimal("0")
+            if s.stage_type == DealStageType.OPEN:
+                eff = d.probability if d.probability is not None else (s.default_probability or 0)
+                weighted += amt * Decimal(eff) / Decimal(100)
+            elif s.stage_type == DealStageType.WON:
+                won_value += amt
+        if s.stage_type == DealStageType.OPEN:
+            open_forecast += weighted
+        stage_blocks.append({
+            "stage_id": s.id, "name": s.name, "stage_type": s.stage_type.value,
+            "stage_total": str(stage_total.quantize(Decimal("0.01"))),
+            "weighted_value": str(weighted.quantize(Decimal("0.01"))),
+            "deals": [_serialize_deal(d, s) for d in s_deals],
+        })
+
+    return {
+        "pipeline_id": pipeline_id,
+        "stages": stage_blocks,
+        "open_forecast": str(open_forecast.quantize(Decimal("0.01"))),
+        "won_value": str(won_value.quantize(Decimal("0.01"))),
+    }

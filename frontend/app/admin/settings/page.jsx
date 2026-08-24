@@ -32,6 +32,12 @@ export default function AdminSettingsPage() {
     // Notification Rules
     const [remindersEnabled, setRemindersEnabled] = useState(true);
     const [followupAlertsEnabled, setFollowupAlertsEnabled] = useState(true);
+    const [runningReminders, setRunningReminders] = useState(false);
+    const [reminderRunMsg, setReminderRunMsg] = useState('');
+    const [fieldDefs, setFieldDefs] = useState([]);
+    const [newField, setNewField] = useState({
+        entity_type: 'lead', name: '', field_key: '', field_type: 'text', options: '',
+    });
 
     const fetchSettings = async () => {
         try {
@@ -48,6 +54,8 @@ export default function AdminSettingsPage() {
             setLostReasons(Array.isArray(data.lost_reasons) ? data.lost_reasons : ['No budget', 'Timing not right', 'Competitor', 'No response']);
             setRemindersEnabled(Boolean(data.task_reminders_enabled));
             setFollowupAlertsEnabled(Boolean(data.followup_alerts_enabled));
+            const fieldsRes = await api.get('/custom-fields');
+            setFieldDefs(fieldsRes.data.items || []);
         } catch (err) {
             console.error('Failed to fetch settings', err);
         } finally {
@@ -125,6 +133,15 @@ export default function AdminSettingsPage() {
                         }`}
                 >
                     Notifications
+                </button>
+                <button
+                    onClick={() => setActiveTab('fields')}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'fields'
+                        ? 'border-slate-900 dark:border-white text-slate-900 dark:text-white'
+                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                        }`}
+                >
+                    Custom Fields
                 </button>
             </div>
 
@@ -292,6 +309,36 @@ export default function AdminSettingsPage() {
                             </div>
                         </div>
 
+                        <div className="flex items-center gap-3 pt-1">
+                            <button
+                                type="button"
+                                disabled={runningReminders}
+                                onClick={async () => {
+                                    setRunningReminders(true);
+                                    setReminderRunMsg('');
+                                    try {
+                                        const res = await api.post('/reminders/run');
+                                        const tasks = res.data.tasks ?? 0;
+                                        const followUps = res.data.follow_ups ?? 0;
+                                        setReminderRunMsg(`Sent ${tasks} task and ${followUps} follow-up reminder(s).`);
+                                    } catch (err) {
+                                        setReminderRunMsg(err.response?.data?.detail || 'Could not run reminders');
+                                    } finally {
+                                        setRunningReminders(false);
+                                    }
+                                }}
+                                className="px-3 py-1.5 text-xs font-medium bg-slate-900 text-white rounded-lg disabled:opacity-50"
+                            >
+                                {runningReminders ? 'Sending…' : 'Send due reminders now'}
+                            </button>
+                            {reminderRunMsg && (
+                                <p className="text-xs text-slate-500">{reminderRunMsg}</p>
+                            )}
+                        </div>
+                        <p className="text-xs text-slate-400">
+                            Emails go to the assignee when SMTP is configured. Point a daily cron at POST /api/reminders/run. WhatsApp is not sent yet.
+                        </p>
+
                         <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
                             <div className="mb-3">
                                 <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Personal Notification Preferences</p>
@@ -302,7 +349,89 @@ export default function AdminSettingsPage() {
                     </div>
                 )}
 
+                {activeTab === 'fields' && (
+                    <div className="space-y-4">
+                        <h3 className="text-base font-semibold text-slate-900 dark:text-white">Custom fields</h3>
+                        <p className="text-xs text-slate-500">Shown on leads, deals, and clients. Keys cannot be changed later.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+                            <select
+                                value={newField.entity_type}
+                                onChange={(e) => setNewField({ ...newField, entity_type: e.target.value })}
+                                className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                            >
+                                <option value="lead">Lead</option>
+                                <option value="deal">Deal</option>
+                                <option value="client">Client</option>
+                            </select>
+                            <input
+                                placeholder="Name"
+                                value={newField.name}
+                                onChange={(e) => setNewField({ ...newField, name: e.target.value })}
+                                className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                            />
+                            <input
+                                placeholder="key_slug"
+                                value={newField.field_key}
+                                onChange={(e) => setNewField({ ...newField, field_key: e.target.value })}
+                                className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                            />
+                            <select
+                                value={newField.field_type}
+                                onChange={(e) => setNewField({ ...newField, field_type: e.target.value })}
+                                className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                            >
+                                <option value="text">Text</option>
+                                <option value="number">Number</option>
+                                <option value="date">Date</option>
+                                <option value="picklist">Picklist</option>
+                            </select>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    try {
+                                        const payload = {
+                                            entity_type: newField.entity_type,
+                                            name: newField.name,
+                                            field_key: newField.field_key,
+                                            field_type: newField.field_type,
+                                        };
+                                        if (newField.field_type === 'picklist') {
+                                            payload.options = newField.options.split(',').map((s) => s.trim()).filter(Boolean);
+                                        }
+                                        await api.post('/custom-fields', payload);
+                                        setNewField({ entity_type: 'lead', name: '', field_key: '', field_type: 'text', options: '' });
+                                        const fieldsRes = await api.get('/custom-fields');
+                                        setFieldDefs(fieldsRes.data.items || []);
+                                    } catch (err) {
+                                        alert(err.response?.data?.detail || 'Could not create field');
+                                    }
+                                }}
+                                className="px-3 py-2 bg-slate-900 text-white rounded-lg text-sm"
+                            >
+                                Add
+                            </button>
+                        </div>
+                        {newField.field_type === 'picklist' && (
+                            <input
+                                placeholder="Options, comma separated"
+                                value={newField.options}
+                                onChange={(e) => setNewField({ ...newField, options: e.target.value })}
+                                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                            />
+                        )}
+                        <ul className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
+                            {fieldDefs.length === 0 && <li className="py-2 text-slate-500">No custom fields yet.</li>}
+                            {fieldDefs.map((f) => (
+                                <li key={f.id} className="py-2 flex justify-between gap-2">
+                                    <span>{f.name} <span className="text-slate-400">({f.entity_type} · {f.field_key} · {f.field_type})</span></span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
                 {/* Save Button */}
+                {activeTab !== 'fields' && (
                 <div className="flex items-center justify-between pt-5 mt-5 border-t border-slate-200 dark:border-slate-700">
                     <p className="text-xs text-slate-400">
                         {saved ? 'Saved by Admin' : 'Changes will be applied system-wide'}
@@ -315,6 +444,7 @@ export default function AdminSettingsPage() {
                         Save Changes
                     </button>
                 </div>
+                )}
             </div>
         </div>
     );

@@ -12,6 +12,7 @@ from app.models.sales.client import Client
 from app.models.finance.invoice import Invoice
 from app.models.sales.note import Note
 from app.models.sales.task import Task
+from app.services.sales.custom_fields import get_values_map, set_values
 from app.models.sales.audit import AuditLog
 from app.models.sales.lead import Lead
 from app.schemas.sales import ClientCreate, ClientUpdate, ClientListResponse
@@ -135,6 +136,7 @@ def get_client(
         "assigned_to_id": client.assigned_to_id,
         "assigned_to_name": assignee_name,
         "created_at": client.created_at.strftime("%Y-%m-%d") if client.created_at else None,
+        "custom_fields": get_values_map(db, current_user.company_id, "client", client.id),
         "invoices": [
             {
                 "id": inv.id,
@@ -371,7 +373,9 @@ def update_client(
         client.company = body.company
     if body.address is not None:
         client.address = body.address
-    
+    if body.custom_fields is not None:
+        set_values(db, current_user.company_id, "client", client.id, body.custom_fields)
+
     db.commit()
     db.refresh(client)
     

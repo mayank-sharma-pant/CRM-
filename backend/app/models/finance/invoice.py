@@ -32,6 +32,7 @@ class Invoice(Base):
     # Payment info
     payment_method = Column(String(50), nullable=True)
     payment_reference = Column(String(100), nullable=True)
+    payment_url = Column(String(500), nullable=True)
     
     notes = Column(Text, nullable=True)
     

@@ -76,3 +76,9 @@ class DealStageType(str, enum.Enum):
     OPEN = "open"
     WON = "won"
     LOST = "lost"
+
+
+class QuoteStatus(str, enum.Enum):
+    DRAFT = "draft"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"

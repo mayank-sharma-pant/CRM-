@@ -33,6 +33,8 @@ class LeadUpdate(BaseModel):
     service_type: Optional[str] = None
     notes: Optional[str] = None
     assigned_to_id: Optional[int] = None
+    custom_fields: Optional[dict] = None
+    tags: Optional[List[str]] = None
 
 
 class LeadStatusUpdate(BaseModel):
@@ -132,6 +134,7 @@ class ClientUpdate(BaseModel):
     phone: Optional[str] = None
     company: Optional[str] = None
     address: Optional[str] = None
+    custom_fields: Optional[dict] = None
 
 
 class ClientResponse(ClientBase):
@@ -172,6 +175,7 @@ class FollowUpResponse(BaseModel):
     scheduled_time: Optional[str] = None
     status: TaskStatus = TaskStatus.PENDING
     notes: Optional[str] = None
+    channel: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -21,6 +21,8 @@ export default function DealDetailPage() {
   const [amount, setAmount] = useState('');
   const [probability, setProbability] = useState('');
   const [expectedClose, setExpectedClose] = useState('');
+  const [quotes, setQuotes] = useState([]);
+  const [quoteBusy, setQuoteBusy] = useState(false);
 
   useEffect(() => {
     fetchDeal();
@@ -37,6 +39,8 @@ export default function DealDetailPage() {
       setAmount(data.amount ?? '');
       setProbability(data.probability ?? '');
       setExpectedClose(data.expected_close ? String(data.expected_close).slice(0, 10) : '');
+      const q = await api.get('/quotes', { params: { deal_id: id } });
+      setQuotes(q.data.items || []);
     } catch (err) {
       console.error('Failed to fetch deal', err);
       if (err.response?.status === 404) {
@@ -64,6 +68,51 @@ export default function DealDetailPage() {
       showToast(err.response?.data?.detail || 'Failed to update deal', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const refreshQuotes = async () => {
+    const q = await api.get('/quotes', { params: { deal_id: id } });
+    setQuotes(q.data.items || []);
+  };
+
+  const createQuote = async () => {
+    if (!deal.client_id) {
+      showToast('Attach a client on this deal before quoting', 'error');
+      return;
+    }
+    setQuoteBusy(true);
+    try {
+      await api.post('/quotes', {
+        deal_id: Number(id),
+        client_id: deal.client_id,
+        items: [{ description: deal.title || 'Deal', quantity: 1, unit_price: String(deal.amount || '0') }],
+      });
+      showToast('Quote created', 'success');
+      await refreshQuotes();
+    } catch (err) {
+      showToast(err.response?.data?.detail || 'Could not create quote', 'error');
+    } finally {
+      setQuoteBusy(false);
+    }
+  };
+
+  const quoteAction = async (quoteId, action) => {
+    setQuoteBusy(true);
+    try {
+      const res = await api.post(`/quotes/${quoteId}/${action}`);
+      if (action === 'accept' && res.data.invoice_id) {
+        await api.post(`/invoices/${res.data.invoice_id}/payment-link`);
+        showToast('Quote accepted — payment link ready', 'success');
+        await refreshQuotes();
+        return;
+      }
+      showToast(action === 'reject' ? 'Quote rejected' : 'Updated', 'success');
+      await refreshQuotes();
+    } catch (err) {
+      showToast(err.response?.data?.detail || 'Quote action failed', 'error');
+    } finally {
+      setQuoteBusy(false);
     }
   };
 
@@ -187,6 +236,49 @@ export default function DealDetailPage() {
             {saving && <Loader2 size={14} className="animate-spin" />}
             Save changes
           </button>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Quotes</h2>
+            <button
+              type="button"
+              onClick={createQuote}
+              disabled={quoteBusy}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold uppercase rounded-lg disabled:opacity-50"
+            >
+              New quote
+            </button>
+          </div>
+          {quotes.length === 0 ? (
+            <p className="text-sm text-slate-500">No quotes yet. Create one from this deal’s amount.</p>
+          ) : (
+            <ul className="space-y-3">
+              {quotes.map((q) => (
+                <li key={q.id} className="border border-slate-200 dark:border-slate-600 rounded-lg p-3 text-sm">
+                  <div className="flex justify-between gap-2">
+                    <span className="font-semibold">{q.quote_number}</span>
+                    <span className="uppercase text-[10px] font-bold tracking-wide">{q.status}</span>
+                  </div>
+                  <div className="text-slate-500 mt-1">Total {q.total}</div>
+                  {q.invoice_id && <div className="text-slate-500">Invoice #{q.invoice_id}</div>}
+                  {q.payment_url && (
+                    <div className="mt-1 break-all text-xs text-blue-600">{q.payment_url}</div>
+                  )}
+                  {q.status === 'draft' && (
+                    <div className="flex gap-2 mt-2">
+                      <button type="button" disabled={quoteBusy} onClick={() => quoteAction(q.id, 'accept')}
+                        className="px-2 py-1 bg-emerald-600 text-white text-[11px] font-bold uppercase rounded">Accept</button>
+                      <button type="button" disabled={quoteBusy} onClick={() => quoteAction(q.id, 'reject')}
+                        className="px-2 py-1 border border-slate-300 text-[11px] font-bold uppercase rounded">Reject</button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

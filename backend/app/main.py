@@ -8,6 +8,13 @@ from app.routers.auth import auth
 from app.routers.admin import users, admin, platform, notifications
 from app.routers.sales import leads, tasks, clients, follow_ups, search, timeline
 from app.routers.sales.deals import router as deals_router
+from app.routers.sales.quotes import router as quotes_router
+from app.routers.sales.lead_forms import router as lead_forms_router
+from app.routers.sales.custom_fields import router as custom_fields_router
+from app.routers.sales.emails import router as emails_router
+from app.routers.sales.tags import router as tags_router
+from app.routers.sales.reminders import router as reminders_router
+from app.routers.public.lead_forms import router as public_lead_forms_router
 from app.routers.finance import invoices, purchase, ledgers, export
 from app.routers.ops import leaves, documents, bug_report, imports, inventory
 from app.routers.management import md, manager
@@ -97,6 +104,13 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
 app.include_router(deals_router, prefix="/api/deals", tags=["Deals"])
+app.include_router(quotes_router, prefix="/api/quotes", tags=["Quotes"])
+app.include_router(lead_forms_router, prefix="/api/lead-forms", tags=["Lead Forms"])
+app.include_router(custom_fields_router, prefix="/api/custom-fields", tags=["Custom Fields"])
+app.include_router(emails_router, prefix="/api/emails", tags=["Emails"])
+app.include_router(tags_router, prefix="/api/tags", tags=["Tags"])
+app.include_router(reminders_router, prefix="/api/reminders", tags=["Reminders"])
+app.include_router(public_lead_forms_router, prefix="/api/public/forms", tags=["Public Forms"])
 app.include_router(tasks.router, prefix="/api/tasks", tags=["Tasks"])
 app.include_router(clients.router, prefix="/api/clients", tags=["Clients"])
 app.include_router(follow_ups.router, prefix="/api/follow-ups", tags=["Follow-ups"])

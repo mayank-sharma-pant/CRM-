@@ -290,7 +290,7 @@ function FollowUpCard({ item, type, onStatusChange }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-4">
           <h3 className={`text-sm font-bold text-slate-900 dark:text-white truncate ${isCompleted ? 'line-through text-slate-500' : ''}`}>
-            {item.notes || 'Contact Lead'}
+            {item.channel ? `${item.channel.toUpperCase()} · ` : ''}{item.notes || 'Contact Lead'}
           </h3>
           {isOverdue && (
             <span className="flex-shrink-0 text-[10px] font-black bg-rose-100 dark:bg-rose-900 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded">

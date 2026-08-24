@@ -30,6 +30,7 @@ class DealUpdate(BaseModel):
     assigned_to_id: Optional[int] = None
     team_id: Optional[int] = None
     source: Optional[str] = None
+    custom_fields: Optional[dict] = None
 
 
 class DealStageUpdate(BaseModel):

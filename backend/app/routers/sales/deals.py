@@ -20,6 +20,7 @@ from app.models.sales.lead import Lead
 from app.models.sales.client import Client
 from app.models.sales.pipeline import Pipeline, PipelineStage
 from app.services.sales.pipeline_seed import ensure_default_pipeline
+from app.services.sales.custom_fields import get_values_map, set_values
 from app.schemas.sales.deal import DealCreate, DealUpdate, DealStageUpdate, StageCreate, StageUpdate
 
 router = APIRouter()
@@ -112,8 +113,8 @@ def _effective_probability(deal: Deal, stage: PipelineStage) -> int:
     return stage.default_probability or 0
 
 
-def _serialize_deal(deal: Deal, stage: PipelineStage) -> dict:
-    return {
+def _serialize_deal(deal: Deal, stage: PipelineStage, db: Session | None = None) -> dict:
+    payload = {
         "id": deal.id,
         "title": deal.title,
         "amount": str(deal.amount) if deal.amount is not None else "0",
@@ -132,6 +133,9 @@ def _serialize_deal(deal: Deal, stage: PipelineStage) -> dict:
         "source": deal.source,
         "created_at": deal.created_at.isoformat() if deal.created_at else None,
     }
+    if db is not None:
+        payload["custom_fields"] = get_values_map(db, deal.company_id, "deal", deal.id)
+    return payload
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -228,7 +232,7 @@ def get_deal(deal_id: int, db: Session = Depends(get_db),
     ensure_company_access(deal, current_user)
     _ensure_deal_row_access(deal, current_user, active_team_id)
     stage = _get_stage(db, current_user, deal.stage_id)
-    return _serialize_deal(deal, stage)
+    return _serialize_deal(deal, stage, db)
 
 
 @router.patch("/{deal_id:int}")
@@ -241,6 +245,7 @@ def update_deal(deal_id: int, payload: DealUpdate, db: Session = Depends(get_db)
     ensure_company_access(deal, current_user)
     _ensure_deal_row_access(deal, current_user, active_team_id)
     data = payload.model_dump(exclude_unset=True)
+    custom_fields = data.pop("custom_fields", None)
     if "amount" in data and data["amount"] is not None and data["amount"] < 0:
         raise HTTPException(status_code=400, detail="amount must be >= 0")
     if "probability" in data and data["probability"] is not None and not (0 <= data["probability"] <= 100):
@@ -255,10 +260,12 @@ def update_deal(deal_id: int, payload: DealUpdate, db: Session = Depends(get_db)
     audit_after = {**data, "amount": str(data["amount"])} if data.get("amount") is not None else data
     log_activity(db, user=current_user, action="updated", entity_type="deal",
                  entity_id=deal.id, entity_name=deal.title, after=json.dumps(audit_after, default=str))
+    if custom_fields is not None:
+        set_values(db, current_user.company_id, "deal", deal.id, custom_fields)
     db.commit()
     db.refresh(deal)
     stage = _get_stage(db, current_user, deal.stage_id)
-    return _serialize_deal(deal, stage)
+    return _serialize_deal(deal, stage, db)
 
 
 @router.delete("/{deal_id:int}")

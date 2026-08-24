@@ -35,6 +35,7 @@ class Lead(Base):
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    deleted_at = Column(DateTime, nullable=True, index=True)
     
     # Relationships
     tenant = relationship("Company", backref="leads", foreign_keys=[company_id])

@@ -18,6 +18,7 @@ class FollowUp(Base):
     scheduled_time = Column(Time, nullable=True)
     
     status = Column(String(50), default="Pending")  # Pending, Completed, Cancelled
+    channel = Column(String(20), nullable=True)  # sms, call, email
     outcome = Column(Text, nullable=True)  # Result of the follow-up
     notes = Column(Text, nullable=True)
     
@@ -30,6 +31,7 @@ class FollowUp(Base):
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    reminded_at = Column(DateTime, nullable=True)
     
     # Relationships
     company = relationship("Company", backref="follow_ups")

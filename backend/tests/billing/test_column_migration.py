@@ -42,9 +42,10 @@ def test_add_missing_columns_alters_a_legacy_schema_missing_the_columns():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    tables = {table for table, _, _ in _MISSING_COLUMNS}
     with engine.begin() as conn:
-        conn.execute(text("CREATE TABLE companies (id INTEGER PRIMARY KEY)"))
-        conn.execute(text("CREATE TABLE documents (id INTEGER PRIMARY KEY)"))
+        for table in tables:
+            conn.execute(text(f"CREATE TABLE {table} (id INTEGER PRIMARY KEY)"))
 
     inspector = inspect(engine)
     for table, column, _ddl_type in _MISSING_COLUMNS:

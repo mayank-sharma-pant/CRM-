@@ -34,6 +34,7 @@ class Task(Base):
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    reminded_at = Column(DateTime, nullable=True)
     
     # Relationships
     company = relationship("Company", backref="tasks")

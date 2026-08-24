@@ -5,6 +5,7 @@ from sqlalchemy import func
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime, timezone
+import uuid
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, get_active_team_id
@@ -382,3 +383,24 @@ def get_invoice(
             } for item in items
         ]
     }
+
+
+@router.post("/{invoice_id}/payment-link")
+def create_payment_link(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Attach a pay-now URL. Uses a local stub when Razorpay invoice links are not wired."""
+    invoice = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id == invoice_id).first()
+    if invoice is None:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    ensure_company_access(invoice, current_user)
+    if invoice.payment_url:
+        return {"payment_url": invoice.payment_url, "invoice_id": invoice.id}
+    token = uuid.uuid4().hex
+    invoice.payment_url = f"/pay/{token}"
+    invoice.payment_reference = token
+    db.commit()
+    db.refresh(invoice)
+    return {"payment_url": invoice.payment_url, "invoice_id": invoice.id}

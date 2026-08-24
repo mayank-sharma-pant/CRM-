@@ -16,6 +16,13 @@ from app.models.sales.note import Note
 from app.utils.audit import log_activity
 from app.utils.datetime_json import isoformat_utc, task_due_for_json
 from app.utils.notify import send_notification
+from app.services.sales.workflow import run_workflows
+from app.services.sales.custom_fields import get_values_map, set_values
+from app.services.sales.merge import find_duplicate_leads, merge_leads
+from app.services.sales.recycle import restore_lead, get_trashed_lead, soft_delete_lead
+from app.services.sales.tags import list_tag_names, set_lead_tags
+from app.utils.dependencies import require_admin_or_md
+from pydantic import BaseModel
 from app.utils.helpers import normalize_email, normalize_phone
 from sqlalchemy import func as sa_func, or_
 from app.schemas.sales import (
@@ -150,7 +157,7 @@ def get_sales_dashboard(
         period_cutoff = now_utc - timedelta(days=365)
 
     # Get real counts from database (company-scoped)
-    lead_query = apply_company_scope(db.query(Lead), Lead, current_user)
+    lead_query = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.deleted_at.is_(None))
     
     # Role-based scoping for leads
     if _user_role_str(current_user) == "sales":
@@ -337,7 +344,7 @@ def list_leads(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """List leads based on user role."""
-    query = apply_company_scope(db.query(Lead), Lead, current_user)
+    query = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.deleted_at.is_(None))
     
     # Apply role-based scoping
     if _user_role_str(current_user) == "sales":
@@ -462,6 +469,71 @@ def list_team_members_for_assignment(
     }
 
 
+class MergeBody(BaseModel):
+    source_id: int
+
+
+def _apply_lead_role_scope(query, current_user: User, active_team_id):
+    if _user_role_str(current_user) == "sales":
+        if active_team_id is not None:
+            return query.filter(
+                Lead.team_id == active_team_id,
+                or_(Lead.assigned_to_id == current_user.id, Lead.assigned_to_id.is_(None)),
+            )
+        return query.filter(Lead.assigned_to_id == current_user.id)
+    if _user_role_str(current_user) == "manager":
+        if active_team_id is None:
+            return query.filter(False)
+        return query.filter(Lead.team_id == active_team_id)
+    return query
+
+
+@router.get("/trash")
+def list_trashed_leads(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    query = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.deleted_at.isnot(None))
+    query = _apply_lead_role_scope(query, current_user, active_team_id)
+    leads = query.order_by(Lead.deleted_at.desc()).limit(200).all()
+    return {
+        "items": [
+            {
+                "id": lead.id,
+                "name": lead.name,
+                "email": lead.email,
+                "phone": lead.phone,
+                "deleted_at": isoformat_utc(lead.deleted_at),
+            }
+            for lead in leads
+        ],
+        "total": len(leads),
+    }
+
+
+@router.get("/duplicates")
+def list_duplicate_leads(
+    lead_id: int = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(
+        Lead.id == lead_id, Lead.deleted_at.is_(None)
+    ).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    dupes = find_duplicate_leads(db, current_user.company_id, lead)
+    return {
+        "items": [
+            {"id": d.id, "name": d.name, "email": d.email, "phone": d.phone}
+            for d in dupes
+        ],
+        "total": len(dupes),
+    }
+
+
 @router.get("/{lead_id:int}")
 def get_lead(
     lead_id: int,
@@ -470,7 +542,7 @@ def get_lead(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get lead details by ID (with role scoping)"""
-    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id, Lead.deleted_at.is_(None)).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
         
@@ -545,6 +617,8 @@ def get_lead(
         "last_contacted_at": isoformat_utc(lead.last_contacted_at),
         "last_response_at": isoformat_utc(lead.last_response_at),
         "next_task": isoformat_utc(lead.next_follow_up),
+        "custom_fields": get_values_map(db, current_user.company_id, "lead", lead.id),
+        "tags": list_tag_names(db, current_user.company_id, lead.id),
     }
 
 
@@ -617,7 +691,8 @@ def create_lead(
     # Use .query(Model.id) to avoid full-object deserialization (Enum columns can crash on legacy data).
     if normalized_email:
         existing_lead_by_email = apply_company_scope(db.query(Lead.id), Lead, current_user).filter(
-            sa_func.lower(Lead.email) == normalized_email
+            sa_func.lower(Lead.email) == normalized_email,
+            Lead.deleted_at.is_(None),
         ).first()
         if existing_lead_by_email:
             raise HTTPException(
@@ -634,7 +709,8 @@ def create_lead(
             )
     if normalized_phone:
         existing_lead_by_phone = apply_company_scope(db.query(Lead.id), Lead, current_user).filter(
-            Lead.phone == normalized_phone
+            Lead.phone == normalized_phone,
+            Lead.deleted_at.is_(None),
         ).first()
         if existing_lead_by_phone:
             raise HTTPException(
@@ -666,6 +742,8 @@ def create_lead(
     )
     
     db.add(new_lead)
+    db.flush()
+    run_workflows(db, "lead_created", lead=new_lead)
     db.commit()
     db.refresh(new_lead)
     
@@ -694,7 +772,7 @@ def update_lead(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Update lead details"""
-    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id, Lead.deleted_at.is_(None)).first()
     ensure_company_access(lead, current_user)
     
     # Apply role-based scoping
@@ -718,6 +796,7 @@ def update_lead(
             existing_lead_by_email = apply_company_scope(db.query(Lead.id), Lead, current_user).filter(
                 sa_func.lower(Lead.email) == normalized_email,
                 Lead.id != lead.id,
+                Lead.deleted_at.is_(None),
             ).first()
             if existing_lead_by_email:
                 raise HTTPException(
@@ -740,6 +819,7 @@ def update_lead(
             existing_lead_by_phone = apply_company_scope(db.query(Lead.id), Lead, current_user).filter(
                 Lead.phone == normalized_phone,
                 Lead.id != lead.id,
+                Lead.deleted_at.is_(None),
             ).first()
             if existing_lead_by_phone:
                 raise HTTPException(
@@ -831,6 +911,15 @@ def update_lead(
 
     _ensure_client_for_converted_lead(db, lead, current_user)
 
+    if lead_data.status is not None and lead_data.status != old_status:
+        run_workflows(db, "stage_changed", lead=lead)
+
+    if lead_data.custom_fields is not None:
+        set_values(db, current_user.company_id, "lead", lead.id, lead_data.custom_fields)
+
+    if lead_data.tags is not None:
+        set_lead_tags(db, current_user.company_id, lead.id, lead_data.tags)
+
     db.commit()
     db.refresh(lead)
     
@@ -852,7 +941,7 @@ def update_lead_status(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Quickly update lead status (used by Kanban board)"""
-    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id, Lead.deleted_at.is_(None)).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     ensure_company_access(lead, current_user)
@@ -890,6 +979,8 @@ def update_lead_status(
                 link=f"/sales/leads/{lead.id}",
                 category="leads")
 
+    if old_status != status_data.status:
+        run_workflows(db, "stage_changed", lead=lead)
     if old_status != status_data.status or created_client:
         db.commit()
 
@@ -907,7 +998,7 @@ def claim_lead(
     if _user_role_str(current_user) != "sales":
         raise HTTPException(status_code=403, detail="Only sales executives can claim leads")
 
-    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id, Lead.deleted_at.is_(None)).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
 
@@ -932,7 +1023,7 @@ def delete_lead(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Delete a lead"""
-    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id, Lead.deleted_at.is_(None)).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
 
@@ -953,10 +1044,56 @@ def delete_lead(
             client.converted_from_lead_id = None
             db.add(client)
     
-    db.delete(lead)
+    soft_delete_lead(lead)
     db.commit()
     
     return {"message": f"Lead {lead_id} deleted successfully"}
+
+
+@router.post("/{lead_id:int}/restore")
+def restore_trashed_lead(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    lead = get_trashed_lead(db, current_user, lead_id)
+    restore_lead(lead)
+    db.commit()
+    return {"message": "Lead restored", "id": lead.id}
+
+
+@router.post("/{lead_id:int}/purge")
+def purge_trashed_lead(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_md),
+):
+    lead = get_trashed_lead(db, current_user, lead_id)
+    db.delete(lead)
+    db.commit()
+    return {"message": "Lead permanently deleted"}
+
+
+@router.post("/{lead_id:int}/merge")
+def merge_duplicate_lead(
+    lead_id: int,
+    body: MergeBody,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if body.source_id == lead_id:
+        raise HTTPException(status_code=400, detail="Cannot merge a lead into itself")
+    keep = apply_company_scope(db.query(Lead), Lead, current_user).filter(
+        Lead.id == lead_id, Lead.deleted_at.is_(None)
+    ).first()
+    source = apply_company_scope(db.query(Lead), Lead, current_user).filter(
+        Lead.id == body.source_id, Lead.deleted_at.is_(None)
+    ).first()
+    if keep is None or source is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    merge_leads(db, keep, source)
+    db.commit()
+    return {"id": keep.id, "merged_source_id": source.id}
 
 
 @router.get("/{lead_id:int}/notes")
@@ -967,7 +1104,7 @@ def list_lead_notes(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """List notes attached to a lead."""
-    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id, Lead.deleted_at.is_(None)).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     ensure_company_access(lead, current_user)
@@ -1001,7 +1138,7 @@ def add_lead_note(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Create a note for a lead."""
-    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id, Lead.deleted_at.is_(None)).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     ensure_company_access(lead, current_user)
@@ -1040,7 +1177,7 @@ def convert_lead(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Convert a lead to a client"""
-    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id, Lead.deleted_at.is_(None)).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     ensure_company_access(lead, current_user)

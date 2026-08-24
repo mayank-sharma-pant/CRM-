@@ -15,6 +15,11 @@ from app.services.billing.seed import seed_plans
 _MISSING_COLUMNS = [
     ("companies", "trial_ends_at", "TIMESTAMP WITH TIME ZONE"),
     ("documents", "file_size", "INTEGER DEFAULT 0"),
+    ("invoices", "payment_url", "VARCHAR(500)"),
+    ("follow_ups", "channel", "VARCHAR(20)"),
+    ("leads", "deleted_at", "TIMESTAMP"),
+    ("tasks", "reminded_at", "TIMESTAMP"),
+    ("follow_ups", "reminded_at", "TIMESTAMP"),
 ]
 
 

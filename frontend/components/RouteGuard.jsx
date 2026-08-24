@@ -29,6 +29,7 @@ const PUBLIC_PATHS = ['/', '/login', '/signup', '/platform', '/accept-invite', '
 const SHARED_PATHS = ['/profile', '/settings', '/finance', '/financial-ledgers', '/report-bug'];
 
 function isPublicPath(pathname) {
+    if (pathname === '/f' || pathname.startsWith('/f/')) return true;
     return PUBLIC_PATHS.some(p =>
         p === '/' ? pathname === '/' : pathname.startsWith(p)
     );
@@ -69,7 +70,9 @@ export default function RouteGuard({ children }) {
     }, [user, loading, pathname, router]);
 
     // Show nothing while checking auth
+    // Public pages render immediately so a web-form visitor is not blocked on /auth/me
     if (loading) {
+        if (isPublicPath(pathname)) return children;
         return (
             <div className="min-h-screen flex items-center justify-center bg-page">
                 <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />

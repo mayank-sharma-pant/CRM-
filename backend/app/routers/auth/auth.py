@@ -35,6 +35,8 @@ from app.models.core.team_membership import TeamMembership
 from app.utils.validators import ensure_one_manager_per_team
 from app.utils.notify import notify_platform_admins
 from app.services.sales.pipeline_seed import ensure_default_pipeline
+from app.services.sales.lead_form_seed import ensure_default_lead_form
+from app.services.sales.workflow import ensure_default_workflow_rules
 
 router = APIRouter()
 
@@ -204,6 +206,12 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
             ensure_default_pipeline(db, new_company.id)
         except Exception:
             logger.exception("Default pipeline seed failed for company_id=%s", new_company.id)
+        try:
+            ensure_default_lead_form(db, new_company.id)
+            ensure_default_workflow_rules(db, new_company.id)
+            db.commit()
+        except Exception:
+            logger.exception("Default lead form seed failed for company_id=%s", new_company.id)
     except Exception:
         db.rollback()
         logger.exception("SIGNUP ERROR for email=%s", user_data.email)

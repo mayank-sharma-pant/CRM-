@@ -135,11 +135,17 @@ def _check_company_status(user: User, db: Session) -> None:
         raise HTTPException(status_code=403, detail="Company account is suspended")
     if company.status == "rejected":
         raise HTTPException(status_code=403, detail="Company account has been rejected")
+    if company.status == "trial" and company.trial_ends_at is not None:
+        trial_ends_at = company.trial_ends_at
+        if trial_ends_at.tzinfo is None:
+            trial_ends_at = trial_ends_at.replace(tzinfo=timezone.utc)
+        if trial_ends_at < datetime.now(timezone.utc):
+            raise HTTPException(status_code=403, detail="Trial expired — please upgrade")
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
 def signup(request: Request, response: Response, user_data: UserCreate, db: Session = Depends(get_db)):
-    """Register a new user and create a company (pending approval)."""
+    """Register a new user and create a company on an active trial."""
     # Rate limit by email to prevent abuse
     auth_limiter.check(request, f"signup:{user_data.email.lower()}", **_RATE_LIMITS["signup"])
     existing_user = db.query(User).filter(sa_func.lower(User.email) == user_data.email.lower()).first()
@@ -159,10 +165,12 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
         from app.utils.helpers import generate_company_code
         company_code = generate_company_code(db)
 
+        trial_ends_at = datetime.now(timezone.utc) + timedelta(days=settings.TRIAL_DAYS)
         new_company = Company(
             name=company_name,
             company_code=company_code,
-            status="pending",
+            status="trial",
+            trial_ends_at=trial_ends_at,
         )
         db.add(new_company)
         db.flush()
@@ -174,11 +182,20 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
             role=role,
             company_id=new_company.id,
             phone=user_data.phone,
-            status="pending",
+            status="active",
             employee_num=1,  # First user in a new company
         )
 
         db.add(db_user)
+
+        from app.models.billing import Plan, Subscription
+        starter = db.query(Plan).filter(Plan.name == "Starter").first()
+        if starter:
+            db.add(Subscription(
+                company_id=new_company.id, plan_id=starter.id, provider="razorpay",
+                status="trialing", trial_ends_at=trial_ends_at,
+            ))
+
         db.commit()
         db_user_id = db_user.id # Store to use after commit
         db.refresh(db_user)
@@ -194,7 +211,7 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
         notify_platform_admins(
             db,
             title=f"New Company: {new_company.name}",
-            message=f"Signup by {db_user.full_name} ({db_user.email}). Status: Pending.",
+            message=f"Signup by {db_user.full_name} ({db_user.email}). Status: Trial.",
             type="info",
             link="/platform/companies",
             category="admin",
@@ -219,7 +236,7 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
             "role": db_user.role,
             "company_id": db_user.company_id
         },
-        "message": "User registered successfully. Company is pending approval."
+        "message": "Trial started."
     }
 
 

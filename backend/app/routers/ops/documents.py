@@ -109,6 +109,9 @@ async def upload_document(
     if len(file_bytes) > MAX_DOCUMENT_BYTES:
         raise HTTPException(status_code=413, detail="File too large. Maximum size is 10 MB.")
 
+    from app.services.billing.limits import assert_can_upload
+    assert_can_upload(db, current_user.company_id, len(file_bytes))
+
     # Save physical file
     stored_filename = f"{uuid.uuid4()}{file_ext}"
     file_path = os.path.join(UPLOAD_DIR, stored_filename)
@@ -124,7 +127,8 @@ async def upload_document(
         lead_id=lead_id,
         client_id=client_id,
         company_id=current_user.company_id,
-        uploaded_by_id=current_user.id
+        uploaded_by_id=current_user.id,
+        file_size=len(file_bytes),
     )
     
     db.add(new_doc)

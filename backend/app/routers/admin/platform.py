@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func as sa_func
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, load_only
 
 from app.database import get_db
@@ -13,6 +14,7 @@ from app.models.sales.task import Task
 from app.models.finance.invoice import Invoice
 from app.models.sales.audit import AuditLog
 from app.models.core.company_settings import CompanySettings
+from app.models.billing import Plan
 from app.utils.security import create_access_token, decode_access_token, verify_password
 
 router = APIRouter()
@@ -305,14 +307,34 @@ def update_company_status(
 
 
 @router.get("/plans")
-def get_plans(current_user: User = Depends(get_current_platform_admin)):
-    return {
-        "plans": [
-            {"id": 1, "name": "Starter", "price_monthly": 29, "max_users": 10, "max_teams": 3, "max_storage_gb": 20, "is_active": True},
-            {"id": 2, "name": "Growth", "price_monthly": 79, "max_users": 50, "max_teams": 15, "max_storage_gb": 200, "is_active": True},
-            {"id": 3, "name": "Enterprise", "price_monthly": 199, "max_users": 500, "max_teams": 100, "max_storage_gb": None, "is_active": True},
-        ]
-    }
+def get_plans(current_user: User = Depends(get_current_platform_admin), db: Session = Depends(get_db)):
+    plans = db.query(Plan).order_by(Plan.price_monthly).all()
+    return {"plans": [
+        {"id": p.id, "name": p.name, "price_monthly": float(p.price_monthly), "currency": p.currency,
+         "max_users": p.max_users, "max_teams": p.max_teams, "max_storage_gb": p.max_storage_gb,
+         "is_active": p.is_active} for p in plans
+    ]}
+
+
+class PlanUpdate(BaseModel):
+    price_monthly: float | None = None
+    max_users: int | None = None
+    max_teams: int | None = None
+    max_storage_gb: int | None = None
+    is_active: bool | None = None
+
+
+@router.patch("/plans/{plan_id}")
+def update_plan(plan_id: int, body: PlanUpdate,
+                current_user: User = Depends(get_current_platform_admin),
+                db: Session = Depends(get_db)):
+    plan = db.query(Plan).filter(Plan.id == plan_id).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(plan, field, value)
+    db.commit()
+    return {"message": "Plan updated"}
 
 
 @router.get("/logs")

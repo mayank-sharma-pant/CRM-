@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sa_func
 from typing import Optional, Any
+from datetime import datetime, timezone
 from app.database import get_db
 from app.models.core.user import User
 from app.models.core.company import Company
@@ -82,11 +83,20 @@ async def get_current_user(
         company = db.query(Company).filter(Company.id == user.company_id).first()
         # Use str().lower() on the value to be extremely safe against any string-backed enum variation
         company_status = str(company.status.value if hasattr(company.status, 'value') else company.status).lower()
-        if company and company_status not in ("active",):
+        if company and company_status not in ("active", "trial"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Company account is {company.status}"
             )
+        if company and company_status == "trial" and company.trial_ends_at is not None:
+            trial_ends_at = company.trial_ends_at
+            if trial_ends_at.tzinfo is None:
+                trial_ends_at = trial_ends_at.replace(tzinfo=timezone.utc)
+            if trial_ends_at < datetime.now(timezone.utc):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Trial expired. Please upgrade to continue."
+                )
 
     return user
 

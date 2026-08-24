@@ -10,7 +10,8 @@ class Document(Base):
     filename = Column(String, index=True)
     stored_filename = Column(String, unique=True, index=True)
     file_path = Column(String)
-    
+    file_size = Column(Integer, nullable=False, default=0)
+
     # Relationships
     lead_id = Column(Integer, ForeignKey("leads.id", ondelete="CASCADE"), nullable=True)
     client_id = Column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=True)

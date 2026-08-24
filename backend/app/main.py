@@ -12,6 +12,7 @@ from app.routers.ops import leaves, documents, bug_report, imports, inventory
 from app.routers.management import md, manager
 from app.routers.ai.company_assistant import router as company_ai_router
 from app.routers import teams
+from app.routers.billing import router as billing_router
 from app.config import settings
 import traceback
 import logging
@@ -115,6 +116,7 @@ app.include_router(imports.router, prefix="/api/import", tags=["Import"])
 app.include_router(inventory.router, prefix="/api/inventory", tags=["Inventory"])
 app.include_router(company_ai_router, prefix="/api/ai", tags=["AI"])
 app.include_router(teams.router, prefix="/api/teams", tags=["Teams"])
+app.include_router(billing_router)  # Prefix is defined in the router itself
 
 @app.get("/")
 def root():

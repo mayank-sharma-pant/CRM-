@@ -458,6 +458,8 @@ def create_team(
     """Create a new team"""
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="Platform Admin cannot create teams; use company admin")
+    from app.services.billing.limits import assert_can_add_team
+    assert_can_add_team(db, current_user.company_id)
     existing = apply_company_scope(db.query(Team), Team, current_user).filter(Team.name == body.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Team name already exists")
@@ -1047,6 +1049,8 @@ def create_invite(
     """Create a new invite for a user"""
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="Platform Admin cannot create invites; use company admin")
+    from app.services.billing.limits import assert_can_add_user
+    assert_can_add_user(db, current_user.company_id)
     existing_user = db.query(User).filter(User.email == body.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="User with this email already exists")

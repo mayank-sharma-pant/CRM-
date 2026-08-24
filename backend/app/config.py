@@ -56,6 +56,12 @@ class Settings(BaseSettings):
     OPENAI_KEY: Optional[str] = None
     OPENAI_MODEL: str = "gpt-5.3-codex"
 
+    # Billing (Razorpay)
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
+    TRIAL_DAYS: int = 14
+
 
 settings = Settings()
 

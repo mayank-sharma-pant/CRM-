@@ -171,7 +171,7 @@ export default function DealsBoard() {
         ) : (
           <div className="flex gap-4 overflow-x-auto pb-4">
             {(board?.stages || []).map((stage) => (
-              <div key={stage.id} className="w-72 shrink-0 flex flex-col bg-surface rounded border border-border shadow-sm">
+              <div key={stage.stage_id} className="w-72 shrink-0 flex flex-col bg-surface rounded border border-border shadow-sm">
                 <div className="px-4 py-3 border-b border-border bg-surface-elevated/50">
                   <div className="flex items-center justify-between">
                     <h2 className="text-[12px] font-black text-primary uppercase tracking-tight truncate">{stage.name}</h2>
@@ -196,7 +196,7 @@ export default function DealsBoard() {
                           </p>
                         </Link>
                         <select
-                          value={stage.id}
+                          value={stage.stage_id}
                           disabled={movingId === deal.id}
                           onChange={(e) => handleMoveStage(deal.id, Number(e.target.value))}
                           className="mt-2 w-full text-[10px] font-bold uppercase tracking-tight bg-surface border border-border rounded px-1.5 py-1 text-muted focus:outline-none focus:border-accent disabled:opacity-50"

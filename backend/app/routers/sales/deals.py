@@ -14,7 +14,7 @@ from app.models.core.enums import DealStageType
 from app.models.sales.deal import Deal
 from app.models.sales.pipeline import Pipeline, PipelineStage
 from app.services.sales.pipeline_seed import ensure_default_pipeline
-from app.schemas.sales.deal import DealCreate, DealUpdate, DealStageUpdate
+from app.schemas.sales.deal import DealCreate, DealUpdate, DealStageUpdate, StageCreate, StageUpdate
 
 router = APIRouter()
 
@@ -263,3 +263,72 @@ def deal_board(db: Session = Depends(get_db), current_user: User = Depends(get_c
         "open_forecast": str(open_forecast.quantize(Decimal("0.01"))),
         "won_value": str(won_value.quantize(Decimal("0.01"))),
     }
+
+
+def _require_admin_or_md(current_user: User):
+    if _role(current_user) not in ("admin", "md"):
+        raise HTTPException(status_code=403, detail="Only admin or MD can configure stages")
+
+
+def _serialize_stage(s: PipelineStage) -> dict:
+    return {"id": s.id, "pipeline_id": s.pipeline_id, "name": s.name,
+            "position": s.position, "stage_type": s.stage_type.value if hasattr(s.stage_type, "value") else s.stage_type,
+            "default_probability": s.default_probability, "is_active": s.is_active}
+
+
+@router.get("/pipelines")
+def list_pipelines(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    pipelines = apply_company_scope(db.query(Pipeline), Pipeline, current_user).order_by(Pipeline.id).all()
+    return {"items": [{"id": p.id, "name": p.name, "is_default": p.is_default, "is_active": p.is_active}
+                      for p in pipelines]}
+
+
+@router.get("/stages")
+def list_stages(db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+                pipeline_id: Optional[int] = Query(None)):
+    q = apply_company_scope(db.query(PipelineStage), PipelineStage, current_user)
+    if pipeline_id is not None:
+        q = q.filter(PipelineStage.pipeline_id == pipeline_id)
+    stages = q.order_by(PipelineStage.pipeline_id, PipelineStage.position).all()
+    return {"items": [_serialize_stage(s) for s in stages]}
+
+
+@router.post("/stages", status_code=status.HTTP_201_CREATED)
+def create_stage(payload: StageCreate, db: Session = Depends(get_db),
+                 current_user: User = Depends(get_current_user)):
+    _require_admin_or_md(current_user)
+    pipeline = apply_company_scope(db.query(Pipeline), Pipeline, current_user).filter(
+        Pipeline.id == payload.pipeline_id
+    ).first()
+    if pipeline is None:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    if not (0 <= payload.default_probability <= 100):
+        raise HTTPException(status_code=400, detail="default_probability must be 0..100")
+    stage = PipelineStage(
+        company_id=current_user.company_id, pipeline_id=pipeline.id, name=payload.name,
+        position=payload.position, stage_type=payload.stage_type,
+        default_probability=payload.default_probability,
+    )
+    db.add(stage)
+    db.commit()
+    db.refresh(stage)
+    return _serialize_stage(stage)
+
+
+@router.patch("/stages/{stage_id:int}")
+def update_stage(stage_id: int, payload: StageUpdate, db: Session = Depends(get_db),
+                 current_user: User = Depends(get_current_user)):
+    _require_admin_or_md(current_user)
+    stage = apply_company_scope(db.query(PipelineStage), PipelineStage, current_user).filter(
+        PipelineStage.id == stage_id
+    ).first()
+    if stage is None:
+        raise HTTPException(status_code=404, detail="Stage not found")
+    data = payload.model_dump(exclude_unset=True)
+    if "default_probability" in data and data["default_probability"] is not None and not (0 <= data["default_probability"] <= 100):
+        raise HTTPException(status_code=400, detail="default_probability must be 0..100")
+    for field, value in data.items():
+        setattr(stage, field, value)
+    db.commit()
+    db.refresh(stage)
+    return _serialize_stage(stage)

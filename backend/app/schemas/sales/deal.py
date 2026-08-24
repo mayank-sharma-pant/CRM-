@@ -34,3 +34,18 @@ class DealUpdate(BaseModel):
 
 class DealStageUpdate(BaseModel):
     stage_id: int
+
+
+class StageCreate(BaseModel):
+    pipeline_id: int
+    name: str
+    position: int
+    stage_type: str = "open"
+    default_probability: int = 0
+
+
+class StageUpdate(BaseModel):
+    name: Optional[str] = None
+    position: Optional[int] = None
+    stage_type: Optional[str] = None
+    default_probability: Optional[int] = None

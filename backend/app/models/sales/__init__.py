@@ -6,3 +6,5 @@ from .note import Note
 from .audit import AuditLog
 from .ai_conversation import AIConversation
 from .notification import Notification
+from .pipeline import Pipeline, PipelineStage
+from .deal import Deal

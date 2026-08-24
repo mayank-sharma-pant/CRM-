@@ -70,3 +70,9 @@ class LeaveStatus(str, enum.Enum):
     PENDING = "Pending"
     APPROVED = "Approved"
     REJECTED = "Rejected"
+
+
+class DealStageType(str, enum.Enum):
+    OPEN = "open"
+    WON = "won"
+    LOST = "lost"

@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.finance.gst import GSTIN_ERROR, compute_gst, normalize_gstin
+from app.services.finance.gst import GSTIN_ERROR, compute_gst, line_tax, normalize_gstin
 
 
 def test_normalize_and_reject_bad_gstin():
@@ -28,6 +28,12 @@ def test_intra_state_splits_cgst_sgst():
     assert result.sgst == 18.0
     assert result.igst == 0
     assert result.tax == 36.0
+
+
+def test_line_tax_rounds_half_up():
+    assert line_tax(200, 18) == 36.0
+    assert line_tax(1000, 5) == 50.0
+    assert line_tax(1, 18) == 0.18
 
 
 def test_inter_state_uses_igst():

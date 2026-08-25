@@ -11,6 +11,10 @@ def _money(value) -> float:
     return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
+def line_tax(amount, rate_percent) -> float:
+    return _money(Decimal(str(amount)) * Decimal(str(rate_percent)) / Decimal("100"))
+
+
 def normalize_gstin(value: Optional[str]) -> Optional[str]:
     if value is None:
         return None

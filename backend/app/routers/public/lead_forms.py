@@ -104,4 +104,6 @@ def submit_public_form(slug: str, payload: PublicSubmit, request: Request, db: S
     enroll_lead_in_default_cadence(db, lead)
     run_workflows(db, "lead_created", lead=lead)
     db.commit()
+    from app.services.sales.outbound_webhooks import emit_event
+    emit_event(db, form.company_id, "lead.created", {"id": lead.id, "name": lead.name})
     return {"ok": True}

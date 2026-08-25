@@ -29,6 +29,8 @@ from app.routers.sales.tags import router as tags_router
 from app.routers.sales.territories import router as territories_router
 from app.routers.sales.accounts import router as accounts_router
 from app.routers.sales.reminders import router as reminders_router
+from app.routers.sales.saved_filters import router as saved_filters_router
+from app.routers.sales.outbound_webhooks import router as outbound_webhooks_router
 from app.routers.public.lead_forms import router as public_lead_forms_router
 from app.routers.public.portal import router as portal_router
 from app.routers.public.v1 import router as public_v1_router
@@ -153,6 +155,8 @@ app.include_router(onboarding_router, prefix="/api/onboarding", tags=["Onboardin
 app.include_router(tags_router, prefix="/api/tags", tags=["Tags"])
 app.include_router(territories_router, prefix="/api/territories", tags=["Territories"])
 app.include_router(accounts_router, prefix="/api/accounts", tags=["Accounts"])
+app.include_router(saved_filters_router, prefix="/api/saved-filters", tags=["Saved Filters"])
+app.include_router(outbound_webhooks_router, prefix="/api/webhooks", tags=["Outbound Webhooks"])
 app.include_router(reminders_router, prefix="/api/reminders", tags=["Reminders"])
 app.include_router(public_lead_forms_router, prefix="/api/public/forms", tags=["Public Forms"])
 app.include_router(portal_router, prefix="/api/portal", tags=["Portal"])

@@ -47,6 +47,9 @@ export default function DealsBoard() {
   const [creating, setCreating] = useState(false);
   const [movingId, setMovingId] = useState(null);
   const [togglingBlueprint, setTogglingBlueprint] = useState(false);
+  const [view, setView] = useState('');
+  const [savedFilters, setSavedFilters] = useState([]);
+  const [savingFilter, setSavingFilter] = useState(false);
 
   const basePath = dealsHomePath(usePathname());
   const { showToast } = useNotification();
@@ -55,12 +58,15 @@ export default function DealsBoard() {
 
   useEffect(() => {
     fetchPipelines();
+    api.get('/saved-filters')
+      .then((res) => setSavedFilters(res.data?.items ?? []))
+      .catch(() => setSavedFilters([]));
   }, []);
 
   useEffect(() => {
     if (pipelineId == null) return;
-    fetchBoard(pipelineId);
-  }, [pipelineId]);
+    fetchBoard(pipelineId, view);
+  }, [pipelineId, view]);
 
   const fetchPipelines = async () => {
     setLoading(true);
@@ -79,14 +85,15 @@ export default function DealsBoard() {
     }
   };
 
-  const fetchBoard = async (pid) => {
+  const fetchBoard = async (pid, boardView = view) => {
     setLoading(true);
     setError(null);
     try {
       const params = { pipeline_id: pid };
+      if (boardView) params.view = boardView;
       const [boardRes, stagesRes] = await Promise.all([
         api.get('/deals/board', { params }),
-        api.get('/deals/stages', { params }),
+        api.get('/deals/stages', { params: { pipeline_id: pid } }),
       ]);
       setBoard(boardRes.data);
       const rawStages = stagesRes.data?.items ?? stagesRes.data;
@@ -115,13 +122,43 @@ export default function DealsBoard() {
       if (pipelineId != null) payload.pipeline_id = pipelineId;
       await api.post('/deals', payload);
       showToast('Deal created', 'success');
-      await fetchBoard(pipelineId);
+      await fetchBoard(pipelineId, view);
     } catch (err) {
       console.error('Failed to create deal', err);
       showToast(err.response?.data?.detail || 'Failed to create deal', 'error');
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleSaveFilter = async () => {
+    const name = window.prompt('Name this view:');
+    if (!name || !name.trim()) return;
+    setSavingFilter(true);
+    try {
+      const filters = {};
+      if (view) filters.view = view;
+      if (pipelineId != null) filters.pipeline_id = pipelineId;
+      const res = await api.post('/saved-filters', {
+        name: name.trim(),
+        object_type: 'deal',
+        filters,
+      });
+      setSavedFilters((prev) => [...prev, res.data].sort((a, b) => a.name.localeCompare(b.name)));
+      showToast('View saved', 'success');
+    } catch (err) {
+      showToast(err.response?.data?.detail || 'Could not save view', 'error');
+    } finally {
+      setSavingFilter(false);
+    }
+  };
+
+  const applySavedFilter = (id) => {
+    const row = savedFilters.find((f) => String(f.id) === String(id));
+    if (!row) return;
+    const filters = row.filters || {};
+    setView(filters.view || '');
+    if (filters.pipeline_id) setPipelineId(filters.pipeline_id);
   };
 
   const handleNewPipeline = async () => {
@@ -146,7 +183,7 @@ export default function DealsBoard() {
       await api.patch(`/deals/pipelines/${pipelineId}`, { blueprint_enabled: enabled });
       const itemsRes = await api.get('/deals/pipelines');
       setPipelines(itemsRes.data.items || []);
-      await fetchBoard(pipelineId);
+      await fetchBoard(pipelineId, view);
     } catch (err) {
       console.error('Failed to toggle blueprint', err);
       showToast(parseMoveErrorDetail(err.response?.data?.detail, 'Failed to update blueprint'), 'error');
@@ -158,7 +195,7 @@ export default function DealsBoard() {
   const handleRequiredFieldsChange = async (stageId, keys) => {
     try {
       await api.patch(`/deals/stages/${stageId}`, { required_fields: keys });
-      await fetchBoard(pipelineId);
+      await fetchBoard(pipelineId, view);
     } catch (err) {
       console.error('Failed to update required fields', err);
       showToast(parseMoveErrorDetail(err.response?.data?.detail, 'Failed to update required fields'), 'error');
@@ -169,11 +206,11 @@ export default function DealsBoard() {
     setMovingId(dealId);
     try {
       await api.patch(`/deals/${dealId}/stage`, { stage_id: newStageId });
-      await fetchBoard(pipelineId);
+      await fetchBoard(pipelineId, view);
     } catch (err) {
       console.error('Failed to move deal', err);
       showToast(parseMoveErrorDetail(err.response?.data?.detail), 'error');
-      await fetchBoard(pipelineId);
+      await fetchBoard(pipelineId, view);
     } finally {
       setMovingId(null);
     }
@@ -211,7 +248,7 @@ export default function DealsBoard() {
       <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
         <div className="flex flex-col items-center gap-3">
           <div className="text-[13px] text-error font-bold uppercase tracking-widest">{error}</div>
-          <button onClick={() => (pipelineId != null ? fetchBoard(pipelineId) : fetchPipelines())} className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight">Retry</button>
+          <button onClick={() => (pipelineId != null ? fetchBoard(pipelineId, view) : fetchPipelines())} className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight">Retry</button>
         </div>
       </div>
     );
@@ -228,6 +265,48 @@ export default function DealsBoard() {
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap justify-end">
+            <div className="flex rounded-md border border-border overflow-hidden" role="group" aria-label="Deal view">
+              {[
+                { id: '', label: 'All' },
+                { id: 'due_today', label: 'Due today' },
+                { id: 'rotting', label: 'Rotting' },
+              ].map((opt) => (
+                <button
+                  key={opt.id || 'all'}
+                  type="button"
+                  onClick={() => setView(opt.id)}
+                  className={`px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-tight ${
+                    view === opt.id ? 'bg-accent text-white' : 'bg-surface text-primary hover:bg-surface-elevated'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <label className="flex items-center gap-2">
+              <span className="sr-only">Saved views</span>
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) applySavedFilter(e.target.value);
+                  e.target.value = '';
+                }}
+                className="text-[11px] font-bold uppercase tracking-tight bg-surface border border-border rounded px-2 py-1.5 text-primary focus:outline-none focus:border-accent"
+              >
+                <option value="">Saved views</option>
+                {savedFilters.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={handleSaveFilter}
+              disabled={savingFilter}
+              className="px-2.5 py-1.5 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary disabled:opacity-50"
+            >
+              Save view
+            </button>
             <label className="flex items-center gap-2">
               <span className="sr-only">Pipeline</span>
               <select
@@ -289,7 +368,13 @@ export default function DealsBoard() {
 
       <div className="max-w-[1400px] mx-auto px-6 py-8 flex-1 w-full">
         {totalDeals === 0 && (
-          <p className="text-[13px] text-muted font-medium italic mb-4">No deals in this pipeline yet.</p>
+          <p className="text-[13px] text-muted font-medium italic mb-4">
+            {view === 'due_today'
+              ? 'No deals due today.'
+              : view === 'rotting'
+                ? 'No rotting deals.'
+                : 'No deals in this pipeline yet.'}
+          </p>
         )}
         <div className="flex gap-4 overflow-x-auto pb-4">
           {(board?.stages || []).map((stage) => (

@@ -83,3 +83,9 @@ export const apiKeys = {
   create: (name, access) => api.post('/api-keys', { name, access }).then(r => r.data),
   revoke: (id) => api.delete(`/api-keys/${id}`),
 };
+
+export const outboundWebhooks = {
+  list: () => api.get('/webhooks/endpoints').then(r => r.data),
+  create: (url, events) => api.post('/webhooks/endpoints', { url, events }).then(r => r.data),
+  remove: (id) => api.delete(`/webhooks/endpoints/${id}`),
+};

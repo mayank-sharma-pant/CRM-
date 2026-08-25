@@ -753,6 +753,8 @@ def create_lead(
     log_activity(db, user=current_user, action='created', entity_type='lead',
                  entity_id=new_lead.id, entity_name=new_lead.name)
     db.commit()
+    from app.services.sales.outbound_webhooks import emit_event
+    emit_event(db, current_user.company_id, "lead.created", {"id": new_lead.id, "name": new_lead.name})
     
     return {
         "id": new_lead.id,

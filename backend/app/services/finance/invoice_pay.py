@@ -87,6 +87,12 @@ def mark_invoice_paid(db: Session, invoice: Invoice, *, method: str = "razorpay"
         },
         created_by=invoice.created_by_id,
     ))
+    from app.services.sales.outbound_webhooks import emit_event
+    emit_event(db, invoice.company_id, "invoice.paid", {
+        "id": invoice.id,
+        "invoice_number": invoice.invoice_number,
+        "total": str(invoice.total or 0),
+    })
     return invoice
 
 

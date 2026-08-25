@@ -20,7 +20,7 @@ Last updated: **25 Aug 2026**. Status is from code + this file’s progress logs
 | **3 — Zoho Standard match** | ✅ **DONE** (code) | 3.1–3.9 shipped. |
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
 | **5 — Paid add-ons** | ❌ **PENDING** | Enrichment, scoring, telephony deep, Tally, etc. — see checklist. |
-| **6 — Competitor parity (buyers still feel)** | 🚧 **IN PROGRESS** | **6.1–6.13 DONE (code).** Next: **6.14 saved filters**. |
+| **6 — Competitor parity (buyers still feel)** | 🚧 **IN PROGRESS** | **6.1–6.15 DONE (code).** Next: **6.16 invoice PDF / IRN**. |
 
 ### Phase 4 checklist
 
@@ -53,8 +53,8 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **6.11** Landing honesty (remove fake testimonials / unshipped claims) | Legal + trust before public launch | ✅ DONE |
 | **6.12** Brand drift fix (Perioxia vs repo names) | Buyers notice | ✅ DONE |
 | **6.13** Accounts vs Contacts (B2B company record) | HubSpot/Zoho/Salesforce shape | ✅ DONE |
-| **6.14** Saved filters / “my deals due today” | Every serious CRM nag | ❌ PENDING |
-| **6.15** Outbound webhooks (customer events) | API keys exist; competitors push events | ❌ PENDING |
+| **6.14** Saved filters / “my deals due today” | Every serious CRM nag | ✅ DONE |
+| **6.15** Outbound webhooks (customer events) | API keys exist; competitors push events | ✅ DONE |
 | **6.16** Invoice PDF polish + India e-invoice/IRN path | GST lines exist; PDF/e-invoice don’t | ❌ PENDING |
 | **6.17** Live chat / website widget → lead | HubSpot free wedge | ❌ PENDING |
 | **6.18** SAML / enterprise SSO | After Google/Microsoft OAuth | ❌ PENDING |
@@ -85,7 +85,7 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **6.12** Brand drift | ✅ DONE |
 | **6.20** Alembic two-heads | ❌ PENDING |
 
-**Resume next:** start **Phase 6.14** (saved filters / due views). Work 6.14 → 6.20 in order unless a design partner forces a jump.
+**Resume next:** start **Phase 6.16** (invoice PDF / IRN). Work 6.16 → 6.20 in order unless a design partner forces a jump.
 
 ---
 
@@ -260,7 +260,7 @@ Phases 3 and 4 were pulled ahead of the original “only after revenue / trial a
 - **Phase 3** — ✅ **DONE (code):** 3.1–3.9 logged below.
 - **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
 - **Phase 5** — ❌ **PENDING:** paid add-ons checklist on status board + section below.
-- **Phase 6** — 🚧 **IN PROGRESS:** **6.1–6.13 DONE (code).** Remaining 6.14–6.20.
+- **Phase 6** — 🚧 **IN PROGRESS:** **6.1–6.15 DONE (code).** Remaining 6.16–6.20.
 
 ### Phase 3.1 — TOTP 2FA — DONE
 
@@ -501,14 +501,21 @@ Optional `accounts` row (buyer company) with `clients.account_id`. Client remain
 - **Deploy:** `create_missing_tables.py` (`accounts` table + `clients.account_id`).
 - **Residuals:** free-text `clients.company` is not auto-migrated; no Account on Deal/Lead.
 
-### Phase 6.14 — Saved filters / due views — PENDING
+### Phase 6.14 — Saved filters / due views — DONE
 
-Named filters; “my deals due today”; rotting-deal nag. Pipedrive parity lite.
+`view=due_today|rotting` on deal list/board. Named per-user `saved_filters` (`/api/saved-filters`). Deals board pills + save/apply. Spec: [`superpowers/specs/2026-08-25-phase6-saved-filters-design.md`](./superpowers/specs/2026-08-25-phase6-saved-filters-design.md).
 
-### Phase 6.15 — Outbound webhooks — PENDING
+- **Verification:** `tests/sales/test_saved_filters.py`.
+- **Deploy:** `create_missing_tables.py` for `saved_filters`.
+- **Residuals:** deal-only; rotting is `updated_at` age, not last activity; no email nag.
 
-Company-configured HTTPS endpoints for lead.created, deal.stage_changed, invoice.paid, etc.
-Signed payloads; retry. Complements public API keys (3.5).
+### Phase 6.15 — Outbound webhooks — DONE
+
+Company HTTPS endpoints with HMAC (`X-Perioxia-Signature`). Events: `lead.created`, `deal.stage_changed`, `invoice.paid`. Failed posts retry via `POST /api/webhooks/retry` (max 3). Spec: [`superpowers/specs/2026-08-25-phase6-outbound-webhooks-design.md`](./superpowers/specs/2026-08-25-phase6-outbound-webhooks-design.md).
+
+- **Verification:** `tests/sales/test_outbound_webhooks.py`.
+- **Deploy:** `create_missing_tables.py` (`webhook_endpoints`, `webhook_deliveries`).
+- **Residuals:** no worker/queue (retry is on-demand); purchase “mark paid” path may not emit if it bypasses `invoice_pay`.
 
 ### Phase 6.16 — Invoice PDF + e-invoice/IRN — PENDING
 
@@ -567,5 +574,5 @@ Phase 0–4 ✅ (code)  →  Phase 6 (competitor parity) ❌  →  Phase 5 (add-
 - Phase 0: tenancy tests green. ✅ (RLS = **6.10** done in code).
 - Phase 1: payment + seat limit. ✅
 - Phase 2–4: sales loop + Standard + Professional extras. ✅ (code)
-- **Next:** **6.14 saved filters**.
+- **Next:** **6.16 invoice PDF / IRN**.
 - Phase 5: only when a paid add-on is sold or repeatedly requested — still listed to build.

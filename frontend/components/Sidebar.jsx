@@ -124,6 +124,7 @@ const ROLE_NAVIGATION = {
             children: [
                 { name: 'Email', href: '/settings/email' },
                 { name: 'Calendar', href: '/settings/calendar' },
+                { name: 'Webhooks', href: '/settings/webhooks' },
                 { name: 'Click-to-call', href: '/settings/telephony' },
                 { name: 'Territories', href: '/settings/territories' },
                 { name: 'Sandbox', href: '/settings/sandbox' },
@@ -153,6 +154,7 @@ const ROLE_NAVIGATION = {
             children: [
                 { name: 'Email', href: '/settings/email' },
                 { name: 'Calendar', href: '/settings/calendar' },
+                { name: 'Webhooks', href: '/settings/webhooks' },
                 { name: 'Click-to-call', href: '/settings/telephony' },
                 { name: 'Territories', href: '/settings/territories' },
                 { name: 'Sandbox', href: '/settings/sandbox' },

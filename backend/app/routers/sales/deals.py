@@ -21,6 +21,7 @@ from app.models.sales.client import Client
 from app.models.sales.pipeline import Pipeline, PipelineStage
 from app.services.sales.pipeline_seed import attach_default_stages, ensure_default_pipeline
 from app.services.sales.custom_fields import get_values_map, set_values
+from app.services.sales.deal_views import apply_deal_view
 from app.services.sales.blueprint import (
     ALLOWED_REQUIRED_FIELDS,
     BlueprintError,
@@ -210,6 +211,7 @@ def list_deals(db: Session = Depends(get_db), current_user: User = Depends(get_c
                active_team_id: Optional[int] = Depends(get_active_team_id),
                pipeline_id: Optional[int] = Query(None), stage_id: Optional[int] = Query(None),
                assigned_to_id: Optional[int] = Query(None),
+               view: Optional[str] = Query(None),
                skip: int = 0, limit: int = 100):
     query = apply_company_scope(db.query(Deal), Deal, current_user)
     query = _apply_role_scope(db, query, current_user, active_team_id)
@@ -219,6 +221,7 @@ def list_deals(db: Session = Depends(get_db), current_user: User = Depends(get_c
         query = query.filter(Deal.stage_id == stage_id)
     if assigned_to_id is not None:
         query = query.filter(Deal.assigned_to_id == assigned_to_id)
+    query = apply_deal_view(query, view, current_user.id)
 
     total = query.count()
     deals = query.order_by(Deal.created_at.desc()).offset(skip).limit(limit).all()
@@ -339,13 +342,22 @@ def move_deal_stage(deal_id: int, payload: DealStageUpdate, db: Session = Depend
                  before=json.dumps({"stage_id": before_stage}), after=json.dumps({"stage_id": stage.id}))
     db.commit()
     db.refresh(deal)
+    from app.services.sales.outbound_webhooks import emit_event
+    emit_event(db, current_user.company_id, "deal.stage_changed", {
+        "id": deal.id,
+        "title": deal.title,
+        "stage_id": stage.id,
+        "stage_name": stage.name,
+        "previous_stage_id": before_stage,
+    })
     return _serialize_deal(deal, stage)
 
 
 @router.get("/board")
 def deal_board(db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
                active_team_id: Optional[int] = Depends(get_active_team_id),
-               pipeline_id: Optional[int] = Query(None)):
+               pipeline_id: Optional[int] = Query(None),
+               view: Optional[str] = Query(None)):
     if pipeline_id is None:
         pipeline = ensure_default_pipeline(db, current_user.company_id)
         pipeline_id = pipeline.id
@@ -360,6 +372,7 @@ def deal_board(db: Session = Depends(get_db), current_user: User = Depends(get_c
 
     deals_q = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.pipeline_id == pipeline_id)
     deals_q = _apply_role_scope(db, deals_q, current_user, active_team_id)
+    deals_q = apply_deal_view(deals_q, view, current_user.id)
     deals = deals_q.all()
 
     by_stage = {s.id: [] for s in stages}

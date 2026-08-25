@@ -17,6 +17,9 @@ def test_login_tables_are_excluded():
     assert "leads" in names
     assert "invoices" in names
     assert "accounts" in names
+    assert "saved_filters" in names
+    assert "webhook_endpoints" in names
+    assert "webhook_deliveries" in names
     assert "users" not in names
     assert "companies" not in names
 

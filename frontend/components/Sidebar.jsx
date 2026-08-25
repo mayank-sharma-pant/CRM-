@@ -108,6 +108,15 @@ const ROLE_NAVIGATION = {
         { name: 'Saved reports', href: '/reports', icon: 'BarChart3' },
         { name: 'Forecast', href: '/reports/forecast', icon: 'TrendingUp' },
         { name: 'AI Assistant', href: '/admin/assistant', icon: 'Sparkles' },
+        { category: 'SETTINGS' },
+        {
+            name: 'Settings',
+            href: '/settings',
+            icon: 'Settings',
+            children: [
+                { name: 'Territories', href: '/settings/territories' },
+            ],
+        },
     ],
     md: [
         { name: 'Dashboard', href: '/md/dashboard', icon: 'LayoutDashboard' },
@@ -122,6 +131,15 @@ const ROLE_NAVIGATION = {
         { name: 'Saved reports', href: '/reports', icon: 'BarChart3' },
         { name: 'Forecast', href: '/reports/forecast', icon: 'TrendingUp' },
         { name: 'AI Assistant', href: '/md/assistant', icon: 'Sparkles' },
+        { category: 'SETTINGS' },
+        {
+            name: 'Settings',
+            href: '/settings',
+            icon: 'Settings',
+            children: [
+                { name: 'Territories', href: '/settings/territories' },
+            ],
+        },
     ],
     purchase: [
         { name: 'Dashboard', href: '/purchase/dashboard', icon: 'LayoutDashboard' },

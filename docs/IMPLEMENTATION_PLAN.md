@@ -283,6 +283,14 @@ Per-user monthly quotas compared to closed-won and weighted open pipeline. Spec:
 - **Deploy:** `create_missing_tables.py` / `create_all` for `sales_quotas` — **run on deploy.**
 - **Residuals:** UTC calendar months only (no company timezone). Unassigned deals (`assigned_to_id IS NULL`) excluded from per-user metrics. No forecast categories, team quotas, or quarterly/annual periods. Deals board UI unchanged (pipeline-level forecast only).
 
+### Phase 4.5 — Territory assignment — DONE (code)
+
+Route new unassigned leads to a team via `service_type` / `source` rules, then round-robin sales on that team; workflow RR remains fallback when no territory matches. Spec: [`superpowers/specs/2026-08-25-phase4-territory-assignment-design.md`](./superpowers/specs/2026-08-25-phase4-territory-assignment-design.md); plan: [`superpowers/plans/2026-08-25-phase4-territory-assignment.md`](./superpowers/plans/2026-08-25-phase4-territory-assignment.md). UI: `/settings/territories` (sidebar Settings → Territories for admin/md).
+
+- **Verification:** `test_territory_schema.py`, `test_territory_service.py`, `test_territory_api.py`, `test_territory_cross_tenant.py`, `test_workflows.py`.
+- **Deploy:** `create_missing_tables.py` / `create_all` for `territories` and `territory_rules` — **run on deploy.**
+- **Residuals:** no geo/pincode; OR rules only (not AND); no reassign on lead update; manager cannot configure territories in v0.
+
 ---
 
 ## Cross-cutting cleanups (do alongside, not as a phase)

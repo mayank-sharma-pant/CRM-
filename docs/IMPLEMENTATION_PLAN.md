@@ -2,9 +2,47 @@
 
 > Companion to [PRODUCT_ROADMAP.md](./PRODUCT_ROADMAP.md). The roadmap decides *what* and *why*.
 > This file decides *how*, *in what order*, and *how we know a phase is done*.
-> Grounded in the code as of 24 Aug 2026 (verified, not assumed).
+> Grounded in the code as of 25 Aug 2026 (verified, not assumed).
 
 **Ground rule (from roadmap §8):** each phase ships to production before the next starts. No phase N+1 while N is unverified.
+
+---
+
+## Status board (resume here)
+
+Last updated: **25 Aug 2026**. Status is from code + this file’s progress logs, not from memory.
+
+| Phase | Status | Notes |
+|-------|--------|--------|
+| **0 — Trust** | ✅ **DONE** (residual) | 0.2–0.5 done. **0.1 Postgres RLS still PENDING** (defense-in-depth; not a known leak). |
+| **1 — Charge money** | ✅ **DONE** | Razorpay adapter, trial signup, seat/storage limits. |
+| **2 — Sales loop** | ✅ **DONE** (code) | Deals, web form, custom fields, quotes→invoice, workflows, cadence, email, tags/recycle/merge, reminders — code present. Design-partner 30-day live gate is product, not code. |
+| **3 — Zoho Standard match** | ✅ **DONE** (code) | 3.1–3.9 all shipped in code. |
+| **4 — Professional extras** | 🟡 **IN PROGRESS** | **4.1–4.5 DONE.** **4.6–4.7 PENDING** (next). |
+| **5 — Paid add-ons** | ⏸ **NOT STARTED** | Pull only on real demand. |
+
+### Phase 4 checklist
+
+| Item | Status |
+|------|--------|
+| **4.1** Products price book + tax | ✅ DONE |
+| **4.2** Blueprint (required stages) | ✅ DONE |
+| **4.3** Customer portal (view invoice/quote) | ✅ DONE |
+| **4.4** Forecasting (quota vs pipeline) | ✅ DONE |
+| **4.5** Territory assignment | ✅ DONE |
+| **4.6** Sandbox | ❌ **PENDING — next** |
+| **4.7** SSO (Google/Microsoft first; SAML later) | ❌ **PENDING** |
+
+### Also still open (not Phase 4)
+
+| Item | Status |
+|------|--------|
+| **0.1** Tenant isolation at DB (Postgres RLS) | ❌ PENDING |
+| Landing: remove fabricated testimonials / unshipped claims | ❌ PENDING (cross-cutting) |
+| Brand drift (Perioxia vs repo names) | ❌ PENDING (cross-cutting) |
+| Alembic two-heads cleanup | ❌ PENDING (ops) |
+
+**Tomorrow resume:** start **Phase 4.6 Sandbox** (spec/plan if none; then implement). Then **4.7 SSO**. Optionally pull **0.1 RLS** when trust/selling demos need “isolation you can prove at the DB.”
 
 ---
 
@@ -21,6 +59,8 @@ Everything below assumes Razorpay; the structure is provider-agnostic (an adapte
 ---
 
 ## Phase 0 — Trust (2–4 weeks)
+
+**Status: ✅ DONE** for exit gate (0.2–0.5). **0.1 RLS still PENDING** — see status board.
 
 **Goal:** cross-tenant leaks and "fake SaaS" become impossible, proven by an automated test.
 
@@ -148,6 +188,8 @@ Roadmap §6.2: company signup is currently a ticket (`status=PENDING` until plat
 
 ## Phase 2 — One sales loop (4–8 weeks)
 
+**Status: ✅ DONE (code).** Deal, public web form, custom fields, quote→invoice, workflows, cadence, CRM email, tags/recycle/merge, and reminders are in the repo. UI unification is incremental (canonical sales surfaces exist; residual role-page drift may remain). The roadmap “30-day design partner” gate is live usage, not an open coding checklist.
+
 **Goal (roadmap §11):** a design-partner company runs web form → cadence → quote → paid invoice for 30 days. No HR/stock work in this phase.
 
 Build in dependency order — each is demoable alone:
@@ -168,13 +210,13 @@ Build in dependency order — each is demoable alone:
 
 ---
 
-## Phases 3–5 — deferred (pull only on real pull)
+## Phases 3–5 — pulled forward / remaining
 
-Per roadmap §8, build these **only** when a trial user asks twice or a lost deal cites the gap. Not scheduled here on purpose — scheduling them now is the "clone Zoho" trap the roadmap warns against.
+Phases 3 and 4 were pulled ahead of the original “only after revenue / trial asks twice” gate by explicit decisions. Status is on the **Status board** at the top of this file.
 
-- **Phase 3** (match Zoho Standard where compared): meetings + call log, multiple pipelines, saved reports, public API keys, TOTP 2FA, import mapper, GST invoice, WhatsApp templates, minimal Flutter (lead/follow-up/invoice only).
-- **Phase 4** (Professional extras, post-revenue): blueprint, products price book + tax, customer portal, forecasting, territory assignment, sandbox, SSO.
-- **Phase 5** (paid add-ons): enrichment, predictive AI, telephony, Tally/QuickBooks sync, custom modules, marketplace.
+- **Phase 3** — ✅ **DONE (code):** 3.1–3.9 logged below.
+- **Phase 4** — 🟡 **IN PROGRESS:** 4.1–4.5 ✅; **4.6 Sandbox** and **4.7 SSO** still ❌ PENDING.
+- **Phase 5** (paid add-ons): enrichment, predictive AI, telephony, Tally/QuickBooks sync, custom modules, marketplace — still pull-only.
 
 ### Phase 3.1 — TOTP 2FA — DONE
 
@@ -291,6 +333,16 @@ Route new unassigned leads to a team via `service_type` / `source` rules, then r
 - **Deploy:** `create_missing_tables.py` / `create_all` for `territories` and `territory_rules` — **run on deploy.**
 - **Residuals:** no geo/pincode; OR rules only (not AND); no reassign on lead update; manager cannot configure territories in v0; explicit `team_id` on lead create is not overridden by territory.
 
+### Phase 4.6 — Sandbox — PENDING
+
+Not started. Roadmap §8 Phase 4: a non-production company copy (or flagged sandbox tenant) for admin experiments without touching live CRM data. No spec/plan yet — write those before coding.
+
+**Resume here next.**
+
+### Phase 4.7 — SSO — PENDING
+
+Not started. Roadmap: Google/Microsoft login first; SAML later. Depends on OAuth app credentials in env. No spec/plan yet.
+
 ---
 
 ## Cross-cutting cleanups (do alongside, not as a phase)
@@ -306,12 +358,12 @@ From roadmap §6, these are cheap and reduce trust risk — fold into whichever 
 ## Sequencing summary
 
 ```
-Decide Razorpay/Stripe  ──►  Phase 0 (trust)  ──►  Phase 1 (money)  ──►  Phase 2 (sales loop)  ──►  pull-based 3–5
-        (now)                 2–4 wks              2–3 wks               4–8 wks
+Phase 0 ✅  →  Phase 1 ✅  →  Phase 2 ✅ (code)  →  Phase 3 ✅ (code)  →  Phase 4 (4.1–4.5 ✅; 4.6–4.7 ❌)  →  Phase 5 ⏸
 ```
 
 **Verification checkpoints (roadmap §11):**
-- Phase 0: tenancy tests green on all resources. ✅ **DONE** (139 tests).
-- Phase 1: first test-mode payment + a failed 11th seat. ✅ **DONE** (162 tests; signup→trial→paid webhook→402 at seat limit all covered).
-- Phase 2: one design partner, web form → paid invoice, 30 days. ← **NEXT**
-- No stock/HR/AI feature work until that loop exists.
+- Phase 0: tenancy tests green on all resources. ✅ **DONE** (RLS 0.1 still open).
+- Phase 1: first test-mode payment + a failed 11th seat. ✅ **DONE**.
+- Phase 2: code path for web form → quote → invoice exists. ✅ **DONE (code)**; live 30-day design-partner gate is product validation, not a coding task.
+- Phase 3–4.5: ✅ **DONE (code)** — see logs above.
+- **Next coding:** Phase **4.6 Sandbox**, then **4.7 SSO**.

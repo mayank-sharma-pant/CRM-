@@ -19,7 +19,7 @@ Last updated: **26 Aug 2026**. Status is from code + this file’s progress logs
 | **2 — Sales loop** | ✅ **DONE** (code) | Deals, web form, custom fields, quotes→invoice, workflows, cadence, email, tags/recycle/merge, reminders. |
 | **3 — Zoho Standard match** | ✅ **DONE** (code) | 3.1–3.9 shipped. |
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
-| **5 — Paid add-ons** | ❌ **IN PROGRESS** | **5.1–5.5 DONE.** 5.6–5.10 remain. |
+| **5 — Paid add-ons** | ❌ **IN PROGRESS** | **5.1–5.7 DONE.** 5.8–5.10 remain. |
 | **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** Phase 5 add-ons remain. |
 
 ### Phase 4 checklist
@@ -70,8 +70,8 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **5.3** Predictive AI (convert/churn) | ✅ DONE |
 | **5.4** Tally / QuickBooks sync | ✅ DONE |
 | **5.5** Custom modules (beyond custom fields) | ✅ DONE |
-| **5.6** Marketplace / apps | ❌ PENDING (likely never v1) |
-| **5.7** Full email marketing / campaigns | ❌ PENDING (integrate, don’t rebuild) |
+| **5.6** Marketplace / apps | ✅ DONE (first-party catalog) |
+| **5.7** Full email marketing / campaigns | ✅ DONE (integrate, don’t clone) |
 | **5.8** Helpdesk / cases / web-to-case | ❌ PENDING (thin or skip) |
 | **5.9** Deep sandbox data clone | ❌ PENDING |
 | **5.10** Mass email (capped) | ❌ PENDING |
@@ -85,7 +85,7 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **6.12** Brand drift | ✅ DONE |
 | **6.20** Alembic two-heads | ✅ DONE |
 
-**Resume next:** **Phase 5.6** Marketplace / apps (likely never v1).
+**Resume next:** **Phase 5.8** Helpdesk / cases / web-to-case (thin or skip).
 
 ---
 
@@ -640,8 +640,54 @@ Company-defined objects (not extra fields on leads). Spec:
 - **Residuals:** no lookups to leads, no per-module ACL, no import, no workflows
   on custom records, no layouts.
 
-### Phase 5.6 — Marketplace — PENDING (likely never as v1)
-### Phase 5.7 — Email marketing / campaigns — PENDING (integrate, don’t clone)
+### Phase 5.6 — Marketplace — DONE (code)
+
+First-party app catalog + per-company install, not a third-party store
+(roadmap §7). Spec:
+[`superpowers/specs/2026-08-26-phase5-marketplace-design.md`](./superpowers/specs/2026-08-26-phase5-marketplace-design.md).
+
+- **Catalog:** nine locked slugs (`scoring`, `predictions`, `accounting`,
+  `custom_modules`, `email`, `calendar`, `whatsapp`, `telephony`,
+  `webhooks`) in `app/services/marketplace/catalog.py`. Unknown slug → 400.
+- **Model:** `marketplace_installs` unique `(company_id, app_slug)`.
+  Install is idempotent; uninstall keeps the row as `uninstalled`.
+- **API:** `/api/marketplace/apps` (any company user) +
+  `POST …/apps/{slug}/install` and `DELETE …/apps/{slug}` (admin/MD) +
+  `GET /installs`. Company B does not see A’s installs (404 on uninstall
+  of an app B never installed).
+- **UI:** `/settings/marketplace`; link from Settings.
+- **Verification:** `tests/sales/test_marketplace_{schema,catalog,service,api,cross_tenant}.py`,
+  `tests/ops/test_alembic_heads.py` — **14 new tests green** plus Alembic
+  head `023_marketplace`.
+- **Migration:** head **`023_marketplace`** off `022_custom_modules`.
+  **Run `alembic upgrade head` and/or `python create_missing_tables.py` on deploy.**
+- **Residuals:** no third-party developers, OAuth app store, billed add-on
+  SKUs, or sandboxed code.
+
+### Phase 5.7 — Email campaigns — DONE (code)
+
+Integrate with existing CRM send (`deliver_and_log`), do not clone
+Mailchimp/Zoho Campaigns (roadmap §7). Spec:
+[`superpowers/specs/2026-08-26-phase5-campaigns-design.md`](./superpowers/specs/2026-08-26-phase5-campaigns-design.md).
+
+- **Model:** `email_campaigns` (draft|sent, audience `leads|clients`)
+  and `email_campaign_recipients`. No new columns on `email_logs`.
+- **Send:** each eligible address goes through SMTP/mailbox. Skip
+  empty emails; dedupe by address; cap **50**. Send-once. Zero
+  eligible → 400.
+- **API:** `/api/campaigns` GET any company user; POST/send/DELETE
+  admin/MD. Foreign id → 404.
+- **UI:** `/campaigns`; Settings card; sidebar link.
+- **Verification:** `tests/sales/test_campaign_schema.py`,
+  `test_campaigns_{service,api,cross_tenant}.py`,
+  `tests/ops/test_alembic_heads.py` — **13 new tests green** plus Alembic
+  head `024_campaigns`.
+- **Migration:** head **`024_campaigns`** off `023_marketplace`.
+  **Run `alembic upgrade head` and/or `python create_missing_tables.py` on deploy.**
+- **Residuals:** no journeys, open/click tracking, designer, scheduled
+  send, live ESP. **5.10** still owns a later capped blast without a
+  campaign object.
+
 ### Phase 5.8 — Helpdesk / cases — PENDING (thin or skip)
 ### Phase 5.9 — Deep sandbox data clone — PENDING
 ### Phase 5.10 — Mass email (capped) — PENDING

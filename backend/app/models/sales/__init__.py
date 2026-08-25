@@ -15,6 +15,8 @@ from .product import Product
 from .workflow_rule import WorkflowRule
 from .custom_field import CustomFieldDef, CustomFieldValue
 from .custom_module import CustomModule, CustomModuleField, CustomModuleRecord
+from .marketplace import MarketplaceInstall
+from .campaign import EmailCampaign, EmailCampaignRecipient
 from .email_log import EmailLog
 from .mailbox import MailboxConnection
 from .calendar import CalendarConnection

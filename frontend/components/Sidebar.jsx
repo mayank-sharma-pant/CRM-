@@ -258,6 +258,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             });
         }
 
+        navData.push({ name: 'Campaigns', href: '/campaigns', icon: 'Mail' });
+
         // Universal links for all roles
         navData.push({ category: 'SUPPORT' });
         navData.push({ name: 'Report Bug', href: '/report-bug', icon: 'Bug' });

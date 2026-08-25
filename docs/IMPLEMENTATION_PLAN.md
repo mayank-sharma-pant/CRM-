@@ -264,8 +264,16 @@ Staff-minted magic links; hash at rest; public view-only invoice/quote pages.
 Spec: [`superpowers/specs/2026-08-25-phase4-customer-portal-design.md`](./superpowers/specs/2026-08-25-phase4-customer-portal-design.md); plan: [`superpowers/plans/2026-08-25-phase4-customer-portal.md`](./superpowers/plans/2026-08-25-phase4-customer-portal.md).
 
 - **Verification:** `test_portal_schema.py`, `test_share_links_service.py`, `test_portal_api.py`, `test_portal_cross_tenant.py`.
-- **Deploy:** `create_missing_tables.py` for `share_token_hash` / `share_created_at` on `invoices` and `quotes`.
-- **Residuals:** no expiry, no email of link, no accept/pay; ALTER path may not add UNIQUE (model unique on fresh DBs); rate limit via `portal_limiter` if wired.
+- **Deploy:** `create_missing_tables.py` for `share_token_hash` / `share_created_at` on `invoices` and `quotes`. `_MISSING_COLUMNS` / `add_missing_columns` issues a plain `ALTER TABLE ADD COLUMN` only — it does **not** add a UNIQUE constraint or index on `share_token_hash`. Fresh DBs created via `create_all` get `unique=True, index=True` from the model; **existing prod DBs must run manual DDL** for portal GET lookup performance:
+
+  ```sql
+  CREATE UNIQUE INDEX IF NOT EXISTS ix_invoices_share_token_hash ON invoices (share_token_hash);
+  CREATE UNIQUE INDEX IF NOT EXISTS ix_quotes_share_token_hash ON quotes (share_token_hash);
+  ```
+
+  (Multiple NULLs are fine with UNIQUE INDEX in Postgres/SQLite.)
+
+- **Residuals:** no expiry, no email of link, no accept/pay. Rate limiting: `portal_limiter` is wired on public portal routes at **60 requests / 60 seconds per IP**.
 
 ---
 

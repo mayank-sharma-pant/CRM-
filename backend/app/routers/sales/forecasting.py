@@ -80,8 +80,10 @@ def _can_write_quota_for(
         return True
     if role != "manager":
         return False
+    if target_user_id == current_user.id:
+        return True
     if active_team_id is None:
-        return target_user_id == current_user.id
+        return False
     membership = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
         TeamMembership.team_id == active_team_id,
         TeamMembership.user_id == target_user_id,

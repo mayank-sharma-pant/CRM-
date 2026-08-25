@@ -105,6 +105,27 @@ def test_manager_can_set_quota_for_team_member(client, db):
     assert resp.status_code == 200, resp.text
 
 
+def test_manager_can_set_own_quota_with_active_team_without_membership(client, db):
+    company = create_company(db, name="FC7", company_code="FC7")
+    team = Team(company_id=company.id, name="T2")
+    db.add(team)
+    db.commit()
+    db.refresh(team)
+    manager = create_active_user(
+        db, email="mgr@fc7.com", role="manager", company_id=company.id, team_id=team.id,
+    )
+    sales = create_active_user(db, email="sales@fc7.com", role="sales", company_id=company.id)
+    db.add(TeamMembership(company_id=company.id, team_id=team.id, user_id=sales.id))
+    db.commit()
+    login_user(client, manager.email)
+    client.headers["X-Team-Id"] = str(team.id)
+    resp = client.put("/api/forecasting/quotas", json={
+        "user_id": manager.id, "year": 2026, "month": 8, "amount": "1200.00",
+    })
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["amount"] == "1200.00"
+
+
 def test_list_and_delete_quota(client, db):
     company = create_company(db, name="FC6", company_code="FC6")
     admin = create_active_user(db, email="admin@fc6.com", role="admin", company_id=company.id)

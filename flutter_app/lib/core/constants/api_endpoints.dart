@@ -13,6 +13,11 @@ class ApiEndpoints {
   static const String forgotPassword = '/api/auth/forgot-password';
   static const String resetPassword = '/api/auth/reset-password';
   static String acceptInvite(String token) => '/api/auth/accept-invite/$token';
+  static const String twoFactorSetup = '/api/auth/2fa/setup';
+  static const String twoFactorConfirm = '/api/auth/2fa/confirm';
+  static const String twoFactorStatus = '/api/auth/2fa/status';
+  static const String twoFactorDisable = '/api/auth/2fa/disable';
+  static const String twoFactorVerify = '/api/auth/2fa/verify';
 
   // Leads
   static const String leads = '/api/leads';

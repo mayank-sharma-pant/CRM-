@@ -167,6 +167,48 @@ export default function SettingsPage() {
 
           <div className="p-6">
             <Link
+              href="/settings/email"
+              className="flex items-center justify-between p-4 rounded-lg border border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all group mb-3"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                  <Mail size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    Email mailbox
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Connect Gmail or Outlook to send and log mail on records
+                  </p>
+                </div>
+              </div>
+              <div className="text-slate-400 group-hover:translate-x-1 transition-transform">
+                →
+              </div>
+            </Link>
+            <Link
+              href="/settings/calendar"
+              className="flex items-center justify-between p-4 rounded-lg border border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all group mb-3"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                  <Calendar size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    Calendar
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Push meetings to Google Calendar or Outlook
+                  </p>
+                </div>
+              </div>
+              <div className="text-slate-400 group-hover:translate-x-1 transition-transform">
+                →
+              </div>
+            </Link>
+            <Link
               href="/settings/leave"
               className="flex items-center justify-between p-4 rounded-lg border border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all group"
             >

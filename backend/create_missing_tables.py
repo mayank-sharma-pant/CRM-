@@ -58,6 +58,30 @@ _MISSING_COLUMNS = [
     ("quotes", "share_created_at", "TIMESTAMP"),
     ("companies", "is_sandbox", "BOOLEAN DEFAULT FALSE"),
     ("companies", "sandbox_parent_id", "INTEGER"),
+    ("email_logs", "deal_id", "INTEGER"),
+    ("email_logs", "direction", "VARCHAR(10) DEFAULT 'outbound'"),
+    ("email_logs", "provider", "VARCHAR(20) DEFAULT 'smtp'"),
+    ("email_logs", "provider_message_id", "VARCHAR(255)"),
+    ("email_logs", "from_email", "VARCHAR(255)"),
+    ("meetings", "calendar_event_id", "VARCHAR(255)"),
+    ("meetings", "calendar_provider", "VARCHAR(32)"),
+    ("company_settings", "exotel_sid", "VARCHAR(64)"),
+    ("company_settings", "exotel_api_key", "VARCHAR(64)"),
+    ("company_settings", "exotel_api_token_encrypted", "TEXT"),
+    ("company_settings", "exotel_subdomain", "VARCHAR(255)"),
+    ("company_settings", "exotel_caller_id", "VARCHAR(20)"),
+    ("call_logs", "provider", "VARCHAR(20)"),
+    ("call_logs", "provider_call_id", "VARCHAR(64)"),
+    ("call_logs", "from_phone", "VARCHAR(20)"),
+    ("call_logs", "to_phone", "VARCHAR(20)"),
+    ("whatsapp_messages", "from_phone", "VARCHAR(20)"),
+    ("whatsapp_messages", "direction", "VARCHAR(10) DEFAULT 'outbound'"),
+    ("whatsapp_messages", "body", "TEXT"),
+    ("whatsapp_messages", "provider_message_id", "VARCHAR(255)"),
+    ("whatsapp_messages", "session_expires_at", "TIMESTAMP"),
+    ("company_settings", "whatsapp_cadence_template_id", "INTEGER"),
+    ("company_settings", "onboarding_dismissed", "INTEGER DEFAULT 0"),
+    ("clients", "account_id", "INTEGER"),
 ]
 
 
@@ -76,8 +100,13 @@ def add_missing_columns(engine):
             print(f"Added missing column: {table}.{column}")
 
 
+from app.tenancy import enable_rls
+
 Base.metadata.create_all(bind=engine)
 add_missing_columns(engine)
+rls_n = enable_rls(engine)
+if rls_n:
+    print(f"Row-level security policies applied on {rls_n} tables.")
 with SessionLocal() as db:
     seed_plans(db)
     backfill_api_quotas(db)

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Calendar, Loader2, Phone } from 'lucide-react';
 import api from '../../services/api';
 
@@ -16,7 +17,7 @@ function localInputToIso(value) {
   return d.toISOString();
 }
 
-export default function MeetingCallPanel({ parentType, parentId, onChanged }) {
+export default function MeetingCallPanel({ parentType, parentId, onChanged, hideHistory }) {
   const parentKey = `${parentType}_id`;
   const [meetings, setMeetings] = useState([]);
   const [calls, setCalls] = useState([]);
@@ -32,9 +33,17 @@ export default function MeetingCallPanel({ parentType, parentId, onChanged }) {
   const [duration, setDuration] = useState('');
   const [outcome, setOutcome] = useState('');
   const [callNotes, setCallNotes] = useState('');
+  const [calendar, setCalendar] = useState(null);
+  const [telephony, setTelephony] = useState(null);
 
   const load = async () => {
     if (!parentId) return;
+    if (hideHistory) {
+      setLoading(false);
+      setMeetings([]);
+      setCalls([]);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -55,7 +64,9 @@ export default function MeetingCallPanel({ parentType, parentId, onChanged }) {
 
   useEffect(() => {
     load();
-  }, [parentType, parentId]);
+    api.get('/calendar').then((res) => setCalendar(res.data)).catch(() => setCalendar(null));
+    api.get('/telephony/connection').then((res) => setTelephony(res.data)).catch(() => setTelephony(null));
+  }, [parentType, parentId, hideHistory]);
 
   const refresh = async () => {
     await load();
@@ -85,6 +96,20 @@ export default function MeetingCallPanel({ parentType, parentId, onChanged }) {
     } catch (err) {
       const detail = err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Could not schedule meeting');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClickToCall = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await api.post('/telephony/click-to-call', { [parentKey]: Number(parentId) });
+      await refresh();
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : 'Could not place call');
     } finally {
       setSaving(false);
     }
@@ -124,7 +149,7 @@ export default function MeetingCallPanel({ parentType, parentId, onChanged }) {
     <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 space-y-5">
       <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Meetings & calls</h2>
 
-      {loading && (
+      {!hideHistory && loading && (
         <p className="text-xs text-slate-400 flex items-center gap-2">
           <Loader2 size={12} className="animate-spin" /> Loading activity…
         </p>
@@ -134,6 +159,17 @@ export default function MeetingCallPanel({ parentType, parentId, onChanged }) {
 
       <form onSubmit={handleCall} className="space-y-2">
         <p className="text-[10px] font-bold text-slate-400 uppercase">Log call</p>
+        {telephony?.configured && (
+          <button
+            type="button"
+            onClick={handleClickToCall}
+            disabled={saving || !parentId}
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg disabled:opacity-50"
+          >
+            <Phone size={12} />
+            {saving ? 'Calling…' : 'Click to call'}
+          </button>
+        )}
         <label className="block">
           <span className="sr-only">Direction</span>
           <select
@@ -189,6 +225,16 @@ export default function MeetingCallPanel({ parentType, parentId, onChanged }) {
 
       <form onSubmit={handleMeeting} className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-700/50">
         <p className="text-[10px] font-bold text-slate-400 uppercase">Schedule meeting</p>
+        {calendar && !calendar.connected && (
+          <p className="text-xs text-slate-500">
+            Saves in CRM only.{' '}
+            <Link href="/settings/calendar" className="underline">Connect Google or Outlook</Link>
+            {' '}to push site visits to your calendar.
+          </p>
+        )}
+        {calendar?.connected && (
+          <p className="text-xs text-slate-500">Also creating an event on {calendar.email}</p>
+        )}
         <label className="block">
           <span className="sr-only">Subject</span>
           <input
@@ -232,11 +278,11 @@ export default function MeetingCallPanel({ parentType, parentId, onChanged }) {
         </button>
       </form>
 
-      {!loading && meetings.length === 0 && calls.length === 0 && !error && (
+      {!hideHistory && !loading && meetings.length === 0 && calls.length === 0 && !error && (
         <p className="text-xs text-slate-400 text-center py-2 italic">No meetings or calls yet.</p>
       )}
 
-      {!loading && (meetings.length > 0 || calls.length > 0) && (
+      {!hideHistory && !loading && (meetings.length > 0 || calls.length > 0) && (
         <ul className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-700/50">
           {calls.map((c) => (
             <li key={`call-${c.id}`} className="text-xs text-slate-600 dark:text-slate-300">
@@ -249,6 +295,7 @@ export default function MeetingCallPanel({ parentType, parentId, onChanged }) {
             <li key={`meeting-${m.id}`} className="text-xs text-slate-600 dark:text-slate-300">
               <span className="font-medium">{m.subject}</span>
               {` · ${m.status}`}
+              {m.calendar_synced ? ' · on calendar' : ''}
             </li>
           ))}
         </ul>

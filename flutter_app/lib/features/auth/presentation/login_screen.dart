@@ -83,6 +83,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           context.go(homePathForUser(u));
         }
       }
+      if (next.status == AuthStatus.mfaChallenge) {
+        context.go('/login/2fa');
+      }
+      if (next.status == AuthStatus.mfaSetup) {
+        context.go('/login/2fa-setup');
+      }
     });
 
     return Scaffold(
@@ -331,7 +337,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 32),
                     Text(
-                      '© 2024 Perioxia CRM. Secure Access.',
+                      '© 2026 Perioxia CRM.',
                       style: TextStyle(
                           fontSize: 11, color: AppColors.textMuted),
                     ),

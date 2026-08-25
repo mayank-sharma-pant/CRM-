@@ -2,6 +2,9 @@ import hashlib
 import secrets
 from datetime import datetime, timezone
 
+from app.models.core.enums import QuoteStatus
+from app.services.finance.invoice_pay import invoice_is_payable
+
 
 def hash_share_token(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -75,14 +78,17 @@ def portal_invoice_dto(invoice, *, client, company) -> dict:
         "notes": invoice.notes,
         "company_name": company.name if company else None,
         "items": _items(invoice.items),
+        "payable": invoice_is_payable(invoice),
+        "payment_url": getattr(invoice, "payment_url", None) if invoice_is_payable(invoice) else None,
     }
 
 
 def portal_quote_dto(quote, *, client, company) -> dict:
+    status = _status(quote.status)
     return {
         "quote_number": quote.quote_number,
         "title": quote.title,
-        "status": _status(quote.status),
+        "status": status,
         "client_name": client.name if client else None,
         "seller_gstin": quote.seller_gstin,
         "buyer_gstin": quote.buyer_gstin,
@@ -97,4 +103,7 @@ def portal_quote_dto(quote, *, client, company) -> dict:
         "notes": quote.notes,
         "company_name": company.name if company else None,
         "items": _items(quote.items),
+        "can_accept": status == QuoteStatus.DRAFT.value,
+        "can_reject": status == QuoteStatus.DRAFT.value,
+        "invoice_id": getattr(quote, "invoice_id", None),
     }

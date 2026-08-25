@@ -74,7 +74,7 @@ Status: **Have** (usable) · **Thin** (exists, not competitive) · **Missing** �
 
 | Zoho | Us | Verdict |
 |------|----|---------|
-| Contacts | Clients (flat; no Accounts vs Contacts split) | Thin — add Account/company record later if B2B |
+| Contacts | Clients + optional Account (`/api/accounts`) | Have (thin B2B) — **6.13** |
 | Leads | Leads + statuses | Have — add custom stages per company |
 | Deals / pipeline | Lead statuses used as pipeline | Thin — add **Deal** with value, close date, probability, multiple pipelines |
 | Follow-up reminders | Follow-ups + tasks | Have — add email/WhatsApp/push reminders |
@@ -251,7 +251,7 @@ An assistant that can create teams and ledger entries is the opposite of HubSpot
 - **JSX duplication** — same charts/KPI cards copied per role; drift is guaranteed (already: “deals” vs leads).
 - **Empty product after login** — no sample pipeline, no “import CSV” wizard, no “connect Gmail.” Pipedrive wins on time-to-first-deal.
 - **Health check ignores DB** — ops will think the app is up when Postgres is dead.
-- **Brand drift** — Perioxia vs Perioxia vs repo `CRM-` vs `local-service-crm-frontend`. Buyers notice.
+- **Brand drift** — Perioxia vs `CRM-` vs `local-service-crm-frontend` / CRM Inc. Buyer-facing name is Perioxia CRM as of 6.12; git folder name may still be `CRM-`.
 
 ### 6.4 Go-to-market (wrong even if code were perfect)
 

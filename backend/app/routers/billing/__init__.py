@@ -7,6 +7,7 @@ from app.models.billing import Subscription, WebhookEvent, Plan
 from app.models.core.user import User
 from app.models.core.company import Company
 from app.services.billing.provider import get_billing_provider
+from app.services.finance.invoice_pay import mark_invoice_paid_by_id
 from app.utils.dependencies import require_admin
 
 router = APIRouter(prefix="/api/billing", tags=["Billing"])
@@ -27,6 +28,8 @@ async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
         return {"status": "duplicate"}  # idempotent no-op
 
     db.add(WebhookEvent(event_id=event.event_id, provider="razorpay"))
+    if event.kind == "invoice_paid" and event.crm_invoice_id:
+        mark_invoice_paid_by_id(db, event.crm_invoice_id)
     new_status = _KIND_TO_STATUS.get(event.kind)
     if new_status and event.provider_subscription_id:
         sub = db.query(Subscription).filter(

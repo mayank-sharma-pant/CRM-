@@ -35,7 +35,9 @@ import {
     ShoppingBag,
     Sparkles,
     Menu,
-    X
+    X,
+    Mail,
+    Building2,
 } from 'lucide-react';
 
 const ICON_MAP = {
@@ -65,7 +67,9 @@ const ICON_MAP = {
     TrendingUp,
     Package,
     ShoppingBag,
-    Sparkles
+    Sparkles,
+    Mail,
+    Building2,
 };
 
 const ROLE_NAVIGATION = {
@@ -73,6 +77,8 @@ const ROLE_NAVIGATION = {
         { name: 'Dashboard', href: '/sales/dashboard', icon: 'LayoutDashboard' },
         { name: 'Leads', href: '/sales/leads', icon: 'Users' },
         { name: 'Clients', href: '/sales/clients', icon: 'Briefcase' },
+        { name: 'Accounts', href: '/sales/accounts', icon: 'Building2' },
+        { name: 'Deals', href: '/sales/deals', icon: 'Target' },
         { name: 'My Orders', href: '/sales/orders', icon: 'Receipt' },
         { name: 'Stock', href: '/sales/stock', icon: 'Package' },
         { name: 'Products', href: '/sales/products', icon: 'ShoppingBag' },
@@ -90,6 +96,8 @@ const ROLE_NAVIGATION = {
         { name: 'Team', href: '/manager/team', icon: 'UsersRound' },
         { name: 'Leads', href: '/manager/leads', icon: 'Users' },
         { name: 'Clients', href: '/manager/clients', icon: 'Briefcase' },
+        { name: 'Accounts', href: '/manager/accounts', icon: 'Building2' },
+        { name: 'Deals', href: '/manager/deals', icon: 'Target' },
         { name: 'Stock', href: '/manager/stock', icon: 'Package' },
         { name: 'Products', href: '/manager/products', icon: 'ShoppingBag' },
         { name: 'Tasks', href: '/manager/tasks', icon: 'CheckSquare' },
@@ -114,6 +122,9 @@ const ROLE_NAVIGATION = {
             href: '/settings',
             icon: 'Settings',
             children: [
+                { name: 'Email', href: '/settings/email' },
+                { name: 'Calendar', href: '/settings/calendar' },
+                { name: 'Click-to-call', href: '/settings/telephony' },
                 { name: 'Territories', href: '/settings/territories' },
                 { name: 'Sandbox', href: '/settings/sandbox' },
             ],
@@ -126,6 +137,8 @@ const ROLE_NAVIGATION = {
         { name: 'Employee Lookup', href: '/md/employee-lookup', icon: 'UserSearch' },
         { name: 'Leads', href: '/md/leads', icon: 'Target' },
         { name: 'Clients', href: '/md/clients', icon: 'Briefcase' },
+        { name: 'Accounts', href: '/md/accounts', icon: 'Building2' },
+        { name: 'Deals', href: '/md/deals', icon: 'Target' },
         { name: 'Stock', href: '/md/stock', icon: 'Package' },
         { name: 'Products', href: '/md/products', icon: 'ShoppingBag' },
         { name: 'Invoices', href: '/md/invoices', icon: 'Receipt' },
@@ -138,6 +151,9 @@ const ROLE_NAVIGATION = {
             href: '/settings',
             icon: 'Settings',
             children: [
+                { name: 'Email', href: '/settings/email' },
+                { name: 'Calendar', href: '/settings/calendar' },
+                { name: 'Click-to-call', href: '/settings/telephony' },
                 { name: 'Territories', href: '/settings/territories' },
                 { name: 'Sandbox', href: '/settings/sandbox' },
             ],

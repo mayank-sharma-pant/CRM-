@@ -14,8 +14,6 @@ import {
   LayoutDashboard,
   Users,
   Clock,
-  ChevronRight,
-  ArrowUpRight,
 } from 'lucide-react';
 
 export default function Landing() {
@@ -36,7 +34,6 @@ export default function Landing() {
         <ProblemSolution />
         <HowItWorks />
         <Features />
-        <Testimonials />
         <FinalCTA user={user} />
       </main>
       <Footer />
@@ -69,9 +66,6 @@ function Navbar({ user }) {
           </Link>
           <Link href="#how-it-works" className="text-secondary hover:text-primary text-sm font-medium transition-colors">
             How it Works
-          </Link>
-          <Link href="#testimonials" className="text-secondary hover:text-primary text-sm font-medium transition-colors">
-            Testimonials
           </Link>
         </div>
 
@@ -181,8 +175,8 @@ function HeroSection() {
             variants={VARIANTS.fadeUp}
             className="body-lg max-w-xl mb-10 text-secondary"
           >
-            A simple, fast CRM that helps service businesses track every lead,
-            automate follow-ups, and collect payments—without the complexity.
+            A CRM for service businesses: capture leads, send quotes, follow up
+            on a cadence, and collect payment—without a bloated suite.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -223,12 +217,12 @@ function HeroSection() {
 // ===============================================
 
 function LogoStrip() {
-  const integrations = ['Stripe', 'QuickBooks', 'Google Calendar', 'Slack', 'Zapier'];
+  const integrations = ['Gmail', 'Outlook', 'Google Calendar', 'WhatsApp', 'Razorpay'];
 
   return (
     <section className="py-12 border-y border-border bg-surface-elevated">
       <div className="container-editorial">
-        <p className="text-center text-sm text-muted mb-6">Integrates with tools you already use</p>
+        <p className="text-center text-sm text-muted mb-6">Connects to tools you can use today</p>
         <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12">
           {integrations.map((name) => (
             <span key={name} className="text-muted font-medium text-sm tracking-wide">
@@ -289,10 +283,10 @@ function ProblemSolution() {
             </h2>
             <ul className="space-y-4">
               {[
-                'Every lead captured and tracked automatically',
-                'Clear pipeline from inquiry to payment',
-                'Automated reminders—never miss a follow-up',
-                'Real-time reports on revenue and performance'
+                'Website forms and WhatsApp log into one pipeline',
+                'Deals, quotes, and invoices in the same record trail',
+                'Cadence reminders so follow-ups are not left to memory',
+                'Reports on pipeline and invoiced totals'
               ].map((item, i) => (
                 <li key={i} className="flex items-start gap-3 text-stone-600">
                   <CheckCircle2 size={18} className="text-green-600 mt-0.5 shrink-0" />
@@ -316,7 +310,7 @@ function HowItWorks() {
     {
       number: '01',
       title: 'Capture',
-      description: 'Leads flow in from your website, phone, or email. Every inquiry is logged instantly with full details.'
+      description: 'Leads come in from a website form, email, or WhatsApp. Each inquiry is stored with source and history.'
     },
     {
       number: '02',
@@ -326,7 +320,7 @@ function HowItWorks() {
     {
       number: '03',
       title: 'Close',
-      description: 'Send quotes, schedule jobs, and collect payments. The system handles follow-ups automatically.'
+      description: 'Send quotes, collect payment from the customer portal, and run reminder cadences for open follow-ups.'
     }
   ];
 
@@ -391,7 +385,7 @@ function Features() {
     },
     {
       title: 'Revenue Reports',
-      description: 'Know your numbers. See revenue, margins, and trends at a glance.',
+      description: 'See pipeline value and invoiced totals without a separate spreadsheet.',
       icon: BarChart3,
     },
     {
@@ -435,64 +429,6 @@ function Features() {
 }
 
 // ===============================================
-// TESTIMONIALS
-// ===============================================
-
-function Testimonials() {
-  const testimonials = [
-    {
-      quote: "We stopped losing leads the first week. Revenue is up 40% since we started using Perioxia CRM.",
-      author: "Mike Thompson",
-      role: "Owner, Thompson HVAC",
-    },
-    {
-      quote: "I finally know where my marketing dollars are going. The reporting alone pays for itself.",
-      author: "Sarah Chen",
-      role: "Director, Premier Plumbing",
-    },
-    {
-      quote: "Setup took 15 minutes. My team was using it the same day. No training required.",
-      author: "David Brooks",
-      role: "Founder, Brooks Electric",
-    },
-  ];
-
-  return (
-    <section id="testimonials" className="section-spacing-lg bg-surface-elevated">
-      <div className="container-editorial">
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={VIEWPORT}
-          variants={VARIANTS.container}
-        >
-          <motion.p variants={VARIANTS.fadeUp} className="caption mb-4">Testimonials</motion.p>
-          <motion.h2 variants={VARIANTS.fadeUp} className="headline-lg mb-16 max-w-xl">
-            Trusted by service businesses.
-          </motion.h2>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((t, i) => (
-              <motion.blockquote
-                key={i}
-                variants={VARIANTS.fadeUp}
-                className="p-8 bg-surface border border-border rounded-lg"
-              >
-                <p className="body-md mb-6 text-secondary">"{t.quote}"</p>
-                <footer>
-                  <p className="font-semibold text-primary">{t.author}</p>
-                  <p className="text-sm text-muted">{t.role}</p>
-                </footer>
-              </motion.blockquote>
-            ))}
-          </div>
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-// ===============================================
 // FINAL CTA
 // ===============================================
 
@@ -510,8 +446,7 @@ function FinalCTA({ user }) {
             Ready to take control of your business?
           </motion.h2>
           <motion.p variants={VARIANTS.fadeUp} className="body-lg mb-10 max-w-lg mx-auto">
-            Join hundreds of service businesses that use Perioxia CRM to capture more leads,
-            close more deals, and grow their revenue.
+            Start a 14-day trial. Capture leads, send quotes, and get paid.
           </motion.p>
           <motion.div variants={VARIANTS.fadeUp} className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -542,60 +477,38 @@ function FinalCTA({ user }) {
 // ===============================================
 
 function Footer() {
-  const links = {
-    Product: ['Features', 'Integrations', 'Pricing', 'Changelog'],
-    Company: ['About', 'Careers', 'Blog', 'Contact'],
-    Legal: ['Privacy', 'Terms', 'Security'],
-  };
-
   return (
     <footer className="border-t border-border py-16">
       <div className="container-editorial">
-        <div className="grid grid-cols-2 md:grid-cols-12 gap-8 mb-12">
-          {/* Brand */}
-          <div className="col-span-2 md:col-span-4">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8 mb-12">
+          <div className="max-w-xs">
             <Link href="/" className="flex items-center gap-2 text-stone-900 font-semibold text-lg tracking-tight mb-4">
               <div className="w-8 h-8 bg-stone-900 rounded flex items-center justify-center">
                 <LayoutDashboard size={16} className="text-white" strokeWidth={2.5} />
               </div>
               <span>Perioxia CRM</span>
             </Link>
-            <p className="text-sm text-stone-500 max-w-xs">
-              The simple CRM for local service businesses. Stop losing leads, start growing revenue.
+            <p className="text-sm text-stone-500">
+              CRM for local service businesses: leads, quotes, follow-ups, and payment.
             </p>
           </div>
-
-          {/* Links */}
-          {Object.entries(links).map(([title, items]) => (
-            <div key={title} className="col-span-1 md:col-span-2">
-              <h4 className="font-semibold text-stone-900 mb-4 text-sm">{title}</h4>
-              <ul className="space-y-2">
-                {items.map((item) => (
-                  <li key={item}>
-                    <Link href="#" className="text-sm text-stone-500 hover:text-stone-900 transition-colors">
-                      {item}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <Link href="#features" className="text-stone-500 hover:text-stone-900 transition-colors">
+              Features
+            </Link>
+            <Link href="#how-it-works" className="text-stone-500 hover:text-stone-900 transition-colors">
+              How it Works
+            </Link>
+            <Link href="/login" className="text-stone-500 hover:text-stone-900 transition-colors">
+              Sign in
+            </Link>
+            <Link href="/signup" className="text-stone-500 hover:text-stone-900 transition-colors">
+              Start trial
+            </Link>
+          </nav>
         </div>
-
-        {/* Bottom */}
-        <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-stone-400">© 2024 Perioxia CRM. All rights reserved.</p>
-          <div className="flex items-center gap-6">
-            <Link href="#" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">
-              Twitter
-            </Link>
-            <Link href="#" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">
-              LinkedIn
-            </Link>
-            <Link href="#" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">
-              GitHub
-            </Link>
-          </div>
+        <div className="pt-8 border-t border-border">
+          <p className="text-sm text-stone-400">© 2026 Perioxia CRM. All rights reserved.</p>
         </div>
       </div>
     </footer>

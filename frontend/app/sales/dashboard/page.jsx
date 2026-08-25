@@ -26,6 +26,7 @@ import {
   User
 } from 'lucide-react';
 import KPICard from '../../../components/shared/KPICard';
+import OnboardingChecklist from '../../../components/onboarding/OnboardingChecklist';
 
 export default function Dashboard() {
   const [metrics, setMetrics] = useState({
@@ -126,6 +127,7 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-[1200px] mx-auto px-6 space-y-6">
+        <OnboardingChecklist />
 
         {/* 1. Summary Metrics: Dense Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

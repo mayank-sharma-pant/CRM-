@@ -24,6 +24,8 @@ class Meeting(Base):
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=True, index=True)
     deal_id = Column(Integer, ForeignKey("deals.id"), nullable=True, index=True)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    calendar_event_id = Column(String(255), nullable=True)
+    calendar_provider = Column(String(32), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

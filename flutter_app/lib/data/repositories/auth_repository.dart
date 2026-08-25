@@ -4,6 +4,7 @@ import 'package:perioxia_crm/core/constants/api_endpoints.dart';
 import 'package:perioxia_crm/core/constants/app_constants.dart';
 import 'package:perioxia_crm/core/network/api_client.dart';
 import 'package:perioxia_crm/core/storage/secure_storage.dart';
+import 'package:perioxia_crm/data/models/login_result.dart';
 import 'package:perioxia_crm/data/models/user.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -15,13 +16,23 @@ class AuthRepository {
 
   AuthRepository(this._api);
 
-  Future<User> login(String email, String password) async {
+  Future<void> _persistAccessToken(String? token) async {
+    if (token != null && token.isNotEmpty) {
+      await SecureStorage.write(AppConstants.tokenStorageKey, token);
+    }
+  }
+
+  Future<LoginResult> login(String email, String password) async {
     final response = await _api.post(
       ApiEndpoints.login,
       data: 'username=${Uri.encodeComponent(email)}&password=${Uri.encodeComponent(password)}',
       options: Options(contentType: 'application/x-www-form-urlencoded'),
     );
-    return User.fromJson(response.data['user']);
+    final result = LoginResult.fromJson(Map<String, dynamic>.from(response.data as Map));
+    if (result.isComplete) {
+      await _persistAccessToken(result.accessToken);
+    }
+    return result;
   }
 
   Future<User> getMe() async {
@@ -30,8 +41,12 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
-    await _api.post(ApiEndpoints.logout);
-    await SecureStorage.delete(AppConstants.platformAccessTokenKey);
+    try {
+      await _api.post(ApiEndpoints.logout);
+    } finally {
+      await SecureStorage.delete(AppConstants.platformAccessTokenKey);
+      await SecureStorage.delete(AppConstants.tokenStorageKey);
+    }
   }
 
   /// Exchanges credentials for a platform-scoped JWT (`audience=platform`).
@@ -53,12 +68,63 @@ class AuthRepository {
     await _api.post(ApiEndpoints.requestOtp, data: {'email': email});
   }
 
-  Future<User> loginOtp(String email, String otpCode) async {
+  Future<LoginResult> loginOtp(String email, String otpCode) async {
     final response = await _api.post(
       ApiEndpoints.loginOtp,
       data: {'email': email, 'otp_code': otpCode},
     );
-    return User.fromJson(response.data['user']);
+    final result = LoginResult.fromJson(Map<String, dynamic>.from(response.data as Map));
+    if (result.isComplete) {
+      await _persistAccessToken(result.accessToken);
+    }
+    return result;
+  }
+
+  Future<LoginResult> verify2fa({required String mfaToken, required String code}) async {
+    final response = await _api.post(
+      ApiEndpoints.twoFactorVerify,
+      data: {'mfa_token': mfaToken, 'code': code},
+    );
+    final result = LoginResult.fromJson(Map<String, dynamic>.from(response.data as Map));
+    if (result.isComplete) {
+      await _persistAccessToken(result.accessToken);
+    }
+    return result;
+  }
+
+  Future<Map<String, dynamic>> twoFactorSetup({String? setupToken}) async {
+    final response = await _api.post(
+      ApiEndpoints.twoFactorSetup,
+      data: {},
+      options: setupToken != null && setupToken.isNotEmpty
+          ? Options(headers: {'X-Setup-Token': setupToken})
+          : null,
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<List<String>> twoFactorConfirm({required String code, String? setupToken}) async {
+    final response = await _api.post(
+      ApiEndpoints.twoFactorConfirm,
+      data: {'code': code},
+      options: setupToken != null && setupToken.isNotEmpty
+          ? Options(headers: {'X-Setup-Token': setupToken})
+          : null,
+    );
+    final codes = response.data['recovery_codes'];
+    if (codes is List) {
+      return codes.map((e) => e.toString()).toList();
+    }
+    return const [];
+  }
+
+  Future<Map<String, dynamic>> twoFactorStatus() async {
+    final response = await _api.get(ApiEndpoints.twoFactorStatus);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<void> twoFactorDisable(String password) async {
+    await _api.post(ApiEndpoints.twoFactorDisable, data: {'password': password});
   }
 
   Future<void> forgotPassword(String email) async {

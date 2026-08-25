@@ -2,6 +2,8 @@ class RouteNames {
   RouteNames._();
 
   static const String login = 'login';
+  static const String login2fa = 'login2fa';
+  static const String login2faSetup = 'login2faSetup';
   static const String forgotPassword = 'forgotPassword';
   static const String signup = 'signup';
   static const String acceptInvite = 'acceptInvite';
@@ -23,6 +25,7 @@ class RouteNames {
   static const String invoices = 'invoices';
   static const String aiAssistant = 'aiAssistant';
   static const String settings = 'settings';
+  static const String settings2fa = 'settings2fa';
   static const String profile = 'profile';
   static const String performance = 'performance';
   static const String salesReports = 'salesReports';

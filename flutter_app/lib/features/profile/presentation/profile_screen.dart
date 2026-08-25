@@ -88,6 +88,11 @@ class ProfileScreen extends ConsumerWidget {
             onTap: () => context.push('/settings'),
           ),
           _SettingsItem(
+            icon: Icons.phonelink_lock_outlined,
+            label: 'Two-factor authentication',
+            onTap: () => context.push('/settings/2fa'),
+          ),
+          _SettingsItem(
             icon: Icons.notifications_outlined,
             label: 'Notification Preferences',
             onTap: () => context.push('/settings'),

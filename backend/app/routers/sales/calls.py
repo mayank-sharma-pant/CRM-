@@ -82,6 +82,10 @@ def _serialize(call: CallLog) -> dict:
         "client_id": call.client_id,
         "deal_id": call.deal_id,
         "created_by_id": call.created_by_id,
+        "provider": call.provider,
+        "provider_call_id": call.provider_call_id,
+        "from_phone": call.from_phone,
+        "to_phone": call.to_phone,
         "created_at": isoformat_utc(call.created_at),
     }
 

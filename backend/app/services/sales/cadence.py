@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.models.core.company_settings import CompanySettings
 from app.models.sales.follow_up import FollowUp
 from app.models.sales.lead import Lead
 
@@ -14,7 +15,11 @@ DEFAULT_CADENCE_STEPS = (
 
 def enroll_lead_in_default_cadence(db: Session, lead: Lead) -> None:
     today = datetime.now(timezone.utc).date()
-    for offset, channel, notes in DEFAULT_CADENCE_STEPS:
+    steps = list(DEFAULT_CADENCE_STEPS)
+    settings = db.query(CompanySettings).filter(CompanySettings.company_id == lead.company_id).first()
+    if settings and getattr(settings, "whatsapp_cadence_template_id", None):
+        steps[0] = (1, "whatsapp", "Day 1 WhatsApp")
+    for offset, channel, notes in steps:
         db.add(
             FollowUp(
                 company_id=lead.company_id,

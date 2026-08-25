@@ -8,20 +8,18 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.core.company_settings import CompanySettings
-from app.models.core.enums import InvoiceStatus, QuoteStatus
+from app.models.core.enums import QuoteStatus
 from app.models.core.user import User
-from app.models.finance.invoice import Invoice, InvoiceItem
-from app.models.ops.stock_item import StockItem
+from app.models.finance.invoice import Invoice
 from app.models.sales.client import Client
 from app.models.sales.deal import Deal
-from app.models.sales.product import Product
 from app.models.sales.quote import Quote, QuoteItem
 from app.services.finance.gst import compute_gst
 from app.services.portal.share_links import apply_share, revoke_share
-from app.services.sales.product_lines import ResolvedSaleLine, deduct_stock, resolve_sale_lines
-from app.services.sales.workflow import run_workflows
+from app.services.sales.product_lines import resolve_sale_lines
+from app.services.sales.quote_lifecycle import accept_quote as accept_quote_record
+from app.services.sales.quote_lifecycle import reject_quote as reject_quote_record
 from app.utils.dependencies import apply_company_scope, ensure_company_access, get_current_user
-from app.utils.notify import notify_role_users
 
 router = APIRouter()
 
@@ -44,45 +42,6 @@ class QuoteCreate(BaseModel):
 
 def _money(value) -> str:
     return str(Decimal(value or 0).quantize(Decimal("0.01")))
-
-
-def _stock_link_for_role(role: str) -> str:
-    role_map = {
-        "purchase": "/purchase/stock",
-        "md": "/md/stock",
-        "manager": "/manager/stock",
-        "sales": "/sales/stock",
-    }
-    return role_map.get(role, "/purchase/stock")
-
-
-def _notify_low_stock(db: Session, company_id: int, low_stock_alert_ids: set[int]) -> None:
-    if not low_stock_alert_ids:
-        return
-    stock_rows = (
-        db.query(StockItem)
-        .filter(StockItem.company_id == company_id, StockItem.id.in_(low_stock_alert_ids))
-        .all()
-    )
-    stock_map = {s.id: s for s in stock_rows}
-    for stock_id in low_stock_alert_ids:
-        stock_item = stock_map.get(stock_id)
-        if stock_item is None:
-            continue
-        for target_role in ("purchase", "md", "manager", "sales"):
-            notify_role_users(
-                db,
-                company_id=company_id,
-                role=target_role,
-                title=f"Low Stock: {stock_item.name}",
-                message=f"Only {stock_item.quantity} {stock_item.unit}(s) remaining.",
-                type="warning",
-                link=_stock_link_for_role(target_role),
-                category="inventory",
-                dedupe_window_seconds=6 * 60 * 60,
-                dedupe_match_message=False,
-                skip_if_unread_duplicate=True,
-            )
 
 
 def _serialize(quote: Quote, payment_url=None) -> dict:
@@ -279,81 +238,12 @@ def revoke_quote_share(quote_id: int, db: Session = Depends(get_db), current_use
 @router.post("/{quote_id:int}/accept")
 def accept_quote(quote_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     quote = _get_quote(db, current_user, quote_id)
-    status = quote.status.value if hasattr(quote.status, "value") else quote.status
-    if status != QuoteStatus.DRAFT.value:
-        raise HTTPException(status_code=400, detail="Only draft quotes can be accepted")
-
-    invoice = Invoice(
-        company_id=current_user.company_id,
-        invoice_number=f"INV-{uuid.uuid4().hex[:8].upper()}",
-        client_id=quote.client_id,
-        subtotal=quote.subtotal,
-        tax=quote.tax or 0,
-        discount=0,
-        total=quote.total,
-        status=InvoiceStatus.PENDING,
-        notes=quote.notes,
-        created_by_id=current_user.id,
-        cgst=quote.cgst,
-        sgst=quote.sgst,
-        igst=quote.igst,
-        seller_gstin=quote.seller_gstin,
-        buyer_gstin=quote.buyer_gstin,
-        place_of_supply=quote.place_of_supply,
-        tax_mode=quote.tax_mode,
-    )
-    db.add(invoice)
-    db.flush()
-    accept_lines: list[ResolvedSaleLine] = []
-    for item in quote.items:
-        deduct_id = None
-        if item.product_id:
-            product = db.query(Product).filter(
-                Product.id == item.product_id,
-                Product.company_id == quote.company_id,
-            ).first()
-            if product is not None:
-                deduct_id = product.stock_item_id
-        accept_lines.append(ResolvedSaleLine(
-            description=item.description,
-            quantity=item.quantity,
-            unit_price=item.unit_price,
-            hsn=item.hsn,
-            tax_rate=item.tax_rate or 0,
-            line_amount=item.total,
-            tax=float(item.tax or 0),
-            product_id=item.product_id,
-            deduct_stock_item_id=deduct_id,
-        ))
-        db.add(InvoiceItem(
-            company_id=current_user.company_id,
-            invoice_id=invoice.id,
-            description=item.description,
-            quantity=item.quantity,
-            unit_price=item.unit_price,
-            total=item.total,
-            product_id=item.product_id,
-            hsn=item.hsn,
-            tax_rate=item.tax_rate,
-            tax=item.tax,
-        ))
-    low_ids = deduct_stock(db, current_user, accept_lines)
-    _notify_low_stock(db, current_user.company_id, low_ids)
-    quote.status = QuoteStatus.ACCEPTED
-    quote.invoice_id = invoice.id
-    run_workflows(db, "quote_accepted", quote=quote)
-    db.commit()
-    db.refresh(quote)
+    quote = accept_quote_record(db, quote)
     return _serialize(quote)
 
 
 @router.post("/{quote_id:int}/reject")
 def reject_quote(quote_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     quote = _get_quote(db, current_user, quote_id)
-    status = quote.status.value if hasattr(quote.status, "value") else quote.status
-    if status != QuoteStatus.DRAFT.value:
-        raise HTTPException(status_code=400, detail="Only draft quotes can be rejected")
-    quote.status = QuoteStatus.REJECTED
-    db.commit()
-    db.refresh(quote)
+    quote = reject_quote_record(db, quote)
     return _serialize(quote)

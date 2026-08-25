@@ -13,6 +13,7 @@ from app.services.sales.activity_parents import (
     parse_iso_datetime,
     require_parent_in_company,
 )
+from app.services.sales.calendar_sync import sync_meeting_outbound
 from app.utils.audit import log_activity
 from app.utils.datetime_json import isoformat_utc
 from app.utils.dependencies import apply_company_scope, ensure_company_access, get_current_user
@@ -82,6 +83,8 @@ def _serialize(meeting: Meeting) -> dict:
         "client_id": meeting.client_id,
         "deal_id": meeting.deal_id,
         "created_by_id": meeting.created_by_id,
+        "calendar_event_id": meeting.calendar_event_id,
+        "calendar_synced": bool(meeting.calendar_event_id),
         "created_at": isoformat_utc(meeting.created_at),
         "updated_at": isoformat_utc(meeting.updated_at),
     }
@@ -135,6 +138,8 @@ def create_meeting(
         entity_id=meeting.id, entity_name=meeting.subject,
     )
     db.commit()
+    db.refresh(meeting)
+    sync_meeting_outbound(db, current_user, meeting)
     db.refresh(meeting)
     return _serialize(meeting)
 
@@ -218,6 +223,8 @@ def update_meeting(
     )
     db.commit()
     db.refresh(meeting)
+    sync_meeting_outbound(db, current_user, meeting)
+    db.refresh(meeting)
     return _serialize(meeting)
 
 
@@ -228,6 +235,7 @@ def delete_meeting(
     current_user: User = Depends(get_current_user),
 ):
     meeting = _get_or_404(db, current_user, meeting_id)
+    sync_meeting_outbound(db, current_user, meeting, deleted=True)
     log_activity(
         db, user=current_user, action="deleted", entity_type="meeting",
         entity_id=meeting.id, entity_name=meeting.subject,

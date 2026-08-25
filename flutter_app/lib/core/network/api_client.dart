@@ -56,6 +56,10 @@ class _AuthInterceptor extends Interceptor {
     if (teamId != null && teamId.isNotEmpty) {
       options.headers['X-Team-Id'] = teamId;
     }
+    final token = await SecureStorage.read(AppConstants.tokenStorageKey);
+    if (token != null && token.isNotEmpty) {
+      options.headers['Authorization'] = 'Bearer $token';
+    }
     handler.next(options);
   }
 

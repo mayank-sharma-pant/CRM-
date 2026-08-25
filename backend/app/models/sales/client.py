@@ -22,6 +22,7 @@ class Client(Base):
     
     # Converted from lead
     converted_from_lead_id = Column(Integer, ForeignKey("leads.id"), nullable=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True, index=True)
     
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())
@@ -31,6 +32,7 @@ class Client(Base):
     tenant = relationship("Company", backref="clients", foreign_keys=[company_id])
     assigned_to = relationship("User", back_populates="clients")
     team = relationship("Team", back_populates="clients")
+    account = relationship("Account", back_populates="contacts")
     invoices = relationship("Invoice", back_populates="client", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="client", cascade="all, delete-orphan")
     notes_list = relationship("Note", back_populates="client", cascade="all, delete-orphan")

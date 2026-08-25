@@ -138,7 +138,35 @@ def test_webhook_duplicate_commit_race_returns_200_not_500(db, client, monkeypat
     assert db.query(Subscription).filter(Subscription.id == sub.id).one().status == "trialing"
 
 
-def test_null_provider_raises_on_empty_secret(monkeypatch):
+def test_webhook_marks_crm_invoice_paid(db, client, monkeypatch):
+    monkeypatch.setattr(settings, "RAZORPAY_WEBHOOK_SECRET", "whsec_test", raising=False)
+    from app.models.core.enums import InvoiceStatus
+    from app.models.finance.invoice import Invoice
+    from app.models.sales.client import Client
+
+    company = create_company(db, name="InvPay", company_code="IPY", status="active")
+    buyer = Client(company_id=company.id, name="Buyer")
+    db.add(buyer)
+    db.flush()
+    inv = Invoice(
+        company_id=company.id,
+        invoice_number="INV-WH-1",
+        client_id=buyer.id,
+        status=InvoiceStatus.PENDING,
+        total=100,
+    )
+    db.add(inv)
+    db.commit()
+    iid = inv.id
+    body = {
+        "id": "evt_invpay",
+        "event": "payment_link.paid",
+        "payload": {"payment_link": {"entity": {"notes": {"crm_invoice_id": str(iid)}}}},
+    }
+    r = _post_event(client, body, "whsec_test")
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    assert db.query(Invoice).filter(Invoice.id == iid).one().status == InvoiceStatus.PAID
     monkeypatch.setattr(settings, "RAZORPAY_WEBHOOK_SECRET", "", raising=False)
     raw = b'{"id":"evt_3","event":"subscription.charged"}'
     forged_sig = hmac.new(b"", raw, hashlib.sha256).hexdigest()

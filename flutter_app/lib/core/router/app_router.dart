@@ -5,6 +5,9 @@ import 'package:perioxia_crm/core/router/go_router_refresh.dart';
 import 'package:perioxia_crm/core/router/route_names.dart';
 import 'package:perioxia_crm/core/router/sales_home.dart';
 import 'package:perioxia_crm/features/auth/presentation/login_screen.dart';
+import 'package:perioxia_crm/features/auth/presentation/mfa_setup_screen.dart';
+import 'package:perioxia_crm/features/auth/presentation/mfa_verify_screen.dart';
+import 'package:perioxia_crm/features/auth/presentation/two_factor_settings_screen.dart';
 import 'package:perioxia_crm/features/auth/presentation/forgot_password_screen.dart';
 import 'package:perioxia_crm/features/auth/presentation/signup_screen.dart';
 import 'package:perioxia_crm/features/auth/presentation/accept_invite_screen.dart';
@@ -81,6 +84,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       bool isAuthPublicPath(String path) {
         return path == '/login' ||
+            path == '/login/2fa' ||
+            path == '/login/2fa-setup' ||
             path == '/signup' ||
             path == '/forgot-password' ||
             path.startsWith('/accept-invite/');
@@ -90,6 +95,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           auth.status == AuthStatus.loading) {
         return null;
       }
+      if (auth.status == AuthStatus.mfaChallenge) {
+        return loc == '/login/2fa' ? null : '/login/2fa';
+      }
+      if (auth.status == AuthStatus.mfaSetup) {
+        return loc == '/login/2fa-setup' ? null : '/login/2fa-setup';
+      }
       if (auth.status == AuthStatus.error) {
         return isAuthPublicPath(loc) ? null : '/login';
       }
@@ -97,7 +108,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return isAuthPublicPath(loc) ? null : '/login';
       }
       if (auth.status == AuthStatus.authenticated) {
-        if (loc == '/login') {
+        if (loc == '/login' || loc == '/login/2fa' || loc == '/login/2fa-setup') {
           return homePathForUser(auth.user);
         }
         if (isAuthPublicPath(loc)) {
@@ -111,6 +122,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/login',
         name: RouteNames.login,
         builder: (_, __) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/login/2fa',
+        name: RouteNames.login2fa,
+        builder: (_, __) => const MfaVerifyScreen(),
+      ),
+      GoRoute(
+        path: '/login/2fa-setup',
+        name: RouteNames.login2faSetup,
+        builder: (_, __) => const MfaSetupScreen(),
       ),
       GoRoute(
         path: '/forgot-password',
@@ -379,6 +400,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/settings',
             name: RouteNames.settings,
             builder: (_, __) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: '/settings/2fa',
+            name: RouteNames.settings2fa,
+            builder: (_, __) => const TwoFactorSettingsScreen(),
           ),
           GoRoute(
             path: '/profile',

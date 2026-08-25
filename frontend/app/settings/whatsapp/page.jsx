@@ -20,6 +20,7 @@ export default function WhatsAppSettingsPage() {
   const [source, setSource] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [configured, setConfigured] = useState(false);
+  const [cadenceTemplateId, setCadenceTemplateId] = useState('');
   const [saving, setSaving] = useState(false);
 
   const [items, setItems] = useState([]);
@@ -42,6 +43,7 @@ export default function WhatsAppSettingsPage() {
       ]);
       setConfigured(Boolean(conn.data.configured));
       setSource(conn.data.source || '');
+      setCadenceTemplateId(conn.data.cadence_template_id ? String(conn.data.cadence_template_id) : '');
       setItems(tpls.data.items || []);
     } catch (err) {
       setError(err.response?.data?.detail || 'Could not load WhatsApp settings.');
@@ -59,11 +61,12 @@ export default function WhatsAppSettingsPage() {
     setSaving(true);
     setError('');
     try {
-      const payload = { source };
+      const payload = { source, cadence_template_id: cadenceTemplateId ? Number(cadenceTemplateId) : null };
       if (apiKey.trim()) payload.api_key = apiKey.trim();
       const data = (await api.put('/whatsapp/connection', payload)).data;
       setConfigured(Boolean(data.configured));
       setSource(data.source || '');
+      setCadenceTemplateId(data.cadence_template_id ? String(data.cadence_template_id) : '');
       setApiKey('');
     } catch (err) {
       setError(err.response?.data?.detail || 'Could not save connection.');
@@ -116,6 +119,7 @@ export default function WhatsAppSettingsPage() {
           <h1 className="text-xl font-bold text-slate-900 dark:text-white mt-2">WhatsApp templates</h1>
           <p className="text-sm text-slate-500 mt-1">
             Gupshup approved templates only. Connection {configured ? 'is ready' : 'is not configured'}.
+            Point Gupshup’s inbound webhook at <code className="text-xs">/api/whatsapp/webhook?source=YOUR_NUMBER</code>.
           </p>
         </div>
       </div>
@@ -146,6 +150,19 @@ export default function WhatsAppSettingsPage() {
                   autoComplete="off"
                   className="mt-1 w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900"
                 />
+              </label>
+              <label className="block text-xs">
+                <span className="text-slate-500">Cadence day-1 template (optional)</span>
+                <select
+                  value={cadenceTemplateId}
+                  onChange={(e) => setCadenceTemplateId(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900"
+                >
+                  <option value="">Keep SMS for day 1</option>
+                  {items.map((row) => (
+                    <option key={row.id} value={row.id}>{row.name}</option>
+                  ))}
+                </select>
               </label>
               <button
                 type="submit"

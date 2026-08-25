@@ -20,9 +20,14 @@ from app.routers.sales.products import router as products_router
 from app.routers.sales.lead_forms import router as lead_forms_router
 from app.routers.sales.custom_fields import router as custom_fields_router
 from app.routers.sales.emails import router as emails_router
+from app.routers.sales.mailbox import router as mailbox_router
+from app.routers.sales.calendar import router as calendar_router
+from app.routers.sales.telephony import router as telephony_router
 from app.routers.sales.whatsapp import router as whatsapp_router
+from app.routers.sales.onboarding import router as onboarding_router
 from app.routers.sales.tags import router as tags_router
 from app.routers.sales.territories import router as territories_router
+from app.routers.sales.accounts import router as accounts_router
 from app.routers.sales.reminders import router as reminders_router
 from app.routers.public.lead_forms import router as public_lead_forms_router
 from app.routers.public.portal import router as portal_router
@@ -72,9 +77,9 @@ logger = logging.getLogger("app")
 is_production = os.getenv("ENVIRONMENT", "development") == "production"
 
 app = FastAPI(
-    title="CRM API",
+    title="Perioxia CRM API",
     version="1.0.0",
-    description="Professional CRM Backend API with FastAPI",
+    description="Perioxia CRM HTTP API",
     docs_url=None if is_production else "/docs",
     redoc_url=None if is_production else "/redoc",
 )
@@ -83,6 +88,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=os.getenv("TRUSTED_HOSTS", "127.0.0.1").split(","))
 
 from app.middleware.security import SecurityHeadersMiddleware
+from app.tenancy import bind_tenant, path_uses_rls_bypass, reset_tenant
 app.add_middleware(SecurityHeadersMiddleware)
 
 @app.exception_handler(Exception)
@@ -112,6 +118,16 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],  # For CSV export downloads
 )
 
+@app.middleware("http")
+async def rls_request_context(request: Request, call_next):
+    reset_tenant()
+    if path_uses_rls_bypass(request.url.path):
+        bind_tenant(bypass=True)
+    try:
+        return await call_next(request)
+    finally:
+        reset_tenant()
+
 # Include API routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(auth_mfa.router, prefix="/api/auth")
@@ -129,9 +145,14 @@ app.include_router(products_router, prefix="/api/products", tags=["Products"])
 app.include_router(lead_forms_router, prefix="/api/lead-forms", tags=["Lead Forms"])
 app.include_router(custom_fields_router, prefix="/api/custom-fields", tags=["Custom Fields"])
 app.include_router(emails_router, prefix="/api/emails", tags=["Emails"])
+app.include_router(mailbox_router, prefix="/api/mailbox", tags=["Mailbox"])
+app.include_router(calendar_router, prefix="/api/calendar", tags=["Calendar"])
+app.include_router(telephony_router, prefix="/api/telephony", tags=["Telephony"])
 app.include_router(whatsapp_router, prefix="/api/whatsapp", tags=["WhatsApp"])
+app.include_router(onboarding_router, prefix="/api/onboarding", tags=["Onboarding"])
 app.include_router(tags_router, prefix="/api/tags", tags=["Tags"])
 app.include_router(territories_router, prefix="/api/territories", tags=["Territories"])
+app.include_router(accounts_router, prefix="/api/accounts", tags=["Accounts"])
 app.include_router(reminders_router, prefix="/api/reminders", tags=["Reminders"])
 app.include_router(public_lead_forms_router, prefix="/api/public/forms", tags=["Public Forms"])
 app.include_router(portal_router, prefix="/api/portal", tags=["Portal"])
@@ -164,7 +185,7 @@ app.include_router(sandbox_router, prefix="/api/sandbox", tags=["Sandbox"])
 
 @app.get("/")
 def root():
-    resp = {"message": "CRM API is running", "version": "1.0.0"}
+    resp = {"message": "Perioxia CRM API is running", "version": "1.0.0"}
     if not is_production:
         resp["docs"] = "/docs"
     return resp

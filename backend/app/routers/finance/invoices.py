@@ -18,6 +18,7 @@ from app.models.core.company_settings import CompanySettings
 from app.models.ops.stock_item import StockItem
 from app.utils.notify import notify_role_users
 from app.services.finance.gst import compute_gst
+from app.services.finance.invoice_pay import ensure_payment_url
 from app.services.portal.share_links import apply_share, revoke_share
 from app.services.sales.product_lines import deduct_stock, resolve_sale_lines
 
@@ -469,16 +470,9 @@ def create_payment_link(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Attach a pay-now URL. Uses a local stub when Razorpay invoice links are not wired."""
     invoice = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id == invoice_id).first()
     if invoice is None:
         raise HTTPException(status_code=404, detail="Invoice not found")
     ensure_company_access(invoice, current_user)
-    if invoice.payment_url:
-        return {"payment_url": invoice.payment_url, "invoice_id": invoice.id}
-    token = uuid.uuid4().hex
-    invoice.payment_url = f"/pay/{token}"
-    invoice.payment_reference = token
-    db.commit()
-    db.refresh(invoice)
-    return {"payment_url": invoice.payment_url, "invoice_id": invoice.id}
+    url = ensure_payment_url(db, invoice, require_payable=False)
+    return {"payment_url": url, "invoice_id": invoice.id}

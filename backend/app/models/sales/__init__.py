@@ -1,5 +1,6 @@
 from .lead import Lead
 from .client import Client
+from .account import Account
 from .task import Task
 from .follow_up import FollowUp
 from .note import Note
@@ -14,6 +15,8 @@ from .product import Product
 from .workflow_rule import WorkflowRule
 from .custom_field import CustomFieldDef, CustomFieldValue
 from .email_log import EmailLog
+from .mailbox import MailboxConnection
+from .calendar import CalendarConnection
 from .tag import Tag, LeadTag
 from .meeting import Meeting
 from .call_log import CallLog

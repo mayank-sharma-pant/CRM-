@@ -15,7 +15,7 @@ class CrmPlatformDashboardScreen extends ConsumerWidget {
     final async = ref.watch(crmPlatformMetricsProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('CRM Platform',
+        title: const Text('Perioxia platform',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
         actions: [
           IconButton(

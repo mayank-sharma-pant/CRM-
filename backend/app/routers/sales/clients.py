@@ -9,6 +9,8 @@ from app.models.core.user import User
 from app.models.core.team import Team
 from app.models.core.team_membership import TeamMembership
 from app.models.sales.client import Client
+from app.models.sales.account import Account
+from app.routers.sales.accounts import get_account_or_404
 from app.models.finance.invoice import Invoice
 from app.models.sales.note import Note
 from app.models.sales.task import Task
@@ -29,6 +31,20 @@ def _parse_gstin(value):
         return normalize_gstin(value)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+def _resolve_account_id(db, current_user, account_id):
+    if account_id is None:
+        return None
+    return get_account_or_404(db, current_user, account_id).id
+
+
+def _account_names(db, current_user, account_ids):
+    ids = [i for i in set(account_ids) if i]
+    if not ids:
+        return {}
+    rows = apply_company_scope(db.query(Account), Account, current_user).filter(Account.id.in_(ids)).all()
+    return {row.id: row.name for row in rows}
 
 
 # ===============================
@@ -69,12 +85,13 @@ def list_clients(
     total = query.count()
     clients = query.order_by(Client.created_at.desc()).offset(skip).limit(limit).all()
 
-    # Pre-fetch assignee names for all clients in one query
     assignee_ids = list({c.assigned_to_id for c in clients if c.assigned_to_id})
     assignee_map = {}
     if assignee_ids:
         assignees = db.query(User).filter(User.id.in_(assignee_ids)).all()
         assignee_map = {u.id: u.full_name for u in assignees}
+
+    account_map = _account_names(db, current_user, [c.account_id for c in clients])
 
     return {
         "items": [
@@ -86,6 +103,8 @@ def list_clients(
                 "company": client.company,
                 "address": client.address,
                 "gstin": client.gstin,
+                "account_id": client.account_id,
+                "account_name": account_map.get(client.account_id),
                 "assigned_to_id": client.assigned_to_id,
                 "assigned_to_name": assignee_map.get(client.assigned_to_id, "Unassigned"),
                 "created_at": client.created_at.strftime("%Y-%m-%d") if client.created_at else None
@@ -135,6 +154,12 @@ def get_client(
         if assignee:
             assignee_name = assignee.full_name
 
+    account_name = None
+    if client.account_id:
+        acc = apply_company_scope(db.query(Account), Account, current_user).filter(Account.id == client.account_id).first()
+        if acc:
+            account_name = acc.name
+
     return {
         "id": client.id,
         "name": client.name,
@@ -143,6 +168,8 @@ def get_client(
         "company": client.company,
         "address": client.address,
         "gstin": client.gstin,
+        "account_id": client.account_id,
+        "account_name": account_name,
         "assigned_to_id": client.assigned_to_id,
         "assigned_to_name": assignee_name,
         "created_at": client.created_at.strftime("%Y-%m-%d") if client.created_at else None,
@@ -297,6 +324,7 @@ def create_client(
         assigned_to_id=final_assigned_to,
         team_id=final_team_id,
         converted_from_lead_id=body.converted_from_lead_id,
+        account_id=_resolve_account_id(db, current_user, body.account_id),
     )
     
     db.add(new_client)
@@ -386,6 +414,8 @@ def update_client(
         client.address = body.address
     if body.gstin is not None:
         client.gstin = _parse_gstin(body.gstin)
+    if "account_id" in body.model_fields_set:
+        client.account_id = _resolve_account_id(db, current_user, body.account_id)
     if body.custom_fields is not None:
         set_values(db, current_user.company_id, "client", client.id, body.custom_fields)
 

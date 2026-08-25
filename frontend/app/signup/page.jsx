@@ -207,7 +207,7 @@ export default function Signup() {
                 </div>
                 {/* Footer Polish */}
                 <p className="text-center text-xs text-muted mt-8">
-                    &copy; 2024 CRM Inc. Secure Access.
+                    &copy; 2026 Perioxia CRM.
                 </p>
             </div>
         </div>

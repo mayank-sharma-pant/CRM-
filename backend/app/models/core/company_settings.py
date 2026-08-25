@@ -28,6 +28,13 @@ class CompanySettings(Base):
     followup_alerts_enabled = Column(Integer, default=1)
     whatsapp_api_key = Column(String(255), nullable=True)
     whatsapp_source = Column(String(20), nullable=True)
+    whatsapp_cadence_template_id = Column(Integer, nullable=True)
+    exotel_sid = Column(String(64), nullable=True)
+    exotel_api_key = Column(String(64), nullable=True)
+    exotel_api_token_encrypted = Column(Text, nullable=True)
+    exotel_subdomain = Column(String(255), nullable=True)
+    exotel_caller_id = Column(String(20), nullable=True)
+    onboarding_dismissed = Column(Integer, default=0)
 
     # Relationships
     company = relationship("Company", backref="settings")

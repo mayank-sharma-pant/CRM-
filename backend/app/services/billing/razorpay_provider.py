@@ -1,6 +1,6 @@
 import hmac, hashlib, json
 from app.config import settings
-from app.services.billing.base import BillingProvider, WebhookResult, classify
+from app.services.billing.base import BillingProvider, WebhookResult, classify, crm_invoice_id_from_payload
 
 
 class RazorpayProvider(BillingProvider):
@@ -29,8 +29,12 @@ class RazorpayProvider(BillingProvider):
             raise ValueError("Invalid webhook signature")
         body = json.loads(raw_body)
         sub_id = (body.get("payload", {}).get("subscription", {}).get("entity", {}).get("id"))
-        return WebhookResult(event_id=body["id"], kind=classify(body.get("event", "")),
-                             provider_subscription_id=sub_id)
+        return WebhookResult(
+            event_id=body["id"],
+            kind=classify(body.get("event", "")),
+            provider_subscription_id=sub_id,
+            crm_invoice_id=crm_invoice_id_from_payload(body),
+        )
 
     def cancel(self, subscription) -> None:
         if subscription.provider_subscription_id:

@@ -23,6 +23,10 @@ class CallLog(Base):
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=True, index=True)
     deal_id = Column(Integer, ForeignKey("deals.id"), nullable=True, index=True)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    provider = Column(String(20), nullable=True)
+    provider_call_id = Column(String(64), nullable=True, index=True)
+    from_phone = Column(String(20), nullable=True)
+    to_phone = Column(String(20), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     company = relationship("Company")

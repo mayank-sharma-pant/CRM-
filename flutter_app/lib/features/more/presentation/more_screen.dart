@@ -91,7 +91,7 @@ class MoreScreen extends ConsumerWidget {
           ],
 
           if (isPlatformCrm) ...[
-            _SectionLabel(label: 'CRM Platform'),
+            _SectionLabel(label: 'Platform'),
             const SizedBox(height: 6),
             _MenuItem(
               icon: Icons.pending_actions_outlined,

@@ -98,6 +98,8 @@ async def get_current_user(
                     detail="Trial expired. Please upgrade to continue."
                 )
 
+    from app.tenancy import bind_for_user
+    bind_for_user(user, db)
     return user
 
 

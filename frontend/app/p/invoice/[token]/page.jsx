@@ -8,6 +8,45 @@ function fmt(v) {
   return `₹${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 }
 
+function PayButton({ token }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const pay = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/portal/invoices/${token}/pay`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof data.detail === 'string' ? data.detail : 'Could not start payment');
+        return;
+      }
+      if (data.payment_url) {
+        window.location.assign(data.payment_url);
+      }
+    } catch {
+      setError('Could not start payment');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="pt-4 border-t border-border space-y-2">
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <button
+        type="button"
+        onClick={pay}
+        disabled={busy}
+        className="w-full px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50"
+      >
+        {busy ? 'Opening payment…' : 'Pay now'}
+      </button>
+    </div>
+  );
+}
+
 export default function PublicInvoicePage() {
   const { token } = useParams();
   const [status, setStatus] = useState('loading');
@@ -42,6 +81,7 @@ export default function PublicInvoicePage() {
             buyerGstin: data.buyer_gstin || '',
             placeOfSupply: data.place_of_supply || '',
             notes: data.notes || '',
+            payable: Boolean(data.payable),
             items: (data.items || []).map((i) => ({
               description: i.description,
               qty: i.quantity || 1,
@@ -138,6 +178,10 @@ export default function PublicInvoicePage() {
 
             {doc.notes && (
               <p className="text-sm text-muted border-t border-border pt-4">{doc.notes}</p>
+            )}
+
+            {doc.payable && (
+              <PayButton token={token} />
             )}
           </div>
         )}

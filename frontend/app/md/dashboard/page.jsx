@@ -22,6 +22,7 @@ import { RetentionChart, LiquidityChart } from '../../../components/charts/Share
 
 import { useNotification } from '../../../contexts/NotificationContext';
 import KPICard from '../../../components/shared/KPICard';
+import OnboardingChecklist from '../../../components/onboarding/OnboardingChecklist';
 import Skeleton, { CardSkeleton } from '../../../components/shared/Skeleton';
 
 export default function MDDashboard() {
@@ -125,6 +126,8 @@ export default function MDDashboard() {
                     </button>
                 </div>
             </div>
+
+            <OnboardingChecklist />
 
             {/* KPI STRIP: High Density Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

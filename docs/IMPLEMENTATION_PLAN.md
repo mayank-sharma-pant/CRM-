@@ -14,13 +14,13 @@ Last updated: **25 Aug 2026**. Status is from code + this file’s progress logs
 
 | Phase | Status | Notes |
 |-------|--------|--------|
-| **0 — Trust** | ✅ **DONE** (residual) | 0.2–0.5 done. **0.1 Postgres RLS still PENDING**. |
+| **0 — Trust** | ✅ **DONE** | 0.1 RLS in **6.10** (code). 0.2–0.5 already done. |
 | **1 — Charge money** | ✅ **DONE** | Razorpay adapter, trial signup, seat/storage limits. |
 | **2 — Sales loop** | ✅ **DONE** (code) | Deals, web form, custom fields, quotes→invoice, workflows, cadence, email, tags/recycle/merge, reminders. |
 | **3 — Zoho Standard match** | ✅ **DONE** (code) | 3.1–3.9 shipped. |
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
 | **5 — Paid add-ons** | ❌ **PENDING** | Enrichment, scoring, telephony deep, Tally, etc. — see checklist. |
-| **6 — Competitor parity (buyers still feel)** | ❌ **PENDING — NEXT** | Gaps vs HubSpot/Pipedrive/Freshsales/Kylas after Phases 0–4. **Build all of 6.x.** |
+| **6 — Competitor parity (buyers still feel)** | 🚧 **IN PROGRESS** | **6.1–6.13 DONE (code).** Next: **6.14 saved filters**. |
 
 ### Phase 4 checklist
 
@@ -40,19 +40,19 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 
 | Item | Why competitors win | Status |
 |------|---------------------|--------|
-| **6.1** Gmail / Outlook sync + send/log on record | HubSpot/Pipedrive/Freshsales table-stakes inbox | ❌ PENDING |
-| **6.2** Google / Microsoft Calendar sync (site visits) | Service businesses schedule in calendar, not only CRM meetings | ❌ PENDING |
-| **6.3** Click-to-call / telephony (Exotel or Twilio) | Freshsales / Kylas — call logs alone are not enough | ❌ PENDING |
-| **6.4** Unified activity timeline (email+call+meeting+note) | Pipedrive’s core; one record history | ❌ PENDING |
-| **6.5** One object UI (collapse five role apps) | HubSpot one contact; we still have `/sales`…`/admin` copies | ❌ PENDING |
-| **6.6** Customer pay invoice + accept quote from portal | Portal is view-only; buyers expect pay link | ❌ PENDING |
-| **6.7** WhatsApp inbound + auto reminder sequences | India: Kylas/LeadSquared; templates-only is thin | ❌ PENDING |
-| **6.8** Store-ready mobile (Play/App Store) + mobile 2FA | Flutter path exists; not shippable | ❌ PENDING |
-| **6.9** In-app onboarding (sample pipeline, connect Gmail, import) | Time-to-first-deal; empty CRM loses trials | ❌ PENDING |
-| **6.10** Postgres RLS (0.1) | Diligence / “isolation you can prove” | ❌ PENDING |
-| **6.11** Landing honesty (remove fake testimonials / unshipped claims) | Legal + trust before public launch | ❌ PENDING |
-| **6.12** Brand drift fix (Perioxia vs repo names) | Buyers notice | ❌ PENDING |
-| **6.13** Accounts vs Contacts (B2B company record) | HubSpot/Zoho/Salesforce shape | ❌ PENDING |
+| **6.1** Gmail / Outlook sync + send/log on record | HubSpot/Pipedrive/Freshsales table-stakes inbox | ✅ DONE |
+| **6.2** Google / Microsoft Calendar sync (site visits) | Service businesses schedule in calendar, not only CRM meetings | ✅ DONE |
+| **6.3** Click-to-call / telephony (Exotel or Twilio) | Freshsales / Kylas — call logs alone are not enough | ✅ DONE (Exotel) |
+| **6.4** Unified activity timeline (email+call+meeting+note) | Pipedrive’s core; one record history | ✅ DONE |
+| **6.5** One object UI (collapse five role apps) | HubSpot one contact; we still have `/sales`…`/admin` copies | ✅ DONE |
+| **6.6** Customer pay invoice + accept quote from portal | Portal is view-only; buyers expect pay link | ✅ DONE |
+| **6.7** WhatsApp inbound + auto reminder sequences | India: Kylas/LeadSquared; templates-only is thin | ✅ DONE |
+| **6.8** Store-ready mobile (Play/App Store) + mobile 2FA | Flutter path exists; not shippable | ✅ DONE (code) |
+| **6.9** In-app onboarding (sample pipeline, connect Gmail, import) | Time-to-first-deal; empty CRM loses trials | ✅ DONE |
+| **6.10** Postgres RLS (0.1) | Diligence / “isolation you can prove” | ✅ DONE |
+| **6.11** Landing honesty (remove fake testimonials / unshipped claims) | Legal + trust before public launch | ✅ DONE |
+| **6.12** Brand drift fix (Perioxia vs repo names) | Buyers notice | ✅ DONE |
+| **6.13** Accounts vs Contacts (B2B company record) | HubSpot/Zoho/Salesforce shape | ✅ DONE |
 | **6.14** Saved filters / “my deals due today” | Every serious CRM nag | ❌ PENDING |
 | **6.15** Outbound webhooks (customer events) | API keys exist; competitors push events | ❌ PENDING |
 | **6.16** Invoice PDF polish + India e-invoice/IRN path | GST lines exist; PDF/e-invoice don’t | ❌ PENDING |
@@ -80,12 +80,12 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 
 | Item | Status |
 |------|--------|
-| **0.1** / **6.10** Postgres RLS | ❌ PENDING |
-| **6.11** Landing honesty | ❌ PENDING |
-| **6.12** Brand drift | ❌ PENDING |
+| **0.1** / **6.10** Postgres RLS | ✅ DONE |
+| **6.11** Landing honesty | ✅ DONE |
+| **6.12** Brand drift | ✅ DONE |
 | **6.20** Alembic two-heads | ❌ PENDING |
 
-**Resume next:** start **Phase 6.1** (Gmail/Outlook sync). Work 6.1 → 6.20 in order unless a design partner forces a jump (e.g. India field sales → 6.7 / 6.6 / 6.2 first).
+**Resume next:** start **Phase 6.14** (saved filters / due views). Work 6.14 → 6.20 in order unless a design partner forces a jump.
 
 ---
 
@@ -103,7 +103,7 @@ Everything below assumes Razorpay; the structure is provider-agnostic (an adapte
 
 ## Phase 0 — Trust (2–4 weeks)
 
-**Status: ✅ DONE** for exit gate (0.2–0.5). **0.1 RLS still PENDING** — see status board.
+**Status: ✅ DONE** (including 0.1 RLS as 6.10).
 
 **Goal:** cross-tenant leaks and "fake SaaS" become impossible, proven by an automated test.
 
@@ -260,7 +260,7 @@ Phases 3 and 4 were pulled ahead of the original “only after revenue / trial a
 - **Phase 3** — ✅ **DONE (code):** 3.1–3.9 logged below.
 - **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
 - **Phase 5** — ❌ **PENDING:** paid add-ons checklist on status board + section below.
-- **Phase 6** — ❌ **PENDING (NEXT):** competitor parity checklist — **build all 6.1–6.20**.
+- **Phase 6** — 🚧 **IN PROGRESS:** **6.1–6.13 DONE (code).** Remaining 6.14–6.20.
 
 ### Phase 3.1 — TOTP 2FA — DONE
 
@@ -326,7 +326,7 @@ Gupshup template send only. Company API key + source number (key never returned)
 Existing `flutter_app/` already covered every role. This item is the **sales field path**: login lands on leads; bottom tabs are Leads / Follow-ups / Invoices / More. Invoice list reads `items`; detail shows GST lines when `tax_mode` is set. Other roles unchanged. Spec: [`superpowers/specs/2026-08-25-phase3-flutter-sales-path-design.md`](./superpowers/specs/2026-08-25-phase3-flutter-sales-path-design.md).
 
 - **Verification:** `flutter_app/test/sales_home_test.dart` (home path, nav index, invoice parse). Flutter SDK was not installed in this environment — run `flutter test` locally.
-- **Residuals:** other roles still have full shells; no App Store/Play release; no 2FA enroll UI on mobile.
+- **Residuals:** other roles still have full shells.
 
 ### Phase 4.1 — Products price book + tax — DONE (code)
 
@@ -401,67 +401,105 @@ OAuth login for **existing** users only (match email; persist `oauth_identities`
 > **HubSpot, Pipedrive, Freshsales, and Kylas/LeadSquared** still win trials.
 > Spec/plan per item before coding (same pattern as 3.x / 4.x). **Intent: build all 6.x.**
 
-### Phase 6.1 — Gmail / Outlook sync + send/log — PENDING
+### Phase 6.1 — Gmail / Outlook sync + send/log — DONE (code)
 
-Connect mailbox (OAuth); send from CRM; log outbound/inbound on lead/deal/client timeline.
-Tracking (open/click) v1 optional. Extends Phase 2 SMTP email.
+Per-user mailbox OAuth (Gmail send+readonly / Graph Mail.Send+Mail.Read); send from CRM uses mailbox when connected else SMTP; inbound/outbound matching lead/client/deal emails logged on `email_logs`. Spec: [`superpowers/specs/2026-08-25-phase6-gmail-outlook-design.md`](./superpowers/specs/2026-08-25-phase6-gmail-outlook-design.md); plan: [`superpowers/plans/2026-08-25-phase6-gmail-outlook.md`](./superpowers/plans/2026-08-25-phase6-gmail-outlook.md). UI: `/settings/email`, lead + deal email panels.
 
-### Phase 6.2 — Google / Microsoft Calendar sync — PENDING
+- **Verification:** `tests/sales/test_mailbox.py` + existing `test_crm_email.py`.
+- **Deploy:** `create_missing_tables.py` for `mailbox_connections` and `email_logs` columns; add OAuth redirect URIs `{PUBLIC_API_URL}/api/mailbox/oauth/{google|microsoft}/callback` (same client IDs as login SSO, extra mail scopes).
+- **Residuals:** open/click tracking, attachments, Gmail historyId / Graph delta, shared inbox.
 
-Create/update calendar events for site visits from CRM meetings; two-way sync v0 can be
-CRM→calendar only. Residual of Phase 3.2.
+### Phase 6.2 — Google / Microsoft Calendar sync — DONE (code)
 
-### Phase 6.3 — Click-to-call / telephony — PENDING
+CRM→calendar only. Per-user `calendar_connections` (separate from mailbox). Create/update/delete of meetings push to Google Calendar or Outlook; missing `ends_at` defaults to 60 minutes. Calendar API failure does not fail the meeting write. Spec: [`superpowers/specs/2026-08-25-phase6-calendar-sync-design.md`](./superpowers/specs/2026-08-25-phase6-calendar-sync-design.md); plan: [`superpowers/plans/2026-08-25-phase6-calendar-sync.md`](./superpowers/plans/2026-08-25-phase6-calendar-sync.md). UI: `/settings/calendar` + meeting panel hint.
 
-Exotel or Twilio: click-to-call from lead/deal; write `call_logs` automatically. Pick one
-provider for India-first (Exotel) unless design partner is global (Twilio).
+- **Verification:** `tests/sales/test_calendar_sync.py` + existing meetings tests.
+- **Deploy:** `create_missing_tables.py` for `calendar_connections` and `meetings.calendar_*`; add OAuth redirect URIs `{PUBLIC_API_URL}/api/calendar/oauth/{google|microsoft}/callback` and enable Calendar API / Calendars.ReadWrite.
+- **Residuals:** inbound sync, attendees, Meet/Teams conference links.
 
-### Phase 6.4 — Unified activity timeline — PENDING
+### Phase 6.3 — Click-to-call / telephony — DONE (code)
 
-Single Activity (or projected feed) of email, call, meeting, note, task, follow-up on one
-record. Stop parallel “history” UIs.
+Exotel Connect only (Twilio deferred). Company SID + encrypted API token + ExoPhone; click-to-call dials agent (`users.phone` or `from_phone`) then customer; writes `call_logs` with `provider_call_id`; webhook updates duration/outcome. Spec: [`superpowers/specs/2026-08-25-phase6-click-to-call-design.md`](./superpowers/specs/2026-08-25-phase6-click-to-call-design.md). UI: `/settings/telephony`, Call on lead + meeting panel.
 
-### Phase 6.5 — One object UI (collapse role apps) — PENDING
+- **Verification:** `tests/sales/test_telephony.py` (8 tests).
+- **Deploy:** `create_missing_tables.py`; set Exotel StatusCallback to `{PUBLIC_API_URL}/api/telephony/exotel/webhook`; agents need `users.phone`.
+- **Residuals:** Twilio, inbound DID, recordings UI, WebRTC dialer.
 
-Canonical `/leads`, `/clients`, `/deals`, `/invoices` (or sales paths as canonical);
-manager/MD/purchase/admin reuse components; roles only change scope/filters. Roadmap §6.1.
+### Phase 6.4 — Unified activity timeline — DONE (code)
 
-### Phase 6.6 — Portal pay + quote accept — PENDING
+Projected feed (no extra table): `GET /api/timeline/{lead|client|deal}/{id}` unions email, call, meeting, note, task, follow-up, WhatsApp, and audit, sorted by `occurred_at`. Missing parent → 404. Invoice/task/user keep audit-only. Spec: [`superpowers/specs/2026-08-25-phase6-activity-timeline-design.md`](./superpowers/specs/2026-08-25-phase6-activity-timeline-design.md). UI: `ActivityFeed` on lead + deal; compose panels keep forms and hide duplicate lists.
 
-Customer Razorpay (or Stripe) pay link on shared invoice; quote accept/reject from magic
-link. Extends Phase 4.3 view-only portal.
+- **Verification:** `tests/sales/test_activity_timeline.py` (5 tests).
+- **Residuals:** infinite scroll / kind filters.
 
-### Phase 6.7 — WhatsApp inbound + auto sequences — PENDING
+### Phase 6.5 — One object UI (collapse role apps) — DONE (code)
 
-Inbound webhook; auto-send templates from cadence/reminders; optional free-text session
-window. Extends Phase 3.8. Prefer Gupshup (already) or Interakt if partner requires.
+Role prefixes stay (`/sales`, `/manager`, `/md`); object screens are shared components. Spec: [`superpowers/specs/2026-08-25-phase6-one-object-ui-design.md`](./superpowers/specs/2026-08-25-phase6-one-object-ui-design.md). Client record includes ActivityFeed. Deals in sales/manager/MD nav.
 
-### Phase 6.8 — Mobile store release + mobile 2FA — PENDING
+- **Verification:** `frontend/lib/objectPaths.test.cjs` (4 tests).
+- **Residuals:** purchase invoice payment UI still separate (`/purchase/invoices`); MD `/md/clients` remains analytics (not a list); invoice *lists* still role-specific.
 
-Play Store (first) + App Store; TOTP enroll/verify on Flutter; sales path only for v1 store
-listing. Extends Phase 3.9.
+### Phase 6.6 — Portal pay + quote accept — DONE (code)
 
-### Phase 6.9 — In-app onboarding — PENDING
+Magic-link customers can **Pay now** on a shared invoice and **Accept/Reject** a shared quote. Razorpay payment links when keys are set; otherwise stub `/p/pay/{token}`. Paid via webhook `payment_link.paid` / `payment.captured` (`notes.crm_invoice_id`) or stub complete. Spec: [`superpowers/specs/2026-08-25-phase6-portal-pay-design.md`](./superpowers/specs/2026-08-25-phase6-portal-pay-design.md).
 
-Sample pipeline + demo leads; checklist: import CSV, connect email, create form, send quote.
-Empty-dashboard fix (roadmap §6.3).
+- **Verification:** `tests/portal/test_portal_actions.py` + webhook invoice-paid test.
+- **Deploy:** Razorpay keys + webhook URL `{PUBLIC_API_URL}/api/billing/webhook` with `payment_link.paid` / `payment.captured`.
+- **Residuals:** Stripe; emailing the link from the server.
 
-### Phase 6.10 — Postgres RLS (Phase 0.1) — PENDING
+### Phase 6.7 — WhatsApp inbound + auto sequences — DONE (code)
 
-`SET LOCAL app.company_id` + policies on tenant tables; platform-admin bypass. Defense-in-depth.
+Gupshup inbound `POST /api/whatsapp/webhook` (always 204). Match company by destination/`?source=` vs `whatsapp_source`; match lead/client by phone; log inbound with a 24h session. Cadence day-1 becomes WhatsApp when `whatsapp_cadence_template_id` is set; `POST /api/reminders/run` sends that template for pending `channel=whatsapp` follow-ups (including cadence rows with no owner). Session text: `POST /api/whatsapp/session-send`. Spec: [`superpowers/specs/2026-08-25-phase6-whatsapp-inbound-design.md`](./superpowers/specs/2026-08-25-phase6-whatsapp-inbound-design.md).
 
-### Phase 6.11 — Landing honesty — PENDING
+- **Verification:** `tests/sales/test_whatsapp_inbound.py`.
+- **Deploy:** point Gupshup callback to `{PUBLIC_API_URL}/api/whatsapp/webhook?source=<whatsapp_source>`; run `create_missing_tables.py` for new columns.
+- **Residuals:** Interakt; media inbound; webhook HMAC.
 
-Remove fabricated testimonials and claims for unshipped features. Before any public launch.
+### Phase 6.8 — Mobile store release + mobile 2FA — DONE (code)
 
-### Phase 6.12 — Brand drift — PENDING
+Flutter login honors TOTP challenges (`mfa_required` / `mfa_setup_required`), verify + enroll screens, Profile → 2FA, Bearer token in secure storage. Sales field path is still the v1 listing. Spec: [`superpowers/specs/2026-08-25-phase6-mobile-2fa-store-design.md`](./superpowers/specs/2026-08-25-phase6-mobile-2fa-store-design.md). Play/App copy and `flutter create` steps: [`flutter_app/store/STORE_RELEASE.md`](../flutter_app/store/STORE_RELEASE.md).
 
-One product name (Perioxia) across frontend, Flutter, repo docs, package names where safe.
+- **Verification:** `flutter_app/test/mfa_login_test.dart` + existing `sales_home_test.dart`. Flutter SDK was not in this environment — run `flutter test` locally.
+- **Deploy residual:** generate `android/` + `ios/` with `flutter create`, sign, upload AAB/IPA from Play Console / App Store Connect (credentials not in repo).
+- **Residuals:** no QR enroll UI; no App Store/Play upload from CI.
 
-### Phase 6.13 — Accounts vs Contacts — PENDING
+### Phase 6.9 — In-app onboarding — DONE (code)
 
-Optional Account/Company record; Client/Contact links to Account for B2B. Thin until a B2B
-design partner asks twice.
+Checklist on sales / manager / MD dashboards until complete or dismissed: sample leads, CSV import, mailbox, website form, quote. `POST /api/onboarding/sample-data` seeds 3 leads + 1 deal (idempotent). Spec: [`superpowers/specs/2026-08-25-phase6-onboarding-design.md`](./superpowers/specs/2026-08-25-phase6-onboarding-design.md).
+
+- **Verification:** `tests/sales/test_onboarding.py`.
+- **Deploy:** `create_missing_tables.py` for `company_settings.onboarding_dismissed`.
+- **Residuals:** no product tour; dismiss is company-wide.
+
+### Phase 6.10 — Postgres RLS (Phase 0.1) — DONE (code)
+
+`SET LOCAL` via `set_config(..., true)` on each transaction (`after_begin`). Tenant tables with `company_id` get FORCE RLS; login/bootstrap tables excluded. Platform admin and public webhooks/portal/auth bypass. Spec: [`superpowers/specs/2026-08-25-phase6-postgres-rls-design.md`](./superpowers/specs/2026-08-25-phase6-postgres-rls-design.md).
+
+- **Verification:** `tests/tenancy/test_rls.py` (SQLite no-op). Policies are not exercised in CI (no Postgres).
+- **Deploy:** run `create_missing_tables.py` against Postgres so `enable_rls` installs policies.
+- **Residuals:** `/api/v1` bypasses for the whole request (API key lookup); no second DB role.
+
+### Phase 6.11 — Landing honesty — DONE
+
+Removed fabricated testimonials, volume claims, Stripe/QB/Slack/Zapier strip, and footer `#` links. Copy matches shipped Gmail/Outlook/Calendar/WhatsApp/Razorpay + 14-day trial. Spec: [`superpowers/specs/2026-08-25-phase6-landing-honesty-design.md`](./superpowers/specs/2026-08-25-phase6-landing-honesty-design.md).
+
+- **Verification:** `cd frontend && npm run test:landing`.
+- **Residuals:** no pricing/legal pages; no real customer quotes yet.
+
+### Phase 6.12 — Brand drift — DONE
+
+Buyer-facing name is Perioxia CRM: auth footers, npm package `perioxia-crm-frontend`, OpenAPI `Perioxia CRM API`. Spec: [`superpowers/specs/2026-08-25-phase6-brand-drift-design.md`](./superpowers/specs/2026-08-25-phase6-brand-drift-design.md).
+
+- **Verification:** `cd frontend && npm run test:brand`.
+- **Residuals:** git directory may still be `CRM-`; README body still describes a generic multi-tenant OS.
+
+### Phase 6.13 — Accounts vs Contacts — DONE
+
+Optional `accounts` row (buyer company) with `clients.account_id`. Client remains the contact. Spec: [`superpowers/specs/2026-08-25-phase6-accounts-contacts-design.md`](./superpowers/specs/2026-08-25-phase6-accounts-contacts-design.md).
+
+- **Verification:** `tests/sales/test_accounts.py`.
+- **Deploy:** `create_missing_tables.py` (`accounts` table + `clients.account_id`).
+- **Residuals:** free-text `clients.company` is not auto-migrated; no Account on Deal/Lead.
 
 ### Phase 6.14 — Saved filters / due views — PENDING
 
@@ -526,8 +564,8 @@ Phase 0–4 ✅ (code)  →  Phase 6 (competitor parity) ❌  →  Phase 5 (add-
 ```
 
 **Verification checkpoints (roadmap §11):**
-- Phase 0: tenancy tests green. ✅ (RLS = **6.10** still open).
+- Phase 0: tenancy tests green. ✅ (RLS = **6.10** done in code).
 - Phase 1: payment + seat limit. ✅
 - Phase 2–4: sales loop + Standard + Professional extras. ✅ (code)
-- **Next:** **6.1 Gmail/Outlook** (or jump to **6.7 / 6.6 / 6.2** if India field-sales partner).
+- **Next:** **6.14 saved filters**.
 - Phase 5: only when a paid add-on is sold or repeatedly requested — still listed to build.

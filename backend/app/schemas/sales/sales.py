@@ -127,6 +127,7 @@ class ClientCreate(ClientBase):
     converted_from_lead_id: Optional[int] = None
     assigned_to_id: Optional[int] = None
     team_id: Optional[int] = None
+    account_id: Optional[int] = None
 
 
 class ClientUpdate(BaseModel):
@@ -137,6 +138,7 @@ class ClientUpdate(BaseModel):
     address: Optional[str] = None
     custom_fields: Optional[dict] = None
     gstin: Optional[str] = None
+    account_id: Optional[int] = None
 
 
 class ClientResponse(ClientBase):
@@ -146,6 +148,8 @@ class ClientResponse(ClientBase):
     total_revenue: float = 0.0
     assigned_to_id: Optional[int] = None
     assigned_to_name: Optional[str] = None
+    account_id: Optional[int] = None
+    account_name: Optional[str] = None
 
     class Config:
         from_attributes = True

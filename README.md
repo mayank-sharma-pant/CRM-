@@ -1,4 +1,4 @@
-# Multi-Tenant SaaS CRM Platform
+# Perioxia CRM
 
 A production-grade, multi-tenant CRM system built for service businesses, agencies, and teams. The platform features robust company-level isolation, a sophisticated role-based access control (RBAC) system, financial ledgers, and a comprehensive platform administration layer.
 

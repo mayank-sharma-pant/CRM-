@@ -1,4 +1,4 @@
-"""Send in-app + email reminders for due tasks and follow-ups. No WhatsApp in v0."""
+"""Send in-app + email reminders for due tasks and follow-ups; WhatsApp cadence templates."""
 from datetime import datetime, time, date
 from html import escape
 
@@ -9,6 +9,7 @@ from app.models.core.enums import TaskStatus
 from app.models.core.user import User
 from app.models.sales.follow_up import FollowUp
 from app.models.sales.task import Task
+from app.services.sales.whatsapp import send_cadence_whatsapp
 from app.utils.email_service import send_email
 from app.utils.notify import send_notification
 
@@ -35,6 +36,7 @@ def run_due_reminders(db: Session, now: datetime | None = None) -> dict:
     cutoff = _end_of_day(now.date())
     task_count = 0
     follow_count = 0
+    whatsapp_count = 0
     flags: dict[int, tuple[bool, bool]] = {}
 
     tasks = (
@@ -103,8 +105,29 @@ def run_due_reminders(db: Session, now: datetime | None = None) -> dict:
             category="tasks",
         )
         _email(item.created_by, title, message)
+        if (item.channel or "").lower() == "whatsapp" and send_cadence_whatsapp(db, item):
+            whatsapp_count += 1
         item.reminded_at = now
         follow_count += 1
 
+    wa_follow_ups = (
+        db.query(FollowUp)
+        .options(joinedload(FollowUp.lead))
+        .filter(
+            FollowUp.reminded_at.is_(None),
+            FollowUp.scheduled_date <= now.date(),
+            FollowUp.status == "Pending",
+            FollowUp.channel == "whatsapp",
+        )
+        .all()
+    )
+    for item in wa_follow_ups:
+        lead = item.lead
+        if lead is not None and getattr(lead, "deleted_at", None) is not None:
+            continue
+        if send_cadence_whatsapp(db, item):
+            whatsapp_count += 1
+        item.reminded_at = now
+
     db.commit()
-    return {"tasks": task_count, "follow_ups": follow_count}
+    return {"tasks": task_count, "follow_ups": follow_count, "whatsapp": whatsapp_count}

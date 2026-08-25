@@ -1,7 +1,7 @@
 import json
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -11,7 +11,15 @@ from app.models.core.user import User
 from app.models.sales.client import Client
 from app.models.sales.lead import Lead
 from app.models.sales.whatsapp import WhatsAppMessage, WhatsAppTemplate
-from app.services.sales.whatsapp import destination_msisdn, params_for_record, post_gupshup_template
+from app.services.sales.whatsapp import (
+    destination_msisdn,
+    ingest_gupshup_inbound,
+    params_for_record,
+    parse_template_keys,
+    post_gupshup_session_text,
+    post_gupshup_template,
+    session_open_until,
+)
 from app.utils.dependencies import (
     apply_company_scope,
     ensure_company_access,
@@ -34,6 +42,7 @@ class TemplateWrite(BaseModel):
 class ConnectionWrite(BaseModel):
     api_key: Optional[str] = None
     source: Optional[str] = None
+    cadence_template_id: Optional[int] = None
 
 
 class SendWrite(BaseModel):
@@ -41,6 +50,12 @@ class SendWrite(BaseModel):
     lead_id: Optional[int] = None
     client_id: Optional[int] = None
     params: Optional[list[str]] = None
+
+
+class SessionSendWrite(BaseModel):
+    body: str
+    lead_id: Optional[int] = None
+    client_id: Optional[int] = None
 
 
 def _company_user(user: User) -> int:
@@ -59,17 +74,7 @@ def _settings(db: Session, company_id: int) -> CompanySettings:
 
 
 def _parse_keys(raw) -> list[str]:
-    if not raw:
-        return []
-    if isinstance(raw, list):
-        return [str(x) for x in raw]
-    try:
-        data = json.loads(raw)
-    except (TypeError, json.JSONDecodeError):
-        return []
-    if not isinstance(data, list):
-        return []
-    return [str(x) for x in data]
+    return parse_template_keys(raw)
 
 
 def _serialize_template(row: WhatsAppTemplate) -> dict:
@@ -91,8 +96,12 @@ def _serialize_message(row: WhatsAppMessage) -> dict:
         "lead_id": row.lead_id,
         "client_id": row.client_id,
         "to_phone": row.to_phone,
+        "from_phone": getattr(row, "from_phone", None),
+        "direction": getattr(row, "direction", None) or "outbound",
+        "body": getattr(row, "body", None),
         "status": row.status,
         "error": row.error,
+        "session_expires_at": row.session_expires_at.isoformat() if getattr(row, "session_expires_at", None) else None,
         "created_at": row.created_at.isoformat() if row.created_at else None,
     }
 
@@ -119,6 +128,7 @@ def get_connection(
     return {
         "configured": bool(key and source),
         "source": source,
+        "cadence_template_id": getattr(settings, "whatsapp_cadence_template_id", None) if settings else None,
     }
 
 
@@ -135,10 +145,13 @@ def put_connection(
         settings.whatsapp_api_key = cleaned or None
     if body.source is not None:
         settings.whatsapp_source = normalize_phone(body.source)
+    if "cadence_template_id" in body.model_fields_set:
+        settings.whatsapp_cadence_template_id = body.cadence_template_id or None
     db.commit()
     return {
         "configured": bool(settings.whatsapp_api_key and settings.whatsapp_source),
         "source": settings.whatsapp_source,
+        "cadence_template_id": settings.whatsapp_cadence_template_id,
     }
 
 
@@ -218,7 +231,18 @@ def list_messages(
     if client_id is not None:
         query = query.filter(WhatsAppMessage.client_id == client_id)
     rows = query.order_by(WhatsAppMessage.id.desc()).limit(100).all()
-    return {"items": [_serialize_message(r) for r in rows], "total": len(rows)}
+    expires = session_open_until(
+        db,
+        company_id=current_user.company_id,
+        lead_id=lead_id,
+        client_id=client_id,
+    )
+    return {
+        "items": [_serialize_message(r) for r in rows],
+        "total": len(rows),
+        "session_open": expires is not None,
+        "session_expires_at": expires.isoformat() if expires else None,
+    }
 
 
 @router.post("/send", status_code=status.HTTP_201_CREATED)
@@ -277,6 +301,103 @@ def send_template(
         lead_id=lead_id,
         client_id=client_id,
         to_phone=destination,
+        direction="outbound",
+        status="sent" if ok else "failed",
+        error=None if ok else snippet,
+        sent_by_id=current_user.id,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _serialize_message(row)
+
+
+@router.post("/webhook", status_code=status.HTTP_204_NO_CONTENT)
+async def gupshup_webhook(request: Request, db: Session = Depends(get_db)):
+    query_source = request.query_params.get("source") or request.query_params.get("destination")
+    body: dict = {}
+    content_type = (request.headers.get("content-type") or "").lower()
+    if "application/json" in content_type:
+        payload = await request.json()
+        if isinstance(payload, dict):
+            body = payload
+    else:
+        form = await request.form()
+        raw = form.get("payload") or form.get("message")
+        if isinstance(raw, str) and raw.strip().startswith("{"):
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    body = parsed
+            except json.JSONDecodeError:
+                body = {"type": form.get("type"), "text": raw, "source": form.get("source")}
+        else:
+            body = {k: form.get(k) for k in form.keys()}
+            if query_source is None:
+                query_source = form.get("destination") or form.get("app")
+    ingest_gupshup_inbound(db, body, query_source=query_source)
+    return None
+
+
+@router.post("/session-send", status_code=status.HTTP_201_CREATED)
+def session_send(
+    body: SessionSendWrite,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    company_id = _company_user(current_user)
+    text = (body.body or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="body is required")
+    if body.lead_id is None and body.client_id is None:
+        raise HTTPException(status_code=400, detail="lead_id or client_id is required")
+
+    record = None
+    lead_id = None
+    client_id = None
+    phone = None
+    if body.lead_id is not None:
+        record = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == body.lead_id).first()
+        if record is None:
+            raise HTTPException(status_code=404, detail="Not found")
+        ensure_company_access(record, current_user)
+        lead_id = record.id
+        phone = record.phone
+    if body.client_id is not None:
+        record = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == body.client_id).first()
+        if record is None:
+            raise HTTPException(status_code=404, detail="Not found")
+        ensure_company_access(record, current_user)
+        client_id = record.id
+        phone = record.phone
+
+    expires = session_open_until(db, company_id=company_id, lead_id=lead_id, client_id=client_id)
+    if expires is None:
+        raise HTTPException(status_code=400, detail="WhatsApp session window is closed")
+
+    settings = db.query(CompanySettings).filter(CompanySettings.company_id == company_id).first()
+    api_key = getattr(settings, "whatsapp_api_key", None) if settings else None
+    source = getattr(settings, "whatsapp_source", None) if settings else None
+    if not api_key or not source:
+        raise HTTPException(status_code=400, detail="WhatsApp is not configured for this company")
+    try:
+        destination = destination_msisdn(phone)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    ok, snippet = post_gupshup_session_text(
+        api_key=api_key,
+        source=source,
+        destination=destination,
+        text=text,
+    )
+    row = WhatsAppMessage(
+        company_id=company_id,
+        lead_id=lead_id,
+        client_id=client_id,
+        to_phone=destination,
+        direction="outbound",
+        body=text,
         status="sent" if ok else "failed",
         error=None if ok else snippet,
         sent_by_id=current_user.id,

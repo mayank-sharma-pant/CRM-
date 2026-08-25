@@ -1,19 +1,21 @@
 """
 Activity Timeline API
-Returns chronological activity events for leads and clients.
+Projected feed for lead/client/deal; audit-only for invoice/task/user.
 """
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
-from typing import Optional
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user, apply_company_scope
 from app.models.core.user import User
 from app.models.sales.audit import AuditLog
+from app.services.sales.activity_timeline import build_activity_feed
 from app.utils.datetime_json import isoformat_utc
 
 router = APIRouter()
+
+_AUDIT_ONLY = ("invoice", "task", "user")
+_FEED = ("lead", "client", "deal")
 
 
 @router.get("/{entity_type}/{entity_id}")
@@ -25,18 +27,20 @@ def get_timeline(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get activity timeline for an entity (lead, client, invoice, task)."""
-    if entity_type not in ("lead", "client", "invoice", "task", "user"):
+    if entity_type in _FEED:
+        return build_activity_feed(db, current_user, entity_type, entity_id, skip, limit)
+
+    if entity_type not in _AUDIT_ONLY:
         raise HTTPException(status_code=400, detail="Invalid entity type")
 
     query = apply_company_scope(db.query(AuditLog), AuditLog, current_user).filter(
         AuditLog.entity_type == entity_type,
         AuditLog.entity_id == str(entity_id)
     )
-    
+
     total = query.count()
     events = query.order_by(AuditLog.timestamp.desc()).offset(skip).limit(limit).all()
-    
+
     return {
         "events": [
             {

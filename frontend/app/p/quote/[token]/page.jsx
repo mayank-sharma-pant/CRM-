@@ -8,6 +8,57 @@ function fmt(v) {
   return `₹${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 }
 
+function QuoteActions({ token, onChanged }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const act = async (path) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/portal/quotes/${token}/${path}`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof data.detail === 'string' ? data.detail : 'Could not update quote');
+        return;
+      }
+      onChanged({
+        status: data.status || '',
+        canAccept: Boolean(data.can_accept),
+        canReject: Boolean(data.can_reject),
+      });
+    } catch {
+      setError('Could not update quote');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="pt-4 border-t border-border space-y-2">
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => act('accept')}
+          disabled={busy}
+          className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50"
+        >
+          Accept quote
+        </button>
+        <button
+          type="button"
+          onClick={() => act('reject')}
+          disabled={busy}
+          className="flex-1 px-4 py-2.5 border border-slate-300 text-sm font-semibold rounded-lg disabled:opacity-50"
+        >
+          Reject
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function PublicQuotePage() {
   const { token } = useParams();
   const [status, setStatus] = useState('loading');
@@ -41,6 +92,8 @@ export default function PublicQuotePage() {
             buyerGstin: data.buyer_gstin || '',
             placeOfSupply: data.place_of_supply || '',
             notes: data.notes || '',
+            canAccept: Boolean(data.can_accept),
+            canReject: Boolean(data.can_reject),
             items: (data.items || []).map((i) => ({
               description: i.description,
               qty: i.quantity || 1,
@@ -134,6 +187,10 @@ export default function PublicQuotePage() {
 
             {doc.notes && (
               <p className="text-sm text-muted border-t border-border pt-4">{doc.notes}</p>
+            )}
+
+            {(doc.canAccept || doc.canReject) && (
+              <QuoteActions token={token} onChanged={(next) => setDoc((prev) => ({ ...prev, ...next }))} />
             )}
           </div>
         )}

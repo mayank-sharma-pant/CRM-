@@ -7,8 +7,6 @@ import {
   ArrowLeft,
   Mail,
   Phone,
-  FileText,
-  CheckSquare,
   Clock,
   Building2,
   MapPin,
@@ -16,7 +14,6 @@ import {
   ChevronRight,
   MoreHorizontal,
   PlusCircle,
-  History,
   Briefcase,
   AlertTriangle,
   Loader2
@@ -34,6 +31,7 @@ import LeadWhatsAppPanel from './LeadWhatsAppPanel';
 import LeadTagsPanel from './LeadTagsPanel';
 import LeadDuplicatesPanel from './LeadDuplicatesPanel';
 import MeetingCallPanel from '../activity/MeetingCallPanel';
+import ActivityFeed from '../activity/ActivityFeed';
 
 export default function LeadDetailPage() {
   const router = useRouter();
@@ -50,6 +48,8 @@ export default function LeadDetailPage() {
   const [fieldDefs, setFieldDefs] = useState([]);
   const [customDraft, setCustomDraft] = useState({});
   const [savingFields, setSavingFields] = useState(false);
+  const [callError, setCallError] = useState(null);
+  const [activityTick, setActivityTick] = useState(0);
 
   useEffect(() => {
     fetchLeadData();
@@ -78,158 +78,8 @@ export default function LeadDetailPage() {
         canReassign
       };
 
-      // Construct a simple timeline from tasks and notes
-      const timeline = [
-        {
-          id: 'creation',
-          type: 'creation',
-          title: 'Lead Created',
-          description: `Lead added to the system`,
-          timestamp: data.created_at,
-          icon: PlusCircle,
-          color: 'text-violet-600 bg-violet-100'
-        }
-      ];
-
-      if (data.notes_list) {
-        data.notes_list.forEach(note => {
-          timeline.push({
-            id: `note-${note.id}`,
-            type: 'note',
-            title: 'Note Added',
-            description: note.content,
-            timestamp: note.created_at,
-            icon: FileText,
-            color: 'text-amber-600 bg-amber-100'
-          });
-        });
-      }
-
-      if (data.tasks) {
-        data.tasks.forEach(task => {
-          if (task.created_at) {
-            timeline.push({
-              id: `task-added-${task.id}`,
-              type: 'task',
-              title: task.is_manager_assigned ? 'Task assigned' : 'Task created',
-              description: task.title,
-              timestamp: task.created_at,
-              icon: CheckSquare,
-              color: 'text-blue-600 bg-blue-100'
-            });
-          }
-          if (task.status === 'Completed' && (task.completed_at || task.updated_at)) {
-            timeline.push({
-              id: `task-done-${task.id}`,
-              type: 'task',
-              title: 'Task completed',
-              description: task.title,
-              timestamp: task.completed_at || task.updated_at,
-              icon: CheckSquare,
-              color: 'text-emerald-600 bg-emerald-100'
-            });
-          }
-        });
-      }
-
-      // Fetch audit timeline events
-      try {
-        const timelineRes = await api.get(`/timeline/lead/${id}`);
-        const events = timelineRes.data?.events || [];
-        events.forEach(ev => {
-          if (ev.action === 'created') return;
-          
-          let actionLabel = ev.action;
-          let desc = `by ${ev.admin_name || 'System'}`;
-          let color = 'text-gray-600 bg-gray-100';
-          
-          if (ev.action === 'status_changed') {
-            actionLabel = `Status: ${ev.before_value} → ${ev.after_value}`;
-            color = 'text-blue-600 bg-blue-100';
-          } else if (ev.action === 'converted') {
-            actionLabel = 'Converted to Client';
-            color = 'text-emerald-600 bg-emerald-100';
-          } else if (ev.action === 'reassigned') {
-            actionLabel = 'Owner Reassigned';
-            desc = `${ev.before_value} → ${ev.after_value} (by ${ev.admin_name})`;
-            color = 'text-purple-600 bg-purple-100';
-          } else if (ev.action === 'updated') {
-            actionLabel = ev.after_value || 'Lead Updated';
-          } else if (ev.action === 'deleted') {
-            actionLabel = 'Deleted';
-            color = 'text-red-600 bg-red-100';
-          }
-
-          timeline.push({
-            id: `audit-${ev.id}`,
-            type: 'activity',
-            title: actionLabel,
-            description: desc,
-            timestamp: ev.timestamp,
-            icon: History,
-            color: color
-          });
-        });
-      } catch { /* timeline fetch is non-critical */ }
-
-      try {
-        const [mRes, cRes] = await Promise.all([
-          api.get('/meetings', { params: { lead_id: id } }),
-          api.get('/calls', { params: { lead_id: id } }),
-        ]);
-        (mRes.data.items || []).forEach((m) => {
-          const title =
-            m.status === 'cancelled'
-              ? 'Meeting cancelled'
-              : m.status === 'completed'
-                ? 'Meeting completed'
-                : 'Meeting scheduled';
-          timeline.push({
-            id: `meeting-${m.id}`,
-            type: 'meeting',
-            title,
-            description: m.location ? `${m.subject} · ${m.location}` : m.subject,
-            timestamp: m.starts_at,
-            icon: PlusCircle,
-            color: 'text-indigo-600 bg-indigo-100',
-          });
-        });
-        (cRes.data.items || []).forEach((c) => {
-          const bits = [
-            c.outcome,
-            c.duration_seconds != null ? `${c.duration_seconds}s` : null,
-            c.notes,
-          ].filter(Boolean);
-          timeline.push({
-            id: `call-${c.id}`,
-            type: 'call',
-            title: c.direction === 'inbound' ? 'Inbound call' : 'Outbound call',
-            description: bits.join(' · ') || 'Call logged',
-            timestamp: c.logged_at,
-            icon: Phone,
-            color: 'text-emerald-600 bg-emerald-100',
-          });
-        });
-      } catch { /* meetings/calls are non-critical for the rest of the page */ }
-
-      // Sort timeline by date desc
-      data.timeline = timeline.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-      const safeFormatAgo = (isoStr) => {
-        if (!isoStr) return '—';
-        try {
-          const d = parseISO(isoStr);
-          return isNaN(d.getTime()) ? isoStr : formatDistanceToNow(d, { addSuffix: true });
-        } catch {
-          return isoStr;
-        }
-      };
-      data.timeline = data.timeline.map(item => ({
-        ...item,
-        timestamp: safeFormatAgo(item.timestamp)
-      }));
-
       setLead(data);
+      setActivityTick((n) => n + 1);
     } catch (err) {
       console.error("Failed to fetch lead", err);
     } finally {
@@ -429,42 +279,7 @@ export default function LeadDetailPage() {
         {/* --- LEFT COLUMN: CORE ACTIVITY (7 cols) --- */}
         <div className="lg:col-span-7 space-y-6">
 
-          {/* Section 2: Activity Timeline */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
-            <h2 className="text-sm font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
-              <History size={16} className="text-slate-400" />
-              Activity History
-            </h2>
-
-            <div className="relative space-y-8 pl-3 border-l-2 border-slate-100 dark:border-slate-700 ml-2">
-              {lead.timeline.map((item) => (
-                <div key={item.id} className="relative pl-6 group">
-                  <div className={`
-                          absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 border-white dark:border-slate-800 
-                          ${item.color.replace('text-', 'bg-')} ring-1 ring-slate-100 dark:ring-slate-700
-                       `}></div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-900 dark:text-white">
-                        {item.title}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">
-                        {item.timestamp}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-300">
-                      {item.description}
-                    </p>
-                  </div>
-                </div>
-              ))}
-
-              <div className="relative pl-6">
-                <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700"></div>
-                <p className="text-[10px] text-slate-400 italic">Start of timeline</p>
-              </div>
-            </div>
-          </div>
+          <ActivityFeed entityType="lead" entityId={id} reloadKey={activityTick} />
 
         </div>
 
@@ -482,7 +297,24 @@ export default function LeadDetailPage() {
               <div className="flex items-center gap-3 text-sm">
                 <Phone size={14} className="text-slate-400 w-4" />
                 <span className="text-slate-700 dark:text-slate-300">{lead.phone}</span>
+                {lead.phone && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await api.post('/telephony/click-to-call', { lead_id: Number(id) });
+                        setCallError(null);
+                      } catch (err) {
+                        setCallError(err.response?.data?.detail || 'Could not place call');
+                      }
+                    }}
+                    className="text-xs font-semibold text-emerald-700 hover:underline"
+                  >
+                    Call
+                  </button>
+                )}
               </div>
+              {callError && <p className="text-xs text-red-600">{callError}</p>}
               <div className="flex items-center gap-3 text-sm">
                 <Briefcase size={14} className="text-slate-400 w-4" />
                 <span className="text-slate-700 dark:text-slate-300">{lead.source}</span>
@@ -557,10 +389,10 @@ export default function LeadDetailPage() {
           </div>
 
           <LeadDuplicatesPanel leadId={id} onMerged={fetchLeadData} />
-          <MeetingCallPanel parentType="lead" parentId={id} onChanged={fetchLeadData} />
+          <MeetingCallPanel parentType="lead" parentId={id} onChanged={fetchLeadData} hideHistory />
           <LeadTagsPanel leadId={id} tags={lead.tags} onChanged={fetchLeadData} />
-          <LeadEmailPanel leadId={id} leadEmail={lead.email} />
-          <LeadWhatsAppPanel leadId={id} leadPhone={lead.phone} />
+          <LeadEmailPanel leadId={id} leadEmail={lead.email} hideHistory onChanged={fetchLeadData} />
+          <LeadWhatsAppPanel leadId={id} leadPhone={lead.phone} hideHistory onChanged={fetchLeadData} />
 
           {/* Section 4: Notes */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">

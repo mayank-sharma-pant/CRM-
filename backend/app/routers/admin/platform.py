@@ -56,6 +56,8 @@ def _require_platform_admin(token: str, db: Session) -> User:
         raise HTTPException(status_code=403, detail="User account is disabled")
     if not (user.role == "admin" and user.company_id is None):
         raise HTTPException(status_code=403, detail="Platform admin access required")
+    from app.tenancy import bind_for_user
+    bind_for_user(user, db)
     return user
 
 

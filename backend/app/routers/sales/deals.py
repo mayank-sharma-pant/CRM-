@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from sqlalchemy.orm import Session
 
 from sqlalchemy import or_
@@ -19,9 +19,12 @@ from app.models.sales.deal import Deal
 from app.models.sales.lead import Lead
 from app.models.sales.client import Client
 from app.models.sales.pipeline import Pipeline, PipelineStage
-from app.services.sales.pipeline_seed import ensure_default_pipeline
+from app.services.sales.pipeline_seed import attach_default_stages, ensure_default_pipeline
 from app.services.sales.custom_fields import get_values_map, set_values
-from app.schemas.sales.deal import DealCreate, DealUpdate, DealStageUpdate, StageCreate, StageUpdate
+from app.schemas.sales.deal import (
+    DealCreate, DealUpdate, DealStageUpdate, StageCreate, StageUpdate,
+    PipelineCreate, PipelineUpdate,
+)
 
 router = APIRouter()
 
@@ -153,6 +156,8 @@ def create_deal(payload: DealCreate, db: Session = Depends(get_db),
 
     pipeline_id = payload.pipeline_id
     stage_id = payload.stage_id
+    if pipeline_id is not None and _get_pipeline(db, current_user, pipeline_id) is None:
+        raise HTTPException(status_code=400, detail="pipeline_id not found in your company")
     if pipeline_id is None or stage_id is None:
         default_pipeline = ensure_default_pipeline(db, current_user.company_id)
         pipeline_id = pipeline_id or default_pipeline.id
@@ -316,8 +321,12 @@ def deal_board(db: Session = Depends(get_db), current_user: User = Depends(get_c
                active_team_id: Optional[int] = Depends(get_active_team_id),
                pipeline_id: Optional[int] = Query(None)):
     if pipeline_id is None:
-        default_pipeline = ensure_default_pipeline(db, current_user.company_id)
-        pipeline_id = default_pipeline.id
+        pipeline = ensure_default_pipeline(db, current_user.company_id)
+        pipeline_id = pipeline.id
+    else:
+        pipeline = _get_pipeline(db, current_user, pipeline_id)
+        if pipeline is None:
+            raise HTTPException(status_code=404, detail="Pipeline not found")
 
     stages = apply_company_scope(db.query(PipelineStage), PipelineStage, current_user).filter(
         PipelineStage.pipeline_id == pipeline_id
@@ -356,10 +365,29 @@ def deal_board(db: Session = Depends(get_db), current_user: User = Depends(get_c
 
     return {
         "pipeline_id": pipeline_id,
+        "pipeline_name": pipeline.name,
         "stages": stage_blocks,
         "open_forecast": str(open_forecast.quantize(Decimal("0.01"))),
         "won_value": str(won_value.quantize(Decimal("0.01"))),
     }
+
+
+def _get_pipeline(db: Session, current_user: User, pipeline_id: int) -> Optional[Pipeline]:
+    return apply_company_scope(db.query(Pipeline), Pipeline, current_user).filter(
+        Pipeline.id == pipeline_id
+    ).first()
+
+
+def _serialize_pipeline(p: Pipeline) -> dict:
+    return {"id": p.id, "name": p.name, "is_default": bool(p.is_default), "is_active": bool(p.is_active)}
+
+
+def _clear_other_defaults(db: Session, current_user: User, keep_id: int) -> None:
+    others = apply_company_scope(db.query(Pipeline), Pipeline, current_user).filter(
+        Pipeline.id != keep_id, Pipeline.is_default == True  # noqa: E712
+    ).all()
+    for row in others:
+        row.is_default = False
 
 
 def _require_admin_or_md(current_user: User):
@@ -375,9 +403,95 @@ def _serialize_stage(s: PipelineStage) -> dict:
 
 @router.get("/pipelines")
 def list_pipelines(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    ensure_default_pipeline(db, current_user.company_id)
     pipelines = apply_company_scope(db.query(Pipeline), Pipeline, current_user).order_by(Pipeline.id).all()
-    return {"items": [{"id": p.id, "name": p.name, "is_default": p.is_default, "is_active": p.is_active}
-                      for p in pipelines]}
+    return {"items": [_serialize_pipeline(p) for p in pipelines]}
+
+
+@router.post("/pipelines", status_code=status.HTTP_201_CREATED)
+def create_pipeline(
+    payload: PipelineCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_admin_or_md(current_user)
+    name = (payload.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    ensure_default_pipeline(db, current_user.company_id)
+    pipeline = Pipeline(
+        company_id=current_user.company_id,
+        name=name,
+        is_default=bool(payload.is_default),
+        is_active=True,
+    )
+    db.add(pipeline)
+    db.flush()
+    attach_default_stages(db, current_user.company_id, pipeline.id)
+    if pipeline.is_default:
+        _clear_other_defaults(db, current_user, pipeline.id)
+    db.commit()
+    db.refresh(pipeline)
+    return _serialize_pipeline(pipeline)
+
+
+@router.patch("/pipelines/{pipeline_id:int}")
+def update_pipeline(
+    pipeline_id: int,
+    payload: PipelineUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_admin_or_md(current_user)
+    pipeline = _get_pipeline(db, current_user, pipeline_id)
+    if pipeline is None:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    data = payload.model_dump(exclude_unset=True)
+    if "name" in data:
+        name = (data["name"] or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="name is required")
+        pipeline.name = name
+        data.pop("name")
+    if data.get("is_default") is False and pipeline.is_default:
+        other_default = apply_company_scope(db.query(Pipeline), Pipeline, current_user).filter(
+            Pipeline.id != pipeline.id, Pipeline.is_default == True  # noqa: E712
+        ).first()
+        if other_default is None:
+            raise HTTPException(status_code=400, detail="cannot unset the last default pipeline")
+    if "is_active" in data and data["is_active"] is not None:
+        pipeline.is_active = data["is_active"]
+    if data.get("is_default") is True:
+        pipeline.is_default = True
+        _clear_other_defaults(db, current_user, pipeline.id)
+    elif data.get("is_default") is False:
+        pipeline.is_default = False
+    db.commit()
+    db.refresh(pipeline)
+    return _serialize_pipeline(pipeline)
+
+
+@router.delete("/pipelines/{pipeline_id:int}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_pipeline(
+    pipeline_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_admin_or_md(current_user)
+    pipeline = _get_pipeline(db, current_user, pipeline_id)
+    if pipeline is None:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    if pipeline.is_default:
+        raise HTTPException(status_code=400, detail="cannot delete the default pipeline")
+    deal_count = apply_company_scope(db.query(Deal), Deal, current_user).filter(
+        Deal.pipeline_id == pipeline.id
+    ).count()
+    if deal_count:
+        raise HTTPException(status_code=400, detail="pipeline has deals")
+    db.query(PipelineStage).filter(PipelineStage.pipeline_id == pipeline.id).delete()
+    db.delete(pipeline)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/stages")

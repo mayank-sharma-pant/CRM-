@@ -32,6 +32,7 @@ import DocumentsList from '../documents/DocumentsList';
 import LeadEmailPanel from './LeadEmailPanel';
 import LeadTagsPanel from './LeadTagsPanel';
 import LeadDuplicatesPanel from './LeadDuplicatesPanel';
+import MeetingCallPanel from '../activity/MeetingCallPanel';
 
 export default function LeadDetailPage() {
   const router = useRouter();
@@ -169,6 +170,46 @@ export default function LeadDetailPage() {
           });
         });
       } catch { /* timeline fetch is non-critical */ }
+
+      try {
+        const [mRes, cRes] = await Promise.all([
+          api.get('/meetings', { params: { lead_id: id } }),
+          api.get('/calls', { params: { lead_id: id } }),
+        ]);
+        (mRes.data.items || []).forEach((m) => {
+          const title =
+            m.status === 'cancelled'
+              ? 'Meeting cancelled'
+              : m.status === 'completed'
+                ? 'Meeting completed'
+                : 'Meeting scheduled';
+          timeline.push({
+            id: `meeting-${m.id}`,
+            type: 'meeting',
+            title,
+            description: m.location ? `${m.subject} · ${m.location}` : m.subject,
+            timestamp: m.starts_at,
+            icon: PlusCircle,
+            color: 'text-indigo-600 bg-indigo-100',
+          });
+        });
+        (cRes.data.items || []).forEach((c) => {
+          const bits = [
+            c.outcome,
+            c.duration_seconds != null ? `${c.duration_seconds}s` : null,
+            c.notes,
+          ].filter(Boolean);
+          timeline.push({
+            id: `call-${c.id}`,
+            type: 'call',
+            title: c.direction === 'inbound' ? 'Inbound call' : 'Outbound call',
+            description: bits.join(' · ') || 'Call logged',
+            timestamp: c.logged_at,
+            icon: Phone,
+            color: 'text-emerald-600 bg-emerald-100',
+          });
+        });
+      } catch { /* meetings/calls are non-critical for the rest of the page */ }
 
       // Sort timeline by date desc
       data.timeline = timeline.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -515,6 +556,7 @@ export default function LeadDetailPage() {
           </div>
 
           <LeadDuplicatesPanel leadId={id} onMerged={fetchLeadData} />
+          <MeetingCallPanel parentType="lead" parentId={id} onChanged={fetchLeadData} />
           <LeadTagsPanel leadId={id} tags={lead.tags} onChanged={fetchLeadData} />
           <LeadEmailPanel leadId={id} leadEmail={lead.email} />
 

@@ -5,6 +5,7 @@ import { useRouter, useParams, usePathname } from 'next/navigation';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import api from '../../../../services/api';
 import { useNotification } from '../../../../contexts/NotificationContext';
+import MeetingCallPanel from '../../../../components/activity/MeetingCallPanel';
 
 export default function DealDetailPage() {
   const router = useRouter();
@@ -280,6 +281,10 @@ export default function DealDetailPage() {
             </ul>
           )}
         </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-6 pb-6">
+        <MeetingCallPanel parentType="deal" parentId={id} />
       </div>
     </div>
   );

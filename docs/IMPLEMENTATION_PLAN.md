@@ -189,6 +189,17 @@ Pulled forward ahead of the pull-based gate by explicit decision. Opt-in per-use
 - **Forced-enrollment UI (gap closed):** mandate login issues a `setup_token` and **no session cookie**. `/settings/security` is a public path in Next middleware, `RouteGuard`, Layout (no chrome while logged out), and the axios 401 interceptor, so the enroll page is not bounced to `/login`. After recovery codes, the user is sent to `/login?enrolled=true` to complete the TOTP challenge. APIs still require a session or `X-Setup-Token`.
 - **Documented residuals:** stateless access tokens (≤30 min) mean a mid-session mandate or a disable takes up to one token lifetime to fully bite (no denylist — consistent with Phase 0); `mfa_token` has no `jti`/single-use, so it is replayable within its 5-min window (each replay still needs a fresh valid code; the recovery-code path is single-use); QR image deferred (manual entry only). Pre-existing, out of scope: `app/sales/orders/page.jsx` shares the `useSearchParams`-without-`Suspense` pattern (builds clean today because it renders dynamically) — worth wrapping if it ever prerenders. The original whole-branch review agent was killed by a session limit; this follow-up closed the forced-setup hole that review never reached.
 
+### Phase 3.2 — Meetings + call log — DONE (code)
+
+Pulled forward after 3.1 by explicit decision. Spec: [`superpowers/specs/2026-08-25-phase3-meetings-calls-design.md`](./superpowers/specs/2026-08-25-phase3-meetings-calls-design.md); plan: [`superpowers/plans/2026-08-25-phase3-meetings-calls.md`](./superpowers/plans/2026-08-25-phase3-meetings-calls.md). Two tables (`meetings`, `call_logs`); CRUD under `/api/meetings` and `/api/calls`; UI on lead + deal detail. No telephony, no calendar sync, no Alembic, no new pip deps.
+
+- **Verification:** 16 new tests green (`test_meetings_calls_schema.py`, `test_meetings_calls_api.py`, `test_meetings_calls_cross_tenant.py`); `next build` clean. New tables via `create_all` — **run `create_missing_tables.py` on deploy.**
+- **Residuals:** follow-ups with `channel=call` remain reminders, not logged calls; no calendar sync, attendees, or click-to-call.
+
+### Phase 3.3 — Multiple pipelines — DONE (code)
+
+Spec: [`superpowers/specs/2026-08-25-phase3-multiple-pipelines-design.md`](./superpowers/specs/2026-08-25-phase3-multiple-pipelines-design.md). Admin/MD create extra pipelines (default stages cloned); board switches by `pipeline_id`; deals created on the selected pipeline. Cannot delete the default pipeline or one that still has deals. No deal-move-across-pipelines.
+
 ---
 
 ## Cross-cutting cleanups (do alongside, not as a phase)

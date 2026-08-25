@@ -82,3 +82,14 @@ class QuoteStatus(str, enum.Enum):
     DRAFT = "draft"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
+
+
+class MeetingStatus(str, enum.Enum):
+    SCHEDULED = "scheduled"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class CallDirection(str, enum.Enum):
+    INBOUND = "inbound"
+    OUTBOUND = "outbound"

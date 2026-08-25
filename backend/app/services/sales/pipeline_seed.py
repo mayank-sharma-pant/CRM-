@@ -12,6 +12,14 @@ _DEFAULT_STAGES = [
 ]
 
 
+def attach_default_stages(db: Session, company_id: int, pipeline_id: int) -> None:
+    for position, (name, stage_type, prob) in enumerate(_DEFAULT_STAGES, start=1):
+        db.add(PipelineStage(
+            company_id=company_id, pipeline_id=pipeline_id, name=name,
+            position=position, stage_type=stage_type, default_probability=prob,
+        ))
+
+
 def ensure_default_pipeline(db: Session, company_id: int) -> Pipeline:
     """Idempotently create a company's default pipeline + stages. Returns the default pipeline."""
     existing = (
@@ -25,11 +33,7 @@ def ensure_default_pipeline(db: Session, company_id: int) -> Pipeline:
     pipeline = Pipeline(company_id=company_id, name="Sales Pipeline", is_default=True, is_active=True)
     db.add(pipeline)
     db.flush()
-    for position, (name, stage_type, prob) in enumerate(_DEFAULT_STAGES, start=1):
-        db.add(PipelineStage(
-            company_id=company_id, pipeline_id=pipeline.id, name=name,
-            position=position, stage_type=stage_type, default_probability=prob,
-        ))
+    attach_default_stages(db, company_id, pipeline.id)
     db.commit()
     db.refresh(pipeline)
     return pipeline

@@ -50,3 +50,14 @@ class StageUpdate(BaseModel):
     position: Optional[int] = None
     stage_type: Optional[str] = None
     default_probability: Optional[int] = None
+
+
+class PipelineCreate(BaseModel):
+    name: str
+    is_default: bool = False
+
+
+class PipelineUpdate(BaseModel):
+    name: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_default: Optional[bool] = None

@@ -14,3 +14,5 @@ from .workflow_rule import WorkflowRule
 from .custom_field import CustomFieldDef, CustomFieldValue
 from .email_log import EmailLog
 from .tag import Tag, LeadTag
+from .meeting import Meeting
+from .call_log import CallLog

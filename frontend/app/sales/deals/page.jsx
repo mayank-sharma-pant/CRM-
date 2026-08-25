@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import api from '../../../services/api';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import Skeleton from '../../../components/shared/Skeleton';
 import { Plus, TrendingUp, Trophy } from 'lucide-react';
 
@@ -14,9 +15,15 @@ function formatMoney(value) {
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 }
 
+function roleOf(user) {
+  return String(user?.role || '').toLowerCase();
+}
+
 export default function DealsBoard() {
   const [board, setBoard] = useState(null);
   const [stages, setStages] = useState([]);
+  const [pipelines, setPipelines] = useState([]);
+  const [pipelineId, setPipelineId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [creating, setCreating] = useState(false);
@@ -24,18 +31,43 @@ export default function DealsBoard() {
 
   const basePath = usePathname();
   const { showToast } = useNotification();
+  const { user } = useAuth();
+  const canConfigure = ['admin', 'md'].includes(roleOf(user));
 
   useEffect(() => {
-    fetchBoard();
+    fetchPipelines();
   }, []);
 
-  const fetchBoard = async () => {
+  useEffect(() => {
+    if (pipelineId == null) return;
+    fetchBoard(pipelineId);
+  }, [pipelineId]);
+
+  const fetchPipelines = async () => {
     setLoading(true);
     setError(null);
     try {
+      const res = await api.get('/deals/pipelines');
+      const items = res.data.items || [];
+      setPipelines(items);
+      const current = items.find((p) => p.is_default) || items[0];
+      setPipelineId(current ? current.id : null);
+      if (!current) setLoading(false);
+    } catch (err) {
+      console.error('Failed to fetch pipelines', err);
+      setError('Unable to load deals. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const fetchBoard = async (pid) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = { pipeline_id: pid };
       const [boardRes, stagesRes] = await Promise.all([
-        api.get('/deals/board'),
-        api.get('/deals/stages'),
+        api.get('/deals/board', { params }),
+        api.get('/deals/stages', { params }),
       ]);
       setBoard(boardRes.data);
       const rawStages = stagesRes.data?.items ?? stagesRes.data;
@@ -60,9 +92,11 @@ export default function DealsBoard() {
     }
     setCreating(true);
     try {
-      await api.post('/deals', { title, amount });
+      const payload = { title, amount };
+      if (pipelineId != null) payload.pipeline_id = pipelineId;
+      await api.post('/deals', payload);
       showToast('Deal created', 'success');
-      await fetchBoard();
+      await fetchBoard(pipelineId);
     } catch (err) {
       console.error('Failed to create deal', err);
       showToast(err.response?.data?.detail || 'Failed to create deal', 'error');
@@ -71,11 +105,26 @@ export default function DealsBoard() {
     }
   };
 
+  const handleNewPipeline = async () => {
+    const name = window.prompt('Pipeline name:');
+    if (!name) return;
+    try {
+      const res = await api.post('/deals/pipelines', { name });
+      showToast('Pipeline created', 'success');
+      const itemsRes = await api.get('/deals/pipelines');
+      const items = itemsRes.data.items || [];
+      setPipelines(items);
+      setPipelineId(res.data.id);
+    } catch (err) {
+      showToast(err.response?.data?.detail || 'Failed to create pipeline', 'error');
+    }
+  };
+
   const handleMoveStage = async (dealId, newStageId) => {
     setMovingId(dealId);
     try {
       await api.patch(`/deals/${dealId}/stage`, { stage_id: newStageId });
-      await fetchBoard();
+      await fetchBoard(pipelineId);
     } catch (err) {
       console.error('Failed to move deal', err);
       showToast(err.response?.data?.detail || 'Failed to move deal', 'error');
@@ -85,8 +134,9 @@ export default function DealsBoard() {
   };
 
   const totalDeals = (board?.stages || []).reduce((sum, s) => sum + (s.deals?.length || 0), 0);
+  const selected = pipelines.find((p) => p.id === pipelineId);
 
-  if (loading) {
+  if (loading && !board) {
     return (
       <div className="min-h-[calc(100vh-56px)] bg-page">
         <div className="bg-surface border-b border-border px-6 py-4">
@@ -115,23 +165,46 @@ export default function DealsBoard() {
       <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
         <div className="flex flex-col items-center gap-3">
           <div className="text-[13px] text-error font-bold uppercase tracking-widest">{error}</div>
-          <button onClick={fetchBoard} className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight">Retry</button>
+          <button onClick={() => (pipelineId != null ? fetchBoard(pipelineId) : fetchPipelines())} className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight">Retry</button>
         </div>
       </div>
     );
   }
 
-  const isEmpty = totalDeals === 0;
-
   return (
     <div className="min-h-[calc(100vh-56px)] bg-page flex flex-col">
       <div className="bg-surface border-b border-border px-6 py-4">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-primary tracking-tight">Deals Pipeline</h1>
-            <p className="text-[12px] text-muted font-medium mt-0.5 opacity-80 uppercase tracking-wider">Track opportunities across stages</p>
+            <p className="text-[12px] text-muted font-medium mt-0.5 opacity-80 uppercase tracking-wider">
+              {selected?.name || board?.pipeline_name || 'Track opportunities across stages'}
+            </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            <label className="flex items-center gap-2">
+              <span className="sr-only">Pipeline</span>
+              <select
+                value={pipelineId ?? ''}
+                onChange={(e) => setPipelineId(Number(e.target.value))}
+                className="text-[11px] font-bold uppercase tracking-tight bg-surface border border-border rounded px-2 py-1.5 text-primary focus:outline-none focus:border-accent"
+              >
+                {pipelines.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}{p.is_default ? ' (default)' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {canConfigure && (
+              <button
+                type="button"
+                onClick={handleNewPipeline}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-md text-[12px] font-bold uppercase tracking-tight text-primary hover:border-accent"
+              >
+                New pipeline
+              </button>
+            )}
             <div className="hidden sm:flex items-center gap-4 px-4 py-1.5 bg-surface-elevated/50 border border-border rounded-md shadow-inner">
               <div className="flex items-center gap-1.5">
                 <TrendingUp size={14} strokeWidth={2.5} className="text-accent" />
@@ -157,62 +230,52 @@ export default function DealsBoard() {
       </div>
 
       <div className="max-w-[1400px] mx-auto px-6 py-8 flex-1 w-full">
-        {isEmpty ? (
-          <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
-            <p className="text-[13px] text-muted font-medium italic">No deals yet.</p>
-            <button
-              onClick={handleCreateDeal}
-              disabled={creating}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-bold uppercase tracking-tight transition-all shadow-sm shadow-accent/10 disabled:opacity-50"
-            >
-              <Plus size={14} strokeWidth={2.5} /> Create your first deal
-            </button>
-          </div>
-        ) : (
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {(board?.stages || []).map((stage) => (
-              <div key={stage.stage_id} className="w-72 shrink-0 flex flex-col bg-surface rounded border border-border shadow-sm">
-                <div className="px-4 py-3 border-b border-border bg-surface-elevated/50">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-[12px] font-black text-primary uppercase tracking-tight truncate">{stage.name}</h2>
-                    <span className="text-[10px] font-bold text-muted bg-surface px-1.5 py-0.5 rounded border border-border">{stage.deals?.length || 0}</span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-[10px] font-bold text-muted uppercase tracking-wide">
-                    <span>Total {formatMoney(stage.stage_total)}</span>
-                    <span>Wtd {formatMoney(stage.weighted_value)}</span>
-                  </div>
+        {totalDeals === 0 && (
+          <p className="text-[13px] text-muted font-medium italic mb-4">No deals in this pipeline yet.</p>
+        )}
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {(board?.stages || []).map((stage) => (
+            <div key={stage.stage_id} className="w-72 shrink-0 flex flex-col bg-surface rounded border border-border shadow-sm">
+              <div className="px-4 py-3 border-b border-border bg-surface-elevated/50">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-[12px] font-black text-primary uppercase tracking-tight truncate">{stage.name}</h2>
+                  <span className="text-[10px] font-bold text-muted bg-surface px-1.5 py-0.5 rounded border border-border">{stage.deals?.length || 0}</span>
                 </div>
-                <div className="p-2 space-y-2 flex-1 min-h-[80px]">
-                  {(stage.deals || []).length === 0 ? (
-                    <p className="text-[11px] text-muted italic text-center py-4">No deals in this stage</p>
-                  ) : (
-                    stage.deals.map((deal) => (
-                      <div key={deal.id} className="bg-surface-elevated/40 border border-border rounded-md p-3 hover:border-accent/40 transition-colors">
-                        <Link href={`${basePath}/${deal.id}`} className="block">
-                          <p className="text-[12px] font-bold text-primary truncate">{deal.title}</p>
-                          <p className="text-[12px] font-bold text-accent tabular-nums mt-1">{formatMoney(deal.amount)}</p>
-                          <p className="text-[10px] text-muted font-medium uppercase tracking-wide mt-0.5">
-                            {deal.effective_probability != null ? `${deal.effective_probability}% probability` : ''}
-                          </p>
-                        </Link>
-                        <select
-                          value={stage.stage_id}
-                          disabled={movingId === deal.id}
-                          onChange={(e) => handleMoveStage(deal.id, Number(e.target.value))}
-                          className="mt-2 w-full text-[10px] font-bold uppercase tracking-tight bg-surface border border-border rounded px-1.5 py-1 text-muted focus:outline-none focus:border-accent disabled:opacity-50"
-                        >
-                          {stages.map((s) => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    ))
-                  )}
+                <div className="mt-1 flex items-center justify-between text-[10px] font-bold text-muted uppercase tracking-wide">
+                  <span>Total {formatMoney(stage.stage_total)}</span>
+                  <span>Wtd {formatMoney(stage.weighted_value)}</span>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+              <div className="p-2 space-y-2 flex-1 min-h-[80px]">
+                {(stage.deals || []).length === 0 ? (
+                  <p className="text-[11px] text-muted italic text-center py-4">No deals in this stage</p>
+                ) : (
+                  stage.deals.map((deal) => (
+                    <div key={deal.id} className="bg-surface-elevated/40 border border-border rounded-md p-3 hover:border-accent/40 transition-colors">
+                      <Link href={`${basePath}/${deal.id}`} className="block">
+                        <p className="text-[12px] font-bold text-primary truncate">{deal.title}</p>
+                        <p className="text-[12px] font-bold text-accent tabular-nums mt-1">{formatMoney(deal.amount)}</p>
+                        <p className="text-[10px] text-muted font-medium uppercase tracking-wide mt-0.5">
+                          {deal.effective_probability != null ? `${deal.effective_probability}% probability` : ''}
+                        </p>
+                      </Link>
+                      <select
+                        value={stage.stage_id}
+                        disabled={movingId === deal.id}
+                        onChange={(e) => handleMoveStage(deal.id, Number(e.target.value))}
+                        className="mt-2 w-full text-[10px] font-bold uppercase tracking-tight bg-surface border border-border rounded px-1.5 py-1 text-muted focus:outline-none focus:border-accent disabled:opacity-50"
+                      >
+                        {stages.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

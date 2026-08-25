@@ -9,6 +9,8 @@ from app.routers.auth import mfa as auth_mfa
 from app.routers.admin import users, admin, platform, notifications, company_security
 from app.routers.sales import leads, tasks, clients, follow_ups, search, timeline
 from app.routers.sales.deals import router as deals_router
+from app.routers.sales.meetings import router as meetings_router
+from app.routers.sales.calls import router as calls_router
 from app.routers.sales.quotes import router as quotes_router
 from app.routers.sales.lead_forms import router as lead_forms_router
 from app.routers.sales.custom_fields import router as custom_fields_router
@@ -106,6 +108,8 @@ app.include_router(auth_mfa.router, prefix="/api/auth")
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
 app.include_router(deals_router, prefix="/api/deals", tags=["Deals"])
+app.include_router(meetings_router, prefix="/api/meetings", tags=["Meetings"])
+app.include_router(calls_router, prefix="/api/calls", tags=["Calls"])
 app.include_router(quotes_router, prefix="/api/quotes", tags=["Quotes"])
 app.include_router(lead_forms_router, prefix="/api/lead-forms", tags=["Lead Forms"])
 app.include_router(custom_fields_router, prefix="/api/custom-fields", tags=["Custom Fields"])

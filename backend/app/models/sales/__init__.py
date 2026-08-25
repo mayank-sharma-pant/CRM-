@@ -21,3 +21,4 @@ from .saved_report import SavedReport
 from .dashboard import Dashboard, DashboardWidget
 from .whatsapp import WhatsAppTemplate, WhatsAppMessage
 from .sales_quota import SalesQuota
+from .territory import Territory, TerritoryRule

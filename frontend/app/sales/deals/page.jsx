@@ -19,6 +19,19 @@ function roleOf(user) {
   return String(user?.role || '').toLowerCase();
 }
 
+const ALLOWED_REQUIRED_FIELDS = ['title', 'amount', 'expected_close', 'client_id', 'probability'];
+
+function parseMoveErrorDetail(detail) {
+  if (!detail) return 'Failed to move deal';
+  if (typeof detail === 'object' && detail.message) {
+    const missing = detail.missing_fields;
+    if (missing?.length) return `${detail.message}: ${missing.join(', ')}`;
+    return detail.message;
+  }
+  if (typeof detail === 'string') return detail;
+  return 'Failed to move deal';
+}
+
 export default function DealsBoard() {
   const [board, setBoard] = useState(null);
   const [stages, setStages] = useState([]);
@@ -28,6 +41,7 @@ export default function DealsBoard() {
   const [error, setError] = useState(null);
   const [creating, setCreating] = useState(false);
   const [movingId, setMovingId] = useState(null);
+  const [togglingBlueprint, setTogglingBlueprint] = useState(false);
 
   const basePath = usePathname();
   const { showToast } = useNotification();
@@ -120,6 +134,32 @@ export default function DealsBoard() {
     }
   };
 
+  const handleBlueprintToggle = async (enabled) => {
+    if (pipelineId == null) return;
+    setTogglingBlueprint(true);
+    try {
+      await api.patch(`/deals/pipelines/${pipelineId}`, { blueprint_enabled: enabled });
+      const itemsRes = await api.get('/deals/pipelines');
+      setPipelines(itemsRes.data.items || []);
+      await fetchBoard(pipelineId);
+    } catch (err) {
+      console.error('Failed to toggle blueprint', err);
+      showToast(err.response?.data?.detail || 'Failed to update blueprint', 'error');
+    } finally {
+      setTogglingBlueprint(false);
+    }
+  };
+
+  const handleRequiredFieldsChange = async (stageId, keys) => {
+    try {
+      await api.patch(`/deals/stages/${stageId}`, { required_fields: keys });
+      await fetchBoard(pipelineId);
+    } catch (err) {
+      console.error('Failed to update required fields', err);
+      showToast(err.response?.data?.detail || 'Failed to update required fields', 'error');
+    }
+  };
+
   const handleMoveStage = async (dealId, newStageId) => {
     setMovingId(dealId);
     try {
@@ -127,7 +167,8 @@ export default function DealsBoard() {
       await fetchBoard(pipelineId);
     } catch (err) {
       console.error('Failed to move deal', err);
-      showToast(err.response?.data?.detail || 'Failed to move deal', 'error');
+      showToast(parseMoveErrorDetail(err.response?.data?.detail), 'error');
+      await fetchBoard(pipelineId);
     } finally {
       setMovingId(null);
     }
@@ -196,6 +237,18 @@ export default function DealsBoard() {
                 ))}
               </select>
             </label>
+            {canConfigure && pipelineId != null && selected && (
+              <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-tight text-primary">
+                <input
+                  type="checkbox"
+                  checked={Boolean(selected.blueprint_enabled)}
+                  onChange={(e) => handleBlueprintToggle(e.target.checked)}
+                  disabled={togglingBlueprint}
+                  className="rounded border-border"
+                />
+                Enforce blueprint
+              </label>
+            )}
             {canConfigure && (
               <button
                 type="button"
@@ -245,6 +298,37 @@ export default function DealsBoard() {
                   <span>Total {formatMoney(stage.stage_total)}</span>
                   <span>Wtd {formatMoney(stage.weighted_value)}</span>
                 </div>
+                {stage.required_fields?.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {stage.required_fields.map((field) => (
+                      <span
+                        key={field}
+                        className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 bg-accent/10 text-accent border border-accent/20 rounded"
+                      >
+                        {field}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {canConfigure && selected?.blueprint_enabled && (
+                  <label className="mt-2 block">
+                    <span className="text-[9px] font-bold text-muted uppercase tracking-wide">Required to leave</span>
+                    <select
+                      multiple
+                      value={stage.required_fields || []}
+                      onChange={(e) => {
+                        const keys = Array.from(e.target.selectedOptions, (o) => o.value);
+                        handleRequiredFieldsChange(stage.stage_id, keys);
+                      }}
+                      className="mt-1 w-full text-[10px] font-bold uppercase tracking-tight bg-surface border border-border rounded px-1.5 py-1 text-primary focus:outline-none focus:border-accent"
+                      size={3}
+                    >
+                      {ALLOWED_REQUIRED_FIELDS.map((field) => (
+                        <option key={field} value={field}>{field}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
               </div>
               <div className="p-2 space-y-2 flex-1 min-h-[80px]">
                 {(stage.deals || []).length === 0 ? (

@@ -249,6 +249,15 @@ Sellable catalog (`products`) with per-product GST snapshots on quote/invoice li
 - **Verification:** `test_products_schema.py`, `test_products_api.py`, `test_product_lines.py`, `test_products_gst.py`, `test_gst.py`, `test_gst_invoice_api.py`, `test_quotes.py`, `test_products_cross_tenant.py`, `test_inventory_api.py`. New table/columns via `create_missing_tables.py` — **run on deploy.**
 - **Residuals:** no price books, no HSN rate table, no `product_id` on public `/api/v1`.
 
+### Phase 4.2 — Blueprint (required stages) — DONE (code)
+
+Opt-in per pipeline. Adjacent open moves; Lost from any open; Won from last open;
+required built-in fields on leave. Spec: [`superpowers/specs/2026-08-25-phase4-blueprint-design.md`](./superpowers/specs/2026-08-25-phase4-blueprint-design.md); plan: [`superpowers/plans/2026-08-25-phase4-blueprint.md`](./superpowers/plans/2026-08-25-phase4-blueprint.md).
+
+- **Verification:** `test_blueprint_schema.py`, `test_blueprint_service.py`, `test_blueprint_api.py`, `test_blueprint_cross_tenant.py`.
+- **Deploy:** `create_missing_tables.py` for `pipelines.blueprint_enabled` and `pipeline_stages.required_fields`.
+- **Residuals:** no transition-edge graph, no custom-field requirements, no approvals.
+
 ---
 
 ## Cross-cutting cleanups (do alongside, not as a phase)

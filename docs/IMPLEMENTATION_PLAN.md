@@ -14,12 +14,13 @@ Last updated: **25 Aug 2026**. Status is from code + this file’s progress logs
 
 | Phase | Status | Notes |
 |-------|--------|--------|
-| **0 — Trust** | ✅ **DONE** (residual) | 0.2–0.5 done. **0.1 Postgres RLS still PENDING** (defense-in-depth; not a known leak). |
+| **0 — Trust** | ✅ **DONE** (residual) | 0.2–0.5 done. **0.1 Postgres RLS still PENDING**. |
 | **1 — Charge money** | ✅ **DONE** | Razorpay adapter, trial signup, seat/storage limits. |
-| **2 — Sales loop** | ✅ **DONE** (code) | Deals, web form, custom fields, quotes→invoice, workflows, cadence, email, tags/recycle/merge, reminders — code present. Design-partner 30-day live gate is product, not code. |
-| **3 — Zoho Standard match** | ✅ **DONE** (code) | 3.1–3.9 all shipped in code. |
-| **4 — Professional extras** | ✅ **DONE** (code) | **4.1–4.7 DONE.** Phase 5 still pull-only. |
-| **5 — Paid add-ons** | ⏸ **NOT STARTED** | Pull only on real demand. |
+| **2 — Sales loop** | ✅ **DONE** (code) | Deals, web form, custom fields, quotes→invoice, workflows, cadence, email, tags/recycle/merge, reminders. |
+| **3 — Zoho Standard match** | ✅ **DONE** (code) | 3.1–3.9 shipped. |
+| **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
+| **5 — Paid add-ons** | ❌ **PENDING** | Enrichment, scoring, telephony deep, Tally, etc. — see checklist. |
+| **6 — Competitor parity (buyers still feel)** | ❌ **PENDING — NEXT** | Gaps vs HubSpot/Pipedrive/Freshsales/Kylas after Phases 0–4. **Build all of 6.x.** |
 
 ### Phase 4 checklist
 
@@ -33,16 +34,58 @@ Last updated: **25 Aug 2026**. Status is from code + this file’s progress logs
 | **4.6** Sandbox | ✅ DONE |
 | **4.7** SSO (Google/Microsoft first; SAML later) | ✅ DONE |
 
-### Also still open (not Phase 4)
+### Phase 6 checklist — competitor gaps companies still want
+
+Ordered for India-first service businesses (WhatsApp / pay / calendar first), then desk-sales (email / timeline / one UI).
+
+| Item | Why competitors win | Status |
+|------|---------------------|--------|
+| **6.1** Gmail / Outlook sync + send/log on record | HubSpot/Pipedrive/Freshsales table-stakes inbox | ❌ PENDING |
+| **6.2** Google / Microsoft Calendar sync (site visits) | Service businesses schedule in calendar, not only CRM meetings | ❌ PENDING |
+| **6.3** Click-to-call / telephony (Exotel or Twilio) | Freshsales / Kylas — call logs alone are not enough | ❌ PENDING |
+| **6.4** Unified activity timeline (email+call+meeting+note) | Pipedrive’s core; one record history | ❌ PENDING |
+| **6.5** One object UI (collapse five role apps) | HubSpot one contact; we still have `/sales`…`/admin` copies | ❌ PENDING |
+| **6.6** Customer pay invoice + accept quote from portal | Portal is view-only; buyers expect pay link | ❌ PENDING |
+| **6.7** WhatsApp inbound + auto reminder sequences | India: Kylas/LeadSquared; templates-only is thin | ❌ PENDING |
+| **6.8** Store-ready mobile (Play/App Store) + mobile 2FA | Flutter path exists; not shippable | ❌ PENDING |
+| **6.9** In-app onboarding (sample pipeline, connect Gmail, import) | Time-to-first-deal; empty CRM loses trials | ❌ PENDING |
+| **6.10** Postgres RLS (0.1) | Diligence / “isolation you can prove” | ❌ PENDING |
+| **6.11** Landing honesty (remove fake testimonials / unshipped claims) | Legal + trust before public launch | ❌ PENDING |
+| **6.12** Brand drift fix (Perioxia vs repo names) | Buyers notice | ❌ PENDING |
+| **6.13** Accounts vs Contacts (B2B company record) | HubSpot/Zoho/Salesforce shape | ❌ PENDING |
+| **6.14** Saved filters / “my deals due today” | Every serious CRM nag | ❌ PENDING |
+| **6.15** Outbound webhooks (customer events) | API keys exist; competitors push events | ❌ PENDING |
+| **6.16** Invoice PDF polish + India e-invoice/IRN path | GST lines exist; PDF/e-invoice don’t | ❌ PENDING |
+| **6.17** Live chat / website widget → lead | HubSpot free wedge | ❌ PENDING |
+| **6.18** SAML / enterprise SSO | After Google/Microsoft OAuth | ❌ PENDING |
+| **6.19** GDPR / India DPDP (export, delete, retention) | Before EU; India later | ❌ PENDING |
+| **6.20** Alembic two-heads cleanup | Ops; unblocks real migrations | ❌ PENDING |
+
+### Phase 5 checklist — paid add-ons (still build; lower than 6 for niche)
 
 | Item | Status |
 |------|--------|
-| **0.1** Tenant isolation at DB (Postgres RLS) | ❌ PENDING |
-| Landing: remove fabricated testimonials / unshipped claims | ❌ PENDING (cross-cutting) |
-| Brand drift (Perioxia vs repo names) | ❌ PENDING (cross-cutting) |
-| Alembic two-heads cleanup | ❌ PENDING (ops) |
+| **5.1** Data enrichment | ❌ PENDING |
+| **5.2** Lead / deal scoring | ❌ PENDING |
+| **5.3** Predictive AI (convert/churn) | ❌ PENDING |
+| **5.4** Tally / QuickBooks sync | ❌ PENDING |
+| **5.5** Custom modules (beyond custom fields) | ❌ PENDING |
+| **5.6** Marketplace / apps | ❌ PENDING (likely never v1) |
+| **5.7** Full email marketing / campaigns | ❌ PENDING (integrate, don’t rebuild) |
+| **5.8** Helpdesk / cases / web-to-case | ❌ PENDING (thin or skip) |
+| **5.9** Deep sandbox data clone | ❌ PENDING |
+| **5.10** Mass email (capped) | ❌ PENDING |
 
-**Tomorrow resume:** Phase 4 is complete in code. Optional: **0.1 Postgres RLS**, cross-cutting landing/brand cleanups, or Phase 5 only on real demand.
+### Also still open (folded into 6.x where noted)
+
+| Item | Status |
+|------|--------|
+| **0.1** / **6.10** Postgres RLS | ❌ PENDING |
+| **6.11** Landing honesty | ❌ PENDING |
+| **6.12** Brand drift | ❌ PENDING |
+| **6.20** Alembic two-heads | ❌ PENDING |
+
+**Resume next:** start **Phase 6.1** (Gmail/Outlook sync). Work 6.1 → 6.20 in order unless a design partner forces a jump (e.g. India field sales → 6.7 / 6.6 / 6.2 first).
 
 ---
 
@@ -216,7 +259,8 @@ Phases 3 and 4 were pulled ahead of the original “only after revenue / trial a
 
 - **Phase 3** — ✅ **DONE (code):** 3.1–3.9 logged below.
 - **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
-- **Phase 5** (paid add-ons): enrichment, predictive AI, telephony, Tally/QuickBooks sync, custom modules, marketplace — still pull-only.
+- **Phase 5** — ❌ **PENDING:** paid add-ons checklist on status board + section below.
+- **Phase 6** — ❌ **PENDING (NEXT):** competitor parity checklist — **build all 6.1–6.20**.
 
 ### Phase 3.1 — TOTP 2FA — DONE
 
@@ -351,25 +395,139 @@ OAuth login for **existing** users only (match email; persist `oauth_identities`
 
 ---
 
+## Phase 6 — Competitor parity (what buyers still feel missing)
+
+> After Phases 0–4, core CRM modules exist in code. This phase closes the gaps where
+> **HubSpot, Pipedrive, Freshsales, and Kylas/LeadSquared** still win trials.
+> Spec/plan per item before coding (same pattern as 3.x / 4.x). **Intent: build all 6.x.**
+
+### Phase 6.1 — Gmail / Outlook sync + send/log — PENDING
+
+Connect mailbox (OAuth); send from CRM; log outbound/inbound on lead/deal/client timeline.
+Tracking (open/click) v1 optional. Extends Phase 2 SMTP email.
+
+### Phase 6.2 — Google / Microsoft Calendar sync — PENDING
+
+Create/update calendar events for site visits from CRM meetings; two-way sync v0 can be
+CRM→calendar only. Residual of Phase 3.2.
+
+### Phase 6.3 — Click-to-call / telephony — PENDING
+
+Exotel or Twilio: click-to-call from lead/deal; write `call_logs` automatically. Pick one
+provider for India-first (Exotel) unless design partner is global (Twilio).
+
+### Phase 6.4 — Unified activity timeline — PENDING
+
+Single Activity (or projected feed) of email, call, meeting, note, task, follow-up on one
+record. Stop parallel “history” UIs.
+
+### Phase 6.5 — One object UI (collapse role apps) — PENDING
+
+Canonical `/leads`, `/clients`, `/deals`, `/invoices` (or sales paths as canonical);
+manager/MD/purchase/admin reuse components; roles only change scope/filters. Roadmap §6.1.
+
+### Phase 6.6 — Portal pay + quote accept — PENDING
+
+Customer Razorpay (or Stripe) pay link on shared invoice; quote accept/reject from magic
+link. Extends Phase 4.3 view-only portal.
+
+### Phase 6.7 — WhatsApp inbound + auto sequences — PENDING
+
+Inbound webhook; auto-send templates from cadence/reminders; optional free-text session
+window. Extends Phase 3.8. Prefer Gupshup (already) or Interakt if partner requires.
+
+### Phase 6.8 — Mobile store release + mobile 2FA — PENDING
+
+Play Store (first) + App Store; TOTP enroll/verify on Flutter; sales path only for v1 store
+listing. Extends Phase 3.9.
+
+### Phase 6.9 — In-app onboarding — PENDING
+
+Sample pipeline + demo leads; checklist: import CSV, connect email, create form, send quote.
+Empty-dashboard fix (roadmap §6.3).
+
+### Phase 6.10 — Postgres RLS (Phase 0.1) — PENDING
+
+`SET LOCAL app.company_id` + policies on tenant tables; platform-admin bypass. Defense-in-depth.
+
+### Phase 6.11 — Landing honesty — PENDING
+
+Remove fabricated testimonials and claims for unshipped features. Before any public launch.
+
+### Phase 6.12 — Brand drift — PENDING
+
+One product name (Perioxia) across frontend, Flutter, repo docs, package names where safe.
+
+### Phase 6.13 — Accounts vs Contacts — PENDING
+
+Optional Account/Company record; Client/Contact links to Account for B2B. Thin until a B2B
+design partner asks twice.
+
+### Phase 6.14 — Saved filters / due views — PENDING
+
+Named filters; “my deals due today”; rotting-deal nag. Pipedrive parity lite.
+
+### Phase 6.15 — Outbound webhooks — PENDING
+
+Company-configured HTTPS endpoints for lead.created, deal.stage_changed, invoice.paid, etc.
+Signed payloads; retry. Complements public API keys (3.5).
+
+### Phase 6.16 — Invoice PDF + e-invoice/IRN — PENDING
+
+Branded PDF; India e-invoice/IRN path when GSTIN present. Extends Phase 3.7.
+
+### Phase 6.17 — Live chat / website widget → lead — PENDING
+
+Embeddable chat or form-adjacent widget; creates lead with source. HubSpot free wedge.
+
+### Phase 6.18 — SAML / enterprise SSO — PENDING
+
+After Google/Microsoft OAuth (4.7). Company IdP metadata; map email → existing user.
+
+### Phase 6.19 — GDPR / DPDP — PENDING
+
+Data export, delete/anonymize, retention policy. Must before EU; India DPDP when selling there.
+
+### Phase 6.20 — Alembic two-heads cleanup — PENDING
+
+Merge migration heads; stop relying only on `create_missing_tables.py` for prod schema.
+
+---
+
+## Phase 5 — Paid add-ons (build after or interleaved with 6 if demanded)
+
+### Phase 5.1 — Data enrichment — PENDING
+### Phase 5.2 — Lead / deal scoring — PENDING
+### Phase 5.3 — Predictive AI — PENDING
+### Phase 5.4 — Tally / QuickBooks sync — PENDING
+### Phase 5.5 — Custom modules — PENDING
+### Phase 5.6 — Marketplace — PENDING (likely never as v1)
+### Phase 5.7 — Email marketing / campaigns — PENDING (integrate, don’t clone)
+### Phase 5.8 — Helpdesk / cases — PENDING (thin or skip)
+### Phase 5.9 — Deep sandbox data clone — PENDING
+### Phase 5.10 — Mass email (capped) — PENDING
+
+---
+
 ## Cross-cutting cleanups (do alongside, not as a phase)
 
-From roadmap §6, these are cheap and reduce trust risk — fold into whichever phase touches the area:
+From roadmap §6 — also tracked as **6.11**, **6.12**, and backend debris:
 
-- Remove **fabricated testimonials** and unshipped landing claims (§6.1) — legal/trust risk the day a buyer checks. Do before any public launch, independent of phases.
-- Fix **brand drift** (Perioxia vs repo `CRM-` vs `local-service-crm-frontend`).
-- Delete the pile of `tmp_*.py` / `check_*.py` / `test_*.py` scripts at `backend/` root (not in `tests/`) — they're dev debris, not the suite.
+- Remove **fabricated testimonials** and unshipped landing claims (§6.1) — **6.11**.
+- Fix **brand drift** — **6.12**.
+- Delete the pile of `tmp_*.py` / `check_*.py` / `test_*.py` scripts at `backend/` root (not in `tests/`) — fold into **6.20** or a drive-by when touching backend root.
 
 ---
 
 ## Sequencing summary
 
 ```
-Phase 0 ✅  →  Phase 1 ✅  →  Phase 2 ✅ (code)  →  Phase 3 ✅ (code)  →  Phase 4 ✅ (code)  →  Phase 5 ⏸
+Phase 0–4 ✅ (code)  →  Phase 6 (competitor parity) ❌  →  Phase 5 (add-ons) ❌
 ```
 
 **Verification checkpoints (roadmap §11):**
-- Phase 0: tenancy tests green on all resources. ✅ **DONE** (RLS 0.1 still open).
-- Phase 1: first test-mode payment + a failed 11th seat. ✅ **DONE**.
-- Phase 2: code path for web form → quote → invoice exists. ✅ **DONE (code)**; live 30-day design-partner gate is product validation, not a coding task.
-- Phase 3–4: ✅ **DONE (code)** — see logs above.
-- **Next coding (optional):** **0.1 RLS**, landing/brand cleanups, or Phase 5 on demand.
+- Phase 0: tenancy tests green. ✅ (RLS = **6.10** still open).
+- Phase 1: payment + seat limit. ✅
+- Phase 2–4: sales loop + Standard + Professional extras. ✅ (code)
+- **Next:** **6.1 Gmail/Outlook** (or jump to **6.7 / 6.6 / 6.2** if India field-sales partner).
+- Phase 5: only when a paid add-on is sold or repeatedly requested — still listed to build.

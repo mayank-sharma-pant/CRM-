@@ -495,8 +495,16 @@ def logout(request: Request, response: Response, body: RefreshRequest | None = N
 
 
 @router.get("/me", response_model=MeResponse)
-def get_me(current_user: User = Depends(get_current_user)):
+def get_me(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Get current user info"""
+    is_sandbox = False
+    if current_user.company_id is not None:
+        company = db.query(Company).filter(Company.id == current_user.company_id).first()
+        if company is not None:
+            is_sandbox = bool(company.is_sandbox)
     return {
         "id": current_user.id,
         "email": current_user.email,
@@ -506,7 +514,8 @@ def get_me(current_user: User = Depends(get_current_user)):
         "phone": current_user.phone,
         "team_id": current_user.team_id,
         "company_id": current_user.company_id,
-        "created_at": current_user.created_at.isoformat() if current_user.created_at else None
+        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+        "is_sandbox": is_sandbox,
     }
 
 

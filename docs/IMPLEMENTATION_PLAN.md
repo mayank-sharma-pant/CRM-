@@ -18,7 +18,7 @@ Last updated: **25 Aug 2026**. Status is from code + this file’s progress logs
 | **1 — Charge money** | ✅ **DONE** | Razorpay adapter, trial signup, seat/storage limits. |
 | **2 — Sales loop** | ✅ **DONE** (code) | Deals, web form, custom fields, quotes→invoice, workflows, cadence, email, tags/recycle/merge, reminders — code present. Design-partner 30-day live gate is product, not code. |
 | **3 — Zoho Standard match** | ✅ **DONE** (code) | 3.1–3.9 all shipped in code. |
-| **4 — Professional extras** | 🟡 **IN PROGRESS** | **4.1–4.5 DONE.** **4.6–4.7 PENDING** (next). |
+| **4 — Professional extras** | ✅ **DONE** (code) | **4.1–4.7 DONE.** Phase 5 still pull-only. |
 | **5 — Paid add-ons** | ⏸ **NOT STARTED** | Pull only on real demand. |
 
 ### Phase 4 checklist
@@ -30,8 +30,8 @@ Last updated: **25 Aug 2026**. Status is from code + this file’s progress logs
 | **4.3** Customer portal (view invoice/quote) | ✅ DONE |
 | **4.4** Forecasting (quota vs pipeline) | ✅ DONE |
 | **4.5** Territory assignment | ✅ DONE |
-| **4.6** Sandbox | ❌ **PENDING — next** |
-| **4.7** SSO (Google/Microsoft first; SAML later) | ❌ **PENDING** |
+| **4.6** Sandbox | ✅ DONE |
+| **4.7** SSO (Google/Microsoft first; SAML later) | ✅ DONE |
 
 ### Also still open (not Phase 4)
 
@@ -42,7 +42,7 @@ Last updated: **25 Aug 2026**. Status is from code + this file’s progress logs
 | Brand drift (Perioxia vs repo names) | ❌ PENDING (cross-cutting) |
 | Alembic two-heads cleanup | ❌ PENDING (ops) |
 
-**Tomorrow resume:** start **Phase 4.6 Sandbox** (spec/plan if none; then implement). Then **4.7 SSO**. Optionally pull **0.1 RLS** when trust/selling demos need “isolation you can prove at the DB.”
+**Tomorrow resume:** Phase 4 is complete in code. Optional: **0.1 Postgres RLS**, cross-cutting landing/brand cleanups, or Phase 5 only on real demand.
 
 ---
 
@@ -215,7 +215,7 @@ Build in dependency order — each is demoable alone:
 Phases 3 and 4 were pulled ahead of the original “only after revenue / trial asks twice” gate by explicit decisions. Status is on the **Status board** at the top of this file.
 
 - **Phase 3** — ✅ **DONE (code):** 3.1–3.9 logged below.
-- **Phase 4** — 🟡 **IN PROGRESS:** 4.1–4.5 ✅; **4.6 Sandbox** and **4.7 SSO** still ❌ PENDING.
+- **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
 - **Phase 5** (paid add-ons): enrichment, predictive AI, telephony, Tally/QuickBooks sync, custom modules, marketplace — still pull-only.
 
 ### Phase 3.1 — TOTP 2FA — DONE
@@ -333,15 +333,21 @@ Route new unassigned leads to a team via `service_type` / `source` rules, then r
 - **Deploy:** `create_missing_tables.py` / `create_all` for `territories` and `territory_rules` — **run on deploy.**
 - **Residuals:** no geo/pincode; OR rules only (not AND); no reassign on lead update; manager cannot configure territories in v0; explicit `team_id` on lead create is not overridden by territory.
 
-### Phase 4.6 — Sandbox — PENDING
+### Phase 4.6 — Sandbox — DONE (code)
 
-Not started. Roadmap §8 Phase 4: a non-production company copy (or flagged sandbox tenant) for admin experiments without touching live CRM data. No spec/plan yet — write those before coding.
+Separate empty sandbox tenant (`is_sandbox` + `sandbox_parent_id`). Admin/MD create one sandbox per live company; dedicated `sandbox.{parent}.{token}@sandbox.local` admin (password once); destroy suspends + disables users. Billing checkout blocked. Spec: [`superpowers/specs/2026-08-25-phase4-sandbox-design.md`](./superpowers/specs/2026-08-25-phase4-sandbox-design.md); plan: [`superpowers/plans/2026-08-25-phase4-sandbox.md`](./superpowers/plans/2026-08-25-phase4-sandbox.md). UI: `/settings/sandbox` + amber banner when `is_sandbox`.
 
-**Resume here next.**
+- **Verification:** `test_sandbox_schema.py`, `test_sandbox_service.py`, `test_sandbox_api.py`, `test_sandbox_cross_tenant.py` (13 tests).
+- **Deploy:** `create_missing_tables.py` for `companies.is_sandbox` / `sandbox_parent_id`.
+- **Residuals:** no data clone, no in-session company switch, no credential email, no expiry.
 
-### Phase 4.7 — SSO — PENDING
+### Phase 4.7 — SSO (Google / Microsoft) — DONE (code)
 
-Not started. Roadmap: Google/Microsoft login first; SAML later. Depends on OAuth app credentials in env. No spec/plan yet.
+OAuth login for **existing** users only (match email; persist `oauth_identities`). Google + Microsoft; SAML deferred. Env: `PUBLIC_API_URL`, `GOOGLE_OAUTH_*`, `MICROSOFT_OAUTH_*`. Spec: [`superpowers/specs/2026-08-25-phase4-sso-design.md`](./superpowers/specs/2026-08-25-phase4-sso-design.md); plan: [`superpowers/plans/2026-08-25-phase4-sso.md`](./superpowers/plans/2026-08-25-phase4-sso.md). Login UI shows provider buttons when configured.
+
+- **Verification:** `test_oauth_schema.py`, `test_oauth_service.py`, `test_oauth_api.py` (12 tests).
+- **Deploy:** `create_all` / `create_missing_tables.py` for `oauth_identities`; set OAuth env + redirect URIs to `{PUBLIC_API_URL}/api/auth/oauth/{google|microsoft}/callback`.
+- **Residuals:** no SAML, no SSO signup, no unlink UI, no Apple.
 
 ---
 
@@ -358,12 +364,12 @@ From roadmap §6, these are cheap and reduce trust risk — fold into whichever 
 ## Sequencing summary
 
 ```
-Phase 0 ✅  →  Phase 1 ✅  →  Phase 2 ✅ (code)  →  Phase 3 ✅ (code)  →  Phase 4 (4.1–4.5 ✅; 4.6–4.7 ❌)  →  Phase 5 ⏸
+Phase 0 ✅  →  Phase 1 ✅  →  Phase 2 ✅ (code)  →  Phase 3 ✅ (code)  →  Phase 4 ✅ (code)  →  Phase 5 ⏸
 ```
 
 **Verification checkpoints (roadmap §11):**
 - Phase 0: tenancy tests green on all resources. ✅ **DONE** (RLS 0.1 still open).
 - Phase 1: first test-mode payment + a failed 11th seat. ✅ **DONE**.
 - Phase 2: code path for web form → quote → invoice exists. ✅ **DONE (code)**; live 30-day design-partner gate is product validation, not a coding task.
-- Phase 3–4.5: ✅ **DONE (code)** — see logs above.
-- **Next coding:** Phase **4.6 Sandbox**, then **4.7 SSO**.
+- Phase 3–4: ✅ **DONE (code)** — see logs above.
+- **Next coding (optional):** **0.1 RLS**, landing/brand cleanups, or Phase 5 on demand.

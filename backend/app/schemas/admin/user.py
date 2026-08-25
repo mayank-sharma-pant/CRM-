@@ -72,6 +72,7 @@ class MeResponse(BaseModel):
     team_id: Optional[int] = None
     company_id: Optional[int] = None
     created_at: Optional[str] = None
+    is_sandbox: bool = False
 
 
 class MessageResponse(BaseModel):

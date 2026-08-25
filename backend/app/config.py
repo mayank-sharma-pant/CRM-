@@ -62,6 +62,16 @@ class Settings(BaseSettings):
     RAZORPAY_WEBHOOK_SECRET: str = ""
     TRIAL_DAYS: int = 14
 
+    # Public API base for OAuth redirect_uri (no trailing slash)
+    PUBLIC_API_URL: str = "http://localhost:8000"
+
+    # SSO (Google / Microsoft). Empty client id ⇒ provider disabled.
+    GOOGLE_OAUTH_CLIENT_ID: str = ""
+    GOOGLE_OAUTH_CLIENT_SECRET: str = ""
+    MICROSOFT_OAUTH_CLIENT_ID: str = ""
+    MICROSOFT_OAUTH_CLIENT_SECRET: str = ""
+    MICROSOFT_OAUTH_TENANT: str = "common"
+
 
 settings = Settings()
 

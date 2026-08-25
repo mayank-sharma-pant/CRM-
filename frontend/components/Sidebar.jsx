@@ -115,6 +115,7 @@ const ROLE_NAVIGATION = {
             icon: 'Settings',
             children: [
                 { name: 'Territories', href: '/settings/territories' },
+                { name: 'Sandbox', href: '/settings/sandbox' },
             ],
         },
     ],
@@ -138,6 +139,7 @@ const ROLE_NAVIGATION = {
             icon: 'Settings',
             children: [
                 { name: 'Territories', href: '/settings/territories' },
+                { name: 'Sandbox', href: '/settings/sandbox' },
             ],
         },
     ],

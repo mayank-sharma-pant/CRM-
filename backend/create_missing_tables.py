@@ -56,6 +56,8 @@ _MISSING_COLUMNS = [
     ("invoices", "share_created_at", "TIMESTAMP"),
     ("quotes", "share_token_hash", "VARCHAR(64)"),
     ("quotes", "share_created_at", "TIMESTAMP"),
+    ("companies", "is_sandbox", "BOOLEAN DEFAULT FALSE"),
+    ("companies", "sandbox_parent_id", "INTEGER"),
 ]
 
 

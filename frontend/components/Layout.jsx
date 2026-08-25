@@ -27,6 +27,11 @@ export default function Layout({ children }) {
         <div className="min-h-screen bg-page flex text-primary">
             <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
             <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+                {user?.is_sandbox && (
+                    <div className="bg-amber-500 text-amber-950 text-center text-sm font-medium py-1.5 px-4">
+                        Sandbox — changes do not affect production.
+                    </div>
+                )}
                 <TopBar />
                 <main className="flex-1 overflow-hidden">
                     {children}

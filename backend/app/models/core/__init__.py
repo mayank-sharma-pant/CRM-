@@ -9,3 +9,4 @@ from .invite import Invite
 from .company_settings import CompanySettings
 from .mfa_recovery_code import MfaRecoveryCode
 from .api_key import ApiKey, ApiUsageDaily
+from .oauth_identity import OAuthIdentity

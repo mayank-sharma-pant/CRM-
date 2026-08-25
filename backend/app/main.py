@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.routers.auth import auth
 from app.routers.auth import mfa as auth_mfa
+from app.routers.auth import oauth as auth_oauth
 from app.routers.admin import users, admin, platform, notifications, company_security, api_keys as company_api_keys
 from app.routers.sales import leads, tasks, clients, follow_ups, search, timeline
 from app.routers.sales.deals import router as deals_router
@@ -32,6 +33,7 @@ from app.routers.management import md, manager
 from app.routers.ai.company_assistant import router as company_ai_router
 from app.routers import teams
 from app.routers.billing import router as billing_router
+from app.routers.company.sandbox import router as sandbox_router
 from app.config import settings
 import traceback
 import logging
@@ -113,6 +115,7 @@ app.add_middleware(
 # Include API routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(auth_mfa.router, prefix="/api/auth")
+app.include_router(auth_oauth.router, prefix="/api/auth")
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
 app.include_router(deals_router, prefix="/api/deals", tags=["Deals"])
@@ -157,6 +160,7 @@ app.include_router(inventory.router, prefix="/api/inventory", tags=["Inventory"]
 app.include_router(company_ai_router, prefix="/api/ai", tags=["AI"])
 app.include_router(teams.router, prefix="/api/teams", tags=["Teams"])
 app.include_router(billing_router)  # Prefix is defined in the router itself
+app.include_router(sandbox_router, prefix="/api/sandbox", tags=["Sandbox"])
 
 @app.get("/")
 def root():

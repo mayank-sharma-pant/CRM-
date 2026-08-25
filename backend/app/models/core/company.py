@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -18,3 +18,5 @@ class Company(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     require_2fa = Column(Boolean, default=False, nullable=False)
+    is_sandbox = Column(Boolean, default=False, nullable=False)
+    sandbox_parent_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)

@@ -40,6 +40,12 @@ export default function AdminLayout({ children }) {
 
             <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
 
+                {user?.is_sandbox && (
+                    <div className="bg-amber-500 text-amber-950 text-center text-sm font-medium py-1.5 px-4 shrink-0">
+                        Sandbox — changes do not affect production.
+                    </div>
+                )}
+
                 {/* Admin Top Header */}
                 <header className="h-[72px] bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-8 shadow-sm z-10 shrink-0">
                     <div className="flex items-center gap-4">

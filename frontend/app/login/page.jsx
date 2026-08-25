@@ -1,9 +1,18 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
+
+const OAUTH_ERRORS = {
+    no_account: 'No account exists for that email. Ask your admin for an invite, or sign up.',
+    disabled: 'This account is disabled.',
+    company: 'Your company account is not active.',
+    provider: 'That sign-in provider is not available.',
+    denied: 'Sign-in was cancelled or failed. Try again.',
+};
 
 function LoginInner() {
     const [loginMethod, setLoginMethod] = useState('password'); // 'password' or 'otp'
@@ -18,7 +27,8 @@ function LoginInner() {
     const [mfaToken, setMfaToken] = useState('');
     const [twoFactorCode, setTwoFactorCode] = useState('');
     const [useRecoveryCode, setUseRecoveryCode] = useState(false);
-    const { login, requestOTP, loginOTP, verify2FA } = useAuth();
+    const [oauthProviders, setOauthProviders] = useState({ google: false, microsoft: false });
+    const { login, requestOTP, loginOTP, verify2FA, fetchUser } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const justRegistered = searchParams.get('registered') === 'true';
@@ -38,6 +48,52 @@ function LoginInner() {
             admin: '/admin/dashboard'
         };
         router.push(routes[role] || '/sales/dashboard');
+    };
+
+    useEffect(() => {
+        api.get('/auth/oauth/providers')
+            .then((res) => setOauthProviders(res.data || {}))
+            .catch(() => setOauthProviders({ google: false, microsoft: false }));
+    }, []);
+
+    useEffect(() => {
+        const oauthError = searchParams.get('oauth_error');
+        if (oauthError) {
+            setError(OAUTH_ERRORS[oauthError] || 'Sign-in failed. Try again.');
+            return;
+        }
+
+        if (searchParams.get('mfa_required') === '1' && searchParams.get('mfa_token')) {
+            setMfaToken(searchParams.get('mfa_token'));
+            setStage('2fa');
+            return;
+        }
+
+        if (searchParams.get('mfa_setup_required') === '1' && searchParams.get('setup_token')) {
+            router.replace('/settings/security?setup_token=' + encodeURIComponent(searchParams.get('setup_token')) + '&forced=1');
+            return;
+        }
+
+        if (searchParams.get('oauth') === 'success') {
+            let cancelled = false;
+            (async () => {
+                setLoading(true);
+                try {
+                    await fetchUser();
+                    const me = await api.get('/auth/me');
+                    if (!cancelled) handleRedirect(me.data);
+                } catch {
+                    if (!cancelled) setError('Signed in, but session could not be loaded. Try refreshing.');
+                } finally {
+                    if (!cancelled) setLoading(false);
+                }
+            })();
+            return () => { cancelled = true; };
+        }
+    }, [searchParams, fetchUser, router]);
+
+    const startOAuth = (provider) => {
+        window.location.href = `/api/auth/oauth/${provider}/start`;
     };
 
     const handleRequestOTP = async (e) => {
@@ -210,6 +266,37 @@ function LoginInner() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             Registration complete! Your company is pending admin approval. You'll be able to log in once approved.
+                        </div>
+                    )}
+
+                    {(oauthProviders.google || oauthProviders.microsoft) && (
+                        <div className="mb-8 space-y-3">
+                            {oauthProviders.google && (
+                                <button
+                                    type="button"
+                                    onClick={() => startOAuth('google')}
+                                    className="w-full py-2.5 px-4 border border-border rounded-lg text-sm font-semibold text-primary bg-surface hover:bg-surface-elevated transition-colors"
+                                >
+                                    Continue with Google
+                                </button>
+                            )}
+                            {oauthProviders.microsoft && (
+                                <button
+                                    type="button"
+                                    onClick={() => startOAuth('microsoft')}
+                                    className="w-full py-2.5 px-4 border border-border rounded-lg text-sm font-semibold text-primary bg-surface hover:bg-surface-elevated transition-colors"
+                                >
+                                    Continue with Microsoft
+                                </button>
+                            )}
+                            <div className="relative py-1">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-border" />
+                                </div>
+                                <div className="relative flex justify-center text-xs">
+                                    <span className="bg-surface px-2 text-muted">or</span>
+                                </div>
+                            </div>
                         </div>
                     )}
 

@@ -86,6 +86,8 @@ class CheckoutRequest(BaseModel):
 @router.post("/checkout")
 def checkout(body: CheckoutRequest, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
     company = db.query(Company).filter(Company.id == current_user.company_id).one()
+    if company.is_sandbox:
+        raise HTTPException(status_code=400, detail="sandbox companies cannot checkout")
     plan = db.query(Plan).filter(Plan.id == body.plan_id, Plan.is_active == True).first()
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")

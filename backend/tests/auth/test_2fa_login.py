@@ -87,6 +87,15 @@ def test_recovery_code_single_use(client, db):
     assert r2.status_code == 401
 
 
+def test_verify_with_mixed_case_stored_email(client, db):
+    email = "Mixed@Case.Co"
+    _, secret, _ = _make_enrolled(client, db, email=email)
+    mfa_token = _password_login(client, email=email).json()["mfa_token"]
+    r = client.post("/api/auth/2fa/verify", json={"mfa_token": mfa_token, "code": totp.totp_now(secret)})
+    assert r.status_code == 200, r.text
+    assert r.json()["access_token"]
+
+
 def test_mandate_forces_setup(client, db):
     company = create_company(db, name="Mand", company_code="MND", status="active")
     company.require_2fa = True

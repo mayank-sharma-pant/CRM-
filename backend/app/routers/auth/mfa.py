@@ -154,7 +154,7 @@ def verify(body: VerifyBody, request: Request, response: Response, db: Session =
     email = payload["sub"].lower()
     auth_limiter.check(request, f"verify_2fa:{email}", max_attempts=10, window_seconds=600)
 
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(sa_func.lower(User.email) == email).first()
     if not user or not user.totp_enabled or not user.totp_secret:
         raise HTTPException(status_code=401, detail="Invalid or expired challenge")
 

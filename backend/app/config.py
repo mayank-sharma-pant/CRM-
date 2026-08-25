@@ -88,6 +88,16 @@ def _warn_if_production_urls_point_to_localhost() -> None:
             "live CRM origin (e.g. https://crm.perioxia.com) in the host environment, not only in a local .env file.",
             stacklevel=1,
         )
+    api = (settings.PUBLIC_API_URL or "").strip().lower()
+    if not api or "localhost" in api or "127.0.0.1" in api:
+        warnings.warn(
+            "PUBLIC_API_URL is empty or points at localhost/127.0.0.1 while "
+            "ENVIRONMENT=production. OAuth redirect URIs and provider webhooks will not "
+            "resolve, and email open/click tracking stays off because a recipient's mail "
+            "client cannot reach a loopback host. Set PUBLIC_API_URL to this backend's "
+            "public origin in the host environment.",
+            stacklevel=1,
+        )
     origins = [
         o.strip()
         for o in (settings.CORS_ORIGINS or "").split(",")

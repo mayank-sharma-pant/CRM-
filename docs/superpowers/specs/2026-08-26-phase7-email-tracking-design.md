@@ -40,9 +40,13 @@ point covers all three.
    and the pixel has to live in one shared body.
 7. **Stored body stays original.** `EmailLog.body` keeps the caller's plain text.
    Tracking markup exists only in the transported message.
-8. **`PUBLIC_API_URL` is the base.** If it is empty, **skip injection entirely**:
-   send the plain escaped body, store `NULL` token hashes, counts stay 0. A
-   relative pixel URL in an email is worse than no pixel.
+8. **`PUBLIC_API_URL` is the base, and it must be reachable from outside.** If it
+   is empty, **loopback** (`localhost`, `*.localhost`, any loopback IP including
+   `::1`), or scheme-less, **skip injection entirely**: send the plain escaped
+   body, store `NULL` token hashes, counts stay 0. The setting ships as
+   `http://localhost:8000`, so treating "non-empty" as "configured" would make an
+   unconfigured install rewrite every real outbound link to a host only the
+   server can resolve — a broken link is worse than an untracked one.
 9. **Alembic `027_email_tracking` off `026_mass_email`**, same `apply_schema`
    body as 024–026. One head.
 10. **No new pip deps, no attachment tracking, no bot filtering, no Marketing Hub.**
@@ -52,6 +56,16 @@ point covers all three.
 Per-recipient open timelines, unique-vs-total opens, user-agent/bot suppression,
 open/click charts, unsubscribe handling, attachment or reply tracking, per-link
 click attribution (one click token per email, not per link), webhook fan-out.
+
+**Not closed by the HMAC:** any tenant who can send a tracked email holds a valid
+click token, and can therefore mint `{PUBLIC_API_URL}/api/public/track/c/{token}?u=&s=`
+for a target of their choosing and hand that link to someone else. The signature
+stops an *outsider* — and stops a recipient from re-pointing a link they were
+sent — but a sender is by construction able to produce a redirect that carries
+this origin's reputation. That is inherent to click tracking (HubSpot, Mailchimp
+and Zoho all have it) and is accepted, not solved, in v0. Narrowing it would mean
+an allowlist of link targets per company or per-link tokens minted only at send
+time; neither is in this item.
 
 ## Data — `email_logs` new columns
 
@@ -75,7 +89,8 @@ revision `027_email_tracking`.
 |---|---|
 | `hash_token(raw)` | SHA-256 hex |
 | `mint_token()` | `(raw, hash)` from `secrets.token_urlsafe(32)` |
-| `tracking_base()` | `PUBLIC_API_URL` without trailing `/`, or `None` when empty |
+| `tracking_base()` | `PUBLIC_API_URL` without trailing `/`, or `None` when empty / loopback / scheme-less |
+| `is_unusable_base(base)` | `True` for a loopback or scheme-less origin |
 | `open_pixel_url(base, raw)` | `{base}/api/public/track/o/{raw}.gif` |
 | `sign_target(token_hash, url)` | 32-hex HMAC-SHA256 under `SECRET_KEY` |
 | `click_url(base, raw, token_hash, url)` | `{base}/api/public/track/c/{raw}?u=…&s=…` |
@@ -94,6 +109,12 @@ no chance of rewriting the pixel's own `src`. Trailing punctuation
 |---|---|---|---|
 | GET | `/api/public/track/o/{token}.gif` | none | always `200 image/gif`, `Cache-Control: no-store`; increments `open_count` only when the hash matches a row |
 | GET | `/api/public/track/c/{token}?u=&s=` | none | `302` to the verified target and `click_count += 1`; `404` on unknown token, bad signature, missing/undecodable `u`, or non-http(s) target |
+
+Both counters move with a single SQL `UPDATE … SET col = COALESCE(col, 0) + 1`
+filtered on the token hash (`synchronize_session=False`) — never a read, add,
+write in Python, which drops increments when two hits land at once. The click
+route uses the row count of that conditional update as its existence check, so
+lookup and increment are one statement.
 
 Both are rate limited per IP by a dedicated `tracking_limiter` (240 hits / 60 s),
 same `RateLimiter` class the portal and public-form routes use. A dedicated
@@ -120,15 +141,23 @@ RLS still fences `email_logs` for authenticated sessions.
 4. Cross-tenant: company B gets `404` from `GET /api/emails/{A's id}`, and hitting
    A's tracking URLs never returns A's subject or body.
 5. `serialize_email` carries `open_count`/`click_count` and no `*_token_hash`.
-6. `PUBLIC_API_URL = ""` → sent HTML has no pixel and no rewritten link, and the
-   row stores `NULL` token hashes.
+6. An unusable base → sent HTML has no pixel and no rewritten link, and the row
+   stores `NULL` token hashes. Parametrised over `""`, the shipped default read
+   off `Settings.model_fields`, `http://localhost:8000`, `http://127.0.0.1:8000`,
+   `http://[::1]:8000`, `https://localhost`, and a scheme-less `api.test`. A
+   non-loopback base injects both URLs.
 7. Mailbox transport gets the same tracked HTML.
 8. `tests/ops/test_alembic_heads.py` still sees exactly one head, now
    `027_email_tracking`, with `down_revision == "026_mass_email"`.
 
 ## Deploy
 
-`alembic upgrade head` (or `create_missing_tables.py`) for the four columns. Set
-`PUBLIC_API_URL` to the public backend origin — tracking is silently off until
-it is set, and the pixel/redirect URLs must be reachable from recipient mail
-clients.
+`alembic upgrade head` (or `create_missing_tables.py`) for the four columns.
+
+Tracking stays off until `PUBLIC_API_URL` is a **public, non-loopback** origin —
+setting it is not enough if it still points at `localhost`, which is both the
+shipped default and the value a half-configured deploy keeps. On production boot
+`app/config.py` warns when `PUBLIC_API_URL` is empty or loopback. The pixel and
+redirect URLs must be reachable from a recipient's mail client, so the origin has
+to be the externally routable backend host (`https://api.example.com`), not an
+internal service name. `.env.example` carries the variable with that note.

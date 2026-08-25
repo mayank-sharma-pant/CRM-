@@ -62,13 +62,17 @@ Checklist 7.1–7.12 all PENDING. Sequencing ends at Phase 7, not “no numbered
 - Consumes: `deliver_and_log(...)` in `app/services/sales/crm_email.py`
 - Produces: public GET that increments open or click; `email_logs.open_count` / `click_count` (exact columns in 7.1 spec)
 
-- [ ] **Step 1: Write `docs/superpowers/specs/2026-08-26-phase7-email-tracking-design.md`**
+- [x] **Step 1: Write `docs/superpowers/specs/2026-08-26-phase7-email-tracking-design.md`**
 
 Lock: 1×1 pixel in HTML body; outbound links rewritten with HMAC or random token; bot/user-agent ignore list optional; no attachment tracking.
 
-- [ ] **Step 2: Write the 7.1 item plan with TDD steps**
+- [x] **Step 2: Write the 7.1 item plan with TDD steps**
 
-- [ ] **Step 3: Execute that item plan (subagent-driven or inline)**
+[`docs/superpowers/plans/2026-08-26-phase7-email-tracking.md`](./2026-08-26-phase7-email-tracking.md).
+
+- [x] **Step 3: Execute that item plan (subagent-driven or inline)**
+
+Inline TDD. `tests/sales/test_email_tracking.py` (17 tests) + `027_email_tracking`.
 
 ---
 

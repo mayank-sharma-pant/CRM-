@@ -11,14 +11,17 @@ import binascii
 import hashlib
 import hmac
 import html
+import ipaddress
 import re
 import secrets
 from typing import Optional
+from urllib.parse import urlparse
 
 from app.config import settings
 
 TRACK_PREFIX = "/api/public/track"
 TRAILING_PUNCTUATION = ".,;:!?)]}'\"" + "\u201d\u2019"
+_LOOPBACK_NAMES = {"localhost", "ip6-localhost", "ip6-loopback"}
 
 # 42-byte 1x1 transparent GIF89a.
 TRANSPARENT_GIF = base64.b64decode(
@@ -37,10 +40,30 @@ def mint_token() -> tuple[str, str]:
     return raw, hash_token(raw)
 
 
+def is_unusable_base(base: str) -> bool:
+    """True for an origin no recipient's mail client could reach.
+
+    Loopback and scheme-less values count: `PUBLIC_API_URL` defaults to
+    `http://localhost:8000`, so an install that never set it would otherwise
+    rewrite every outbound link to a host only the server itself can resolve.
+    """
+    host = (urlparse(base).hostname or "").strip().lower()
+    if not host:
+        return True
+    if host in _LOOPBACK_NAMES or host.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 def tracking_base() -> Optional[str]:
     """Public origin for tracking URLs, or None when tracking must stay off."""
     base = (settings.PUBLIC_API_URL or "").strip().rstrip("/")
-    return base or None
+    if not base or is_unusable_base(base):
+        return None
+    return base
 
 
 def open_pixel_url(base: str, raw_token: str) -> str:
@@ -116,12 +139,9 @@ def build_outbound_html(
     links. The caller keeps storing the original plain text on the log row.
     """
     track_links = bool(base and click_raw and click_hash)
-    if track_links:
-        def wrap(url: str) -> str:
-            return click_url(base, click_raw, click_hash, url)
-    else:
-        def wrap(url: str) -> str:
-            return url
+
+    def wrap(url: str) -> str:
+        return click_url(base, click_raw, click_hash, url)
 
     lines = (body or "").splitlines() or [body or ""]
     rendered = "<br>".join(

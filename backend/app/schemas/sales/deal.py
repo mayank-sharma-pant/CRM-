@@ -43,6 +43,7 @@ class StageCreate(BaseModel):
     position: int
     stage_type: str = "open"
     default_probability: int = 0
+    required_fields: Optional[list[str]] = None
 
 
 class StageUpdate(BaseModel):
@@ -50,6 +51,7 @@ class StageUpdate(BaseModel):
     position: Optional[int] = None
     stage_type: Optional[str] = None
     default_probability: Optional[int] = None
+    required_fields: Optional[list[str]] = None
 
 
 class PipelineCreate(BaseModel):
@@ -61,3 +63,4 @@ class PipelineUpdate(BaseModel):
     name: Optional[str] = None
     is_active: Optional[bool] = None
     is_default: Optional[bool] = None
+    blueprint_enabled: Optional[bool] = None

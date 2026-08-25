@@ -21,6 +21,12 @@ from app.models.sales.client import Client
 from app.models.sales.pipeline import Pipeline, PipelineStage
 from app.services.sales.pipeline_seed import attach_default_stages, ensure_default_pipeline
 from app.services.sales.custom_fields import get_values_map, set_values
+from app.services.sales.blueprint import (
+    ALLOWED_REQUIRED_FIELDS,
+    BlueprintError,
+    assert_blueprint_move,
+    parse_required_fields,
+)
 from app.schemas.sales.deal import (
     DealCreate, DealUpdate, DealStageUpdate, StageCreate, StageUpdate,
     PipelineCreate, PipelineUpdate,
@@ -302,6 +308,26 @@ def move_deal_stage(deal_id: int, payload: DealStageUpdate, db: Session = Depend
     if stage is None or stage.pipeline_id != deal.pipeline_id:
         raise HTTPException(status_code=400, detail="stage does not belong to deal's pipeline")
 
+    pipeline = _get_pipeline(db, current_user, deal.pipeline_id)
+    if pipeline is None:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    current_stage = _get_stage(db, current_user, deal.stage_id)
+    stages = apply_company_scope(db.query(PipelineStage), PipelineStage, current_user).filter(
+        PipelineStage.pipeline_id == deal.pipeline_id
+    ).all()
+    try:
+        assert_blueprint_move(
+            deal=deal, pipeline=pipeline, current_stage=current_stage,
+            target_stage=stage, stages=stages,
+        )
+    except BlueprintError as err:
+        if err.missing_fields:
+            raise HTTPException(
+                status_code=400,
+                detail={"message": err.message, "missing_fields": err.missing_fields},
+            )
+        raise HTTPException(status_code=400, detail=err.message)
+
     before_stage = deal.stage_id
     deal.stage_id = stage.id
     if stage.stage_type in (DealStageType.WON, DealStageType.LOST):
@@ -360,6 +386,7 @@ def deal_board(db: Session = Depends(get_db), current_user: User = Depends(get_c
             "stage_id": s.id, "name": s.name, "stage_type": s.stage_type.value,
             "stage_total": str(stage_total.quantize(Decimal("0.01"))),
             "weighted_value": str(weighted.quantize(Decimal("0.01"))),
+            "required_fields": parse_required_fields(s.required_fields),
             "deals": [_serialize_deal(d, s) for d in s_deals],
         })
 
@@ -379,7 +406,17 @@ def _get_pipeline(db: Session, current_user: User, pipeline_id: int) -> Optional
 
 
 def _serialize_pipeline(p: Pipeline) -> dict:
-    return {"id": p.id, "name": p.name, "is_default": bool(p.is_default), "is_active": bool(p.is_active)}
+    return {
+        "id": p.id, "name": p.name, "is_default": bool(p.is_default), "is_active": bool(p.is_active),
+        "blueprint_enabled": bool(getattr(p, "blueprint_enabled", False)),
+    }
+
+
+def _store_required_fields(keys: list[str]) -> str | None:
+    for key in keys:
+        if key not in ALLOWED_REQUIRED_FIELDS:
+            raise HTTPException(status_code=400, detail=f"invalid required field: {key}")
+    return json.dumps(keys) if keys else None
 
 
 def _clear_other_defaults(db: Session, current_user: User, keep_id: int) -> None:
@@ -396,9 +433,13 @@ def _require_admin_or_md(current_user: User):
 
 
 def _serialize_stage(s: PipelineStage) -> dict:
-    return {"id": s.id, "pipeline_id": s.pipeline_id, "name": s.name,
-            "position": s.position, "stage_type": s.stage_type.value if hasattr(s.stage_type, "value") else s.stage_type,
-            "default_probability": s.default_probability, "is_active": s.is_active}
+    return {
+        "id": s.id, "pipeline_id": s.pipeline_id, "name": s.name,
+        "position": s.position,
+        "stage_type": s.stage_type.value if hasattr(s.stage_type, "value") else s.stage_type,
+        "default_probability": s.default_probability, "is_active": s.is_active,
+        "required_fields": parse_required_fields(s.required_fields),
+    }
 
 
 @router.get("/pipelines")
@@ -466,6 +507,8 @@ def update_pipeline(
         _clear_other_defaults(db, current_user, pipeline.id)
     elif data.get("is_default") is False:
         pipeline.is_default = False
+    if "blueprint_enabled" in data and data["blueprint_enabled"] is not None:
+        pipeline.blueprint_enabled = data["blueprint_enabled"]
     db.commit()
     db.refresh(pipeline)
     return _serialize_pipeline(pipeline)
@@ -517,10 +560,14 @@ def create_stage(payload: StageCreate, db: Session = Depends(get_db),
         raise HTTPException(status_code=400, detail="default_probability must be 0..100")
     if payload.stage_type is not None and payload.stage_type not in _VALID_STAGE_TYPES:
         raise HTTPException(status_code=400, detail="stage_type must be one of: open, won, lost")
+    required_fields = None
+    if payload.required_fields is not None:
+        required_fields = _store_required_fields(payload.required_fields)
     stage = PipelineStage(
         company_id=current_user.company_id, pipeline_id=pipeline.id, name=payload.name,
         position=payload.position, stage_type=payload.stage_type,
         default_probability=payload.default_probability,
+        required_fields=required_fields,
     )
     db.add(stage)
     db.commit()
@@ -542,6 +589,8 @@ def update_stage(stage_id: int, payload: StageUpdate, db: Session = Depends(get_
         raise HTTPException(status_code=400, detail="default_probability must be 0..100")
     if "stage_type" in data and data["stage_type"] is not None and data["stage_type"] not in _VALID_STAGE_TYPES:
         raise HTTPException(status_code=400, detail="stage_type must be one of: open, won, lost")
+    if "required_fields" in data:
+        stage.required_fields = _store_required_fields(data.pop("required_fields") or [])
     for field, value in data.items():
         setattr(stage, field, value)
     db.commit()

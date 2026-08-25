@@ -176,6 +176,18 @@ Per roadmap §8, build these **only** when a trial user asks twice or a lost dea
 - **Phase 4** (Professional extras, post-revenue): blueprint, products price book + tax, customer portal, forecasting, territory assignment, sandbox, SSO.
 - **Phase 5** (paid add-ons): enrichment, predictive AI, telephony, Tally/QuickBooks sync, custom modules, marketplace.
 
+### Phase 3.1 — TOTP 2FA — DONE
+
+Pulled forward ahead of the pull-based gate by explicit decision. Opt-in per-user TOTP + recovery codes + a company-admin mandate, full stack. Spec: [`superpowers/specs/2026-08-25-phase3-totp-2fa-design.md`](./superpowers/specs/2026-08-25-phase3-totp-2fa-design.md); plan: [`superpowers/plans/2026-08-25-phase3-totp-2fa.md`](./superpowers/plans/2026-08-25-phase3-totp-2fa.md). Executed subagent-driven with per-task review + a whole-branch final review, direct on `main`.
+
+- **Endpoints:** `/api/auth/2fa/{setup,confirm,status,disable,recovery-codes/regenerate,verify}` and `GET`/`PATCH /api/company/security`. `/login` and `/login-otp` now return an MFA challenge (`{mfa_required, mfa_token}` or, for a mandated-but-unenrolled user, `{mfa_setup_required, setup_token}`) instead of session tokens when 2FA applies; `POST /2fa/verify` exchanges the challenge + a TOTP or single-use recovery code for the real tokens.
+- **Crypto:** stdlib RFC 6238 TOTP (`app/utils/totp.py`, pinned to published RFC vectors — **no `pyotp`**); secret Fernet-encrypted at rest with a key derived from `SECRET_KEY` (`app/utils/totp_crypto.py`, uses the already-present `cryptography`). QR is **manual key entry** in v0 (no QR library, no external image host). Recovery codes: SHA-256 one-way, shown once, single-use.
+- **Security fix (critical, caught in review):** `get_current_user` now decodes with `audience="crm"` so the short-lived `mfa`/`mfa_setup` challenge tokens can no longer be replayed as full session credentials. All legitimate session mints use the default `crm` audience; the `platform` token authenticates via its own dependency — both verified unaffected.
+- **Enforcement:** rate-limited `confirm`/`disable`/`regenerate`/`verify` via the existing `auth_limiter`; mandate + status proven cross-tenant-isolated (`tests/tenancy/test_2fa_cross_tenant.py`, with a positive control).
+- **Migration note:** `create_missing_tables.py` adds `users.totp_secret/totp_enabled/totp_confirmed_at`, `companies.require_2fa`, and the `mfa_recovery_codes` table. **No new pip dependency. No Alembic** (two pre-existing heads — same stance as Phases 0/1). **Run `create_missing_tables.py` on deploy.**
+- **Verification:** full backend suite **266 passing**; `next build` passes cleanly (all routes prerender — the 2FA pages wrap `useSearchParams` in `<Suspense>`).
+- **Documented residuals:** stateless access tokens (≤30 min) mean a mid-session mandate or a disable takes up to one token lifetime to fully bite (no denylist — consistent with Phase 0); `mfa_token` has no `jti`/single-use, so it is replayable within its 5-min window (each replay still needs a fresh valid code; the recovery-code path is single-use); QR image deferred (manual entry only). Pre-existing, out of scope: `app/sales/orders/page.jsx` shares the `useSearchParams`-without-`Suspense` pattern (builds clean today because it renders dynamically) — worth wrapping if it ever prerenders.
+
 ---
 
 ## Cross-cutting cleanups (do alongside, not as a phase)

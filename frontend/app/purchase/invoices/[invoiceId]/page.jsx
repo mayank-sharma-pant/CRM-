@@ -40,13 +40,6 @@ export default function InvoiceDetailPage() {
             try {
                 const res = await api.get(`/purchase/invoices/${params.invoiceId}`);
                 const d = res.data;
-                let shareActive = d.share_active;
-                try {
-                    const shareRes = await api.get(`/invoices/${params.invoiceId}`);
-                    shareActive = shareRes.data.share_active;
-                } catch {
-                    // purchase detail may omit share_active; invoices detail has it
-                }
                 const fmt = (v) => `₹${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
                 const statusMap = { paid: 'Paid', pending: 'Pending', overdue: 'Overdue', draft: 'Draft', sent: 'Sent' };
                 const st = statusMap[(d.status || '').toLowerCase()] || d.status || 'Draft';
@@ -63,7 +56,7 @@ export default function InvoiceDetailPage() {
                     setInvoice({
                         id: d.number || `UNKNOWN-${d.id}`,
                         db_id: d.id,
-                        share_active: shareActive,
+                        share_active: d.share_active,
                         status: st,
                     client: {
                         name: d.client?.name || 'Unknown',
@@ -110,7 +103,7 @@ export default function InvoiceDetailPage() {
 
     const refetchInvoice = async () => {
         try {
-            const res = await api.get(`/invoices/${params.invoiceId}`);
+            const res = await api.get(`/purchase/invoices/${params.invoiceId}`);
             const d = res.data;
             setInvoice((prev) => prev ? { ...prev, share_active: d.share_active } : prev);
         } catch (err) {

@@ -13,7 +13,9 @@ export default function Layout({ children }) {
     const isPublic = ['/', '/login', '/signup'].includes(pathname)
         || pathname.startsWith('/platform')
         || pathname.startsWith('/admin')
+        || pathname === '/f'
         || pathname.startsWith('/f/')
+        || pathname === '/p'
         || pathname.startsWith('/p/')
         || (pathname === '/settings/security' && !user);
 

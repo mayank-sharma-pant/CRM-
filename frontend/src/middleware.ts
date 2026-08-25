@@ -15,6 +15,9 @@ export function middleware(request) {
   const isPublicRoute =
     isAuthEntry ||
     pathname === '/settings/security' ||
+    pathname === '/f' ||
+    pathname.startsWith('/f/') ||
+    pathname === '/p' ||
     pathname.startsWith('/p/');
 
   // Bounce signed-in users off login/signup only — not off /settings/security.

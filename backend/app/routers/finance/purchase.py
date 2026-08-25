@@ -486,7 +486,9 @@ def get_invoice_detail(
         "total": invoice.total,
         "status": invoice.status,
         "issued": invoice.issued_date.strftime("%Y-%m-%d") if invoice.issued_date else None,
-        "due": invoice.due_date.strftime("%Y-%m-%d") if invoice.due_date else None
+        "due": invoice.due_date.strftime("%Y-%m-%d") if invoice.due_date else None,
+        "share_active": bool(invoice.share_token_hash),
+        "share_created_at": invoice.share_created_at.isoformat() if invoice.share_created_at else None,
     }
 
 

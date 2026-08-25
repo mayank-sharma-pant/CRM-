@@ -26,6 +26,8 @@ class CompanySettings(Base):
     # Notification settings
     task_reminders_enabled = Column(Integer, default=1)  # 1=true, 0=false
     followup_alerts_enabled = Column(Integer, default=1)
+    whatsapp_api_key = Column(String(255), nullable=True)
+    whatsapp_source = Column(String(20), nullable=True)
 
     # Relationships
     company = relationship("Company", backref="settings")

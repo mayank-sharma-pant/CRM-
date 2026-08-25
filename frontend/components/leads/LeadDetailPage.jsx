@@ -30,6 +30,7 @@ import NoteModal from './NoteModal';
 import ReassignModal from './ReassignModal';
 import DocumentsList from '../documents/DocumentsList';
 import LeadEmailPanel from './LeadEmailPanel';
+import LeadWhatsAppPanel from './LeadWhatsAppPanel';
 import LeadTagsPanel from './LeadTagsPanel';
 import LeadDuplicatesPanel from './LeadDuplicatesPanel';
 import MeetingCallPanel from '../activity/MeetingCallPanel';
@@ -559,6 +560,7 @@ export default function LeadDetailPage() {
           <MeetingCallPanel parentType="lead" parentId={id} onChanged={fetchLeadData} />
           <LeadTagsPanel leadId={id} tags={lead.tags} onChanged={fetchLeadData} />
           <LeadEmailPanel leadId={id} leadEmail={lead.email} />
+          <LeadWhatsAppPanel leadId={id} leadPhone={lead.phone} />
 
           {/* Section 4: Notes */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">

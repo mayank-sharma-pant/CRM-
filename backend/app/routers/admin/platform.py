@@ -312,6 +312,7 @@ def get_plans(current_user: User = Depends(get_current_platform_admin), db: Sess
     return {"plans": [
         {"id": p.id, "name": p.name, "price_monthly": float(p.price_monthly), "currency": p.currency,
          "max_users": p.max_users, "max_teams": p.max_teams, "max_storage_gb": p.max_storage_gb,
+         "max_api_requests_per_day": p.max_api_requests_per_day,
          "is_active": p.is_active} for p in plans
     ]}
 
@@ -321,6 +322,7 @@ class PlanUpdate(BaseModel):
     max_users: int | None = None
     max_teams: int | None = None
     max_storage_gb: int | None = None
+    max_api_requests_per_day: int | None = None
     is_active: bool | None = None
 
 

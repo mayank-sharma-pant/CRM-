@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:perioxia_crm/core/constants/api_endpoints.dart';
 import 'package:perioxia_crm/core/network/api_client.dart';
+import 'package:perioxia_crm/core/router/sales_home.dart';
 import 'package:perioxia_crm/core/theme/app_colors.dart';
 import 'package:perioxia_crm/shared/widgets/loading_indicator.dart';
 import 'package:perioxia_crm/shared/widgets/error_banner.dart';
@@ -39,10 +40,12 @@ class InvoiceDetailScreen extends ConsumerWidget {
           final total = (inv['total'] as num?)?.toDouble() ?? 0;
           final clientName =
               inv['client_name'] ?? inv['client']?['name'] ?? '—';
-          final issuedDate = inv['issued_date'] != null
+          final issuedRaw = inv['issued_date'] ?? inv['issued'];
+          final issuedDate = issuedRaw != null
               ? DateFormat('MMM d, yyyy')
-                  .format(DateTime.parse(inv['issued_date']))
+                  .format(DateTime.parse(issuedRaw.toString()))
               : null;
+          final taxRows = gstTaxRows(inv);
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -163,7 +166,8 @@ class InvoiceDetailScreen extends ConsumerWidget {
                             Expanded(
                                 flex: 3,
                                 child: Text(
-                                    item['name'] ??
+                                    item['description'] ??
+                                        item['name'] ??
                                         item['product_name'] ??
                                         '—',
                                     style: const TextStyle(fontSize: 13))),
@@ -187,6 +191,20 @@ class InvoiceDetailScreen extends ConsumerWidget {
                       );
                     }),
                     const Divider(height: 1),
+                    ...taxRows.map((row) => Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(row.key,
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary)),
+                              Text('₹${row.value.toStringAsFixed(2)}',
+                                  style: const TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                        )),
                     Padding(
                       padding: const EdgeInsets.all(14),
                       child: Row(

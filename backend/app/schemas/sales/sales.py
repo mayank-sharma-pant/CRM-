@@ -120,6 +120,7 @@ class ClientBase(BaseModel):
     phone: Optional[str] = None
     company: Optional[str] = None
     address: Optional[str] = None
+    gstin: Optional[str] = None
 
 
 class ClientCreate(ClientBase):
@@ -135,6 +136,7 @@ class ClientUpdate(BaseModel):
     company: Optional[str] = None
     address: Optional[str] = None
     custom_fields: Optional[dict] = None
+    gstin: Optional[str] = None
 
 
 class ClientResponse(ClientBase):

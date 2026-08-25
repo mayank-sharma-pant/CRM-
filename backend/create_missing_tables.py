@@ -7,7 +7,7 @@ from app.models.finance import *  # noqa: F401,F403
 from app.models.ops import *  # noqa: F401,F403
 from app.models.hr import *  # noqa: F401,F403
 from app.models.billing import *  # noqa: F401,F403
-from app.services.billing.seed import seed_plans
+from app.services.billing.seed import seed_plans, backfill_api_quotas
 
 # Columns added to pre-existing tables after their initial release.
 # Base.metadata.create_all only creates missing TABLES, never ALTERs
@@ -24,6 +24,18 @@ _MISSING_COLUMNS = [
     ("users", "totp_enabled", "BOOLEAN DEFAULT FALSE"),
     ("users", "totp_confirmed_at", "TIMESTAMP WITH TIME ZONE"),
     ("companies", "require_2fa", "BOOLEAN DEFAULT FALSE"),
+    ("plans", "max_api_requests_per_day", "INTEGER"),
+    ("clients", "gstin", "VARCHAR(15)"),
+    ("invoices", "cgst", "NUMERIC(12,2) DEFAULT 0"),
+    ("invoices", "sgst", "NUMERIC(12,2) DEFAULT 0"),
+    ("invoices", "igst", "NUMERIC(12,2) DEFAULT 0"),
+    ("invoices", "seller_gstin", "VARCHAR(15)"),
+    ("invoices", "buyer_gstin", "VARCHAR(15)"),
+    ("invoices", "place_of_supply", "VARCHAR(2)"),
+    ("invoices", "tax_mode", "VARCHAR(10)"),
+    ("invoice_items", "hsn", "VARCHAR(20)"),
+    ("company_settings", "whatsapp_api_key", "VARCHAR(255)"),
+    ("company_settings", "whatsapp_source", "VARCHAR(20)"),
 ]
 
 
@@ -46,4 +58,5 @@ Base.metadata.create_all(bind=engine)
 add_missing_columns(engine)
 with SessionLocal() as db:
     seed_plans(db)
+    backfill_api_quotas(db)
 print("All missing tables created and plans seeded.")

@@ -16,6 +16,7 @@ from app.models.finance.invoice import Invoice, InvoiceItem
 from app.models.core.company_settings import CompanySettings
 from app.models.ops.stock_item import StockItem
 from app.utils.notify import notify_role_users
+from app.services.finance.gst import compute_gst
 
 router = APIRouter()
 
@@ -25,6 +26,7 @@ class InvoiceItemCreate(BaseModel):
     quantity: int = 1
     unit_price: float = 0.0
     stock_item_id: Optional[int] = None
+    hsn: Optional[str] = None
 
 
 class InvoiceCreate(BaseModel):
@@ -145,10 +147,17 @@ def create_invoice(
                 )
 
     # Use frontend-provided tax/discount if present, else auto-calc from company settings
-    if body.tax is not None:
-        tax = round(body.tax, 2)
-    else:
-        tax = round(subtotal * (float(tax_rate) / 100), 2)
+    try:
+        gst = compute_gst(
+            subtotal=subtotal,
+            rate_percent=tax_rate,
+            seller_gstin=getattr(settings, "gst_number", None) if settings else None,
+            buyer_gstin=getattr(client, "gstin", None),
+            tax_override=body.tax,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    tax = gst.tax
     discount_val = round(body.discount, 2) if body.discount else 0.0
     total = subtotal + tax - discount_val
 
@@ -172,6 +181,13 @@ def create_invoice(
         due_date=due,
         notes=body.notes,
         created_by_id=current_user.id,
+        cgst=gst.cgst,
+        sgst=gst.sgst,
+        igst=gst.igst,
+        seller_gstin=gst.seller_gstin,
+        buyer_gstin=gst.buyer_gstin,
+        place_of_supply=gst.place_of_supply,
+        tax_mode=gst.tax_mode,
     )
     db.add(invoice)
     db.flush()
@@ -194,6 +210,7 @@ def create_invoice(
             quantity=it.quantity or 1,
             unit_price=it.unit_price or 0.0,
             total=total,
+            hsn=(it.hsn or "").strip() or None,
         ))
 
     for stock_id in low_stock_alert_ids:
@@ -222,9 +239,16 @@ def create_invoice(
         "id": invoice.id,
         "invoice_number": invoice.invoice_number,
         "client_id": invoice.client_id,
-        "subtotal": invoice.subtotal,
-        "tax": invoice.tax,
-        "total": invoice.total,
+        "subtotal": float(invoice.subtotal or 0),
+        "tax": float(invoice.tax or 0),
+        "cgst": float(invoice.cgst or 0),
+        "sgst": float(invoice.sgst or 0),
+        "igst": float(invoice.igst or 0),
+        "tax_mode": invoice.tax_mode,
+        "seller_gstin": invoice.seller_gstin,
+        "buyer_gstin": invoice.buyer_gstin,
+        "place_of_supply": invoice.place_of_supply,
+        "total": float(invoice.total or 0),
         "status": invoice.status,
         "issued_date": invoice.issued_date.isoformat() if invoice.issued_date else None,
         "due_date": invoice.due_date.isoformat() if invoice.due_date else None,
@@ -369,9 +393,16 @@ def get_invoice(
             "address": client.address if client else None,
         },
         "status": invoice.status,
-        "total": invoice.total,
-        "subtotal": invoice.subtotal,
-        "tax": invoice.tax,
+        "total": float(invoice.total or 0),
+        "subtotal": float(invoice.subtotal or 0),
+        "tax": float(invoice.tax or 0),
+        "cgst": float(invoice.cgst or 0),
+        "sgst": float(invoice.sgst or 0),
+        "igst": float(invoice.igst or 0),
+        "tax_mode": invoice.tax_mode,
+        "seller_gstin": invoice.seller_gstin,
+        "buyer_gstin": invoice.buyer_gstin,
+        "place_of_supply": invoice.place_of_supply,
         "issued": invoice.issued_date.isoformat() if invoice.issued_date else None,
         "due": invoice.due_date.isoformat() if invoice.due_date else None,
         "items": [
@@ -379,7 +410,8 @@ def get_invoice(
                 "description": item.description,
                 "quantity": item.quantity,
                 "unit_price": item.unit_price,
-                "total": item.total
+                "total": item.total,
+                "hsn": item.hsn,
             } for item in items
         ]
     }

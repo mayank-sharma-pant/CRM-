@@ -89,6 +89,7 @@ const ROLE_NAVIGATION = {
         { name: 'Stock', href: '/manager/stock', icon: 'Package' },
         { name: 'Tasks', href: '/manager/tasks', icon: 'CheckSquare' },
         { name: 'Reports', href: '/manager/reports', icon: 'PieChart' },
+        { name: 'Saved reports', href: '/reports', icon: 'BarChart3' },
         { name: 'AI Assistant', href: '/manager/assistant', icon: 'Sparkles' },
     ],
     admin: [
@@ -97,6 +98,7 @@ const ROLE_NAVIGATION = {
         { name: 'Team Management', href: '/admin/teams', icon: 'GitBranch' },
         { name: 'Approvals', href: '/admin/approvals', icon: 'UserCheck' },
         { name: 'Audit Logs', href: '/admin/audit', icon: 'FileText' },
+        { name: 'Saved reports', href: '/reports', icon: 'BarChart3' },
         { name: 'AI Assistant', href: '/admin/assistant', icon: 'Sparkles' },
     ],
     md: [
@@ -108,6 +110,7 @@ const ROLE_NAVIGATION = {
         { name: 'Clients', href: '/md/clients', icon: 'Briefcase' },
         { name: 'Stock', href: '/md/stock', icon: 'Package' },
         { name: 'Invoices', href: '/md/invoices', icon: 'Receipt' },
+        { name: 'Saved reports', href: '/reports', icon: 'BarChart3' },
         { name: 'AI Assistant', href: '/md/assistant', icon: 'Sparkles' },
     ],
     purchase: [

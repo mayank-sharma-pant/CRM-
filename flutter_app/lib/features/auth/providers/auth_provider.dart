@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:perioxia_crm/core/network/api_exception.dart';
+import 'package:perioxia_crm/core/router/sales_home.dart';
 import 'package:perioxia_crm/data/models/user.dart';
 import 'package:perioxia_crm/data/repositories/auth_repository.dart';
 import 'package:perioxia_crm/features/crm_platform/providers/crm_platform_providers.dart';
@@ -113,7 +114,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  String get dashboardRoute => '/dashboard';
+  String get dashboardRoute => homePathForUser(state.user);
 
   static bool _isPlatformAdminUser(User u) =>
       u.role == 'admin' && u.companyId == null;

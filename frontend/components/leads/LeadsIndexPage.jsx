@@ -9,11 +9,12 @@ import api from '../../services/api';
 import { normalizeLeadStatus } from '../../lib/leadStatus';
 import { leadsHomePath } from '../../lib/leadsPaths';
 import LeadModal from './LeadModal';
+import LeadImportModal from './LeadImportModal';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import Skeleton, { TableRowSkeleton } from '../shared/Skeleton';
 import {
-  Plus, ChevronRight, Filter, Briefcase, LayoutList
+  Plus, ChevronRight, Filter, Briefcase, LayoutList, Upload
 } from 'lucide-react';
 
 const TABS = [
@@ -34,6 +35,7 @@ export default function Leads() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [error, setError] = useState(null);
   const [now, setNow] = useState(null);
   
@@ -224,6 +226,13 @@ export default function Leads() {
               Trash
             </Link>
             <button
+              type="button"
+              onClick={() => setIsImportOpen(true)}
+              className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated inline-flex items-center gap-1.5"
+            >
+              <Upload size={14} strokeWidth={2.5} /> Import CSV
+            </button>
+            <button
               onClick={() => setIsModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-bold uppercase tracking-tight transition-all shadow-sm shadow-accent/10"
             >
@@ -335,6 +344,11 @@ export default function Leads() {
       <LeadModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        onRefresh={fetchLeads}
+      />
+      <LeadImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
         onRefresh={fetchLeads}
       />
     </div>

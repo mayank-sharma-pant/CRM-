@@ -77,3 +77,9 @@ export const companySecurity = {
   getRequire2FA: () => api.get('/company/security').then(r => r.data),
   setRequire2FA: (require_2fa) => api.patch('/company/security', { require_2fa }).then(r => r.data),
 };
+
+export const apiKeys = {
+  list: () => api.get('/api-keys').then(r => r.data),
+  create: (name, access) => api.post('/api-keys', { name, access }).then(r => r.data),
+  revoke: (id) => api.delete(`/api-keys/${id}`),
+};

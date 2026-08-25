@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import api from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Filter, DollarSign, Users, Target, CheckCircle, Briefcase,
   AlertTriangle, BarChart3, ArrowUpRight, ArrowDownRight, Minus
@@ -77,9 +78,14 @@ const INV_STATUS_STYLE = {
 };
 
 export default function CustomReportsPage() {
+  const { user } = useAuth();
+  const canSave = user?.role === 'admin' || user?.role === 'md';
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [saveName, setSaveName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState(null);
 
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -117,6 +123,33 @@ export default function CustomReportsPage() {
     setEndDate('');
     setSource('All');
     setServiceType('All');
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!canSave) return;
+    setSaving(true);
+    setSaveMessage(null);
+    try {
+      await api.post('/reports', {
+        name: saveName.trim(),
+        report_type: 'leads_invoices',
+        filters: {
+          start_date: startDate || null,
+          end_date: endDate || null,
+          source: source === 'All' ? null : source,
+          service_type: serviceType === 'All' ? null : serviceType,
+          group_by: 'source',
+        },
+      });
+      setSaveName('');
+      setSaveMessage('Saved. Open Saved reports to re-run or pin it.');
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      setSaveMessage(typeof detail === 'string' ? detail : 'Could not save report.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const kpis = data?.kpis || {};
@@ -185,11 +218,25 @@ export default function CustomReportsPage() {
               </select>
             </div>
           </div>
-          <div className="flex justify-end pt-3">
+          <div className="flex justify-between items-center pt-3 gap-3 flex-wrap">
+            {canSave && (
+              <form onSubmit={handleSave} className="flex flex-wrap items-center gap-2">
+                <label className="sr-only" htmlFor="md-save-name">Report name</label>
+                <input id="md-save-name" required value={saveName} onChange={(e) => setSaveName(e.target.value)}
+                  placeholder="Name this report"
+                  className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm" />
+                <button type="submit" disabled={saving}
+                  className="text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg bg-violet-600 text-white disabled:opacity-50">
+                  {saving ? 'Saving…' : 'Save report'}
+                </button>
+                <a href="/reports" className="text-[11px] font-bold uppercase tracking-wider text-violet-600">Saved reports</a>
+              </form>
+            )}
             <button onClick={handleClearFilters} className="text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-bold uppercase tracking-wider px-3 py-1.5">
               Clear Filters
             </button>
           </div>
+          {saveMessage && <p className="text-xs text-slate-500 mt-2">{saveMessage}</p>}
         </div>
 
         {error && (

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '../../../../services/api';
+import InvoiceGstSummary from '../../../../components/invoices/InvoiceGstSummary';
 import {
     ArrowLeft,
     CheckCircle,
@@ -64,6 +65,13 @@ export default function InvoiceDetailPage() {
                     amount: fmt(d.total),
                     subtotal: fmt(d.subtotal),
                     tax: fmt(d.tax),
+                    cgst: fmt(d.cgst),
+                    sgst: fmt(d.sgst),
+                    igst: fmt(d.igst),
+                    taxMode: d.tax_mode,
+                    sellerGstin: d.seller_gstin || '',
+                    buyerGstin: d.buyer_gstin || '',
+                    placeOfSupply: d.place_of_supply || '',
                     dueDate: d.due || '',
                     issueDate: d.issued || '',
                     paymentTerms: 'Net 30',
@@ -72,7 +80,8 @@ export default function InvoiceDetailPage() {
                         description: i.description,
                         qty: i.quantity || 1,
                         unitPrice: fmt(i.unit_price),
-                        total: fmt(i.total)
+                        total: fmt(i.total),
+                        hsn: i.hsn || '',
                     })),
                     auditLog: []
                 });
@@ -157,6 +166,7 @@ export default function InvoiceDetailPage() {
                                 <thead>
                                     <tr className="border-b border-slate-100 dark:border-slate-700/50">
                                         <th className="text-left py-2 font-medium text-slate-500 whitespace-nowrap">Description</th>
+                                        <th className="text-left py-2 font-medium text-slate-500 w-24 whitespace-nowrap">HSN</th>
                                         <th className="text-center py-2 font-medium text-slate-500 w-20 whitespace-nowrap">Qty</th>
                                         <th className="text-right py-2 font-medium text-slate-500 w-28 whitespace-nowrap">Unit Price</th>
                                         <th className="text-right py-2 font-medium text-slate-500 w-28 whitespace-nowrap">Total</th>
@@ -166,6 +176,7 @@ export default function InvoiceDetailPage() {
                                     {invoice.items.map((item, i) => (
                                         <tr key={i}>
                                             <td className="py-2.5 text-slate-800 dark:text-slate-200 whitespace-nowrap">{item.description}</td>
+                                            <td className="py-2.5 text-slate-500 font-mono whitespace-nowrap">{item.hsn || '—'}</td>
                                             <td className="py-2.5 text-center text-slate-600 dark:text-slate-400 whitespace-nowrap">{item.qty}</td>
                                             <td className="py-2.5 text-right text-slate-600 dark:text-slate-400 whitespace-nowrap">{item.unitPrice}</td>
                                             <td className="py-2.5 text-right font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">{item.total}</td>
@@ -179,10 +190,7 @@ export default function InvoiceDetailPage() {
                                 <span className="text-slate-600 dark:text-slate-400">Subtotal</span>
                                 <span className="text-slate-800 dark:text-slate-200">{invoice.subtotal}</span>
                             </div>
-                            <div className="flex justify-between text-[14px]">
-                                <span className="text-slate-600 dark:text-slate-400">Tax</span>
-                                <span className="text-slate-800 dark:text-slate-200">{invoice.tax}</span>
-                            </div>
+                            <InvoiceGstSummary invoice={invoice} />
                             <div className="border-t border-slate-100 dark:border-slate-700/50 pt-2 flex justify-between text-[16px] font-semibold">
                                 <span className="text-slate-900 dark:text-white">Total</span>
                                 <span className="text-slate-900 dark:text-white">{invoice.amount}</span>
@@ -324,6 +332,24 @@ export default function InvoiceDetailPage() {
                                 <span className="text-slate-500">Payment Terms</span>
                                 <span className="text-slate-800 dark:text-slate-200">{invoice.paymentTerms}</span>
                             </div>
+                            {invoice.sellerGstin && (
+                                <div className="flex justify-between gap-3">
+                                    <span className="text-slate-500 shrink-0">Seller GSTIN</span>
+                                    <span className="text-slate-800 dark:text-slate-200 font-mono text-right break-all">{invoice.sellerGstin}</span>
+                                </div>
+                            )}
+                            {invoice.buyerGstin && (
+                                <div className="flex justify-between gap-3">
+                                    <span className="text-slate-500 shrink-0">Buyer GSTIN</span>
+                                    <span className="text-slate-800 dark:text-slate-200 font-mono text-right break-all">{invoice.buyerGstin}</span>
+                                </div>
+                            )}
+                            {invoice.placeOfSupply && (
+                                <div className="flex justify-between">
+                                    <span className="text-slate-500">Place of supply</span>
+                                    <span className="text-slate-800 dark:text-slate-200">{invoice.placeOfSupply}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -208,7 +208,7 @@ export default function AdminSettingsPage() {
                         </div>
 
                         <div>
-                            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">GST / Tax ID</label>
+                            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">GSTIN</label>
                             <input
                                 type="text"
                                 value={companyGST}

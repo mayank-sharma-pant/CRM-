@@ -17,6 +17,7 @@ from app.schemas.admin import MessageResponse
 from app.models.core.enums import InvoiceStatus
 from app.models.finance.ledger import LedgerEntry
 from app.utils.notify import send_notification, notify_role_users
+from app.services.finance.gst import compute_gst
 
 router = APIRouter()
 
@@ -31,11 +32,12 @@ class InvoiceItemCreate(BaseModel):
     description: str
     quantity: int = 1
     unit_price: float = 0
+    hsn: Optional[str] = None
 
 class InvoiceCreate(BaseModel):
     client_id: int
     items: List[InvoiceItemCreate]
-    tax: float = 0
+    tax: Optional[float] = None
     discount: float = 0
     notes: Optional[str] = None
     due_days: int = 30  # days until due
@@ -371,7 +373,19 @@ def create_invoice(
     for item in body.items:
         subtotal += Decimal(str(item.unit_price)) * item.quantity
     
-    tax_amount = Decimal(str(body.tax))
+    settings = db.query(CompanySettings).filter(CompanySettings.company_id == current_user.company_id).first()
+    tax_rate = getattr(settings, "tax_rate", 18.0) if settings else 18.0
+    try:
+        gst = compute_gst(
+            subtotal=subtotal,
+            rate_percent=tax_rate or 18.0,
+            seller_gstin=getattr(settings, "gst_number", None) if settings else None,
+            buyer_gstin=getattr(client, "gstin", None),
+            tax_override=body.tax,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    tax_amount = Decimal(str(gst.tax))
     discount_amount = Decimal(str(body.discount))
     total = subtotal + tax_amount - discount_amount
     
@@ -390,7 +404,14 @@ def create_invoice(
         issued_date=today,
         due_date=due_date,
         notes=body.notes,
-        created_by_id=current_user.id
+        created_by_id=current_user.id,
+        cgst=gst.cgst,
+        sgst=gst.sgst,
+        igst=gst.igst,
+        seller_gstin=gst.seller_gstin,
+        buyer_gstin=gst.buyer_gstin,
+        place_of_supply=gst.place_of_supply,
+        tax_mode=gst.tax_mode,
     )
     db.add(invoice)
     db.flush()
@@ -403,7 +424,8 @@ def create_invoice(
             description=item.description,
             quantity=item.quantity,
             unit_price=Decimal(str(item.unit_price)),
-            total=Decimal(str(item.unit_price)) * item.quantity
+            total=Decimal(str(item.unit_price)) * item.quantity,
+            hsn=(item.hsn or "").strip() or None,
         )
         db.add(line)
     
@@ -443,11 +465,24 @@ def get_invoice_detail(
             "address": client.address if client else None
         },
         "items": [
-            {"description": i.description, "quantity": i.quantity, "unit_price": i.unit_price, "total": i.total}
+            {
+                "description": i.description,
+                "quantity": i.quantity,
+                "unit_price": i.unit_price,
+                "total": i.total,
+                "hsn": i.hsn,
+            }
             for i in items
         ],
         "subtotal": invoice.subtotal,
         "tax": invoice.tax,
+        "cgst": invoice.cgst,
+        "sgst": invoice.sgst,
+        "igst": invoice.igst,
+        "tax_mode": invoice.tax_mode,
+        "seller_gstin": invoice.seller_gstin,
+        "buyer_gstin": invoice.buyer_gstin,
+        "place_of_supply": invoice.place_of_supply,
         "total": invoice.total,
         "status": invoice.status,
         "issued": invoice.issued_date.strftime("%Y-%m-%d") if invoice.issued_date else None,

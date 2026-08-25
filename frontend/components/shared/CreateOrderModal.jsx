@@ -9,7 +9,7 @@ import {
     Receipt
 } from 'lucide-react';
 
-const EMPTY_ITEM = { description: '', quantity: 1, unit_price: 0, stock_item_id: null };
+const EMPTY_ITEM = { description: '', quantity: 1, unit_price: 0, stock_item_id: null, hsn: '' };
 
 export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId, clientName, endpoint = '/invoices' }) {
     const [clients, setClients] = useState([]);
@@ -121,9 +121,10 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                     description: i.description,
                     quantity: parseInt(i.quantity, 10) || 1,
                     unit_price: parseFloat(i.unit_price) || 0,
-                    stock_item_id: i.stock_item_id || null
+                    stock_item_id: i.stock_item_id || null,
+                    hsn: (i.hsn || '').trim() || null,
                 })),
-                tax,
+                ...(tax ? { tax } : {}),
                 discount,
                 due_days: dueDays,
                 notes: notes || null
@@ -214,7 +215,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                                         </p>
                                     </div>
 
-                                    <div className="col-span-12 md:col-span-4">
+                                    <div className="col-span-12 md:col-span-3">
                                         <input
                                             type="text"
                                             value={item.description}
@@ -249,6 +250,17 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                                             className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-right"
                                             min={0}
                                             step={0.01}
+                                        />
+                                    </div>
+
+                                    <div className="col-span-4 md:col-span-1">
+                                        <input
+                                            type="text"
+                                            value={item.hsn || ''}
+                                            onChange={(e) => updateItem(idx, 'hsn', e.target.value)}
+                                            placeholder="HSN"
+                                            aria-label="HSN or SAC code"
+                                            className="w-full px-2 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
                                         />
                                     </div>
 

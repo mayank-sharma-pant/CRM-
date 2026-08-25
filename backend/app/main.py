@@ -6,18 +6,22 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.routers.auth import auth
 from app.routers.auth import mfa as auth_mfa
-from app.routers.admin import users, admin, platform, notifications, company_security
+from app.routers.admin import users, admin, platform, notifications, company_security, api_keys as company_api_keys
 from app.routers.sales import leads, tasks, clients, follow_ups, search, timeline
 from app.routers.sales.deals import router as deals_router
 from app.routers.sales.meetings import router as meetings_router
 from app.routers.sales.calls import router as calls_router
+from app.routers.sales.reports import router as reports_router
+from app.routers.sales.dashboards import router as dashboards_router
 from app.routers.sales.quotes import router as quotes_router
 from app.routers.sales.lead_forms import router as lead_forms_router
 from app.routers.sales.custom_fields import router as custom_fields_router
 from app.routers.sales.emails import router as emails_router
+from app.routers.sales.whatsapp import router as whatsapp_router
 from app.routers.sales.tags import router as tags_router
 from app.routers.sales.reminders import router as reminders_router
 from app.routers.public.lead_forms import router as public_lead_forms_router
+from app.routers.public.v1 import router as public_v1_router
 from app.routers.finance import invoices, purchase, ledgers, export
 from app.routers.ops import leaves, documents, bug_report, imports, inventory
 from app.routers.management import md, manager
@@ -110,10 +114,13 @@ app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
 app.include_router(deals_router, prefix="/api/deals", tags=["Deals"])
 app.include_router(meetings_router, prefix="/api/meetings", tags=["Meetings"])
 app.include_router(calls_router, prefix="/api/calls", tags=["Calls"])
+app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
+app.include_router(dashboards_router, prefix="/api/dashboards", tags=["Dashboards"])
 app.include_router(quotes_router, prefix="/api/quotes", tags=["Quotes"])
 app.include_router(lead_forms_router, prefix="/api/lead-forms", tags=["Lead Forms"])
 app.include_router(custom_fields_router, prefix="/api/custom-fields", tags=["Custom Fields"])
 app.include_router(emails_router, prefix="/api/emails", tags=["Emails"])
+app.include_router(whatsapp_router, prefix="/api/whatsapp", tags=["WhatsApp"])
 app.include_router(tags_router, prefix="/api/tags", tags=["Tags"])
 app.include_router(reminders_router, prefix="/api/reminders", tags=["Reminders"])
 app.include_router(public_lead_forms_router, prefix="/api/public/forms", tags=["Public Forms"])
@@ -126,6 +133,8 @@ app.include_router(purchase.router, prefix="/api/purchase", tags=["Purchase"])
 app.include_router(invoices.router, prefix="/api/invoices", tags=["Invoices"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(company_security.router, prefix="/api")
+app.include_router(company_api_keys.router, prefix="/api/api-keys", tags=["API Keys"])
+app.include_router(public_v1_router, prefix="/api/v1", tags=["Public API"])
 app.include_router(ledgers.router) # Prefix is defined in the router itself
 app.include_router(leaves.router, prefix="/api/leaves", tags=["Leaves"])
 app.include_router(platform.router, prefix="/api/platform", tags=["Platform"])

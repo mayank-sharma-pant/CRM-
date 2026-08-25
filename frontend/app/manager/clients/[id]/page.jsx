@@ -25,6 +25,7 @@ import {
 import TaskModal from '../../../../components/leads/TaskModal';
 import NoteModal from '../../../../components/leads/NoteModal';
 import CreateOrderModal from '../../../../components/shared/CreateOrderModal';
+import ClientGstinField from '../../../../components/clients/ClientGstinField';
 import DocumentsList from '../../../../components/documents/DocumentsList';
 
 export default function ClientDetailPage() {
@@ -55,6 +56,7 @@ export default function ClientDetailPage() {
                 email: data.email || '',
                 phone: data.phone || '',
                 address: data.address || '',
+                gstin: data.gstin || '',
                 industry: '',
                 source: '',
                 internal_id: `CLI-${data.id}`,
@@ -229,6 +231,12 @@ export default function ClientDetailPage() {
                             {isDetailsOpen && (
                                 <div className="px-5 pb-5 pt-0 space-y-4 animate-in slide-in-from-top-2 duration-200">
                                     <div className="grid grid-cols-1 gap-4 pt-2">
+                                        <ClientGstinField
+                                            clientId={client.id}
+                                            gstin={client.gstin}
+                                            canEdit={!!client.permissions?.canEdit}
+                                            onSaved={() => fetchClientData()}
+                                        />
                                         <div>
                                             <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Industry</span>
                                             <p className="text-sm text-slate-700 dark:text-slate-300">{client.industry}</p>

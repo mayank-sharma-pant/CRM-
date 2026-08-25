@@ -21,6 +21,13 @@ class Invoice(Base):
     tax = Column(Numeric(12, 2), default=0)
     discount = Column(Numeric(12, 2), default=0)
     total = Column(Numeric(12, 2), default=0)
+    cgst = Column(Numeric(12, 2), default=0)
+    sgst = Column(Numeric(12, 2), default=0)
+    igst = Column(Numeric(12, 2), default=0)
+    seller_gstin = Column(String(15), nullable=True)
+    buyer_gstin = Column(String(15), nullable=True)
+    place_of_supply = Column(String(2), nullable=True)
+    tax_mode = Column(String(10), nullable=True)
     
     status = Column(Enum(InvoiceStatus, values_callable=lambda x: [e.value for e in x], native_enum=False), default=InvoiceStatus.DRAFT)
     
@@ -63,6 +70,7 @@ class InvoiceItem(Base):
     quantity = Column(Integer, default=1)
     unit_price = Column(Numeric(12, 2), default=0)
     total = Column(Numeric(12, 2), default=0)
+    hsn = Column(String(20), nullable=True)
     
     company = relationship("Company")
     invoice = relationship("Invoice", back_populates="items")

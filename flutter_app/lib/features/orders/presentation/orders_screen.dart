@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:perioxia_crm/core/constants/api_endpoints.dart';
 import 'package:perioxia_crm/core/network/api_client.dart';
+import 'package:perioxia_crm/core/router/sales_home.dart';
 import 'package:perioxia_crm/core/theme/app_colors.dart';
 import 'package:perioxia_crm/shared/widgets/loading_indicator.dart';
 import 'package:perioxia_crm/shared/widgets/error_banner.dart';
@@ -14,9 +15,7 @@ final _ordersProvider =
   final api = ref.read(apiClientProvider);
   final response = await api.get(ApiEndpoints.invoices);
   final raw = response.data;
-  if (raw is List) return List<Map<String, dynamic>>.from(raw);
-  return List<Map<String, dynamic>>.from(
-      raw['items'] ?? raw['invoices'] ?? []);
+  return invoiceItemsFromResponse(raw);
 });
 
 final _currFmt = NumberFormat.compactCurrency(symbol: '₹', decimalDigits: 0);

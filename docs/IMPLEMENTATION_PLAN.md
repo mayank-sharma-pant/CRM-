@@ -200,6 +200,48 @@ Pulled forward after 3.1 by explicit decision. Spec: [`superpowers/specs/2026-08
 
 Spec: [`superpowers/specs/2026-08-25-phase3-multiple-pipelines-design.md`](./superpowers/specs/2026-08-25-phase3-multiple-pipelines-design.md). Admin/MD create extra pipelines (default stages cloned); board switches by `pipeline_id`; deals created on the selected pipeline. Cannot delete the default pipeline or one that still has deals. No deal-move-across-pipelines.
 
+### Phase 3.4 — Saved reports + simple dashboard builder — DONE (code)
+
+Pulled forward after 3.3 by explicit decision. Spec: [`superpowers/specs/2026-08-25-phase3-saved-reports-design.md`](./superpowers/specs/2026-08-25-phase3-saved-reports-design.md); plan: [`superpowers/plans/2026-08-25-phase3-saved-reports.md`](./superpowers/plans/2026-08-25-phase3-saved-reports.md). Named `leads_invoices` reports (date range + filters), live run, CSV of the grid, one company dashboard of kpi/chart/table widgets. Canonical UI at `/reports`. No Alembic, no new pip deps.
+
+- **Verification:** 15 new tests (`test_saved_reports_schema.py`, `test_saved_reports_api.py`, `test_saved_reports_cross_tenant.py`). New tables via `create_all` — **run `create_missing_tables.py` on deploy.**
+- **Residuals:** one report type only; no scheduled email, no drag-drop grid, no per-user dashboards. `GET /api/md/reports/custom` still exists and now shares the runner.
+
+### Phase 3.5 — Public API keys + quota — DONE (code)
+
+Pulled forward after 3.4 by explicit decision. Spec: [`superpowers/specs/2026-08-25-phase3-public-api-keys-design.md`](./superpowers/specs/2026-08-25-phase3-public-api-keys-design.md); plan: [`superpowers/plans/2026-08-25-phase3-public-api-keys.md`](./superpowers/plans/2026-08-25-phase3-public-api-keys.md). Dedicated `/api/v1/` (leads, clients, deals, invoices) authenticated by company-issued `crm_live_` keys (`read`/`write`); JWT management at `/api/api-keys` (admin/MD); daily quota from `plans.max_api_requests_per_day` (Starter 1000 / Growth 10000 / Enterprise unlimited). UI at `/settings/api-keys`. No Alembic, no new pip deps.
+
+- **Verification:** 14 new tests (`test_api_keys_schema.py`, `test_api_keys_api.py`, `test_api_keys_cross_tenant.py`). New tables via `create_all`; `plans.max_api_requests_per_day` via `create_missing_tables.py` + `backfill_api_quotas`. **Run `create_missing_tables.py` on deploy.**
+- **Residuals:** integer public ids; no DELETE on CRM records via the public API; no invoice PATCH.
+
+### Phase 3.6 — Import mapper + duplicate preview — DONE (code)
+
+Leads-only CSV: map columns (with aliases), preview new/duplicate/invalid, commit inserts new rows and skips duplicates. Existing `POST /api/import/leads` unchanged. UI: Import CSV on the shared leads list. Spec: [`superpowers/specs/2026-08-25-phase3-import-mapper-design.md`](./superpowers/specs/2026-08-25-phase3-import-mapper-design.md).
+
+- **Verification:** `test_import_mapper.py`, `test_import_mapper_cross_tenant.py`, legacy import tests green.
+- **Residuals:** no undo, no client/deal import, no saved mapping templates.
+
+### Phase 3.7 — GST-compliant invoice — DONE (code)
+
+India GST v0: snapshot seller GSTIN from `company_settings.gst_number` and buyer GSTIN from `clients.gstin`. Intra-state → CGST+SGST; inter-state → IGST. No seller GSTIN → legacy lump `tax` (existing 18% invoice tests unchanged). Optional line HSN. Spec: [`superpowers/specs/2026-08-25-phase3-gst-invoice-design.md`](./superpowers/specs/2026-08-25-phase3-gst-invoice-design.md).
+
+- **Verification:** `test_gst.py`, `test_gst_invoice_api.py`, plus existing `test_leads_invoices_flow`. New columns via `create_missing_tables.py` — **run on deploy.**
+- **Residuals:** no PDF layout, no e-invoice/IRN, no HSN rate table.
+
+### Phase 3.8 — WhatsApp Business templates — DONE (code)
+
+Gupshup template send only. Company API key + source number (key never returned). Admin/MD CRUD templates; any company user can send to an in-company lead/client phone. Spec: [`superpowers/specs/2026-08-25-phase3-whatsapp-templates-design.md`](./superpowers/specs/2026-08-25-phase3-whatsapp-templates-design.md). UI: `/settings/whatsapp` and lead detail.
+
+- **Verification:** `test_whatsapp_schema.py`, `test_whatsapp_api.py`, `test_whatsapp_cross_tenant.py`. New tables via `create_all`; settings columns via `create_missing_tables.py` — **run on deploy.**
+- **Residuals:** no Interakt, no inbound webhook, no reminder auto-send, no free-text session messages.
+
+### Phase 3.9 — Minimal Flutter sales path — DONE (code)
+
+Existing `flutter_app/` already covered every role. This item is the **sales field path**: login lands on leads; bottom tabs are Leads / Follow-ups / Invoices / More. Invoice list reads `items`; detail shows GST lines when `tax_mode` is set. Other roles unchanged. Spec: [`superpowers/specs/2026-08-25-phase3-flutter-sales-path-design.md`](./superpowers/specs/2026-08-25-phase3-flutter-sales-path-design.md).
+
+- **Verification:** `flutter_app/test/sales_home_test.dart` (home path, nav index, invoice parse). Flutter SDK was not installed in this environment — run `flutter test` locally.
+- **Residuals:** other roles still have full shells; no App Store/Play release; no 2FA enroll UI on mobile.
+
 ---
 
 ## Cross-cutting cleanups (do alongside, not as a phase)

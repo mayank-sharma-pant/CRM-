@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:perioxia_crm/core/theme/app_colors.dart';
+import 'package:perioxia_crm/core/router/sales_home.dart';
 import 'package:perioxia_crm/features/auth/providers/auth_provider.dart';
 
 enum _LoginMethod { password, otp }
@@ -79,7 +80,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (u != null && u.isPlatformAdmin) {
           context.go('/platform-pending');
         } else {
-          context.go('/dashboard');
+          context.go(homePathForUser(u));
         }
       }
     });

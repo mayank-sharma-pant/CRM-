@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:perioxia_crm/core/router/go_router_refresh.dart';
 import 'package:perioxia_crm/core/router/route_names.dart';
+import 'package:perioxia_crm/core/router/sales_home.dart';
 import 'package:perioxia_crm/features/auth/presentation/login_screen.dart';
 import 'package:perioxia_crm/features/auth/presentation/forgot_password_screen.dart';
 import 'package:perioxia_crm/features/auth/presentation/signup_screen.dart';
@@ -97,14 +98,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
       if (auth.status == AuthStatus.authenticated) {
         if (loc == '/login') {
-          return auth.user?.isPlatformAdmin == true
-              ? '/platform-pending'
-              : '/dashboard';
+          return homePathForUser(auth.user);
         }
         if (isAuthPublicPath(loc)) {
-          return auth.user?.isPlatformAdmin == true
-              ? '/platform-pending'
-              : '/dashboard';
+          return homePathForUser(auth.user);
         }
       }
       return null;
@@ -346,7 +343,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/invoices',
             name: RouteNames.invoicesList,
             builder: (_, __) => const OrdersScreen(
-              appBarTitle: 'My Sourced Orders',
+              appBarTitle: 'Invoices',
             ),
             routes: [
               GoRoute(

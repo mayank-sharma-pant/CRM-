@@ -14,6 +14,7 @@ class Client(Base):
     phone = Column(String(50), nullable=True)
     company = Column(String(255), nullable=True)
     address = Column(Text, nullable=True)
+    gstin = Column(String(15), nullable=True)
     
     # Ownership
     assigned_to_id = Column(Integer, ForeignKey("users.id"), nullable=True)

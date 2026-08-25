@@ -2,22 +2,127 @@
 CSV Import API Endpoints
 Provides CSV upload processing for leads and other entities.
 """
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 import csv
 import io
 import logging
+from typing import Optional
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user, get_active_team_id
 from app.models.core.user import User
 from app.models.sales.lead import Lead
 from app.utils.audit import log_activity
+from app.utils.helpers import normalize_email, normalize_phone
+from app.services.sales.lead_import import new_leads_from_preview, preview_import
 
 router = APIRouter()
 logger = logging.getLogger("app")
 MAX_CSV_BYTES = 2 * 1024 * 1024  # 2 MB hard cap per upload
 MAX_IMPORT_ROWS = 500
+
+
+async def _csv_bytes(file: UploadFile) -> bytes:
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Invalid file type. Only CSV files are allowed.")
+    contents = await file.read(MAX_CSV_BYTES + 1)
+    if len(contents) > MAX_CSV_BYTES:
+        raise HTTPException(status_code=413, detail="CSV file too large. Maximum size is 2 MB.")
+    return contents
+
+
+def _team_for_import(current_user: User, active_team_id: int | None) -> int | None:
+    if current_user.role in ("sales", "manager"):
+        if active_team_id is None:
+            raise HTTPException(status_code=400, detail="Active team required for CSV import.")
+        return active_team_id
+    return active_team_id
+
+
+@router.post("/leads/preview")
+async def preview_leads(
+    file: UploadFile = File(...),
+    mapping: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
+    try:
+        contents = await _csv_bytes(file)
+        return preview_import(db, current_user.company_id, contents, mapping)
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid CSV encoding. Please upload a UTF-8 encoded file.")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("CSV import preview failed for user_id=%s", current_user.id)
+        raise HTTPException(status_code=500, detail="Failed to process CSV file.")
+
+
+@router.post("/leads/commit")
+async def commit_leads(
+    file: UploadFile = File(...),
+    mapping: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: int | None = Depends(get_active_team_id),
+):
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
+    try:
+        contents = await _csv_bytes(file)
+        preview = preview_import(db, current_user.company_id, contents, mapping)
+        team_id = _team_for_import(current_user, active_team_id)
+        assigned_to_id = current_user.id if current_user.role == "sales" else None
+        created = []
+        for values in new_leads_from_preview(preview):
+            lead = Lead(
+                company_id=current_user.company_id,
+                name=values["name"],
+                email=normalize_email(values["email"] or None),
+                phone=normalize_phone(values["phone"] or None),
+                company=values["company"] or None,
+                source=values["source"] or "CSV Import",
+                service_type=values["service_type"] or None,
+                status="New",
+                assigned_to_id=assigned_to_id,
+                team_id=team_id,
+            )
+            created.append(lead)
+        if created:
+            db.add_all(created)
+            db.commit()
+            for lead in created:
+                db.refresh(lead)
+                log_activity(
+                    db, user=current_user, action="created", entity_type="lead",
+                    entity_id=lead.id, entity_name=lead.name,
+                )
+            db.commit()
+        counts = preview["counts"]
+        return {
+            "message": f"Successfully imported {len(created)} leads.",
+            "count": len(created),
+            "created": len(created),
+            "skipped_duplicate": counts["duplicate"],
+            "skipped_invalid": counts["invalid"],
+        }
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid CSV encoding. Please upload a UTF-8 encoded file.")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        logger.exception("CSV import commit failed for user_id=%s", current_user.id)
+        raise HTTPException(status_code=500, detail="Failed to process CSV file.")
+
 
 @router.post("/leads")
 async def import_leads(

@@ -68,7 +68,12 @@ def get_subscription(current_user: User = Depends(require_admin), db: Session = 
     return {
         "status": sub.status,
         "plan": {"id": plan.id, "name": plan.name, "price_monthly": float(plan.price_monthly)},
-        "limits": {"max_users": plan.max_users, "max_teams": plan.max_teams, "max_storage_gb": plan.max_storage_gb},
+        "limits": {
+            "max_users": plan.max_users,
+            "max_teams": plan.max_teams,
+            "max_storage_gb": plan.max_storage_gb,
+            "max_api_requests_per_day": plan.max_api_requests_per_day,
+        },
         "usage": {"users": used},
         "trial_ends_at": sub.trial_ends_at.isoformat() if sub.trial_ends_at else None,
     }

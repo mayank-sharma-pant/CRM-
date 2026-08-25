@@ -11,5 +11,6 @@ class Plan(Base):
     max_users = Column(Integer, nullable=False)
     max_teams = Column(Integer, nullable=False)
     max_storage_gb = Column(Integer, nullable=True)  # NULL = unlimited
+    max_api_requests_per_day = Column(Integer, nullable=True)  # NULL = unlimited
     razorpay_plan_id = Column(String(255), nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Bell, Calendar, Settings2, Sun, Moon, Shield } from 'lucide-react';
+import { Bell, Calendar, Settings2, Sun, Moon, Shield, KeyRound, MessageCircle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import NotificationPreferencesPanel from '../../components/shared/NotificationPreferencesPanel';
@@ -76,6 +76,55 @@ export default function SettingsHomePage() {
             </Link>
           </div>
         </div>
+
+        {(user?.role === 'admin' || user?.role === 'md') && (
+        <>
+        <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 p-1.5 rounded-md bg-slate-100 dark:bg-slate-700">
+                <KeyRound size={14} className="text-slate-500" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-slate-900 dark:text-white">API keys</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  Issue read or write keys for /api/v1/ integrations.
+                </div>
+              </div>
+            </div>
+            <Link
+              href="/settings/api-keys"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+            >
+              <KeyRound size={12} />
+              Manage keys
+            </Link>
+          </div>
+        </div>
+        <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 p-1.5 rounded-md bg-slate-100 dark:bg-slate-700">
+                <MessageCircle size={14} className="text-slate-500" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-slate-900 dark:text-white">WhatsApp</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  Gupshup connection and approved message templates.
+                </div>
+              </div>
+            </div>
+            <Link
+              href="/settings/whatsapp"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+            >
+              <MessageCircle size={12} />
+              Manage templates
+            </Link>
+          </div>
+        </div>
+        </>
+        )}
 
         <NotificationPreferencesPanel />
 

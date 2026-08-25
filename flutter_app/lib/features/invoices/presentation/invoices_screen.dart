@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:perioxia_crm/core/constants/api_endpoints.dart';
 import 'package:perioxia_crm/core/network/api_client.dart';
+import 'package:perioxia_crm/core/router/sales_home.dart';
 import 'package:perioxia_crm/core/theme/app_colors.dart';
 import 'package:perioxia_crm/shared/widgets/loading_indicator.dart';
 import 'package:perioxia_crm/shared/widgets/error_banner.dart';
@@ -11,7 +12,7 @@ final _invoicesProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiClientProvider);
   final response = await api.get(ApiEndpoints.invoices);
-  return List<Map<String, dynamic>>.from(response.data['invoices'] ?? []);
+  return invoiceItemsFromResponse(response.data);
 });
 
 class InvoicesScreen extends ConsumerWidget {

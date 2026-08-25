@@ -16,3 +16,6 @@ from .email_log import EmailLog
 from .tag import Tag, LeadTag
 from .meeting import Meeting
 from .call_log import CallLog
+from .saved_report import SavedReport
+from .dashboard import Dashboard, DashboardWidget
+from .whatsapp import WhatsAppTemplate, WhatsAppMessage

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:perioxia_crm/core/theme/app_colors.dart';
+import 'package:perioxia_crm/core/router/sales_home.dart';
 import 'package:perioxia_crm/features/auth/providers/auth_provider.dart';
 import 'package:perioxia_crm/features/notifications/providers/notifications_provider.dart';
 
@@ -10,13 +11,7 @@ class AppShell extends ConsumerWidget {
 
   const AppShell({super.key, required this.child});
 
-  static const _salesPaths = [
-    '/dashboard',
-    '/leads',
-    '/clients',
-    '/tasks',
-    '/more',
-  ];
+  static const _salesPaths = salesNavPaths;
 
   static const _managerPaths = [
     '/dashboard',
@@ -165,23 +160,7 @@ class AppShell extends ConsumerWidget {
           location.startsWith('/finance-ledgers')) return 4;
       return 0;
     }
-    if (location.startsWith('/leads')) return 1;
-    if (location.startsWith('/clients')) return 2;
-    if (location.startsWith('/tasks')) return 3;
-    if (location.startsWith('/more') ||
-        location.startsWith('/settings') ||
-        location.startsWith('/profile') ||
-        location.startsWith('/notifications') ||
-        location.startsWith('/stock') ||
-        location.startsWith('/invoices') ||
-        location.startsWith('/orders') ||
-        location.startsWith('/assistant') ||
-        location.startsWith('/follow-ups') ||
-        location.startsWith('/performance') ||
-        location.startsWith('/sales-reports') ||
-        location.startsWith('/report-bug') ||
-        location.startsWith('/finance-ledgers')) return 4;
-    return 0;
+    return salesNavIndex(location);
   }
 
   @override
@@ -225,12 +204,45 @@ class AppShell extends ConsumerWidget {
       }
     });
 
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: currentIdx,
-        onDestinationSelected: (idx) => context.go(paths[idx]),
-        destinations: [
+    final isSales = !platformCrm && !companyAdmin && !md && !manager && !purchase;
+    final moreDest = NavigationDestination(
+      icon: Badge(
+        isLabelVisible: unread > 0,
+        label: Text('$unread',
+            style: const TextStyle(fontSize: 9, color: Colors.white)),
+        backgroundColor: AppColors.error,
+        child: const Icon(Icons.more_horiz),
+      ),
+      selectedIcon: Badge(
+        isLabelVisible: unread > 0,
+        label: Text('$unread',
+            style: const TextStyle(fontSize: 9, color: Colors.white)),
+        backgroundColor: AppColors.error,
+        child: const Icon(Icons.more_horiz),
+      ),
+      label: 'More',
+    );
+
+    final destinations = isSales
+        ? [
+            const NavigationDestination(
+              icon: Icon(Icons.people_outline),
+              selectedIcon: Icon(Icons.people),
+              label: 'Leads',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.calendar_today_outlined),
+              selectedIcon: Icon(Icons.calendar_today),
+              label: 'Follow-ups',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.receipt_long_outlined),
+              selectedIcon: Icon(Icons.receipt_long),
+              label: 'Invoices',
+            ),
+            moreDest,
+          ]
+        : [
           const NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
@@ -352,7 +364,18 @@ class AppShell extends ConsumerWidget {
             ),
             label: 'More',
           ),
-        ],
+        ];
+
+    return Scaffold(
+      body: child,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: currentIdx < 0
+            ? 0
+            : (currentIdx >= destinations.length
+                ? destinations.length - 1
+                : currentIdx),
+        onDestinationSelected: (idx) => context.go(paths[idx]),
+        destinations: destinations,
       ),
     );
   }

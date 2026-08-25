@@ -93,3 +93,18 @@ class MeetingStatus(str, enum.Enum):
 class CallDirection(str, enum.Enum):
     INBOUND = "inbound"
     OUTBOUND = "outbound"
+
+
+class SavedReportType(str, enum.Enum):
+    LEADS_INVOICES = "leads_invoices"
+
+
+class DashboardWidgetViz(str, enum.Enum):
+    KPI = "kpi"
+    CHART = "chart"
+    TABLE = "table"
+
+
+class ApiKeyAccess(str, enum.Enum):
+    READ = "read"
+    WRITE = "write"

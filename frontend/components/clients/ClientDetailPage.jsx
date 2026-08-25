@@ -30,6 +30,7 @@ import DocumentsList from '../documents/DocumentsList';
 import ActivityFeed from '../activity/ActivityFeed';
 import MeetingCallPanel from '../activity/MeetingCallPanel';
 import LeadEmailPanel from '../leads/LeadEmailPanel';
+import ClientCasesPanel from './ClientCasesPanel';
 import { clientsHomePath, invoicesHomePath } from '../../lib/leadsPaths';
 import { useAuth } from '../../contexts/AuthContext';
 import ChurnBadge from '../ChurnBadge';
@@ -478,6 +479,7 @@ export default function ClientDetailPage() {
 
                         <MeetingCallPanel parentType="client" parentId={params.id} hideHistory onChanged={fetchClientData} />
                         <LeadEmailPanel clientId={params.id} contactEmail={client.email} hideHistory onChanged={fetchClientData} />
+                        <ClientCasesPanel clientId={params.id} />
 
                     </div>
 

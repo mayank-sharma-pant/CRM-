@@ -26,12 +26,13 @@ const ROLE_DASHBOARDS = {
 
 /** Pages that anyone can access (logged in or not) */
 const PUBLIC_PATHS = ['/', '/login', '/signup', '/platform', '/accept-invite', '/forgot-password', '/reset-password', '/settings/security'];
-const SHARED_PATHS = ['/profile', '/settings', '/finance', '/financial-ledgers', '/report-bug', '/reports'];
+const SHARED_PATHS = ['/profile', '/settings', '/finance', '/financial-ledgers', '/report-bug', '/reports', '/campaigns', '/modules', '/cases'];
 
 function isPublicPath(pathname) {
     if (pathname === '/f' || pathname.startsWith('/f/')) return true;
     if (pathname === '/w' || pathname.startsWith('/w/')) return true;
     if (pathname === '/p' || pathname.startsWith('/p/')) return true;
+    if (pathname === '/c' || pathname.startsWith('/c/')) return true;
     return PUBLIC_PATHS.some(p =>
         p === '/' ? pathname === '/' : pathname.startsWith(p)
     );

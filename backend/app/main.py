@@ -25,6 +25,7 @@ from app.routers.sales.custom_fields import router as custom_fields_router
 from app.routers.sales.custom_modules import router as custom_modules_router
 from app.routers.sales.marketplace import router as marketplace_router
 from app.routers.sales.campaigns import router as campaigns_router
+from app.routers.sales.cases import router as cases_router
 from app.routers.sales.emails import router as emails_router
 from app.routers.sales.mailbox import router as mailbox_router
 from app.routers.sales.calendar import router as calendar_router
@@ -40,6 +41,7 @@ from app.routers.sales.reminders import router as reminders_router
 from app.routers.sales.saved_filters import router as saved_filters_router
 from app.routers.sales.outbound_webhooks import router as outbound_webhooks_router
 from app.routers.public.lead_forms import router as public_lead_forms_router
+from app.routers.public.cases import router as public_cases_router
 from app.routers.public.widget import router as public_widget_router
 from app.routers.public.portal import router as portal_router
 from app.routers.public.v1 import router as public_v1_router
@@ -160,6 +162,7 @@ app.include_router(custom_fields_router, prefix="/api/custom-fields", tags=["Cus
 app.include_router(custom_modules_router, prefix="/api/modules", tags=["Custom Modules"])
 app.include_router(marketplace_router, prefix="/api/marketplace", tags=["Marketplace"])
 app.include_router(campaigns_router, prefix="/api/campaigns", tags=["Campaigns"])
+app.include_router(cases_router, prefix="/api/cases", tags=["Cases"])
 app.include_router(emails_router, prefix="/api/emails", tags=["Emails"])
 app.include_router(mailbox_router, prefix="/api/mailbox", tags=["Mailbox"])
 app.include_router(calendar_router, prefix="/api/calendar", tags=["Calendar"])
@@ -175,6 +178,7 @@ app.include_router(saved_filters_router, prefix="/api/saved-filters", tags=["Sav
 app.include_router(outbound_webhooks_router, prefix="/api/webhooks", tags=["Outbound Webhooks"])
 app.include_router(reminders_router, prefix="/api/reminders", tags=["Reminders"])
 app.include_router(public_lead_forms_router, prefix="/api/public/forms", tags=["Public Forms"])
+app.include_router(public_cases_router, prefix="/api/public/cases", tags=["Web to Case"])
 app.include_router(public_widget_router, prefix="/api/public/widget", tags=["Website Widget"])
 app.include_router(portal_router, prefix="/api/portal", tags=["Portal"])
 app.include_router(tasks.router, prefix="/api/tasks", tags=["Tasks"])

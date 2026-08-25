@@ -19,7 +19,7 @@ Last updated: **26 Aug 2026**. Status is from code + this file’s progress logs
 | **2 — Sales loop** | ✅ **DONE** (code) | Deals, web form, custom fields, quotes→invoice, workflows, cadence, email, tags/recycle/merge, reminders. |
 | **3 — Zoho Standard match** | ✅ **DONE** (code) | 3.1–3.9 shipped. |
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
-| **5 — Paid add-ons** | ❌ **IN PROGRESS** | **5.1–5.7 DONE.** 5.8–5.10 remain. |
+| **5 — Paid add-ons** | ❌ **IN PROGRESS** | **5.1–5.8 DONE.** 5.9–5.10 remain. |
 | **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** Phase 5 add-ons remain. |
 
 ### Phase 4 checklist
@@ -72,7 +72,7 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **5.5** Custom modules (beyond custom fields) | ✅ DONE |
 | **5.6** Marketplace / apps | ✅ DONE (first-party catalog) |
 | **5.7** Full email marketing / campaigns | ✅ DONE (integrate, don’t clone) |
-| **5.8** Helpdesk / cases / web-to-case | ❌ PENDING (thin or skip) |
+| **5.8** Helpdesk / cases / web-to-case | ✅ DONE (thin) |
 | **5.9** Deep sandbox data clone | ❌ PENDING |
 | **5.10** Mass email (capped) | ❌ PENDING |
 
@@ -85,7 +85,7 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **6.12** Brand drift | ✅ DONE |
 | **6.20** Alembic two-heads | ✅ DONE |
 
-**Resume next:** **Phase 5.8** Helpdesk / cases / web-to-case (thin or skip).
+**Resume next:** **Phase 5.9** Deep sandbox data clone.
 
 ---
 
@@ -688,7 +688,28 @@ Mailchimp/Zoho Campaigns (roadmap §7). Spec:
   send, live ESP. **5.10** still owns a later capped blast without a
   campaign object.
 
-### Phase 5.8 — Helpdesk / cases — PENDING (thin or skip)
+### Phase 5.8 — Helpdesk / cases — DONE (code)
+
+Thin client requests + web-to-case, not Zoho Desk (roadmap §7). Spec:
+[`superpowers/specs/2026-08-26-phase5-cases-design.md`](./superpowers/specs/2026-08-26-phase5-cases-design.md).
+
+- **Model:** `support_cases` (`open|pending|closed`, source `crm|web`,
+  optional `client_id`) and `web_to_case_forms` (one slug per company).
+- **Web-to-case:** `GET/POST /api/public/cases/{slug}` with honeypot +
+  rate limit (same as lead forms). Matching client email links the case.
+- **API:** `/api/cases` any company user create/list/patch status;
+  DELETE admin/MD. Foreign id → 404. `GET|PATCH /form` for the public
+  slug.
+- **UI:** `/cases`, client-detail panel, `/c/[slug]`, Settings card,
+  sidebar. `/cases` (and `/campaigns`, `/modules`) are shared routes.
+- **Verification:** `tests/sales/test_cases_{schema,service,api,cross_tenant}.py`,
+  `test_web_to_case.py`, `tests/ops/test_alembic_heads.py` — **17 new
+  tests green** plus Alembic head `025_cases`.
+- **Migration:** head **`025_cases`** off `024_campaigns`.
+  **Run `alembic upgrade head` and/or `python create_missing_tables.py` on deploy.**
+- **Residuals:** no SLAs, agent workspace, email-to-case, CSAT, or
+  customer ticket portal.
+
 ### Phase 5.9 — Deep sandbox data clone — PENDING
 ### Phase 5.10 — Mass email (capped) — PENDING
 

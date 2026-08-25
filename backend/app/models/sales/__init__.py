@@ -17,6 +17,7 @@ from .custom_field import CustomFieldDef, CustomFieldValue
 from .custom_module import CustomModule, CustomModuleField, CustomModuleRecord
 from .marketplace import MarketplaceInstall
 from .campaign import EmailCampaign, EmailCampaignRecipient
+from .support_case import SupportCase, WebToCaseForm
 from .email_log import EmailLog
 from .mailbox import MailboxConnection
 from .calendar import CalendarConnection

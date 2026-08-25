@@ -31,6 +31,7 @@ import ActivityFeed from '../activity/ActivityFeed';
 import MeetingCallPanel from '../activity/MeetingCallPanel';
 import LeadEmailPanel from '../leads/LeadEmailPanel';
 import { clientsHomePath, invoicesHomePath } from '../../lib/leadsPaths';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function ClientDetailPage() {
     const params = useParams();
@@ -41,7 +42,8 @@ export default function ClientDetailPage() {
     const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
     const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
     const [client, setClient] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { user } = useAuth();
+    const canPrivacy = user?.role === 'admin' || user?.role === 'md';
 
     const isMD = pathname?.startsWith('/md');
     const isManager = pathname?.startsWith('/manager');
@@ -89,6 +91,33 @@ export default function ClientDetailPage() {
     useEffect(() => {
         fetchClientData();
     }, [params, isManager]);
+
+    const handleExportClient = async () => {
+        try {
+            const res = await api.get(`/privacy/export/clients/${params.id}`);
+            const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `client-${params.id}-export.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            alert(err.response?.data?.detail || 'Could not export client');
+        }
+    };
+
+    const handleEraseClient = async () => {
+        if (!window.confirm('Erase personal data on this contact? Invoices are kept. This cannot be undone.')) return;
+        try {
+            await api.post(`/privacy/erase/clients/${params.id}`);
+            fetchClientData();
+        } catch (err) {
+            alert(err.response?.data?.detail || 'Could not erase client');
+        }
+    };
 
     const handleAddNote = () => {
         setIsNoteModalOpen(true);
@@ -151,6 +180,18 @@ export default function ClientDetailPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        {canPrivacy && (
+                            <>
+                                <button type="button" onClick={handleExportClient}
+                                    className="hidden sm:inline-flex items-center px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg">
+                                    Export data
+                                </button>
+                                <button type="button" onClick={handleEraseClient}
+                                    className="hidden sm:inline-flex items-center px-3 py-1.5 border border-red-200 text-red-700 text-sm font-medium rounded-lg">
+                                    Erase PII
+                                </button>
+                            </>
+                        )}
                         {/* PERMISSION CHECK: Add Note */}
                         {client.permissions?.canAddNote && (
                             <button onClick={handleAddNote} className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm">

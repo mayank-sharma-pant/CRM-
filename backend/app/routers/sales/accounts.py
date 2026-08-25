@@ -9,6 +9,8 @@ from app.models.core.user import User
 from app.models.sales.account import Account
 from app.models.sales.client import Client
 from app.services.finance.gst import normalize_gstin
+from app.services.sales.enrichment import apply_account as enrich_account
+from app.utils.datetime_json import isoformat_utc
 from app.utils.dependencies import apply_company_scope, ensure_company_access, get_current_user
 
 router = APIRouter()
@@ -60,6 +62,10 @@ def serialize_account(account: Account, contacts: list[Client] | None = None) ->
         "phone": account.phone,
         "gstin": account.gstin,
         "address": account.address,
+        "industry": account.industry,
+        "linkedin_url": account.linkedin_url,
+        "enriched_at": isoformat_utc(account.enriched_at),
+        "enrichment_source": account.enrichment_source,
         "contact_count": len(contact_rows),
         "contacts": [{"id": c.id, "name": c.name, "email": c.email} for c in contact_rows],
         "created_at": account.created_at.isoformat() if account.created_at else None,
@@ -121,6 +127,17 @@ def get_account(
         .all()
     )
     return serialize_account(account, contacts=contacts)
+
+
+@router.post("/{account_id:int}/enrich")
+def enrich_account_route(
+    account_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    account = get_account_or_404(db, current_user, account_id)
+    account = enrich_account(db, account)
+    return serialize_account(account)
 
 
 @router.patch("/{account_id:int}")

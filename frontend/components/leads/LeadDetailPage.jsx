@@ -22,6 +22,7 @@ import { formatDistanceToNow, parseISO } from 'date-fns';
 import { formatDistanceToTaskDue } from '../../lib/taskDue';
 import { clientsHomePath, leadsHomePath } from '../../lib/leadsPaths';
 import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import TaskModal from './TaskModal';
 import NoteModal from './NoteModal';
 import ReassignModal from './ReassignModal';
@@ -45,9 +46,12 @@ export default function LeadDetailPage() {
   const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
   const [syncingClient, setSyncingClient] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const [fieldDefs, setFieldDefs] = useState([]);
   const [customDraft, setCustomDraft] = useState({});
   const [savingFields, setSavingFields] = useState(false);
+  const { user } = useAuth();
+  const canPrivacy = user?.role === 'admin' || user?.role === 'md';
   const [callError, setCallError] = useState(null);
   const [activityTick, setActivityTick] = useState(0);
 
@@ -130,6 +134,33 @@ export default function LeadDetailPage() {
     }
   };
 
+  const handleEraseLead = async () => {
+    if (!window.confirm('Erase personal data on this lead? This cannot be undone.')) return;
+    try {
+      await api.post(`/privacy/erase/leads/${id}`);
+      fetchLeadData();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Could not erase lead');
+    }
+  };
+
+  const handleExportLead = async () => {
+    try {
+      const res = await api.get(`/privacy/export/leads/${id}`);
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `lead-${id}-export.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Could not export lead');
+    }
+  };
+
   const handleClaimLead = async () => {
     try {
       setClaiming(true);
@@ -139,6 +170,18 @@ export default function LeadDetailPage() {
       alert(err.response?.data?.detail || "Failed to claim lead");
     } finally {
       setClaiming(false);
+    }
+  };
+
+  const handleEnrichLead = async () => {
+    try {
+      setEnriching(true);
+      await api.post(`/leads/${id}/enrich`);
+      fetchLeadData();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Could not enrich lead');
+    } finally {
+      setEnriching(false);
     }
   };
 
@@ -195,6 +238,22 @@ export default function LeadDetailPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <button type="button" onClick={handleEnrichLead} disabled={enriching}
+              className="px-3 py-2 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg disabled:opacity-50">
+              {enriching ? 'Enriching…' : 'Enrich'}
+            </button>
+            {canPrivacy && (
+              <>
+                <button type="button" onClick={handleExportLead}
+                  className="px-3 py-2 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg">
+                  Export data
+                </button>
+                <button type="button" onClick={handleEraseLead}
+                  className="px-3 py-2 border border-red-200 text-red-700 text-sm font-medium rounded-lg">
+                  Erase PII
+                </button>
+              </>
+            )}
             {isSalesPage && isOpenLead && (
               <button
                 onClick={handleClaimLead}
@@ -319,6 +378,17 @@ export default function LeadDetailPage() {
                 <Briefcase size={14} className="text-slate-400 w-4" />
                 <span className="text-slate-700 dark:text-slate-300">{lead.source}</span>
               </div>
+              {lead.website && (
+                <p className="text-sm text-slate-700 dark:text-slate-300 truncate">{lead.website}</p>
+              )}
+              {lead.industry && (
+                <p className="text-sm text-slate-700 dark:text-slate-300">{lead.industry}</p>
+              )}
+              {lead.linkedin_url && (
+                <a href={lead.linkedin_url} className="text-sm text-blue-600 truncate block" target="_blank" rel="noreferrer">
+                  {lead.linkedin_url}
+                </a>
+              )}
               <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between text-xs">
                 <span className="text-slate-500">Assignee</span>
                 {lead.assigned_to_id ? (

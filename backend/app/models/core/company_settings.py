@@ -35,6 +35,7 @@ class CompanySettings(Base):
     exotel_subdomain = Column(String(255), nullable=True)
     exotel_caller_id = Column(String(20), nullable=True)
     onboarding_dismissed = Column(Integer, default=0)
+    retention_days = Column(Integer, nullable=True)
 
     # Relationships
     company = relationship("Company", backref="settings")

@@ -22,6 +22,7 @@ from app.services.sales.custom_fields import get_values_map, set_values
 from app.services.sales.merge import find_duplicate_leads, merge_leads
 from app.services.sales.recycle import restore_lead, get_trashed_lead, soft_delete_lead
 from app.services.sales.tags import list_tag_names, set_lead_tags
+from app.services.sales.enrichment import apply_lead as enrich_lead
 from app.utils.dependencies import require_admin_or_md
 from pydantic import BaseModel
 from app.utils.helpers import normalize_email, normalize_phone
@@ -620,6 +621,47 @@ def get_lead(
         "next_task": isoformat_utc(lead.next_follow_up),
         "custom_fields": get_values_map(db, current_user.company_id, "lead", lead.id),
         "tags": list_tag_names(db, current_user.company_id, lead.id),
+        "website": lead.website,
+        "industry": lead.industry,
+        "linkedin_url": lead.linkedin_url,
+        "enriched_at": isoformat_utc(lead.enriched_at),
+        "enrichment_source": lead.enrichment_source,
+    }
+
+
+@router.post("/{lead_id:int}/enrich")
+def enrich_lead_route(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(
+        Lead.id == lead_id, Lead.deleted_at.is_(None)
+    ).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    if _user_role_str(current_user) == "sales":
+        own_or_open = (lead.assigned_to_id == current_user.id) or (
+            lead.assigned_to_id is None and lead.team_id == active_team_id
+        )
+        if not own_or_open:
+            raise HTTPException(status_code=403, detail="You do not have access to this lead")
+    if _user_role_str(current_user) == "manager":
+        if active_team_id is None or lead.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="You do not have access to this team's lead")
+    ensure_company_access(lead, current_user)
+    lead = enrich_lead(db, lead, current_user.id)
+    return {
+        "id": lead.id,
+        "name": lead.name,
+        "email": lead.email,
+        "company": lead.company,
+        "website": lead.website,
+        "industry": lead.industry,
+        "linkedin_url": lead.linkedin_url,
+        "enriched_at": isoformat_utc(lead.enriched_at),
+        "enrichment_source": lead.enrichment_source,
     }
 
 

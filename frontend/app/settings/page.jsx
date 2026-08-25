@@ -123,6 +123,29 @@ export default function SettingsHomePage() {
           </div>
         </div>
 
+        <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 p-1.5 rounded-md bg-slate-100 dark:bg-slate-700">
+                <Shield size={14} className="text-slate-500" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-slate-900 dark:text-white">Privacy</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  Download your data. Admins can export or erase lead and client PII.
+                </div>
+              </div>
+            </div>
+            <Link
+              href="/settings/privacy"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+            >
+              <Shield size={12} />
+              Privacy
+            </Link>
+          </div>
+        </div>
+
         {(user?.role === 'admin' || user?.role === 'md') && (
         <>
         <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">

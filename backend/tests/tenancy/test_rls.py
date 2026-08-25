@@ -21,6 +21,7 @@ def test_login_tables_are_excluded():
     assert "webhook_endpoints" in names
     assert "webhook_deliveries" in names
     assert "saml_configs" in names
+    assert "privacy_requests" in names
     assert "users" not in names
     assert "companies" not in names
 

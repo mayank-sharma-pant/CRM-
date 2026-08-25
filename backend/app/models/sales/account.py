@@ -15,6 +15,10 @@ class Account(Base):
     phone = Column(String(50), nullable=True)
     gstin = Column(String(15), nullable=True)
     address = Column(Text, nullable=True)
+    industry = Column(String(100), nullable=True)
+    linkedin_url = Column(String(500), nullable=True)
+    enriched_at = Column(DateTime, nullable=True)
+    enrichment_source = Column(String(32), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

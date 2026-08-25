@@ -27,3 +27,4 @@ from .whatsapp import WhatsAppTemplate, WhatsAppMessage
 from .sales_quota import SalesQuota
 from .territory import Territory, TerritoryRule
 from .webhook_endpoint import WebhookEndpoint, WebhookDelivery
+from .privacy_request import PrivacyRequest

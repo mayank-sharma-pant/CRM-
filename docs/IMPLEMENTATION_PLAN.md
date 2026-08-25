@@ -10,7 +10,7 @@
 
 ## Status board (resume here)
 
-Last updated: **25 Aug 2026**. Status is from code + this file’s progress logs, not from memory.
+Last updated: **26 Aug 2026**. Status is from code + this file’s progress logs, not from memory.
 
 | Phase | Status | Notes |
 |-------|--------|--------|
@@ -19,8 +19,8 @@ Last updated: **25 Aug 2026**. Status is from code + this file’s progress logs
 | **2 — Sales loop** | ✅ **DONE** (code) | Deals, web form, custom fields, quotes→invoice, workflows, cadence, email, tags/recycle/merge, reminders. |
 | **3 — Zoho Standard match** | ✅ **DONE** (code) | 3.1–3.9 shipped. |
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
-| **5 — Paid add-ons** | ❌ **PENDING** | Enrichment, scoring, telephony deep, Tally, etc. — see checklist. |
-| **6 — Competitor parity (buyers still feel)** | 🚧 **IN PROGRESS** | **6.1–6.18 DONE (code).** Next: **6.19 GDPR / DPDP**. |
+| **5 — Paid add-ons** | ❌ **IN PROGRESS** | **5.1 DONE.** 5.2–5.10 remain. |
+| **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** Phase 5 add-ons remain. |
 
 ### Phase 4 checklist
 
@@ -58,14 +58,14 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **6.16** Invoice PDF polish + India e-invoice/IRN path | GST lines exist; PDF/e-invoice don’t | ✅ DONE |
 | **6.17** Live chat / website widget → lead | HubSpot free wedge | ✅ DONE |
 | **6.18** SAML / enterprise SSO | After Google/Microsoft OAuth | ✅ DONE |
-| **6.19** GDPR / India DPDP (export, delete, retention) | Before EU; India later | ❌ PENDING |
-| **6.20** Alembic two-heads cleanup | Ops; unblocks real migrations | ❌ PENDING |
+| **6.19** GDPR / India DPDP (export, delete, retention) | Before EU; India later | ✅ DONE |
+| **6.20** Alembic two-heads cleanup | Ops; unblocks real migrations | ✅ DONE |
 
 ### Phase 5 checklist — paid add-ons (still build; lower than 6 for niche)
 
 | Item | Status |
 |------|--------|
-| **5.1** Data enrichment | ❌ PENDING |
+| **5.1** Data enrichment | ✅ DONE |
 | **5.2** Lead / deal scoring | ❌ PENDING |
 | **5.3** Predictive AI (convert/churn) | ❌ PENDING |
 | **5.4** Tally / QuickBooks sync | ❌ PENDING |
@@ -83,9 +83,9 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **0.1** / **6.10** Postgres RLS | ✅ DONE |
 | **6.11** Landing honesty | ✅ DONE |
 | **6.12** Brand drift | ✅ DONE |
-| **6.20** Alembic two-heads | ❌ PENDING |
+| **6.20** Alembic two-heads | ✅ DONE |
 
-**Resume next:** start **Phase 6.19** (GDPR / India DPDP). Work 6.19 → 6.20 in order unless a design partner forces a jump.
+**Resume next:** **Phase 5.2** lead / deal scoring.
 
 ---
 
@@ -259,8 +259,8 @@ Phases 3 and 4 were pulled ahead of the original “only after revenue / trial a
 
 - **Phase 3** — ✅ **DONE (code):** 3.1–3.9 logged below.
 - **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
-- **Phase 5** — ❌ **PENDING:** paid add-ons checklist on status board + section below.
-- **Phase 6** — 🚧 **IN PROGRESS:** **6.1–6.18 DONE (code).** Remaining 6.19–6.20.
+- **Phase 5** — ❌ **IN PROGRESS:** **5.1 DONE;** 5.2–5.10 pending.
+- **Phase 6** — ✅ **DONE (code):** **6.1–6.20**.
 
 ### Phase 3.1 — TOTP 2FA — DONE
 
@@ -540,19 +540,34 @@ Company IdP metadata; SP-initiated Redirect + POST ACS; email must match an exis
 - **Deploy:** `create_all` for `saml_configs`. ACS `{PUBLIC_API_URL}/api/auth/saml/{company_code}/acs`.
 - **Residuals:** not exclusive-C14N XML-DSig (RSA over NameID+email); no SLO/JIT; unknown company code on start is HTTP 404.
 
-### Phase 6.19 — GDPR / DPDP — PENDING
+### Phase 6.19 — GDPR / DPDP — DONE
 
-Data export, delete/anonymize, retention policy. Must before EU; India DPDP when selling there.
+Admin/MD export and erase PII on leads and clients; invoices kept. Staff `GET /api/privacy/me`. Trashed-lead retention days + on-demand apply. Spec: [`superpowers/specs/2026-08-25-phase6-gdpr-dpdp-design.md`](./superpowers/specs/2026-08-25-phase6-gdpr-dpdp-design.md).
 
-### Phase 6.20 — Alembic two-heads cleanup — PENDING
+- **Verification:** `tests/privacy/test_gdpr_dpdp.py`.
+- **Deploy:** `create_missing_tables.py` (`company_settings.retention_days`, `privacy_requests`).
+- **Residuals:** no scheduler; no invoice deletion; not a full DPDP consent/notice pack.
 
-Merge migration heads; stop relying only on `create_missing_tables.py` for prod schema.
+### Phase 6.20 — Alembic two-heads cleanup — DONE
+
+The old two heads were already merged at `13a3c2d1e5b7`. Unique head is now `016_schema_catchup` (idempotent `create_all` + missing columns + RLS). Helper lives in `app/schema_sync.py` so importing it does not mutate the live DB. `create_missing_tables.py` still seeds plans when run as a script. Backend-root `tmp_*` / `check_*` / `test_*.py` one-offs removed. Spec: [`superpowers/specs/2026-08-25-phase6-alembic-heads-design.md`](./superpowers/specs/2026-08-25-phase6-alembic-heads-design.md).
+
+- **Verification:** `tests/ops/test_alembic_heads.py`; `alembic heads` → `016_schema_catchup`.
+- **Deploy:** `alembic upgrade head` and/or `python create_missing_tables.py` (both idempotent). Stamp existing prod DBs if Alembic version is behind: `alembic stamp 015_ai_reasoning` then upgrade, or upgrade through 016 (catch-up is idempotent).
+- **Residuals:** 001–015 are not a full replay of today’s schema; 016 is the catch-up. No autogenerated table-by-table diff.
 
 ---
 
 ## Phase 5 — Paid add-ons (build after or interleaved with 6 if demanded)
 
-### Phase 5.1 — Data enrichment — PENDING
+### Phase 5.1 — Data enrichment — DONE
+
+Domain-stub enrich (no Clearbit HTTP). Empty fields only. Spec: [`superpowers/specs/2026-08-26-phase5-data-enrichment-design.md`](./superpowers/specs/2026-08-26-phase5-data-enrichment-design.md).
+
+- **Verification:** `tests/sales/test_enrichment.py`; `tests/ops/test_alembic_heads.py` (head `017_enrichment`).
+- **Deploy:** `alembic upgrade head` and/or `python create_missing_tables.py`.
+- **Residuals:** no live vendor; no plan entitlement; no client-contact enrich.
+
 ### Phase 5.2 — Lead / deal scoring — PENDING
 ### Phase 5.3 — Predictive AI — PENDING
 ### Phase 5.4 — Tally / QuickBooks sync — PENDING
@@ -571,19 +586,19 @@ From roadmap §6 — also tracked as **6.11**, **6.12**, and backend debris:
 
 - Remove **fabricated testimonials** and unshipped landing claims (§6.1) — **6.11**.
 - Fix **brand drift** — **6.12**.
-- Delete the pile of `tmp_*.py` / `check_*.py` / `test_*.py` scripts at `backend/` root (not in `tests/`) — fold into **6.20** or a drive-by when touching backend root.
+- Backend-root `tmp_*.py` / `check_*.py` / `test_*.py` one-offs — **6.20** (deleted).
 
 ---
 
 ## Sequencing summary
 
 ```
-Phase 0–4 ✅ (code)  →  Phase 6 (competitor parity) ❌  →  Phase 5 (add-ons) ❌
+Phase 0–4 ✅ (code)  →  Phase 6 (competitor parity) ✅ (code)  →  Phase 5 (add-ons) ❌
 ```
 
 **Verification checkpoints (roadmap §11):**
 - Phase 0: tenancy tests green. ✅ (RLS = **6.10** done in code).
 - Phase 1: payment + seat limit. ✅
 - Phase 2–4: sales loop + Standard + Professional extras. ✅ (code)
-- **Next:** **6.19 GDPR / DPDP**.
+- **Next:** Phase 5 add-ons if sold or requested.
 - Phase 5: only when a paid add-on is sold or repeatedly requested — still listed to build.

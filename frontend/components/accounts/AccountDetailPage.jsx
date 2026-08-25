@@ -18,6 +18,7 @@ export default function AccountDetailPage() {
     const [error, setError] = useState(null);
     const [name, setName] = useState('');
     const [saving, setSaving] = useState(false);
+    const [enriching, setEnriching] = useState(false);
 
     const load = async () => {
         if (!params?.id) return;
@@ -49,6 +50,19 @@ export default function AccountDetailPage() {
             alert(typeof detail === 'string' ? detail : 'Could not save');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const enrich = async () => {
+        setEnriching(true);
+        try {
+            await api.post(`/accounts/${params.id}/enrich`);
+            await load();
+        } catch (err) {
+            const detail = err.response?.data?.detail;
+            alert(typeof detail === 'string' ? detail : 'Could not enrich');
+        } finally {
+            setEnriching(false);
         }
     };
 
@@ -100,6 +114,17 @@ export default function AccountDetailPage() {
                         </button>
                     </div>
                     {account.website && <p className="text-sm text-slate-500 mt-3">{account.website}</p>}
+                    {account.industry && <p className="text-sm text-slate-500 mt-1">{account.industry}</p>}
+                    {account.linkedin_url && (
+                        <a href={account.linkedin_url} className="text-sm text-blue-600 mt-1 inline-block" target="_blank" rel="noreferrer">
+                            {account.linkedin_url}
+                        </a>
+                    )}
+                    <div className="mt-4 flex gap-3">
+                        <button type="button" onClick={enrich} disabled={enriching} className="text-sm font-medium text-slate-800 dark:text-slate-200 disabled:opacity-50">
+                            {enriching ? 'Enriching…' : 'Enrich'}
+                        </button>
+                    </div>
                     <button type="button" onClick={remove} className="mt-6 text-sm text-red-600">
                         Delete account
                     </button>

@@ -10,6 +10,7 @@ from app.routers.auth import oauth as auth_oauth
 from app.routers.auth import saml as auth_saml
 from app.routers.admin import users, admin, platform, notifications, company_security, api_keys as company_api_keys
 from app.routers.admin.saml_settings import router as saml_settings_router
+from app.routers.privacy import router as privacy_router
 from app.routers.sales import leads, tasks, clients, follow_ups, search, timeline
 from app.routers.sales.deals import router as deals_router
 from app.routers.sales.forecasting import router as forecasting_router
@@ -175,6 +176,7 @@ app.include_router(invoices.router, prefix="/api/invoices", tags=["Invoices"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(company_security.router, prefix="/api")
 app.include_router(saml_settings_router, prefix="/api/saml", tags=["SAML Settings"])
+app.include_router(privacy_router, prefix="/api/privacy", tags=["Privacy"])
 app.include_router(company_api_keys.router, prefix="/api/api-keys", tags=["API Keys"])
 app.include_router(public_v1_router, prefix="/api/v1", tags=["Public API"])
 app.include_router(ledgers.router) # Prefix is defined in the router itself

@@ -20,7 +20,12 @@ class Lead(Base):
     service_type = Column(String(100), nullable=True)
     
     notes = Column(Text, nullable=True)
-    
+    website = Column(String(500), nullable=True)
+    industry = Column(String(100), nullable=True)
+    linkedin_url = Column(String(500), nullable=True)
+    enriched_at = Column(DateTime, nullable=True)
+    enrichment_source = Column(String(32), nullable=True)
+
     # Ownership
     assigned_to_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)

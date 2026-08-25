@@ -1,9 +1,8 @@
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.core.team_membership import TeamMembership
 from app.models.core.user import User
 from app.models.sales.lead import Lead
+from app.services.sales.territory import round_robin_sales_on_team, _user_id_with_lowest_load
 from app.models.sales.quote import Quote
 from app.models.sales.task import Task
 from app.models.sales.workflow_rule import WorkflowRule
@@ -57,29 +56,21 @@ def run_workflows(db: Session, trigger: str, *, lead: Lead | None = None, quote:
 def _assign_round_robin(db: Session, lead: Lead) -> None:
     if lead.assigned_to_id:
         return
-    query = db.query(User).filter(
-        User.company_id == lead.company_id,
-        User.role == "sales",
-        User.is_active == True,
-    )
     if lead.team_id is not None:
-        query = query.join(TeamMembership, TeamMembership.user_id == User.id).filter(
-            TeamMembership.team_id == lead.team_id,
-            TeamMembership.company_id == lead.company_id,
+        user_id = round_robin_sales_on_team(db, company_id=lead.company_id, team_id=lead.team_id)
+    else:
+        candidates = (
+            db.query(User)
+            .filter(
+                User.company_id == lead.company_id,
+                User.role == "sales",
+                User.is_active == True,
+            )
+            .all()
         )
-    candidates = query.all()
-    if not candidates:
-        return
-    ranked = []
-    for user in candidates:
-        load = (
-            db.query(func.count(Lead.id))
-            .filter(Lead.company_id == lead.company_id, Lead.assigned_to_id == user.id)
-            .scalar()
-        )
-        ranked.append((load, user.id, user))
-    ranked.sort()
-    lead.assigned_to_id = ranked[0][2].id
+        user_id = _user_id_with_lowest_load(db, lead.company_id, candidates)
+    if user_id is not None:
+        lead.assigned_to_id = user_id
 
 
 def _create_follow_up_task(db: Session, lead: Lead) -> None:

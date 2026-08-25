@@ -9,6 +9,7 @@ from app.routers.auth import mfa as auth_mfa
 from app.routers.admin import users, admin, platform, notifications, company_security, api_keys as company_api_keys
 from app.routers.sales import leads, tasks, clients, follow_ups, search, timeline
 from app.routers.sales.deals import router as deals_router
+from app.routers.sales.forecasting import router as forecasting_router
 from app.routers.sales.meetings import router as meetings_router
 from app.routers.sales.calls import router as calls_router
 from app.routers.sales.reports import router as reports_router
@@ -114,6 +115,7 @@ app.include_router(auth_mfa.router, prefix="/api/auth")
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
 app.include_router(deals_router, prefix="/api/deals", tags=["Deals"])
+app.include_router(forecasting_router, prefix="/api/forecasting", tags=["Forecasting"])
 app.include_router(meetings_router, prefix="/api/meetings", tags=["Meetings"])
 app.include_router(calls_router, prefix="/api/calls", tags=["Calls"])
 app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])

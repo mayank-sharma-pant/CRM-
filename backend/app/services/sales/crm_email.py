@@ -1,10 +1,10 @@
-import html
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from app.models.sales.email_log import EmailLog
 from app.models.sales.mailbox import MailboxConnection
+from app.services.sales.email_tracking import build_outbound_html, mint_token, tracking_base
 from app.services.sales.mailbox import get_user_mailbox, send_via_mailbox
 from app.utils.email_service import send_email
 
@@ -24,6 +24,8 @@ def serialize_email(row: EmailLog) -> dict:
         "provider": row.provider,
         "provider_message_id": row.provider_message_id,
         "sent_by_id": row.sent_by_id,
+        "open_count": int(row.open_count or 0),
+        "click_count": int(row.click_count or 0),
         "created_at": row.created_at.isoformat() if row.created_at else None,
     }
 
@@ -51,19 +53,27 @@ def deliver_and_log(
     provider_message_id = None
     ok = False
 
+    base = tracking_base()
+    open_raw = open_hash = click_raw = click_hash = None
+    if base:
+        open_raw, open_hash = mint_token()
+        click_raw, click_hash = mint_token()
+    outbound_html = build_outbound_html(
+        body, base=base, open_raw=open_raw, click_raw=click_raw, click_hash=click_hash
+    )
+
     if mailbox is not None and mailbox.status == "active":
         provider = mailbox.provider
         from_email = mailbox.email
         try:
             provider_message_id = send_via_mailbox(
-                mailbox, to_email=to_email, subject=subject, body=body, db=db
+                mailbox, to_email=to_email, subject=subject, body=outbound_html, db=db
             ) or None
             ok = True
         except Exception:
             ok = False
     else:
-        html_body = "<br>".join(html.escape(body).splitlines())
-        ok = send_email(to_email, subject, f"<div>{html_body}</div>")
+        ok = send_email(to_email, subject, outbound_html)
 
     row = EmailLog(
         company_id=company_id,
@@ -79,6 +89,8 @@ def deliver_and_log(
         provider=provider,
         provider_message_id=provider_message_id,
         sent_by_id=sent_by_id,
+        open_token_hash=open_hash,
+        click_token_hash=click_hash,
     )
     db.add(row)
     db.commit()

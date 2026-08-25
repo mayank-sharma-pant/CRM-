@@ -44,3 +44,4 @@ class RateLimiter:
 auth_limiter = RateLimiter()
 public_form_limiter = RateLimiter()
 portal_limiter = RateLimiter()
+tracking_limiter = RateLimiter()

@@ -45,6 +45,7 @@ from app.routers.public.lead_forms import router as public_lead_forms_router
 from app.routers.public.cases import router as public_cases_router
 from app.routers.public.widget import router as public_widget_router
 from app.routers.public.portal import router as portal_router
+from app.routers.public.tracking import router as public_tracking_router
 from app.routers.public.v1 import router as public_v1_router
 from app.routers.finance import invoices, purchase, ledgers, export
 from app.routers.finance.accounting import router as accounting_router
@@ -182,6 +183,7 @@ app.include_router(reminders_router, prefix="/api/reminders", tags=["Reminders"]
 app.include_router(public_lead_forms_router, prefix="/api/public/forms", tags=["Public Forms"])
 app.include_router(public_cases_router, prefix="/api/public/cases", tags=["Web to Case"])
 app.include_router(public_widget_router, prefix="/api/public/widget", tags=["Website Widget"])
+app.include_router(public_tracking_router, prefix="/api/public/track", tags=["Email Tracking"])
 app.include_router(portal_router, prefix="/api/portal", tags=["Portal"])
 app.include_router(tasks.router, prefix="/api/tasks", tags=["Tasks"])
 app.include_router(clients.router, prefix="/api/clients", tags=["Clients"])

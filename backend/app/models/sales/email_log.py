@@ -30,6 +30,11 @@ class EmailLog(Base):
     sent_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
+    open_count = Column(Integer, nullable=False, default=0, server_default="0")
+    click_count = Column(Integer, nullable=False, default=0, server_default="0")
+    open_token_hash = Column(String(64), nullable=True, index=True)
+    click_token_hash = Column(String(64), nullable=True, index=True)
+
     company = relationship("Company")
     sent_by = relationship("User")
 

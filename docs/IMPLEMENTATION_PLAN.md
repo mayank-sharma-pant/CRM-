@@ -21,7 +21,7 @@ Last updated: **26 Aug 2026**. Status is from code + this file’s progress logs
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
 | **5 — Paid add-ons** | ✅ **DONE (code)** | **5.1–5.10 DONE.** |
 | **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** |
-| **7 — Trial defense** | ⏳ **PENDING** | **7.1–7.12.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Resume **7.1**. |
+| **7 — Trial defense** | 🚧 **IN PROGRESS** | **7.1 DONE (code); 7.2–7.12 pending.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Resume **7.2**. |
 
 ### Phase 4 checklist
 
@@ -92,7 +92,7 @@ Thin edges after 0–6. Not Marketing Hub / Desk. Spec: [`superpowers/specs/2026
 
 | Item | Why they still win the trial | Status |
 |------|------------------------------|--------|
-| **7.1** Email open / click tracking | HubSpot Free wedge | ⏳ PENDING |
+| **7.1** Email open / click tracking | HubSpot Free wedge | ✅ DONE (code) |
 | **7.2** Meeting booking + inbound calendar | HubSpot meetings; 6.2 is CRM→calendar only | ⏳ PENDING |
 | **7.3** Store-listed mobile | Apps in stores; 6.8 is code + STORE_RELEASE.md | ⏳ PENDING |
 | **7.4** Hindi UI (sales loop) | Zoho India expectation | ⏳ PENDING |
@@ -107,7 +107,7 @@ Thin edges after 0–6. Not Marketing Hub / Desk. Spec: [`superpowers/specs/2026
 
 **Out of Phase 7 (roadmap §7):** Marketing Hub, Zoho Desk, Salesforce objects, two-way live chat, layouts designer.
 
-**Resume next:** **7.1** email tracking. Production verify of 0–6 remains a deploy gate (roadmap §8), in parallel with 7.x.
+**Resume next:** **7.2** meeting booking + inbound calendar (7.1 is in code). Production verify of 0–6 remains a deploy gate (roadmap §8), in parallel with 7.x.
 
 ---
 
@@ -283,7 +283,7 @@ Phases 3 and 4 were pulled ahead of the original “only after revenue / trial a
 - **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
 - **Phase 5** — ✅ **DONE (code):** 5.1–5.10 logged below.
 - **Phase 6** — ✅ **DONE (code):** **6.1–6.20**.
-- **Phase 7** — ⏳ **PENDING:** **7.1–7.12** (trial defense). Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
+- **Phase 7** — 🚧 **IN PROGRESS:** **7.1 DONE (code)**, 7.2–7.12 pending (trial defense). Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
 
 ### Phase 3.1 — TOTP 2FA — DONE
 
@@ -781,9 +781,13 @@ Phases 0–6 are in code. This phase closes **first-week trial** gaps. It does *
 
 **Intent: build 7.1–7.12 in order.** Spec + plan per item (same as 6.x). Live Tally/NIC fail closed without credentials.
 
-### Phase 7.1 — Email open / click tracking — PENDING
+### Phase 7.1 — Email open / click tracking — DONE (code)
 
-Pixel + wrapped links on `deliver_and_log`. Public hit endpoint. Counts on `email_logs`. Attachments stay out.
+`deliver_and_log` mints one opaque token per kind (open / click), stores only the SHA-256 hash on `email_logs`, and injects a 1×1 pixel plus click-wrapped links into the HTML actually sent — SMTP and mailbox (Gmail/Graph now send HTML). Stored `EmailLog.body` keeps the original text. Public `GET /api/public/track/o/{token}.gif` always returns a GIF (unknown token: no increment, no existence leak); `GET /api/public/track/c/{token}?u=&s=` verifies an HMAC over the target before a 302 and 404s otherwise, so the redirect cannot be reused as an open redirect. `open_count` / `click_count` ride on `serialize_email`; hashes never leave the database. Tracking is off (no injection, NULL hashes) when `PUBLIC_API_URL` is empty. Campaigns and mass email inherit it for free. Spec: [`superpowers/specs/2026-08-26-phase7-email-tracking-design.md`](./superpowers/specs/2026-08-26-phase7-email-tracking-design.md).
+
+- **Verification:** `tests/sales/test_email_tracking.py` (9 tests: pixel increment, click 302 + increment, original body preserved, unknown token GIF, unknown/tampered click 404, cross-tenant isolation, counts-not-hashes serialization, no-injection when `PUBLIC_API_URL=""`, mailbox transport) + `tests/ops/test_alembic_heads.py` (single head `027_email_tracking`). Existing `test_crm_email.py`, `test_mailbox.py`, campaigns, mass email, and portal suites still pass; 3 suite failures (`test_accept_invite_internal_error_is_sanitized`, `test_quota_429_then_next_utc_day_allowed`, `test_due_follow_up_notifies_owner`) are pre-existing on `main` and unrelated.
+- **Deploy:** `alembic upgrade head` (`027_email_tracking`) or `create_missing_tables.py` for `email_logs.open_count` / `click_count` / `open_token_hash` / `click_token_hash`; `PUBLIC_API_URL` must be the public backend origin and reachable from recipient mail clients, otherwise tracking stays silently off.
+- **Residuals:** per-hit event log (first-open time, user agent), unique-vs-total opens, bot/scanner suppression, per-link click attribution, attachment and reply tracking, tracking UI beyond the two counts.
 
 ### Phase 7.2 — Meeting booking + inbound calendar — PENDING
 
@@ -854,4 +858,4 @@ Phase 0–4 ✅ (code)  →  Phase 6 ✅ (code)  →  Phase 5 ✅ (code)  →  P
 - Phase 1: payment + seat limit. ✅
 - Phase 2–4: sales loop + Standard + Professional extras. ✅ (code)
 - Phase 5–6: add-ons + competitor parity. ✅ (code)
-- **Next:** **7.1** email tracking. Phase 7 done when the spec’s “Done when” list holds.
+- **Next:** **7.2** meeting booking + inbound calendar (7.1 email tracking is in code). Phase 7 done when the spec’s “Done when” list holds.

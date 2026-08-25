@@ -320,7 +320,7 @@ def access_token_for(db: Session, connection: MailboxConnection) -> str:
 
 
 def send_via_mailbox(connection: MailboxConnection, *, to_email: str, subject: str, body: str, db: Optional[Session] = None) -> str:
-    """Send and return provider message id. Tests patch this."""
+    """Send an HTML body and return the provider message id. Tests patch this."""
     if db is not None:
         access = access_token_for(db, connection)
     elif connection.access_token_encrypted:
@@ -335,7 +335,7 @@ def send_via_mailbox(connection: MailboxConnection, *, to_email: str, subject: s
 
 
 def _gmail_send(access: str, *, from_email: str, to_email: str, subject: str, body: str) -> str:
-    msg = MIMEText(body, "plain", "utf-8")
+    msg = MIMEText(body, "html", "utf-8")
     msg["To"] = to_email
     msg["From"] = from_email
     msg["Subject"] = subject
@@ -351,7 +351,7 @@ def _graph_send(access: str, *, to_email: str, subject: str, body: str) -> str:
     payload = {
         "message": {
             "subject": subject,
-            "body": {"contentType": "Text", "content": body},
+            "body": {"contentType": "HTML", "content": body},
             "toRecipients": [{"emailAddress": {"address": to_email}}],
         },
         "saveToSentItems": True,

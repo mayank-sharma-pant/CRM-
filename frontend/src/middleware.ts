@@ -17,6 +17,8 @@ export function middleware(request) {
     pathname === '/settings/security' ||
     pathname === '/f' ||
     pathname.startsWith('/f/') ||
+    pathname === '/w' ||
+    pathname.startsWith('/w/') ||
     pathname === '/p' ||
     pathname.startsWith('/p/');
 

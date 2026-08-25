@@ -15,6 +15,8 @@ export default function Layout({ children }) {
         || pathname.startsWith('/admin')
         || pathname === '/f'
         || pathname.startsWith('/f/')
+        || pathname === '/w'
+        || pathname.startsWith('/w/')
         || pathname === '/p'
         || pathname.startsWith('/p/')
         || (pathname === '/settings/security' && !user);

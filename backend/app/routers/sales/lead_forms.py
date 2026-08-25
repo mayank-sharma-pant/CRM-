@@ -34,6 +34,8 @@ def _serialize(form: LeadForm, teams: list) -> dict:
         "default_team_id": form.default_team_id,
         "default_source": form.default_source,
         "public_path": f"/f/{form.slug}",
+        "widget_path": f"/w/{form.slug}",
+        "embed_script_path": f"/api/public/widget/{form.slug}/embed.js",
         "teams": teams,
     }
 

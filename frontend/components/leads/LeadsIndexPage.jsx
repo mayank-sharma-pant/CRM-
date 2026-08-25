@@ -46,6 +46,7 @@ export default function Leads() {
   const { user } = useAuth();
   const [formMeta, setFormMeta] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [copiedWidget, setCopiedWidget] = useState(false);
 
   useEffect(() => {
     setNow(new Date());
@@ -102,6 +103,19 @@ export default function Leads() {
       setTimeout(() => setCopied(false), 1500);
     } catch {
       showToast('Could not copy link', 'error');
+    }
+  };
+
+  const copyWidgetSnippet = async () => {
+    if (!formMeta?.embed_script_path) return;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const snippet = `<script src="${origin}${formMeta.embed_script_path}" async></script>`;
+    try {
+      await navigator.clipboard.writeText(snippet);
+      setCopiedWidget(true);
+      setTimeout(() => setCopiedWidget(false), 1500);
+    } catch {
+      showToast('Could not copy widget snippet', 'error');
     }
   };
 
@@ -216,6 +230,13 @@ export default function Leads() {
                   className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated"
                 >
                   {copied ? 'Copied' : 'Website form'}
+                </button>
+                <button
+                  type="button"
+                  onClick={copyWidgetSnippet}
+                  className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated"
+                >
+                  {copiedWidget ? 'Copied' : 'Chat widget'}
                 </button>
               </div>
             )}

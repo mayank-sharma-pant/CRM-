@@ -28,6 +28,7 @@ function LoginInner() {
     const [twoFactorCode, setTwoFactorCode] = useState('');
     const [useRecoveryCode, setUseRecoveryCode] = useState(false);
     const [oauthProviders, setOauthProviders] = useState({ google: false, microsoft: false });
+    const [samlCode, setSamlCode] = useState('');
     const { login, requestOTP, loginOTP, verify2FA, fetchUser } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -94,6 +95,15 @@ function LoginInner() {
 
     const startOAuth = (provider) => {
         window.location.href = `/api/auth/oauth/${provider}/start`;
+    };
+
+    const startSaml = () => {
+        const code = (samlCode || '').trim().toUpperCase();
+        if (!code) {
+            setError('Enter your company code to use company SSO.');
+            return;
+        }
+        window.location.href = `/api/auth/saml/${encodeURIComponent(code)}/start`;
     };
 
     const handleRequestOTP = async (e) => {
@@ -269,8 +279,7 @@ function LoginInner() {
                         </div>
                     )}
 
-                    {(oauthProviders.google || oauthProviders.microsoft) && (
-                        <div className="mb-8 space-y-3">
+                    <div className="mb-8 space-y-3">
                             {oauthProviders.google && (
                                 <button
                                     type="button"
@@ -289,6 +298,24 @@ function LoginInner() {
                                     Continue with Microsoft
                                 </button>
                             )}
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={samlCode}
+                                    onChange={(e) => setSamlCode(e.target.value.toUpperCase())}
+                                    maxLength={8}
+                                    placeholder="Company code"
+                                    aria-label="Company code for SSO"
+                                    className="flex-1 px-3 py-2.5 border border-border rounded-lg text-sm text-primary bg-surface"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={startSaml}
+                                    className="px-3 py-2.5 border border-border rounded-lg text-sm font-semibold text-primary bg-surface hover:bg-surface-elevated whitespace-nowrap"
+                                >
+                                    Company SSO
+                                </button>
+                            </div>
                             <div className="relative py-1">
                                 <div className="absolute inset-0 flex items-center">
                                     <div className="w-full border-t border-border" />
@@ -297,8 +324,7 @@ function LoginInner() {
                                     <span className="bg-surface px-2 text-muted">or</span>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                    </div>
 
                     {/* Method Toggle */}
                     <div className="flex p-1 bg-surface-elevated rounded-lg mb-8 border border-border">

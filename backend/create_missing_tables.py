@@ -82,6 +82,10 @@ _MISSING_COLUMNS = [
     ("company_settings", "whatsapp_cadence_template_id", "INTEGER"),
     ("company_settings", "onboarding_dismissed", "INTEGER DEFAULT 0"),
     ("clients", "account_id", "INTEGER"),
+    ("invoices", "irn", "VARCHAR(64)"),
+    ("invoices", "ack_no", "VARCHAR(32)"),
+    ("invoices", "ack_date", "TIMESTAMP"),
+    ("invoices", "signed_qr", "VARCHAR(64)"),
 ]
 
 

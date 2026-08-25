@@ -28,7 +28,11 @@ class Invoice(Base):
     buyer_gstin = Column(String(15), nullable=True)
     place_of_supply = Column(String(2), nullable=True)
     tax_mode = Column(String(10), nullable=True)
-    
+    irn = Column(String(64), nullable=True)
+    ack_no = Column(String(32), nullable=True)
+    ack_date = Column(DateTime, nullable=True)
+    signed_qr = Column(String(64), nullable=True)
+
     status = Column(Enum(InvoiceStatus, values_callable=lambda x: [e.value for e in x], native_enum=False), default=InvoiceStatus.DRAFT)
     
     # Dates

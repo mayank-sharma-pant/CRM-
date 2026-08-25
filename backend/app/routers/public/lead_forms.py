@@ -56,28 +56,25 @@ def _public_form(db: Session, slug: str) -> LeadForm:
     return form
 
 
-@router.get("/{slug}")
-def get_public_form(slug: str, db: Session = Depends(get_db)):
-    form = _public_form(db, slug)
-    company = db.query(Company).filter(Company.id == form.company_id).first()
-    return {
-        "headline": form.headline,
-        "company_name": company.name if company else None,
-        "name": form.name,
-    }
-
-
-@router.post("/{slug}/submit", status_code=status.HTTP_201_CREATED)
-def submit_public_form(slug: str, payload: PublicSubmit, request: Request, db: Session = Depends(get_db)):
-    form = _public_form(db, slug)
-    public_form_limiter.check(request, f"lead-form:{slug}", max_attempts=10, window_seconds=600)
-
-    if (payload.website or "").strip():
+def ingest_public_lead(
+    db: Session,
+    form: LeadForm,
+    *,
+    name: Optional[str],
+    phone: Optional[str],
+    email: Optional[str],
+    company: Optional[str] = None,
+    service_type: Optional[str] = None,
+    notes: Optional[str] = None,
+    source: Optional[str] = None,
+    website: Optional[str] = None,
+) -> dict:
+    if (website or "").strip():
         return {"ok": True}
 
-    name = (payload.name or "").strip()
-    phone = (payload.phone or "").strip() or None
-    email = (payload.email or "").strip() or None
+    name = (name or "").strip()
+    phone = (phone or "").strip() or None
+    email = (email or "").strip() or None
     if not name or not (phone or email):
         raise HTTPException(status_code=400, detail="name and phone or email are required")
     if len(name) > 255:
@@ -88,10 +85,10 @@ def submit_public_form(slug: str, payload: PublicSubmit, request: Request, db: S
         name=name,
         email=email,
         phone=phone,
-        company=(payload.company or "").strip() or None,
-        source=form.default_source or "Website",
-        service_type=(payload.service_type or "").strip() or None,
-        notes=(payload.notes or "").strip() or None,
+        company=(company or "").strip() or None,
+        source=source or form.default_source or "Website",
+        service_type=(service_type or "").strip() or None,
+        notes=(notes or "").strip() or None,
         status=LeadStatus.ACTIVE,
         assigned_to_id=None,
         created_by_id=None,
@@ -107,3 +104,31 @@ def submit_public_form(slug: str, payload: PublicSubmit, request: Request, db: S
     from app.services.sales.outbound_webhooks import emit_event
     emit_event(db, form.company_id, "lead.created", {"id": lead.id, "name": lead.name})
     return {"ok": True}
+
+
+@router.get("/{slug}")
+def get_public_form(slug: str, db: Session = Depends(get_db)):
+    form = _public_form(db, slug)
+    company = db.query(Company).filter(Company.id == form.company_id).first()
+    return {
+        "headline": form.headline,
+        "company_name": company.name if company else None,
+        "name": form.name,
+    }
+
+
+@router.post("/{slug}/submit", status_code=status.HTTP_201_CREATED)
+def submit_public_form(slug: str, payload: PublicSubmit, request: Request, db: Session = Depends(get_db)):
+    form = _public_form(db, slug)
+    public_form_limiter.check(request, f"lead-form:{slug}", max_attempts=10, window_seconds=600)
+    return ingest_public_lead(
+        db,
+        form,
+        name=payload.name,
+        phone=payload.phone,
+        email=payload.email,
+        company=payload.company,
+        service_type=payload.service_type,
+        notes=payload.notes,
+        website=payload.website,
+    )

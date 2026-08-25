@@ -13,7 +13,7 @@ import {
     AlertTriangle,
     Building,
     User,
-    Receipt,
+    FileDown,
     FileText
 } from 'lucide-react';
 
@@ -22,61 +22,66 @@ export default function InvoiceDetailPage() {
     const params = useParams();
     const [loading, setLoading] = useState(true);
     const [invoice, setInvoice] = useState(null);
+    const [actionError, setActionError] = useState('');
+    const [busy, setBusy] = useState(false);
+
+    const hydrate = (d) => {
+        const fmt = (v) => `₹${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+        const statusMap = { paid: 'Paid', pending: 'Pending', overdue: 'Overdue', draft: 'Draft', sent: 'Sent' };
+        const st = statusMap[(d.status || '').toLowerCase()] || d.status || 'Draft';
+
+        const timeline = [];
+        if (d.issued) timeline.push({ date: d.issued, event: 'Invoice Created', status: 'complete' });
+        if (st === 'Pending' || st === 'Overdue' || st === 'Paid')
+            timeline.push({ date: d.issued, event: 'Invoice Sent', status: 'complete' });
+        if (d.due) timeline.push({ date: d.due, event: 'Payment Due', status: st === 'Paid' ? 'complete' : 'pending' });
+        if (st === 'Paid') timeline.push({ date: d.due, event: 'Payment Received', status: 'complete' });
+        else timeline.push({ date: null, event: 'Payment Received', status: 'upcoming' });
+
+        return {
+            id: d.number,
+            db_id: d.id,
+            share_active: d.share_active,
+            status: st,
+            irn: d.irn || '',
+            ackNo: d.ack_no || '',
+            client: {
+                name: d.client?.name || 'Unknown',
+                contact: d.client?.name || '',
+                email: d.client?.email || '',
+                phone: '',
+                address: d.client?.address || ''
+            },
+            amount: fmt(d.total),
+            subtotal: fmt(d.subtotal),
+            tax: fmt(d.tax),
+            cgst: fmt(d.cgst),
+            sgst: fmt(d.sgst),
+            igst: fmt(d.igst),
+            taxMode: d.tax_mode,
+            sellerGstin: d.seller_gstin || '',
+            buyerGstin: d.buyer_gstin || '',
+            placeOfSupply: d.place_of_supply || '',
+            dueDate: d.due || '',
+            issueDate: d.issued || '',
+            paymentTerms: 'Net 30',
+            paymentTimeline: timeline,
+            items: (d.items || []).map(i => ({
+                description: i.description,
+                qty: i.quantity || 1,
+                unitPrice: fmt(i.unit_price),
+                total: fmt(i.total),
+                hsn: i.hsn || '',
+            }))
+        };
+    };
 
     useEffect(() => {
         let cancelled = false;
         const fetchInvoice = async () => {
             try {
                 const res = await api.get(`/invoices/${params.invoiceId}`);
-                const d = res.data;
-                const fmt = (v) => `₹${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-                const statusMap = { paid: 'Paid', pending: 'Pending', overdue: 'Overdue', draft: 'Draft', sent: 'Sent' };
-                const st = statusMap[(d.status || '').toLowerCase()] || d.status || 'Draft';
-
-                const timeline = [];
-                if (d.issued) timeline.push({ date: d.issued, event: 'Invoice Created', status: 'complete' });
-                if (st === 'Pending' || st === 'Overdue' || st === 'Paid')
-                    timeline.push({ date: d.issued, event: 'Invoice Sent', status: 'complete' });
-                if (d.due) timeline.push({ date: d.due, event: 'Payment Due', status: st === 'Paid' ? 'complete' : 'pending' });
-                if (st === 'Paid') timeline.push({ date: d.due, event: 'Payment Received', status: 'complete' });
-                else timeline.push({ date: null, event: 'Payment Received', status: 'upcoming' });
-
-                if (!cancelled) {
-                    setInvoice({
-                        id: d.number,
-                        db_id: d.id,
-                        share_active: d.share_active,
-                        status: st,
-                    client: {
-                        name: d.client?.name || 'Unknown',
-                        contact: d.client?.name || '',
-                        email: d.client?.email || '',
-                        phone: '',
-                        address: d.client?.address || ''
-                    },
-                    amount: fmt(d.total),
-                    subtotal: fmt(d.subtotal),
-                    tax: fmt(d.tax),
-                    cgst: fmt(d.cgst),
-                    sgst: fmt(d.sgst),
-                    igst: fmt(d.igst),
-                    taxMode: d.tax_mode,
-                    sellerGstin: d.seller_gstin || '',
-                    buyerGstin: d.buyer_gstin || '',
-                    placeOfSupply: d.place_of_supply || '',
-                    dueDate: d.due || '',
-                    issueDate: d.issued || '',
-                    paymentTerms: 'Net 30',
-                    paymentTimeline: timeline,
-                    items: (d.items || []).map(i => ({
-                        description: i.description,
-                        qty: i.quantity || 1,
-                        unitPrice: fmt(i.unit_price),
-                        total: fmt(i.total),
-                        hsn: i.hsn || '',
-                    }))
-                });
-                }
+                if (!cancelled) setInvoice(hydrate(res.data));
             } catch (err) {
                 console.error('Failed to fetch invoice:', err);
             } finally {
@@ -91,10 +96,43 @@ export default function InvoiceDetailPage() {
     const refetchInvoice = async () => {
         try {
             const res = await api.get(`/invoices/${params.invoiceId}`);
-            const d = res.data;
-            setInvoice((prev) => prev ? { ...prev, share_active: d.share_active } : prev);
+            setInvoice(hydrate(res.data));
         } catch (err) {
             console.error('Failed to refetch invoice:', err);
+        }
+    };
+
+    const downloadPdf = async () => {
+        setActionError('');
+        setBusy(true);
+        try {
+            const res = await api.get(`/invoices/${invoice.db_id}/pdf`, { responseType: 'blob' });
+            const url = window.URL.createObjectURL(res.data);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${invoice.id || 'invoice'}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            setActionError(err.response?.data?.detail || 'Could not download PDF');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const generateIrn = async () => {
+        setActionError('');
+        setBusy(true);
+        try {
+            await api.post(`/invoices/${invoice.db_id}/einvoice`);
+            await refetchInvoice();
+        } catch (err) {
+            const detail = err.response?.data?.detail;
+            setActionError(typeof detail === 'string' ? detail : 'Could not generate IRN');
+        } finally {
+            setBusy(false);
         }
     };
 
@@ -130,9 +168,31 @@ export default function InvoiceDetailPage() {
                     </div>
                     <p className="text-[15px] text-slate-500 dark:text-slate-400 font-medium">{invoice.client.name}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right space-y-2">
                     <div className="text-[32px] font-bold text-slate-900 dark:text-white">{invoice.amount}</div>
                     <div className="text-[13px] text-slate-500">Due: {invoice.dueDate}</div>
+                    <div className="flex flex-wrap justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={downloadPdf}
+                            disabled={busy}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                        >
+                            <FileDown size={14} />
+                            Download PDF
+                        </button>
+                        {invoice.sellerGstin && invoice.buyerGstin && !invoice.irn && (
+                            <button
+                                type="button"
+                                onClick={generateIrn}
+                                disabled={busy}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                            >
+                                Generate IRN
+                            </button>
+                        )}
+                    </div>
+                    {actionError && <p className="text-[12px] text-red-600">{actionError}</p>}
                 </div>
             </div>
 
@@ -274,6 +334,18 @@ export default function InvoiceDetailPage() {
                                 <div className="flex justify-between">
                                     <span className="text-slate-500">Place of supply</span>
                                     <span className="text-slate-800 dark:text-slate-200">{invoice.placeOfSupply}</span>
+                                </div>
+                            )}
+                            {invoice.irn && (
+                                <div className="flex justify-between gap-3">
+                                    <span className="text-slate-500 shrink-0">IRN</span>
+                                    <span className="text-slate-800 dark:text-slate-200 font-mono text-right break-all">{invoice.irn}</span>
+                                </div>
+                            )}
+                            {invoice.ackNo && (
+                                <div className="flex justify-between">
+                                    <span className="text-slate-500">Ack No</span>
+                                    <span className="text-slate-800 dark:text-slate-200 font-mono">{invoice.ackNo}</span>
                                 </div>
                             )}
                         </div>

@@ -7,7 +7,9 @@ from app.database import get_db
 from app.routers.auth import auth
 from app.routers.auth import mfa as auth_mfa
 from app.routers.auth import oauth as auth_oauth
+from app.routers.auth import saml as auth_saml
 from app.routers.admin import users, admin, platform, notifications, company_security, api_keys as company_api_keys
+from app.routers.admin.saml_settings import router as saml_settings_router
 from app.routers.sales import leads, tasks, clients, follow_ups, search, timeline
 from app.routers.sales.deals import router as deals_router
 from app.routers.sales.forecasting import router as forecasting_router
@@ -32,6 +34,7 @@ from app.routers.sales.reminders import router as reminders_router
 from app.routers.sales.saved_filters import router as saved_filters_router
 from app.routers.sales.outbound_webhooks import router as outbound_webhooks_router
 from app.routers.public.lead_forms import router as public_lead_forms_router
+from app.routers.public.widget import router as public_widget_router
 from app.routers.public.portal import router as portal_router
 from app.routers.public.v1 import router as public_v1_router
 from app.routers.finance import invoices, purchase, ledgers, export
@@ -134,6 +137,7 @@ async def rls_request_context(request: Request, call_next):
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(auth_mfa.router, prefix="/api/auth")
 app.include_router(auth_oauth.router, prefix="/api/auth")
+app.include_router(auth_saml.router, prefix="/api/auth")
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
 app.include_router(deals_router, prefix="/api/deals", tags=["Deals"])
@@ -159,6 +163,7 @@ app.include_router(saved_filters_router, prefix="/api/saved-filters", tags=["Sav
 app.include_router(outbound_webhooks_router, prefix="/api/webhooks", tags=["Outbound Webhooks"])
 app.include_router(reminders_router, prefix="/api/reminders", tags=["Reminders"])
 app.include_router(public_lead_forms_router, prefix="/api/public/forms", tags=["Public Forms"])
+app.include_router(public_widget_router, prefix="/api/public/widget", tags=["Website Widget"])
 app.include_router(portal_router, prefix="/api/portal", tags=["Portal"])
 app.include_router(tasks.router, prefix="/api/tasks", tags=["Tasks"])
 app.include_router(clients.router, prefix="/api/clients", tags=["Clients"])
@@ -169,6 +174,7 @@ app.include_router(purchase.router, prefix="/api/purchase", tags=["Purchase"])
 app.include_router(invoices.router, prefix="/api/invoices", tags=["Invoices"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(company_security.router, prefix="/api")
+app.include_router(saml_settings_router, prefix="/api/saml", tags=["SAML Settings"])
 app.include_router(company_api_keys.router, prefix="/api/api-keys", tags=["API Keys"])
 app.include_router(public_v1_router, prefix="/api/v1", tags=["Public API"])
 app.include_router(ledgers.router) # Prefix is defined in the router itself

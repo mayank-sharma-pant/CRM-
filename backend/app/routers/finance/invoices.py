@@ -19,6 +19,8 @@ from app.models.ops.stock_item import StockItem
 from app.utils.notify import notify_role_users
 from app.services.finance.gst import compute_gst
 from app.services.finance.invoice_pay import ensure_payment_url
+from app.services.finance.invoice_pdf import build_invoice_pdf
+from app.services.finance.einvoice import generate_irn
 from app.services.portal.share_links import apply_share, revoke_share
 from app.services.sales.product_lines import deduct_stock, resolve_sale_lines
 
@@ -413,6 +415,9 @@ def get_invoice(
         "seller_gstin": invoice.seller_gstin,
         "buyer_gstin": invoice.buyer_gstin,
         "place_of_supply": invoice.place_of_supply,
+        "irn": invoice.irn,
+        "ack_no": invoice.ack_no,
+        "ack_date": invoice.ack_date.isoformat() if invoice.ack_date else None,
         "issued": invoice.issued_date.isoformat() if invoice.issued_date else None,
         "due": invoice.due_date.isoformat() if invoice.due_date else None,
         "share_active": bool(invoice.share_token_hash),
@@ -462,6 +467,40 @@ def revoke_invoice_share(
     revoke_share(invoice)
     db.commit()
     return Response(status_code=204)
+
+
+@router.get("/{invoice_id}/pdf")
+def download_invoice_pdf(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    invoice = _get_invoice_scoped(db, current_user, invoice_id, active_team_id)
+    pdf = build_invoice_pdf(db, invoice)
+    safe_name = "".join(c if c.isalnum() or c in "-_." else "_" for c in (invoice.invoice_number or "invoice"))
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.pdf"'},
+    )
+
+
+@router.post("/{invoice_id}/einvoice")
+def create_einvoice(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    invoice = _get_invoice_scoped(db, current_user, invoice_id, active_team_id)
+    invoice = generate_irn(db, invoice)
+    return {
+        "id": invoice.id,
+        "irn": invoice.irn,
+        "ack_no": invoice.ack_no,
+        "ack_date": invoice.ack_date.isoformat() if invoice.ack_date else None,
+    }
 
 
 @router.post("/{invoice_id}/payment-link")

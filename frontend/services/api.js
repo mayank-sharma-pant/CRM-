@@ -37,7 +37,7 @@ api.interceptors.response.use(
         // Do not force redirect if we are already on a public auth page
         const publicPaths = ['/login', '/signup', '/accept-invite', '/forgot-password', '/reset-password', '/platform/login', '/settings/security'];
         const path = window.location.pathname;
-        const isPublicPath = path === '/' || path === '/f' || path.startsWith('/f/') || path === '/p' || path.startsWith('/p/') || publicPaths.some(p => path.startsWith(p));
+        const isPublicPath = path === '/' || path === '/f' || path.startsWith('/f/') || path === '/w' || path.startsWith('/w/') || path === '/p' || path.startsWith('/p/') || publicPaths.some(p => path.startsWith(p));
 
         if (!isPublicPath) {
           window.location.href = '/login';

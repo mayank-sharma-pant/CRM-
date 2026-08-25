@@ -30,6 +30,7 @@ const SHARED_PATHS = ['/profile', '/settings', '/finance', '/financial-ledgers',
 
 function isPublicPath(pathname) {
     if (pathname === '/f' || pathname.startsWith('/f/')) return true;
+    if (pathname === '/w' || pathname.startsWith('/w/')) return true;
     if (pathname === '/p' || pathname.startsWith('/p/')) return true;
     return PUBLIC_PATHS.some(p =>
         p === '/' ? pathname === '/' : pathname.startsWith(p)

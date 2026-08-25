@@ -34,6 +34,9 @@ class Quote(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
+    share_token_hash = Column(String(64), nullable=True, unique=True, index=True)
+    share_created_at = Column(DateTime, nullable=True)
+
     items = relationship("QuoteItem", back_populates="quote", cascade="all, delete-orphan")
 
 

@@ -50,6 +50,9 @@ class Invoice(Base):
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    share_token_hash = Column(String(64), nullable=True, unique=True, index=True)
+    share_created_at = Column(DateTime, nullable=True)
     
     # Relationships
     company = relationship("Company", backref="invoices")

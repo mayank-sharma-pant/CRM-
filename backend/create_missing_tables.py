@@ -52,6 +52,10 @@ _MISSING_COLUMNS = [
     ("invoice_items", "tax", "NUMERIC(12,2) DEFAULT 0"),
     ("pipelines", "blueprint_enabled", "BOOLEAN DEFAULT FALSE"),
     ("pipeline_stages", "required_fields", "TEXT"),
+    ("invoices", "share_token_hash", "VARCHAR(64)"),
+    ("invoices", "share_created_at", "TIMESTAMP"),
+    ("quotes", "share_token_hash", "VARCHAR(64)"),
+    ("quotes", "share_created_at", "TIMESTAMP"),
 ]
 
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
@@ -14,6 +14,7 @@ from app.utils.totp_crypto import (
     encrypt_secret, decrypt_secret, generate_recovery_codes, hash_recovery_code,
 )
 from app.utils.audit import log_activity
+from app.utils.rate_limit import auth_limiter
 
 router = APIRouter(prefix="/2fa", tags=["2fa"])
 
@@ -55,7 +56,8 @@ def setup(db: Session = Depends(get_db), user: User = Depends(get_current_user))
 
 
 @router.post("/confirm")
-def confirm(body: CodeBody, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def confirm(request: Request, body: CodeBody, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    auth_limiter.check(request, f"2fa_confirm:{user.id}", max_attempts=10, window_seconds=600)
     if user.totp_enabled:
         raise HTTPException(status_code=400, detail="2FA is already enabled")
     if not user.totp_secret:
@@ -84,7 +86,8 @@ def status(db: Session = Depends(get_db), user: User = Depends(get_current_user)
 
 
 @router.post("/disable")
-def disable(body: PasswordBody, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def disable(request: Request, body: PasswordBody, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    auth_limiter.check(request, f"2fa_disable:{user.id}", max_attempts=10, window_seconds=600)
     if not verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Password is incorrect")
     if _company_requires_2fa(db, user):
@@ -99,7 +102,8 @@ def disable(body: PasswordBody, db: Session = Depends(get_db), user: User = Depe
 
 
 @router.post("/recovery-codes/regenerate")
-def regenerate(body: PasswordBody, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def regenerate(request: Request, body: PasswordBody, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    auth_limiter.check(request, f"2fa_regenerate:{user.id}", max_attempts=10, window_seconds=600)
     if not verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Password is incorrect")
     if not user.totp_enabled:

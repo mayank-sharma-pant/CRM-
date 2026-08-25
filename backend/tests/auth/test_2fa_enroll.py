@@ -65,3 +65,14 @@ def test_disable_blocked_under_mandate(client, db):
     client.post("/api/auth/2fa/confirm", json={"code": totp.totp_now(secret)})
     r = client.post("/api/auth/2fa/disable", json={"password": "pw"})
     assert r.status_code == 403
+
+
+def test_confirm_is_rate_limited(client, db):
+    _enrolled_login(client, db)
+    client.post("/api/auth/2fa/setup")
+    auth_limiter._buckets.clear()
+    for _ in range(10):
+        r = client.post("/api/auth/2fa/confirm", json={"code": "000000"})
+        assert r.status_code == 400
+    r = client.post("/api/auth/2fa/confirm", json={"code": "000000"})
+    assert r.status_code == 429

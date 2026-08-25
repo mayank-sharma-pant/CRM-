@@ -256,7 +256,7 @@ required built-in fields on leave. Spec: [`superpowers/specs/2026-08-25-phase4-b
 
 - **Verification:** `test_blueprint_schema.py`, `test_blueprint_service.py`, `test_blueprint_api.py`, `test_blueprint_cross_tenant.py`.
 - **Deploy:** `create_missing_tables.py` for `pipelines.blueprint_enabled` and `pipeline_stages.required_fields`.
-- **Residuals:** no transition-edge graph, no custom-field requirements, no approvals.
+- **Residuals:** no transition-edge graph, no custom-field requirements, no approvals. Blueprint does **not** block deal **create** with an arbitrary `stage_id` (including Won) — per spec; field gates apply on the first *leave*, so readers should not assume the pipeline is sealed on create.
 
 ---
 

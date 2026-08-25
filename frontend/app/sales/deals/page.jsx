@@ -21,15 +21,19 @@ function roleOf(user) {
 
 const ALLOWED_REQUIRED_FIELDS = ['title', 'amount', 'expected_close', 'client_id', 'probability'];
 
-function parseMoveErrorDetail(detail) {
-  if (!detail) return 'Failed to move deal';
+function parseMoveErrorDetail(detail, fallback = 'Request failed') {
+  if (!detail) return fallback;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    const msgs = detail.map((e) => e?.msg).filter(Boolean);
+    return msgs.length ? msgs.join('; ') : fallback;
+  }
   if (typeof detail === 'object' && detail.message) {
     const missing = detail.missing_fields;
     if (missing?.length) return `${detail.message}: ${missing.join(', ')}`;
     return detail.message;
   }
-  if (typeof detail === 'string') return detail;
-  return 'Failed to move deal';
+  return fallback;
 }
 
 export default function DealsBoard() {
@@ -144,7 +148,7 @@ export default function DealsBoard() {
       await fetchBoard(pipelineId);
     } catch (err) {
       console.error('Failed to toggle blueprint', err);
-      showToast(err.response?.data?.detail || 'Failed to update blueprint', 'error');
+      showToast(parseMoveErrorDetail(err.response?.data?.detail, 'Failed to update blueprint'), 'error');
     } finally {
       setTogglingBlueprint(false);
     }
@@ -156,7 +160,7 @@ export default function DealsBoard() {
       await fetchBoard(pipelineId);
     } catch (err) {
       console.error('Failed to update required fields', err);
-      showToast(err.response?.data?.detail || 'Failed to update required fields', 'error');
+      showToast(parseMoveErrorDetail(err.response?.data?.detail, 'Failed to update required fields'), 'error');
     }
   };
 

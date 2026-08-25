@@ -78,6 +78,31 @@ def test_invalid_required_field_key(client, db):
     first = opens[0]
     resp = client.patch(f"/api/deals/stages/{first['id']}", json={"required_fields": ["nope"]})
     assert resp.status_code == 400
+    assert resp.json()["detail"] == "invalid required field: nope"
+
+
+def test_won_from_last_open_and_reopen_rules(client, db):
+    _company, _admin, deal, opens, won, _lost = _setup(client, db)
+    pid = deal["pipeline_id"]
+    assert client.patch(f"/api/deals/pipelines/{pid}", json={"blueprint_enabled": True}).status_code == 200
+    first, *_, last = opens
+    for stage in opens:
+        assert client.patch(
+            f"/api/deals/stages/{stage['id']}",
+            json={"required_fields": []},
+        ).status_code == 200
+    for next_stage in opens[1:]:
+        move = client.patch(f"/api/deals/{deal['id']}/stage", json={"stage_id": next_stage["id"]})
+        assert move.status_code == 200, move.text
+    to_won = client.patch(f"/api/deals/{deal['id']}/stage", json={"stage_id": won["id"]})
+    assert to_won.status_code == 200, to_won.text
+    reopen = client.patch(f"/api/deals/{deal['id']}/stage", json={"stage_id": last["id"]})
+    assert reopen.status_code == 200, reopen.text
+    back_to_won = client.patch(f"/api/deals/{deal['id']}/stage", json={"stage_id": won["id"]})
+    assert back_to_won.status_code == 200, back_to_won.text
+    bad_reopen = client.patch(f"/api/deals/{deal['id']}/stage", json={"stage_id": first["id"]})
+    assert bad_reopen.status_code == 400
+    assert bad_reopen.json()["detail"] == "blueprint does not allow this stage move"
 
 
 def test_board_includes_required_fields(client, db):

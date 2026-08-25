@@ -25,6 +25,20 @@ def test_status_is_per_user(client, db):
     a = create_company(db, name="A2", company_code="AC2")
     create_active_user(db, email="a1@x.co", role="admin", company_id=a.id)
     create_active_user(db, email="a2@x.co", role="sales", company_id=a.id)
+
+    # Set a1's 2FA to enabled as a positive control
+    from datetime import datetime, timezone
+    from app.models.core.user import User
+    a1_user = db.query(User).filter(User.email == "a1@x.co").first()
+    a1_user.totp_enabled = True
+    a1_user.totp_confirmed_at = datetime.now(timezone.utc)
+    db.commit()
+
+    # Verify a1 is actually enabled (positive control)
+    assert a1_user.totp_enabled is True
+
+    # Log in as a2 (who has totp_enabled=False)
     login_user(client, "a2@x.co")
-    # A2 (never enrolled) sees their own disabled status — not A1's.
+
+    # a2 sees their own disabled status — not a1's enabled status (isolation check)
     assert client.get("/api/auth/2fa/status").json()["enabled"] is False

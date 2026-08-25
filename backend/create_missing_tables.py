@@ -36,6 +36,20 @@ _MISSING_COLUMNS = [
     ("invoice_items", "hsn", "VARCHAR(20)"),
     ("company_settings", "whatsapp_api_key", "VARCHAR(255)"),
     ("company_settings", "whatsapp_source", "VARCHAR(20)"),
+    ("quotes", "cgst", "NUMERIC(12,2) DEFAULT 0"),
+    ("quotes", "sgst", "NUMERIC(12,2) DEFAULT 0"),
+    ("quotes", "igst", "NUMERIC(12,2) DEFAULT 0"),
+    ("quotes", "seller_gstin", "VARCHAR(15)"),
+    ("quotes", "buyer_gstin", "VARCHAR(15)"),
+    ("quotes", "place_of_supply", "VARCHAR(2)"),
+    ("quotes", "tax_mode", "VARCHAR(10)"),
+    ("quote_items", "product_id", "INTEGER"),
+    ("quote_items", "hsn", "VARCHAR(20)"),
+    ("quote_items", "tax_rate", "NUMERIC(5,2)"),
+    ("quote_items", "tax", "NUMERIC(12,2) DEFAULT 0"),
+    ("invoice_items", "product_id", "INTEGER"),
+    ("invoice_items", "tax_rate", "NUMERIC(5,2)"),
+    ("invoice_items", "tax", "NUMERIC(12,2) DEFAULT 0"),
 ]
 
 

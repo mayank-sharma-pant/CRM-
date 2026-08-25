@@ -71,6 +71,9 @@ class InvoiceItem(Base):
     unit_price = Column(Numeric(12, 2), default=0)
     total = Column(Numeric(12, 2), default=0)
     hsn = Column(String(20), nullable=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+    tax_rate = Column(Numeric(5, 2), nullable=True)
+    tax = Column(Numeric(12, 2), default=0)
     
     company = relationship("Company")
     invoice = relationship("Invoice", back_populates="items")

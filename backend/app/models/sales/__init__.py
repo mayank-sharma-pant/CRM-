@@ -10,6 +10,7 @@ from .pipeline import Pipeline, PipelineStage
 from .deal import Deal
 from .lead_form import LeadForm
 from .quote import Quote, QuoteItem
+from .product import Product
 from .workflow_rule import WorkflowRule
 from .custom_field import CustomFieldDef, CustomFieldValue
 from .email_log import EmailLog

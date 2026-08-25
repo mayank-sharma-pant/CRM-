@@ -16,6 +16,7 @@ from app.models.sales.note import Note
 from app.utils.audit import log_activity
 from app.utils.datetime_json import isoformat_utc, task_due_for_json
 from app.utils.notify import send_notification
+from app.services.sales.territory import assign_lead_by_territory
 from app.services.sales.workflow import run_workflows
 from app.services.sales.custom_fields import get_values_map, set_values
 from app.services.sales.merge import find_duplicate_leads, merge_leads
@@ -742,6 +743,8 @@ def create_lead(
     )
     
     db.add(new_lead)
+    db.flush()
+    assign_lead_by_territory(db, new_lead)
     db.flush()
     run_workflows(db, "lead_created", lead=new_lead)
     db.commit()

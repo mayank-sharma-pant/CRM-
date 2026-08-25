@@ -21,6 +21,7 @@ from app.routers.sales.custom_fields import router as custom_fields_router
 from app.routers.sales.emails import router as emails_router
 from app.routers.sales.whatsapp import router as whatsapp_router
 from app.routers.sales.tags import router as tags_router
+from app.routers.sales.territories import router as territories_router
 from app.routers.sales.reminders import router as reminders_router
 from app.routers.public.lead_forms import router as public_lead_forms_router
 from app.routers.public.portal import router as portal_router
@@ -127,6 +128,7 @@ app.include_router(custom_fields_router, prefix="/api/custom-fields", tags=["Cus
 app.include_router(emails_router, prefix="/api/emails", tags=["Emails"])
 app.include_router(whatsapp_router, prefix="/api/whatsapp", tags=["WhatsApp"])
 app.include_router(tags_router, prefix="/api/tags", tags=["Tags"])
+app.include_router(territories_router, prefix="/api/territories", tags=["Territories"])
 app.include_router(reminders_router, prefix="/api/reminders", tags=["Reminders"])
 app.include_router(public_lead_forms_router, prefix="/api/public/forms", tags=["Public Forms"])
 app.include_router(portal_router, prefix="/api/portal", tags=["Portal"])

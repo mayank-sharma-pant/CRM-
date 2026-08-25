@@ -11,6 +11,7 @@ from app.models.core.enums import CompanyStatus, LeadStatus
 from app.models.sales.lead import Lead
 from app.models.sales.lead_form import LeadForm
 from app.services.sales.cadence import enroll_lead_in_default_cadence
+from app.services.sales.territory import assign_lead_by_territory
 from app.services.sales.workflow import run_workflows
 from app.utils.rate_limit import public_form_limiter
 
@@ -97,6 +98,8 @@ def submit_public_form(slug: str, payload: PublicSubmit, request: Request, db: S
         team_id=form.default_team_id,
     )
     db.add(lead)
+    db.flush()
+    assign_lead_by_territory(db, lead)
     db.flush()
     enroll_lead_in_default_cadence(db, lead)
     run_workflows(db, "lead_created", lead=lead)

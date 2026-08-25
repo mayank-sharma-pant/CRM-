@@ -21,6 +21,7 @@ Last updated: **26 Aug 2026**. Status is from code + this file’s progress logs
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
 | **5 — Paid add-ons** | ✅ **DONE (code)** | **5.1–5.10 DONE.** |
 | **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** |
+| **7 — Trial defense** | ⏳ **PENDING** | **7.1–7.12.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Resume **7.1**. |
 
 ### Phase 4 checklist
 
@@ -85,7 +86,28 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **6.12** Brand drift | ✅ DONE |
 | **6.20** Alembic two-heads | ✅ DONE |
 
-**Resume next:** Numbered phases 0–6 are done in code. Next is production verify/deploy (roadmap §8), not another 5.x item.
+### Phase 7 checklist — trial defense (HubSpot / Zoho / Pipedrive week-one)
+
+Thin edges after 0–6. Not Marketing Hub / Desk. Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md); index plan: [`superpowers/plans/2026-08-26-phase7-trial-defense.md`](./superpowers/plans/2026-08-26-phase7-trial-defense.md). Spec + plan per item before code.
+
+| Item | Why they still win the trial | Status |
+|------|------------------------------|--------|
+| **7.1** Email open / click tracking | HubSpot Free wedge | ⏳ PENDING |
+| **7.2** Meeting booking + inbound calendar | HubSpot meetings; 6.2 is CRM→calendar only | ⏳ PENDING |
+| **7.3** Store-listed mobile | Apps in stores; 6.8 is code + STORE_RELEASE.md | ⏳ PENDING |
+| **7.4** Hindi UI (sales loop) | Zoho India expectation | ⏳ PENDING |
+| **7.5** Live Tally sync | 5.4 is a stub | ⏳ PENDING |
+| **7.6** Live GST IRN (IRP/NIC) | 6.16 is a hash stub | ⏳ PENDING |
+| **7.7** Price books | 4.1 products, no books | ⏳ PENDING |
+| **7.8** Next-activity nag (mandatory + last-touch rotting + due email) | Pipedrive | ⏳ PENDING |
+| **7.9** Quote → sales order → invoice | Zoho money chain | ⏳ PENDING |
+| **7.10** Deal / discount approvals | Zoho process; purchase approvals only today | ⏳ PENDING |
+| **7.11** Import undo + clients/deals CSV | 3.6 is leads-only | ⏳ PENDING |
+| **7.12** More report types + scheduled email | 3.4 is one type, no schedule | ⏳ PENDING |
+
+**Out of Phase 7 (roadmap §7):** Marketing Hub, Zoho Desk, Salesforce objects, two-way live chat, layouts designer.
+
+**Resume next:** **7.1** email tracking. Production verify of 0–6 remains a deploy gate (roadmap §8), in parallel with 7.x.
 
 ---
 
@@ -261,6 +283,7 @@ Phases 3 and 4 were pulled ahead of the original “only after revenue / trial a
 - **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
 - **Phase 5** — ✅ **DONE (code):** 5.1–5.10 logged below.
 - **Phase 6** — ✅ **DONE (code):** **6.1–6.20**.
+- **Phase 7** — ⏳ **PENDING:** **7.1–7.12** (trial defense). Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
 
 ### Phase 3.1 — TOTP 2FA — DONE
 
@@ -750,6 +773,66 @@ campaigns. Spec:
 
 ---
 
+## Phase 7 — Trial defense (thin edges vs HubSpot / Zoho / Pipedrive)
+
+**Status: ⏳ PENDING.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md); index plan: [`superpowers/plans/2026-08-26-phase7-trial-defense.md`](./superpowers/plans/2026-08-26-phase7-trial-defense.md).
+
+Phases 0–6 are in code. This phase closes **first-week trial** gaps. It does **not** clone HubSpot Marketing Hub or Zoho Desk.
+
+**Intent: build 7.1–7.12 in order.** Spec + plan per item (same as 6.x). Live Tally/NIC fail closed without credentials.
+
+### Phase 7.1 — Email open / click tracking — PENDING
+
+Pixel + wrapped links on `deliver_and_log`. Public hit endpoint. Counts on `email_logs`. Attachments stay out.
+
+### Phase 7.2 — Meeting booking + inbound calendar — PENDING
+
+Public book URL → `meetings` row. Pull Google/Outlook into CRM (6.2 residual).
+
+### Phase 7.3 — Store-listed mobile — PENDING
+
+`flutter_app/store/STORE_RELEASE.md`; android/ios from `flutter create`; listing copy. Secrets not in git. 6.8 MFA path already exists.
+
+### Phase 7.4 — Hindi UI — PENDING
+
+Sales loop (leads, deals, invoices, quotes). Not 28 locales.
+
+### Phase 7.5 — Live Tally — PENDING
+
+Real adapter when configured; 5.4 stub remains the offline/test path.
+
+### Phase 7.6 — Live GST IRN — PENDING
+
+IRP/NIC when GSTINs + creds exist; no fake registered IRN.
+
+### Phase 7.7 — Price books — PENDING
+
+Named books; quote/invoice lines can use a book price.
+
+### Phase 7.8 — Next-activity nag — PENDING
+
+Open deal needs a next activity; rotting from last timeline touch; `due_today` email.
+
+### Phase 7.9 — Quote → sales order → invoice — PENDING
+
+Accepted quote can mint SO; SO → invoice.
+
+### Phase 7.10 — Deal / discount approvals — PENDING
+
+Threshold → pending until admin/MD approve.
+
+### Phase 7.11 — Import undo + clients/deals CSV — PENDING
+
+Mapper beyond leads; last-batch undo.
+
+### Phase 7.12 — Reports + schedule — PENDING
+
+Deals + GST invoice reports; scheduled CSV email to admins.
+
+**Phase 7 done when:** tracked open visible; public booking writes a meeting; store build path documented/shippable; Hindi on sales UI; Tally/IRN live when configured; price book; deal nag; quote→SO→invoice; import undo; scheduled report.
+
+---
+
 ## Cross-cutting cleanups (do alongside, not as a phase)
 
 From roadmap §6 — also tracked as **6.11**, **6.12**, and backend debris:
@@ -763,11 +846,12 @@ From roadmap §6 — also tracked as **6.11**, **6.12**, and backend debris:
 ## Sequencing summary
 
 ```
-Phase 0–4 ✅ (code)  →  Phase 6 (competitor parity) ✅ (code)  →  Phase 5 (add-ons) ✅ (code)
+Phase 0–4 ✅ (code)  →  Phase 6 ✅ (code)  →  Phase 5 ✅ (code)  →  Phase 7 (trial defense) ⏳
 ```
 
 **Verification checkpoints (roadmap §11):**
 - Phase 0: tenancy tests green. ✅ (RLS = **6.10** done in code).
 - Phase 1: payment + seat limit. ✅
 - Phase 2–4: sales loop + Standard + Professional extras. ✅ (code)
-- **Next:** none on the numbered roadmap; Phase 5 add-ons are done in code.
+- Phase 5–6: add-ons + competitor parity. ✅ (code)
+- **Next:** **7.1** email tracking. Phase 7 done when the spec’s “Done when” list holds.

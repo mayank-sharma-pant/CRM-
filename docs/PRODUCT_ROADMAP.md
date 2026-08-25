@@ -359,6 +359,31 @@ Build only if a trial user asks twice or a lost deal cites it:
 - Custom modules
 - Marketplace
 
+### Phase 6 — Competitor parity (done in code)
+
+See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) 6.1–6.20 (email/calendar, Exotel, timeline, portal pay, WhatsApp inbound, RLS, etc.).
+
+### Phase 7 — Trial defense (current)
+
+Close first-week gaps vs HubSpot Free / Zoho CRM / Pipedrive. **Do not** clone Marketing Hub or Zoho Desk.
+
+1. Email open/click tracking
+2. Public meeting booking + inbound calendar
+3. Store-listed mobile (Play/App)
+4. Hindi on the sales loop
+5. Live Tally (5.4 is stub)
+6. Live GST IRN (6.16 is stub)
+7. Price books
+8. Next-activity nag (mandatory + last-touch rotting + due email)
+9. Quote → sales order → invoice
+10. Deal / discount approvals
+11. Import undo + clients/deals CSV
+12. More reports + scheduled email
+
+**Done when:** a trialist sees a tracked open, books a visit from a link, can use a store/sideload sales app, switches Hindi, syncs Tally/IRN when configured, prices from a book, gets nagged on a deal with no next step, and runs quote→order→invoice.
+
+Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
+
 ---
 
 ## 9. Suggested file map (when we implement)
@@ -394,6 +419,7 @@ Do not implement until the current phase is chosen. This is so work does not wan
 - Phase 0: tenancy tests green on all resources.
 - Phase 1: first test-mode payment and a failed 11th seat.
 - Phase 2: one design-partner company using web form → paid invoice for 30 days.
+- Phase 7: tracked email open, public booking, Hindi sales UI, live Tally/IRN when creds exist, deal next-activity nag.
 - Do not add stock/HR/AI features until that loop exists.
 
 ---
@@ -405,4 +431,5 @@ Do not implement until the current phase is chosen. This is so work does not wan
 - Clone Pipedrive’s deal+activity model for the sales core: **yes** (objects + UX, not their brand).
 - Fake testimonials and unshipped landing claims: **remove before any public launch**.
 - India vs global payments: **not decided** — pick Razorpay vs Stripe before Phase 1 (wrong pick wastes a week, not a quarter).
-- Flutter: **after** web loop converts.
+- Flutter: **after** web loop converts. Store listing is Phase **7.3**.
+- Phase 7: trial defense (tracking, booking, Hindi, live India adapters). **Not** a HubSpot/Zoho suite clone.

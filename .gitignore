@@ -1,5 +1,6 @@
 # Local scratch (do not commit)
 tmp/
+.worktrees/
 
 # Dependencies
 node_modules/

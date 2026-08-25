@@ -5,6 +5,7 @@ from sqlalchemy import func
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime, timezone
+from decimal import Decimal
 import uuid
 
 from app.database import get_db
@@ -17,6 +18,7 @@ from app.models.core.company_settings import CompanySettings
 from app.models.ops.stock_item import StockItem
 from app.utils.notify import notify_role_users
 from app.services.finance.gst import compute_gst
+from app.services.sales.product_lines import deduct_stock, resolve_sale_lines
 
 router = APIRouter()
 
@@ -27,6 +29,7 @@ class InvoiceItemCreate(BaseModel):
     unit_price: float = 0.0
     stock_item_id: Optional[int] = None
     hsn: Optional[str] = None
+    product_id: Optional[int] = None
 
 
 class InvoiceCreate(BaseModel):
@@ -49,6 +52,35 @@ def _stock_link_for_role(role: str) -> str:
         "sales": "/sales/stock",
     }
     return role_map.get(role, "/purchase/stock")
+
+
+def _notify_low_stock(db: Session, company_id: int, low_stock_alert_ids: set[int]) -> None:
+    if not low_stock_alert_ids:
+        return
+    stock_rows = (
+        db.query(StockItem)
+        .filter(StockItem.company_id == company_id, StockItem.id.in_(low_stock_alert_ids))
+        .all()
+    )
+    stock_map = {s.id: s for s in stock_rows}
+    for stock_id in low_stock_alert_ids:
+        stock_item = stock_map.get(stock_id)
+        if stock_item is None:
+            continue
+        for target_role in ("purchase", "md", "manager", "sales"):
+            notify_role_users(
+                db,
+                company_id=company_id,
+                role=target_role,
+                title=f"Low Stock: {stock_item.name}",
+                message=f"Only {stock_item.quantity} {stock_item.unit}(s) remaining.",
+                type="warning",
+                link=_stock_link_for_role(target_role),
+                category="inventory",
+                dedupe_window_seconds=6 * 60 * 60,
+                dedupe_match_message=False,
+                skip_if_unread_duplicate=True,
+            )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -114,46 +146,27 @@ def create_invoice(
         import uuid
         invoice_number = f"DRAFT-{uuid.uuid4().hex[:8].upper()}"
 
-    subtotal = 0.0
-    for it in body.items:
-        total = (it.quantity or 0) * (it.unit_price or 0)
-        subtotal += total
-
-    # Optional stock deduction map when stock_item_id is provided on line items
-    requested_stock_qty: dict[int, int] = {}
-    for it in body.items:
-        if it.stock_item_id is not None:
-            requested_stock_qty[it.stock_item_id] = requested_stock_qty.get(it.stock_item_id, 0) + int(it.quantity or 0)
-
-    stock_map: dict[int, StockItem] = {}
-    if requested_stock_qty:
-        stock_rows = (
-            apply_company_scope(db.query(StockItem), StockItem, current_user)
-            .filter(StockItem.id.in_(requested_stock_qty.keys()))
-            .with_for_update()
-            .all()
+    try:
+        lines = resolve_sale_lines(
+            db,
+            company_id=company_id,
+            items=body.items,
+            company_tax_rate=tax_rate,
         )
-        stock_map = {s.id: s for s in stock_rows}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
-        missing_ids = [sid for sid in requested_stock_qty.keys() if sid not in stock_map]
-        if missing_ids:
-            raise HTTPException(status_code=404, detail=f"Stock item(s) not found: {missing_ids}")
+    subtotal = float(sum((line.line_amount for line in lines), Decimal("0")))
+    header_tax = body.tax if body.tax is not None else sum(line.tax for line in lines)
 
-        for sid, qty in requested_stock_qty.items():
-            if int(stock_map[sid].quantity or 0) < qty:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Insufficient stock for '{stock_map[sid].name}'. Available: {stock_map[sid].quantity}, requested: {qty}",
-                )
-
-    # Use frontend-provided tax/discount if present, else auto-calc from company settings
+    # Use frontend-provided tax/discount if present, else sum of per-line taxes
     try:
         gst = compute_gst(
             subtotal=subtotal,
             rate_percent=tax_rate,
             seller_gstin=getattr(settings, "gst_number", None) if settings else None,
             buyer_gstin=getattr(client, "gstin", None),
-            tax_override=body.tax,
+            tax_override=header_tax,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -192,45 +205,22 @@ def create_invoice(
     db.add(invoice)
     db.flush()
 
-    low_stock_alert_ids: set[int] = set()
-
-    for it in body.items:
-        total = (it.quantity or 0) * (it.unit_price or 0)
-        if it.stock_item_id is not None:
-            stock_item = stock_map[it.stock_item_id]
-            stock_item.quantity = int(stock_item.quantity or 0) - int(it.quantity or 0)
-            stock_item.updated_by_id = current_user.id
-            if int(stock_item.quantity or 0) <= int(stock_item.reorder_level or 0):
-                low_stock_alert_ids.add(stock_item.id)
-
+    for line in lines:
         db.add(InvoiceItem(
             company_id=company_id,
             invoice_id=invoice.id,
-            description=it.description,
-            quantity=it.quantity or 1,
-            unit_price=it.unit_price or 0.0,
-            total=total,
-            hsn=(it.hsn or "").strip() or None,
+            description=line.description,
+            quantity=line.quantity,
+            unit_price=line.unit_price,
+            total=line.line_amount,
+            hsn=line.hsn,
+            product_id=line.product_id,
+            tax_rate=line.tax_rate,
+            tax=line.tax,
         ))
 
-    for stock_id in low_stock_alert_ids:
-        stock_item = stock_map.get(stock_id)
-        if stock_item is None:
-            continue
-        for target_role in ("purchase", "md", "manager", "sales"):
-            notify_role_users(
-                db,
-                company_id=company_id,
-                role=target_role,
-                title=f"Low Stock: {stock_item.name}",
-                message=f"Only {stock_item.quantity} {stock_item.unit}(s) remaining.",
-                type="warning",
-                link=_stock_link_for_role(target_role),
-                category="inventory",
-                dedupe_window_seconds=6 * 60 * 60,
-                dedupe_match_message=False,
-                skip_if_unread_duplicate=True,
-            )
+    low_stock_alert_ids = deduct_stock(db, current_user, lines)
+    _notify_low_stock(db, company_id, low_stock_alert_ids)
 
     db.commit()
     db.refresh(invoice)
@@ -412,6 +402,9 @@ def get_invoice(
                 "unit_price": item.unit_price,
                 "total": item.total,
                 "hsn": item.hsn,
+                "product_id": item.product_id,
+                "tax_rate": item.tax_rate,
+                "tax": item.tax,
             } for item in items
         ]
     }

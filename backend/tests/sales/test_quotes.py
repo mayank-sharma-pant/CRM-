@@ -34,7 +34,9 @@ def test_create_and_accept_quote_creates_invoice(client, db):
     assert created.status_code == 201, created.text
     body = created.json()
     assert body["status"] == "draft"
-    assert body["total"] == "15000.00"
+    assert body["subtotal"] == "15000.00"
+    assert body["tax"] == "2700.00"
+    assert body["total"] == "17700.00"
     assert body["invoice_id"] is None
 
     accepted = client.post(f"/api/quotes/{body['id']}/accept")
@@ -45,7 +47,7 @@ def test_create_and_accept_quote_creates_invoice(client, db):
 
     invoice = db.query(Invoice).filter(Invoice.id == out["invoice_id"]).one()
     assert invoice.client_id == customer.id
-    assert str(invoice.total) == "15000.00"
+    assert str(invoice.total) == "17700.00"
 
     again = client.post(f"/api/quotes/{body['id']}/accept")
     assert again.status_code == 400

@@ -61,6 +61,9 @@ function pick(obj, ...keys) {
 function summarizeToolResult(actionName, params, result) {
   if (result == null || typeof result !== 'object') return null;
 
+  if (result.status === 'dry_run') {
+    return { lines: ['Preview only — this change was not saved.'] };
+  }
   if (result.status === 'skipped' || result.ok === false) return null;
 
   const p = params && typeof params === 'object' ? params : {};
@@ -338,6 +341,14 @@ function toolOutcome(result) {
       hint: typeof result.reason === 'string' ? result.reason.replace(/_/g, ' ') : null,
     };
   }
+  if (result.status === 'dry_run') {
+    return {
+      tone: 'preview',
+      badge: 'preview',
+      headline: 'Not applied — dry run.',
+      hint: null,
+    };
+  }
   if (result.ok === false) {
     return {
       tone: 'error',
@@ -386,10 +397,11 @@ function ToolRunBlock({ action }) {
   const { action: name, params, result } = action;
   const outcome = toolOutcome(result);
   const skipped = outcome.tone === 'warning';
+  const preview = outcome.tone === 'preview';
   const issue = outcome.tone === 'error';
   const borderClass = issue
     ? 'border-red-500/35 bg-red-500/5'
-    : skipped
+    : skipped || preview
       ? 'border-amber-500/30 bg-amber-500/5'
       : 'border-border bg-surface/80';
 
@@ -412,7 +424,7 @@ function ToolRunBlock({ action }) {
             className={`text-[10px] font-semibold uppercase ml-auto ${
               issue
                 ? 'text-red-600 dark:text-red-400'
-                : skipped
+                : skipped || preview
                   ? 'text-amber-600 dark:text-amber-400'
                   : 'text-emerald-600 dark:text-emerald-400'
             }`}
@@ -488,6 +500,7 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
   const [paramsMeta, setParamsMeta] = useState(null);
   const [aiParams, setAiParams] = useState(DEFAULT_PARAMS);
   const [loading, setLoading] = useState(false);
+  const [dryRun, setDryRun] = useState(false);
   const [agentPhase, setAgentPhase] = useState(0);
   const [error, setError] = useState(null);
   const scrollRef = useRef(null);
@@ -580,6 +593,7 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
         teamRaw != null && String(teamRaw).trim() !== '' ? Number.parseInt(String(teamRaw), 10) : null;
       const payload = {
         message: msg,
+        dry_run: dryRun,
         context: {
           role: user?.role || null,
           user_id: user?.id || null,
@@ -721,6 +735,15 @@ export default function AICompanyAssistant({ title = 'Company AI Assistant' }) {
               Status updates appear in the panel directly above. Scroll the transcript if you need to re-read earlier turns.
             </p>
           ) : null}
+          <label className="mb-2 flex items-center gap-2 text-xs text-secondary cursor-pointer w-fit">
+            <input
+              type="checkbox"
+              checked={dryRun}
+              onChange={(e) => setDryRun(e.target.checked)}
+              className="rounded border-border"
+            />
+            Preview only (do not apply changes)
+          </label>
           <div className="flex gap-2">
             <textarea
               value={input}

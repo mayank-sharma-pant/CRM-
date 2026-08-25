@@ -650,6 +650,10 @@ def _lines_for_tool_feedback(action: str, result: object) -> list[str]:
         lines.append(f"{action} was skipped ({friendly}).")
         return lines
 
+    if result.get("status") == "dry_run":
+        lines.append(f"Preview only (not applied): {action}.")
+        return lines
+
     if result.get("ok") is False:
         msg = (result.get("summary") or result.get("message") or "").strip()
         sug = (result.get("suggestion") or "").strip()
@@ -1557,6 +1561,13 @@ async def company_assistant(
             action_inputs.append((idx, action, normalized))
 
         for idx, action, normalized in action_inputs:
+            if body.dry_run and action not in READ_ONLY_ACTIONS:
+                executed_map[idx] = AIExecutedAction(
+                    action=action,
+                    params=normalized,
+                    result={"status": "dry_run", "params": normalized},
+                )
+                continue
             try:
                 result = _execute_action(db, current_user, action, normalized, body.context)
             except _UnsupportedActionError:
@@ -1616,6 +1627,7 @@ async def company_assistant(
             executed_actions=executed,
             used_params=ai_params,
             reasoning=reasoning,
+            dry_run=bool(body.dry_run),
         )
     except HTTPException as exc:
         conversation.status = "failed"

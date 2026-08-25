@@ -22,6 +22,7 @@ class AIChatRequest(BaseModel):
     context: Optional[Dict[str, Any]] = None
     # Optional per-request parameter overrides (validated server-side).
     ai_params: Optional[AIRequestParams] = None
+    dry_run: bool = False
 
 
 class AIExecutedAction(BaseModel):
@@ -36,6 +37,7 @@ class AIChatResponse(BaseModel):
     used_params: Optional[AIResolvedParams] = None
     # Optional model chain-of-thought (also persisted for idempotent replays).
     reasoning: Optional[str] = None
+    dry_run: bool = False
 
 
 class AIParamsResponse(BaseModel):

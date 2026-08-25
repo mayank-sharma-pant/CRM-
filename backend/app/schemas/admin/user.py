@@ -52,10 +52,14 @@ class LoginUserInfo(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    access_token: str
+    access_token: Optional[str] = None
     refresh_token: Optional[str] = None
     token_type: str = "bearer"
-    user: LoginUserInfo
+    user: Optional[LoginUserInfo] = None
+    mfa_required: Optional[bool] = None
+    mfa_token: Optional[str] = None
+    mfa_setup_required: Optional[bool] = None
+    setup_token: Optional[str] = None
 
 
 class MeResponse(BaseModel):

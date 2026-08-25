@@ -26,8 +26,11 @@ from app.utils.security import (
     hash_refresh_token,
 )
 from app.models.core.refresh_token import RefreshToken
-from app.utils.dependencies import get_current_user
+from app.models.core.mfa_recovery_code import MfaRecoveryCode
+from app.utils.dependencies import get_current_user, is_platform_admin
 from app.utils.email_service import send_otp_email
+from app.utils import totp
+from app.utils.totp_crypto import decrypt_secret, hash_recovery_code
 from sqlalchemy import func as sa_func
 from app.models.core.invite import Invite, InviteStatus
 from app.models.core.team import Team
@@ -123,6 +126,24 @@ class OTPLoginRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
+
+
+def _mfa_challenge_or_none(db: Session, user: User) -> Optional[dict]:
+    """Return a challenge dict if this login must not mint a session yet, else None."""
+    if is_platform_admin(user):
+        return None
+    if user.totp_enabled:
+        token = create_access_token(
+            data={"sub": user.email}, expires_delta=timedelta(minutes=5), audience="mfa"
+        )
+        return {"mfa_required": True, "mfa_token": token}
+    company = db.query(Company).filter(Company.id == user.company_id).first() if user.company_id else None
+    if company and company.require_2fa:
+        token = create_access_token(
+            data={"sub": user.email}, expires_delta=timedelta(minutes=15), audience="mfa_setup"
+        )
+        return {"mfa_setup_required": True, "setup_token": token}
+    return None
 
 
 def _check_company_status(user: User, db: Session) -> None:
@@ -282,6 +303,10 @@ def login(request: Request, response: Response, form_data: OAuth2PasswordRequest
     user.last_active_at = datetime.now(timezone.utc)
     db.commit()
 
+    challenge = _mfa_challenge_or_none(db, user)
+    if challenge is not None:
+        return challenge
+
     access_token = create_access_token(data={"sub": user.email, "role": user.role})
     _set_auth_cookie(response, access_token)
     refresh_token = _issue_refresh_token(db, user)
@@ -360,6 +385,10 @@ def login_otp(request: Request, response: Response, payload: OTPLoginRequest, db
     user.last_active_at = datetime.now(timezone.utc)
     db.query(OTPCode).filter(OTPCode.email == payload.email.lower()).delete()
     db.commit()
+
+    challenge = _mfa_challenge_or_none(db, user)
+    if challenge is not None:
+        return challenge
 
     access_token = create_access_token(data={"sub": user.email, "role": user.role})
     _set_auth_cookie(response, access_token)

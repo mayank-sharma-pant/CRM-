@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
@@ -111,3 +111,51 @@ def regenerate(request: Request, body: PasswordBody, db: Session = Depends(get_d
     codes = _issue_recovery_codes(db, user)
     db.commit()
     return {"recovery_codes": codes}
+
+
+class VerifyBody(BaseModel):
+    mfa_token: str
+    code: str
+
+
+@router.post("/verify")
+def verify(body: VerifyBody, request: Request, response: Response, db: Session = Depends(get_db)):
+    from app.routers.auth.auth import _issue_refresh_token, _set_auth_cookie, _set_refresh_cookie
+    from app.utils.security import decode_access_token, create_access_token
+    from app.utils.rate_limit import auth_limiter
+
+    payload = decode_access_token(body.mfa_token, audience="mfa")
+    if not payload or not payload.get("sub"):
+        raise HTTPException(status_code=401, detail="Invalid or expired challenge")
+    email = payload["sub"].lower()
+    auth_limiter.check(request, f"verify_2fa:{email}", max_attempts=10, window_seconds=600)
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not user.totp_enabled or not user.totp_secret:
+        raise HTTPException(status_code=401, detail="Invalid or expired challenge")
+
+    ok = totp.verify_totp(decrypt_secret(user.totp_secret), body.code)
+    if not ok:
+        row = db.query(MfaRecoveryCode).filter(
+            MfaRecoveryCode.user_id == user.id,
+            MfaRecoveryCode.code_hash == hash_recovery_code(body.code),
+            MfaRecoveryCode.used_at.is_(None),
+        ).first()
+        if row:
+            row.used_at = datetime.now(timezone.utc)
+            ok = True
+    if not ok:
+        db.commit()
+        raise HTTPException(status_code=401, detail="Invalid code")
+
+    user.last_active_at = datetime.now(timezone.utc)
+    access_token = create_access_token(data={"sub": user.email, "role": user.role})
+    _set_auth_cookie(response, access_token)
+    refresh_token = _issue_refresh_token(db, user)
+    db.commit()
+    _set_refresh_cookie(response, refresh_token)
+    return {
+        "access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer",
+        "user": {"id": user.id, "email": user.email, "full_name": user.full_name,
+                 "role": user.role, "company_id": user.company_id},
+    }

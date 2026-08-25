@@ -275,6 +275,14 @@ Spec: [`superpowers/specs/2026-08-25-phase4-customer-portal-design.md`](./superp
 
 - **Residuals:** no expiry, no email of link, no accept/pay. Rate limiting: `portal_limiter` is wired on public portal routes at **60 requests / 60 seconds per IP**.
 
+### Phase 4.4 — Forecasting (quota vs pipeline) — DONE (code)
+
+Per-user monthly quotas compared to closed-won and weighted open pipeline. Spec: [`superpowers/specs/2026-08-25-phase4-forecasting-design.md`](./superpowers/specs/2026-08-25-phase4-forecasting-design.md); plan: [`superpowers/plans/2026-08-25-phase4-forecasting.md`](./superpowers/plans/2026-08-25-phase4-forecasting.md). UI: `/reports/forecast` (sidebar Forecast link for admin/md/manager/sales).
+
+- **Verification:** `test_forecasting_schema.py`, `test_forecasting_service.py`, `test_forecasting_api.py`, `test_forecasting_cross_tenant.py`, `test_deals_board.py` (`test_board_weighted_forecast_arithmetic`).
+- **Deploy:** `create_missing_tables.py` / `create_all` for `sales_quotas` — **run on deploy.**
+- **Residuals:** UTC calendar months only (no company timezone). Unassigned deals (`assigned_to_id IS NULL`) excluded from per-user metrics. No forecast categories, team quotas, or quarterly/annual periods. Deals board UI unchanged (pipeline-level forecast only).
+
 ---
 
 ## Cross-cutting cleanups (do alongside, not as a phase)

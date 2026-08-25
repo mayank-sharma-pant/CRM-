@@ -79,6 +79,7 @@ const ROLE_NAVIGATION = {
         { name: 'Tasks', href: '/sales/tasks', icon: 'CheckSquare' },
         { name: 'Follow-ups', href: '/sales/follow-ups', icon: 'Calendar' },
         { name: 'Performance', href: '/sales/performance', icon: 'BarChart' },
+        { name: 'Forecast', href: '/reports/forecast', icon: 'TrendingUp' },
         { name: 'AI Assistant', href: '/sales/assistant', icon: 'Sparkles' },
     ],
     manager: [
@@ -94,6 +95,7 @@ const ROLE_NAVIGATION = {
         { name: 'Tasks', href: '/manager/tasks', icon: 'CheckSquare' },
         { name: 'Reports', href: '/manager/reports', icon: 'PieChart' },
         { name: 'Saved reports', href: '/reports', icon: 'BarChart3' },
+        { name: 'Forecast', href: '/reports/forecast', icon: 'TrendingUp' },
         { name: 'AI Assistant', href: '/manager/assistant', icon: 'Sparkles' },
     ],
     admin: [
@@ -104,6 +106,7 @@ const ROLE_NAVIGATION = {
         { name: 'Audit Logs', href: '/admin/audit', icon: 'FileText' },
         { name: 'Products', href: '/admin/products', icon: 'ShoppingBag' },
         { name: 'Saved reports', href: '/reports', icon: 'BarChart3' },
+        { name: 'Forecast', href: '/reports/forecast', icon: 'TrendingUp' },
         { name: 'AI Assistant', href: '/admin/assistant', icon: 'Sparkles' },
     ],
     md: [
@@ -117,6 +120,7 @@ const ROLE_NAVIGATION = {
         { name: 'Products', href: '/md/products', icon: 'ShoppingBag' },
         { name: 'Invoices', href: '/md/invoices', icon: 'Receipt' },
         { name: 'Saved reports', href: '/reports', icon: 'BarChart3' },
+        { name: 'Forecast', href: '/reports/forecast', icon: 'TrendingUp' },
         { name: 'AI Assistant', href: '/md/assistant', icon: 'Sparkles' },
     ],
     purchase: [

@@ -25,6 +25,8 @@ class Lead(Base):
     linkedin_url = Column(String(500), nullable=True)
     enriched_at = Column(DateTime, nullable=True)
     enrichment_source = Column(String(32), nullable=True)
+    score = Column(Integer, nullable=True)
+    score_updated_at = Column(DateTime, nullable=True)
 
     # Ownership
     assigned_to_id = Column(Integer, ForeignKey("users.id"), nullable=True)

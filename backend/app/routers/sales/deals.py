@@ -22,6 +22,9 @@ from app.models.sales.pipeline import Pipeline, PipelineStage
 from app.services.sales.pipeline_seed import attach_default_stages, ensure_default_pipeline
 from app.services.sales.custom_fields import get_values_map, set_values
 from app.services.sales.deal_views import apply_deal_view
+from app.services.scoring.engine import score_entity
+from app.services.scoring.recompute import active_rules, recompute_one
+from app.services.predictions.convert import predict_deal
 from app.services.sales.blueprint import (
     ALLOWED_REQUIRED_FIELDS,
     BlueprintError,
@@ -141,6 +144,7 @@ def _serialize_deal(deal: Deal, stage: PipelineStage, db: Session | None = None)
         "client_id": deal.client_id,
         "assigned_to_id": deal.assigned_to_id,
         "source": deal.source,
+        "score": deal.score,
         "created_at": deal.created_at.isoformat() if deal.created_at else None,
     }
     if db is not None:
@@ -203,6 +207,8 @@ def create_deal(payload: DealCreate, db: Session = Depends(get_db),
                  after=json.dumps({"amount": str(deal.amount), "stage_id": stage_id}))
     db.commit()
     db.refresh(deal)
+    recompute_one(db, deal, "deal")
+    db.commit()
     return _serialize_deal(deal, stage)
 
 
@@ -212,6 +218,8 @@ def list_deals(db: Session = Depends(get_db), current_user: User = Depends(get_c
                pipeline_id: Optional[int] = Query(None), stage_id: Optional[int] = Query(None),
                assigned_to_id: Optional[int] = Query(None),
                view: Optional[str] = Query(None),
+               sort: Optional[str] = Query(None),
+               min_score: Optional[int] = Query(None),
                skip: int = 0, limit: int = 100):
     query = apply_company_scope(db.query(Deal), Deal, current_user)
     query = _apply_role_scope(db, query, current_user, active_team_id)
@@ -222,9 +230,13 @@ def list_deals(db: Session = Depends(get_db), current_user: User = Depends(get_c
     if assigned_to_id is not None:
         query = query.filter(Deal.assigned_to_id == assigned_to_id)
     query = apply_deal_view(query, view, current_user.id)
+    if min_score is not None:
+        query = query.filter(Deal.score >= min_score)
+    from sqlalchemy import func as _sqlfunc
+    order = _sqlfunc.coalesce(Deal.score, 0).desc() if sort == "score" else Deal.created_at.desc()
 
     total = query.count()
-    deals = query.order_by(Deal.created_at.desc()).offset(skip).limit(limit).all()
+    deals = query.order_by(order).offset(skip).limit(limit).all()
     stage_ids = {d.stage_id for d in deals}
     stage_map = {
         s.id: s for s in apply_company_scope(db.query(PipelineStage), PipelineStage, current_user)
@@ -247,6 +259,31 @@ def get_deal(deal_id: int, db: Session = Depends(get_db),
     _ensure_deal_row_access(deal, current_user, active_team_id)
     stage = _get_stage(db, current_user, deal.stage_id)
     return _serialize_deal(deal, stage, db)
+
+
+@router.get("/{deal_id:int}/score")
+def get_deal_score(deal_id: int, db: Session = Depends(get_db),
+                   current_user: User = Depends(get_current_user)):
+    deal = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.id == deal_id).first()
+    if deal is None:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    ensure_company_access(deal, current_user)
+    result = score_entity(deal, active_rules(db, deal.company_id, "deal"))
+    return {
+        "score": result["total"],
+        "score_updated_at": deal.score_updated_at.isoformat() if deal.score_updated_at else None,
+        "breakdown": result["breakdown"],
+    }
+
+
+@router.get("/{deal_id:int}/prediction")
+def get_deal_prediction(deal_id: int, db: Session = Depends(get_db),
+                        current_user: User = Depends(get_current_user)):
+    deal = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.id == deal_id).first()
+    if deal is None:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    ensure_company_access(deal, current_user)
+    return predict_deal(db, deal)
 
 
 @router.patch("/{deal_id:int}")
@@ -276,6 +313,7 @@ def update_deal(deal_id: int, payload: DealUpdate, db: Session = Depends(get_db)
                  entity_id=deal.id, entity_name=deal.title, after=json.dumps(audit_after, default=str))
     if custom_fields is not None:
         set_values(db, current_user.company_id, "deal", deal.id, custom_fields)
+    recompute_one(db, deal, "deal")
     db.commit()
     db.refresh(deal)
     stage = _get_stage(db, current_user, deal.stage_id)
@@ -340,6 +378,7 @@ def move_deal_stage(deal_id: int, payload: DealStageUpdate, db: Session = Depend
     log_activity(db, user=current_user, action="stage_changed", entity_type="deal",
                  entity_id=deal.id, entity_name=deal.title,
                  before=json.dumps({"stage_id": before_stage}), after=json.dumps({"stage_id": stage.id}))
+    recompute_one(db, deal, "deal")
     db.commit()
     db.refresh(deal)
     from app.services.sales.outbound_webhooks import emit_event

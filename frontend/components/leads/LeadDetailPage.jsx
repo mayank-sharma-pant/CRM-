@@ -33,6 +33,7 @@ import LeadTagsPanel from './LeadTagsPanel';
 import LeadDuplicatesPanel from './LeadDuplicatesPanel';
 import MeetingCallPanel from '../activity/MeetingCallPanel';
 import ActivityFeed from '../activity/ActivityFeed';
+import ScoreBadge from '../ScoreBadge';
 
 export default function LeadDetailPage() {
   const router = useRouter();
@@ -226,6 +227,7 @@ export default function LeadDetailPage() {
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 uppercase tracking-wide border border-blue-100 dark:border-blue-800/50">
                   {lead.status === 'Converted' ? 'Client' : lead.status}
                 </span>
+                <ScoreBadge entity="leads" id={id} />
               </div>
               <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-1">

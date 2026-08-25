@@ -23,6 +23,8 @@ from app.services.sales.merge import find_duplicate_leads, merge_leads
 from app.services.sales.recycle import restore_lead, get_trashed_lead, soft_delete_lead
 from app.services.sales.tags import list_tag_names, set_lead_tags
 from app.services.sales.enrichment import apply_lead as enrich_lead
+from app.services.scoring.engine import score_entity
+from app.services.scoring.recompute import active_rules, recompute_one
 from app.utils.dependencies import require_admin_or_md
 from pydantic import BaseModel
 from app.utils.helpers import normalize_email, normalize_phone
@@ -339,6 +341,8 @@ def get_sales_dashboard(
 def list_leads(
     status: Optional[str] = Query(None, description="Filter by status"),
     search: Optional[str] = Query(None, description="Search by name, email, company"),
+    sort: Optional[str] = Query(None, description="sort=score to order by score desc"),
+    min_score: Optional[int] = Query(None, description="Only leads with score >= this"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
@@ -387,8 +391,15 @@ def list_leads(
             (Lead.email.ilike(search_pattern)) |
             (Lead.company.ilike(search_pattern))
         )
+    if min_score is not None:
+        query = query.filter(Lead.score >= min_score)
+    if sort == "score":
+        from sqlalchemy import func as _sqlfunc
+        order = _sqlfunc.coalesce(Lead.score, 0).desc()
+    else:
+        order = Lead.created_at.desc()
     total = query.count()
-    leads = query.order_by(Lead.created_at.desc()).offset(skip).limit(limit).all()
+    leads = query.order_by(order).offset(skip).limit(limit).all()
 
     assignee_ids = {l.assigned_to_id for l in leads if l.assigned_to_id}
     assignee_map = {}
@@ -412,7 +423,8 @@ def list_leads(
                 "created_at": lead.created_at.strftime("%Y-%m-%d") if lead.created_at else None,
                 "last_contacted_at": lead.last_contacted_at.isoformat() if lead.last_contacted_at else None,
                 "last_response_at": lead.last_response_at.isoformat() if lead.last_response_at else None,
-                "next_task": lead.next_follow_up.isoformat() if lead.next_follow_up else None
+                "next_task": lead.next_follow_up.isoformat() if lead.next_follow_up else None,
+                "score": lead.score,
             }
             for lead in leads
         ],
@@ -626,6 +638,8 @@ def get_lead(
         "linkedin_url": lead.linkedin_url,
         "enriched_at": isoformat_utc(lead.enriched_at),
         "enrichment_source": lead.enrichment_source,
+        "score": lead.score,
+        "score_updated_at": isoformat_utc(lead.score_updated_at),
     }
 
 
@@ -662,6 +676,24 @@ def enrich_lead_route(
         "linkedin_url": lead.linkedin_url,
         "enriched_at": isoformat_utc(lead.enriched_at),
         "enrichment_source": lead.enrichment_source,
+    }
+
+
+@router.get("/{lead_id:int}/score")
+def get_lead_score(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    lead = apply_company_scope(db.query(Lead), Lead, current_user).filter(Lead.id == lead_id).first()
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    ensure_company_access(lead, current_user)
+    result = score_entity(lead, active_rules(db, lead.company_id, "lead"))
+    return {
+        "score": result["total"],
+        "score_updated_at": isoformat_utc(lead.score_updated_at),
+        "breakdown": result["breakdown"],
     }
 
 
@@ -791,7 +823,8 @@ def create_lead(
     run_workflows(db, "lead_created", lead=new_lead)
     db.commit()
     db.refresh(new_lead)
-    
+    recompute_one(db, new_lead, "lead")
+
     log_activity(db, user=current_user, action='created', entity_type='lead',
                  entity_id=new_lead.id, entity_name=new_lead.name)
     db.commit()
@@ -967,9 +1000,10 @@ def update_lead(
     if lead_data.tags is not None:
         set_lead_tags(db, current_user.company_id, lead.id, lead_data.tags)
 
+    recompute_one(db, lead, "lead")
     db.commit()
     db.refresh(lead)
-    
+
     return {
         "id": lead.id,
         "name": lead.name,

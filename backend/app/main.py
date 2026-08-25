@@ -30,6 +30,8 @@ from app.routers.sales.whatsapp import router as whatsapp_router
 from app.routers.sales.onboarding import router as onboarding_router
 from app.routers.sales.tags import router as tags_router
 from app.routers.sales.territories import router as territories_router
+from app.routers.sales.scoring import router as scoring_router
+from app.routers.sales.predictions import router as predictions_router
 from app.routers.sales.accounts import router as accounts_router
 from app.routers.sales.reminders import router as reminders_router
 from app.routers.sales.saved_filters import router as saved_filters_router
@@ -159,6 +161,8 @@ app.include_router(whatsapp_router, prefix="/api/whatsapp", tags=["WhatsApp"])
 app.include_router(onboarding_router, prefix="/api/onboarding", tags=["Onboarding"])
 app.include_router(tags_router, prefix="/api/tags", tags=["Tags"])
 app.include_router(territories_router, prefix="/api/territories", tags=["Territories"])
+app.include_router(scoring_router, prefix="/api/scoring", tags=["Scoring"])
+app.include_router(predictions_router, prefix="/api/predictions", tags=["Predictions"])
 app.include_router(accounts_router, prefix="/api/accounts", tags=["Accounts"])
 app.include_router(saved_filters_router, prefix="/api/saved-filters", tags=["Saved Filters"])
 app.include_router(outbound_webhooks_router, prefix="/api/webhooks", tags=["Outbound Webhooks"])

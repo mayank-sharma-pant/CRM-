@@ -63,6 +63,7 @@ def export_lead(db: Session, user: User, lead_id: int) -> dict:
         "website": lead.website,
         "industry": lead.industry,
         "linkedin_url": lead.linkedin_url,
+        "score": lead.score,
         "notes_field": lead.notes,
         "notes": [n.content for n in notes],
         "created_at": lead.created_at.isoformat() if lead.created_at else None,
@@ -117,6 +118,8 @@ def erase_lead(db: Session, user: User, lead_id: int) -> dict:
     lead.linkedin_url = None
     lead.enriched_at = None
     lead.enrichment_source = None
+    lead.score = None
+    lead.score_updated_at = None
     lead.notes = None
     _blank_notes(_notes_for(db, user, lead_id=lead.id))
     _log(db, user, "erase", "lead", lead.id)

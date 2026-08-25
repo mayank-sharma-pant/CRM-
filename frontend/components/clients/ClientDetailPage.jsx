@@ -32,6 +32,7 @@ import MeetingCallPanel from '../activity/MeetingCallPanel';
 import LeadEmailPanel from '../leads/LeadEmailPanel';
 import { clientsHomePath, invoicesHomePath } from '../../lib/leadsPaths';
 import { useAuth } from '../../contexts/AuthContext';
+import ChurnBadge from '../ChurnBadge';
 
 export default function ClientDetailPage() {
     const params = useParams();
@@ -172,6 +173,7 @@ export default function ClientDetailPage() {
                                 <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 uppercase tracking-wide">
                                     Client
                                 </span>
+                                <ChurnBadge id={params.id} />
                             </h1>
                             <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
                                 <Building size={12} /> {client.company}

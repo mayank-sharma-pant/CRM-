@@ -19,7 +19,7 @@ Last updated: **26 Aug 2026**. Status is from code + this file’s progress logs
 | **2 — Sales loop** | ✅ **DONE** (code) | Deals, web form, custom fields, quotes→invoice, workflows, cadence, email, tags/recycle/merge, reminders. |
 | **3 — Zoho Standard match** | ✅ **DONE** (code) | 3.1–3.9 shipped. |
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
-| **5 — Paid add-ons** | ❌ **IN PROGRESS** | **5.1 DONE.** 5.2–5.10 remain. |
+| **5 — Paid add-ons** | ❌ **IN PROGRESS** | **5.1–5.3 DONE.** 5.4–5.10 remain. |
 | **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** Phase 5 add-ons remain. |
 
 ### Phase 4 checklist
@@ -66,8 +66,8 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | Item | Status |
 |------|--------|
 | **5.1** Data enrichment | ✅ DONE |
-| **5.2** Lead / deal scoring | ❌ PENDING |
-| **5.3** Predictive AI (convert/churn) | ❌ PENDING |
+| **5.2** Lead / deal scoring | ✅ DONE |
+| **5.3** Predictive AI (convert/churn) | ✅ DONE |
 | **5.4** Tally / QuickBooks sync | ❌ PENDING |
 | **5.5** Custom modules (beyond custom fields) | ❌ PENDING |
 | **5.6** Marketplace / apps | ❌ PENDING (likely never v1) |
@@ -85,7 +85,7 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **6.12** Brand drift | ✅ DONE |
 | **6.20** Alembic two-heads | ✅ DONE |
 
-**Resume next:** **Phase 5.2** lead / deal scoring.
+**Resume next:** **Phase 5.4** Tally / QuickBooks sync.
 
 ---
 
@@ -568,8 +568,34 @@ Domain-stub enrich (no Clearbit HTTP). Empty fields only. Spec: [`superpowers/sp
 - **Deploy:** `alembic upgrade head` and/or `python create_missing_tables.py`.
 - **Residuals:** no live vendor; no plan entitlement; no client-contact enrich.
 
-### Phase 5.2 — Lead / deal scoring — PENDING
-### Phase 5.3 — Predictive AI — PENDING
+### Phase 5.2 — Lead / deal scoring — DONE (code)
+
+Admin-configurable, deterministic point rules on leads **and** deals; one shared
+pure engine + explainable breakdown. ML/predictive is deliberately left to 5.3.
+Spec: [`superpowers/specs/2026-08-26-phase5-lead-deal-scoring-design.md`](./superpowers/specs/2026-08-26-phase5-lead-deal-scoring-design.md);
+plan: [`superpowers/plans/2026-08-26-phase5-lead-deal-scoring.md`](./superpowers/plans/2026-08-26-phase5-lead-deal-scoring.md).
+
+- **Model/engine:** `scoring_rules` (company-scoped, `entity_type` lead|deal, field/operator/value/points/is_active). Pure `app/services/scoring/engine.py` (`score_entity → {total, breakdown}`), total-safe (a bad rule never crashes a recompute). Field whitelist + per-field operator gating enforced at rule-create (400 on unknown field / invalid operator). Computed fields `days_since_last_contact` / `age_days` / `days_to_expected_close` with a `10**6` NULL sentinel. `app/services/scoring/recompute.py` persists `leads.score` / `deals.score`.
+- **API:** `/api/scoring/rules` CRUD + `/api/scoring/recompute` (admin/MD, cross-tenant 404); `GET /api/leads/{id}/score` + `GET /api/deals/{id}/score` live breakdown (any company user). Score persisted on lead/deal create+update (+ deal stage move), and on any rule change (bulk recompute of that type). Lead/deal lists gain `score` + `?sort=score` + `?min_score=`. Privacy: lead export includes `score`, erase nulls it.
+- **UI:** `/settings/scoring` rule CRUD (entity toggle, field→operator dropdowns, recompute button); `ScoreBadge` with expandable breakdown on lead + deal detail.
+- **Verification:** `tests/sales/test_scoring_{schema,engine,recompute,api,detail,persist,cross_tenant}.py`, `tests/privacy/test_scoring_privacy.py`, `tests/ops/test_alembic_heads.py` — **34 new tests green.** (Suite has 3 pre-existing unrelated reds — accept-invite sanitize, api-key UTC-day quota, reminder due-follow-up — confirmed failing on baseline before this work.)
+- **Migration note:** current unique head was **`018_token_version`** (the 5.1 spec text said `017_enrichment`; wrong). New revision **`019_scoring`** chains off `018_token_version`. New table via `create_all`; `leads/deals.score` + `score_updated_at` via `MISSING_COLUMNS`. **Run `alembic upgrade head` and/or `python create_missing_tables.py` on deploy.**
+- **Residuals:** no scheduler — recency-based scores are "as of last recompute" (drift until next write / bulk recompute); no custom-field rules (whitelist only); no score history; scores may go negative by design; deals board UI unchanged (badge is on deal detail).
+
+### Phase 5.3 — Predictive AI (convert / churn) — DONE (code)
+
+Per-company **trained** deal win-probability + **derived** client churn risk, stdlib
+only (no ML dep). Spec: [`superpowers/specs/2026-08-26-phase5-predictive-ai-design.md`](./superpowers/specs/2026-08-26-phase5-predictive-ai-design.md);
+plan: [`superpowers/plans/2026-08-26-phase5-predictive-ai.md`](./superpowers/plans/2026-08-26-phase5-predictive-ai.md).
+
+- **Convert (trained):** a log-odds scorecard (Naive-Bayes style, chosen over gradient-descent LR for small-data robustness — flagged in spec) fit from the company's closed deals (WON/LOST). Features `source` / `amount_band` / `has_client` / `has_owner`, smoothed win-rates; leakage-avoided (no current stage/probability). `< 10` closed deals or single-class → `model:"fallback"` (base rate, no fake confidence). Stored per company in `prediction_models` (params JSON); prediction computed **live** from the stored card — no per-deal column, no write hooks. `predict_deal` lazy-trains and never 500s.
+- **Churn (derived):** stateless RFM over a client's invoices — recency ÷ the client's own median inter-invoice interval → risk 0–1 + band. Single invoice → recency-vs-180d; zero invoices → not a churn subject.
+- **API:** `POST /api/predictions/train`, `GET /api/predictions/models` (admin/MD), `GET /api/predictions/churn` (ranked at-risk), `GET /api/deals/{id}/prediction`, `GET /api/clients/{id}/churn`. Company-scoped, foreign id → 404, positive-control tenancy tests.
+- **UI:** `/settings/predictions` (train button, learned win-rates, at-risk-clients list); `PredictionBadge` (win % + factors) on deal detail; `ChurnBadge` (band + reasons) on client detail.
+- **Verification:** `tests/sales/test_predict_{scorecard,churn,convert_service}.py`, `test_predictions_{api,detail,cross_tenant}.py`, `test_prediction_schema.py`, `tests/ops/test_alembic_heads.py` — **23 new tests green**; `next build` clean. (Same 3 pre-existing unrelated reds as 5.2 — confirmed on baseline, not from this work.)
+- **Migration note:** new head **`020_predictions`** off `019_scoring`. New table via `create_all`; **no** new columns on existing tables. **Run `alembic upgrade head` and/or `python create_missing_tables.py` on deploy.**
+- **Residuals:** no scheduled retrain (train on demand); no lead-convert model (deal win-prob is the convert signal; same engine extends later); no stored win-prob column / list sort; churn is client-level (not account); no neural/LLM. Scorecard needs ≥10 closed deals with both classes before it beats the base rate.
+
 ### Phase 5.4 — Tally / QuickBooks sync — PENDING
 ### Phase 5.5 — Custom modules — PENDING
 ### Phase 5.6 — Marketplace — PENDING (likely never as v1)

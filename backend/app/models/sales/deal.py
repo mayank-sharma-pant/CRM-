@@ -26,6 +26,8 @@ class Deal(Base):
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     source = Column(String(100), nullable=True)
+    score = Column(Integer, nullable=True)
+    score_updated_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

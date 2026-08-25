@@ -9,6 +9,8 @@ import MeetingCallPanel from '../activity/MeetingCallPanel';
 import LeadEmailPanel from '../leads/LeadEmailPanel';
 import ActivityFeed from '../activity/ActivityFeed';
 import ShareLinkControls from '../portal/ShareLinkControls';
+import ScoreBadge from '../ScoreBadge';
+import PredictionBadge from '../PredictionBadge';
 
 export default function DealDetailPage() {
   const router = useRouter();
@@ -250,6 +252,8 @@ export default function DealDetailPage() {
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 uppercase tracking-wide border border-blue-100 dark:border-blue-800/50">
                 {deal.stage_name || deal.stage?.name || `Stage ${deal.stage_id ?? ''}`}
               </span>
+              <ScoreBadge entity="deals" id={id} />
+              <PredictionBadge id={id} />
             </div>
             <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
               <span>Amount: {deal.amount}</span>

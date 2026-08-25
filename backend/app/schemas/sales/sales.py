@@ -50,6 +50,7 @@ class LeadResponse(LeadBase):
     next_task: Optional[str] = None
     assigned_to_id: Optional[int] = None
     assigned_to_name: Optional[str] = None
+    score: Optional[int] = None
 
     class Config:
         from_attributes = True

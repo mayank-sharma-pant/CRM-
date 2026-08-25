@@ -81,7 +81,7 @@ revision `027_email_tracking`.
 | `click_url(base, raw, token_hash, url)` | `{base}/api/public/track/c/{raw}?u=…&s=…` |
 | `decode_target(u)` | base64url → URL, `None` if undecodable or not http(s) |
 | `build_outbound_html(body, …)` | escaped text → `<div>` + `<br>` joins, bare `http(s)://` runs linkified to the click URL, pixel `<img>` appended when a base exists |
-| `TRANSPARENT_GIF` | 43-byte 1×1 GIF89a |
+| `TRANSPARENT_GIF` | 42-byte 1×1 GIF89a |
 
 Linkification runs on the **plain source text**, not on assembled HTML — the body
 reaching `deliver_and_log` is plain text, so there is no regex-over-HTML pass and

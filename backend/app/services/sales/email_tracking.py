@@ -20,7 +20,7 @@ from app.config import settings
 TRACK_PREFIX = "/api/public/track"
 TRAILING_PUNCTUATION = ".,;:!?)]}'\"" + "\u201d\u2019"
 
-# 43-byte 1x1 transparent GIF89a.
+# 42-byte 1x1 transparent GIF89a.
 TRANSPARENT_GIF = base64.b64decode(
     "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
 )

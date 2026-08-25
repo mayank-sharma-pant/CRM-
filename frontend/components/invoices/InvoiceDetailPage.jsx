@@ -14,7 +14,8 @@ import {
     Building,
     User,
     FileDown,
-    FileText
+    FileText,
+    BookMarked
 } from 'lucide-react';
 
 export default function InvoiceDetailPage() {
@@ -22,6 +23,7 @@ export default function InvoiceDetailPage() {
     const params = useParams();
     const [loading, setLoading] = useState(true);
     const [invoice, setInvoice] = useState(null);
+    const [accounting, setAccounting] = useState(null);
     const [actionError, setActionError] = useState('');
     const [busy, setBusy] = useState(false);
 
@@ -81,7 +83,17 @@ export default function InvoiceDetailPage() {
         const fetchInvoice = async () => {
             try {
                 const res = await api.get(`/invoices/${params.invoiceId}`);
-                if (!cancelled) setInvoice(hydrate(res.data));
+                let acc = null;
+                try {
+                    const accRes = await api.get(`/invoices/${params.invoiceId}/accounting`);
+                    acc = accRes.data;
+                } catch {
+                    acc = null;
+                }
+                if (!cancelled) {
+                    setInvoice(hydrate(res.data));
+                    setAccounting(acc);
+                }
             } catch (err) {
                 console.error('Failed to fetch invoice:', err);
             } finally {
@@ -97,8 +109,28 @@ export default function InvoiceDetailPage() {
         try {
             const res = await api.get(`/invoices/${params.invoiceId}`);
             setInvoice(hydrate(res.data));
+            try {
+                const accRes = await api.get(`/invoices/${params.invoiceId}/accounting`);
+                setAccounting(accRes.data);
+            } catch {
+                setAccounting(null);
+            }
         } catch (err) {
             console.error('Failed to refetch invoice:', err);
+        }
+    };
+
+    const syncAccounting = async () => {
+        setActionError('');
+        setBusy(true);
+        try {
+            const res = await api.post(`/invoices/${invoice.db_id}/sync`);
+            setAccounting(res.data);
+        } catch (err) {
+            const detail = err.response?.data?.detail;
+            setActionError(typeof detail === 'string' ? detail : 'Could not sync to accounting');
+        } finally {
+            setBusy(false);
         }
     };
 
@@ -191,6 +223,15 @@ export default function InvoiceDetailPage() {
                                 Generate IRN
                             </button>
                         )}
+                        <button
+                            type="button"
+                            onClick={syncAccounting}
+                            disabled={busy}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                        >
+                            <BookMarked size={14} />
+                            Sync to accounting
+                        </button>
                     </div>
                     {actionError && <p className="text-[12px] text-red-600">{actionError}</p>}
                 </div>
@@ -346,6 +387,16 @@ export default function InvoiceDetailPage() {
                                 <div className="flex justify-between">
                                     <span className="text-slate-500">Ack No</span>
                                     <span className="text-slate-800 dark:text-slate-200 font-mono">{invoice.ackNo}</span>
+                                </div>
+                            )}
+                            {accounting && (
+                                <div className="flex justify-between gap-3">
+                                    <span className="text-slate-500 shrink-0">Accounting</span>
+                                    <span className="text-slate-800 dark:text-slate-200 text-right">
+                                        {accounting.status
+                                            ? `${accounting.provider || ''} · ${accounting.status}`
+                                            : 'Not synced'}
+                                    </span>
                                 </div>
                             )}
                         </div>

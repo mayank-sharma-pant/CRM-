@@ -17,6 +17,8 @@ from app.models.finance.invoice import Invoice, InvoiceItem
 from app.models.core.company_settings import CompanySettings
 from app.models.ops.stock_item import StockItem
 from app.utils.notify import notify_role_users
+from app.models.finance.accounting import AccountingSyncItem
+from app.services.accounting.service import AccountingNotConnected, sync_invoice
 from app.services.finance.gst import compute_gst
 from app.services.finance.invoice_pay import ensure_payment_url
 from app.services.finance.invoice_pdf import build_invoice_pdf
@@ -467,6 +469,55 @@ def revoke_invoice_share(
     revoke_share(invoice)
     db.commit()
     return Response(status_code=204)
+
+
+def _accounting_out(row: AccountingSyncItem | None) -> dict:
+    if row is None:
+        return {
+            "status": None,
+            "provider": None,
+            "external_id": None,
+            "last_synced_at": None,
+        }
+    return {
+        "status": row.status,
+        "provider": row.provider,
+        "external_id": row.external_id,
+        "last_synced_at": row.last_synced_at.isoformat() if row.last_synced_at else None,
+    }
+
+
+@router.get("/{invoice_id}/accounting")
+def get_invoice_accounting(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    invoice = _get_invoice_scoped(db, current_user, invoice_id, active_team_id)
+    row = (
+        apply_company_scope(db.query(AccountingSyncItem), AccountingSyncItem, current_user)
+        .filter(
+            AccountingSyncItem.entity_type == "invoice",
+            AccountingSyncItem.entity_id == invoice.id,
+        )
+        .first()
+    )
+    return _accounting_out(row)
+
+
+@router.post("/{invoice_id}/sync")
+def sync_one_invoice(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    invoice = _get_invoice_scoped(db, current_user, invoice_id, active_team_id)
+    try:
+        return sync_invoice(db, current_user.company_id, invoice)
+    except AccountingNotConnected as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/{invoice_id}/pdf")

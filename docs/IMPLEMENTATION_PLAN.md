@@ -19,7 +19,7 @@ Last updated: **26 Aug 2026**. Status is from code + this file’s progress logs
 | **2 — Sales loop** | ✅ **DONE** (code) | Deals, web form, custom fields, quotes→invoice, workflows, cadence, email, tags/recycle/merge, reminders. |
 | **3 — Zoho Standard match** | ✅ **DONE** (code) | 3.1–3.9 shipped. |
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
-| **5 — Paid add-ons** | ❌ **IN PROGRESS** | **5.1–5.3 DONE.** 5.4–5.10 remain. |
+| **5 — Paid add-ons** | ❌ **IN PROGRESS** | **5.1–5.5 DONE.** 5.6–5.10 remain. |
 | **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** Phase 5 add-ons remain. |
 
 ### Phase 4 checklist
@@ -68,8 +68,8 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **5.1** Data enrichment | ✅ DONE |
 | **5.2** Lead / deal scoring | ✅ DONE |
 | **5.3** Predictive AI (convert/churn) | ✅ DONE |
-| **5.4** Tally / QuickBooks sync | ❌ PENDING |
-| **5.5** Custom modules (beyond custom fields) | ❌ PENDING |
+| **5.4** Tally / QuickBooks sync | ✅ DONE |
+| **5.5** Custom modules (beyond custom fields) | ✅ DONE |
 | **5.6** Marketplace / apps | ❌ PENDING (likely never v1) |
 | **5.7** Full email marketing / campaigns | ❌ PENDING (integrate, don’t rebuild) |
 | **5.8** Helpdesk / cases / web-to-case | ❌ PENDING (thin or skip) |
@@ -85,7 +85,7 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **6.12** Brand drift | ✅ DONE |
 | **6.20** Alembic two-heads | ✅ DONE |
 
-**Resume next:** **Phase 5.4** Tally / QuickBooks sync.
+**Resume next:** **Phase 5.6** Marketplace / apps (likely never v1).
 
 ---
 
@@ -596,8 +596,50 @@ plan: [`superpowers/plans/2026-08-26-phase5-predictive-ai.md`](./superpowers/pla
 - **Migration note:** new head **`020_predictions`** off `019_scoring`. New table via `create_all`; **no** new columns on existing tables. **Run `alembic upgrade head` and/or `python create_missing_tables.py` on deploy.**
 - **Residuals:** no scheduled retrain (train on demand); no lead-convert model (deal win-prob is the convert signal; same engine extends later); no stored win-prob column / list sort; churn is client-level (not account); no neural/LLM. Scorecard needs ≥10 closed deals with both classes before it beats the base rate.
 
-### Phase 5.4 — Tally / QuickBooks sync — PENDING
-### Phase 5.5 — Custom modules — PENDING
+### Phase 5.4 — Tally / QuickBooks sync — DONE (code)
+
+One-way CRM→accounting invoice push behind a stub Tally / QuickBooks adapter
+(no live HTTP, same pattern as 5.1 enrich and 6.16 IRN). Spec:
+[`superpowers/specs/2026-08-26-phase5-accounting-sync-design.md`](./superpowers/specs/2026-08-26-phase5-accounting-sync-design.md).
+
+- **Model:** `accounting_connections` (one per company, `tally|quickbooks`,
+  connected/disconnected) and `accounting_sync_items` (invoice mapping,
+  `external_id` + `payload_hash` for idempotency). No new columns on `invoices`.
+- **Engine:** `app/services/accounting/payloads.py` (Tally sales voucher /
+  QBO Invoice JSON) + `service.py` (`connect` / `sync_invoice` / `sync_all`).
+  Eligible statuses Pending/Paid/Overdue; Draft/Cancelled skipped. Unchanged
+  hash is a no-op (`unchanged: true`).
+- **API:** `/api/accounting/connection` GET/PUT/DELETE + `/sync` + `/items`
+  (admin/MD); `GET|POST /api/invoices/{id}/accounting|sync` (same invoice
+  scope as GET). Foreign invoice → 404. Sync while disconnected → 400.
+- **UI:** `/settings/accounting`; Sync button + status on invoice detail.
+- **Verification:** `tests/finance/test_accounting_{schema,payloads,service,api,invoice,cross_tenant}.py`,
+  `tests/ops/test_alembic_heads.py` — **23 new tests green** plus Alembic head `021_accounting`.
+- **Migration:** head **`021_accounting`** off `020_predictions`. New tables via
+  `create_all`. **Run `alembic upgrade head` and/or `python create_missing_tables.py` on deploy.**
+- **Residuals:** no live Tally XML-RPC / QBO OAuth; no pull from books; no
+  ledger_entries export; no scheduler; no Zoho Books.
+
+### Phase 5.5 — Custom modules — DONE (code)
+
+Company-defined objects (not extra fields on leads). Spec:
+[`superpowers/specs/2026-08-26-phase5-custom-modules-design.md`](./superpowers/specs/2026-08-26-phase5-custom-modules-design.md).
+
+- **Model:** `custom_modules` / `custom_module_fields` / `custom_module_records`
+  (`title` + JSON values). Caps 10 modules / 20 fields. Reserved slugs for
+  built-in objects. Field types reused from custom fields (`text|number|date|picklist`).
+- **API:** `/api/modules` CRUD (admin/MD create/patch/delete); any company user
+  lists active modules and CRUD records. Foreign id → 404. Inactive module
+  blocks writes.
+- **UI:** `/settings/modules`; `/modules` + `/modules/[slug]`; sidebar lists
+  active modules like ledgers.
+- **Verification:** `tests/sales/test_custom_module{s,_schema,_service,_api,_cross_tenant}.py`
+  — **14 new tests green** plus Alembic head `022_custom_modules`.
+- **Migration:** head **`022_custom_modules`** off `021_accounting`. **Run
+  `alembic upgrade head` and/or `python create_missing_tables.py` on deploy.**
+- **Residuals:** no lookups to leads, no per-module ACL, no import, no workflows
+  on custom records, no layouts.
+
 ### Phase 5.6 — Marketplace — PENDING (likely never as v1)
 ### Phase 5.7 — Email marketing / campaigns — PENDING (integrate, don’t clone)
 ### Phase 5.8 — Helpdesk / cases — PENDING (thin or skip)

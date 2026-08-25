@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { financeService } from '../services/financeService';
+import api from '../services/api';
 import {
     LayoutDashboard,
     Users,
@@ -38,6 +39,7 @@ import {
     X,
     Mail,
     Building2,
+    Layers,
 } from 'lucide-react';
 
 const ICON_MAP = {
@@ -70,6 +72,7 @@ const ICON_MAP = {
     Sparkles,
     Mail,
     Building2,
+    Layers,
 };
 
 const ROLE_NAVIGATION = {
@@ -183,6 +186,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     const [authorizedLedgers, setAuthorizedLedgers] = useState([]);
     const [ledgerError, setLedgerError] = useState(null);
     const [ledgerLoading, setLedgerLoading] = useState(true);
+    const [customModules, setCustomModules] = useState([]);
 
     const fetchLedgers = useCallback(async () => {
         setLedgerError(null);
@@ -198,9 +202,23 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         }
     }, []);
 
+    const fetchModules = useCallback(async () => {
+        try {
+            const res = await api.get('/modules');
+            setCustomModules(res.data.items || []);
+        } catch {
+            setCustomModules([]);
+        }
+    }, []);
+
     useEffect(() => {
         fetchLedgers();
     }, [fetchLedgers]);
+
+    useEffect(() => {
+        if (loading || !user) return;
+        fetchModules();
+    }, [fetchModules, loading, user]);
 
     // Build navigation: role-based nav (dashboard, leads, etc.) + Financial Ledgers from API only
     useEffect(() => {
@@ -228,12 +246,24 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             });
         }
 
+        if (customModules.length > 0) {
+            navData.push({
+                name: 'Custom modules',
+                href: '/modules',
+                icon: 'Layers',
+                children: customModules.map((m) => ({
+                    name: m.name,
+                    href: `/modules/${m.slug}`,
+                })),
+            });
+        }
+
         // Universal links for all roles
         navData.push({ category: 'SUPPORT' });
         navData.push({ name: 'Report Bug', href: '/report-bug', icon: 'Bug' });
 
         setNavigation(navData);
-    }, [user?.role, loading, pathname, ledgerLoading, authorizedLedgers]);
+    }, [user?.role, loading, pathname, ledgerLoading, authorizedLedgers, customModules]);
 
     return (
         <>

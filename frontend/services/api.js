@@ -63,3 +63,16 @@ export function getActiveTeamId() {
   if (typeof window === 'undefined') return null;
   return window.localStorage.getItem(ACTIVE_TEAM_KEY);
 }
+
+export const twoFactor = {
+  status: () => api.get('/auth/2fa/status').then(r => r.data),
+  setup: (setupToken) => api.post('/auth/2fa/setup', {}, setupToken ? { headers: { 'X-Setup-Token': setupToken } } : {}).then(r => r.data),
+  confirm: (code, setupToken) => api.post('/auth/2fa/confirm', { code }, setupToken ? { headers: { 'X-Setup-Token': setupToken } } : {}).then(r => r.data),
+  disable: (password) => api.post('/auth/2fa/disable', { password }).then(r => r.data),
+  regenerate: (password) => api.post('/auth/2fa/recovery-codes/regenerate', { password }).then(r => r.data),
+  verify: (mfa_token, code) => api.post('/auth/2fa/verify', { mfa_token, code }).then(r => r.data),
+};
+
+export const companySecurity = {
+  setRequire2FA: (require_2fa) => api.patch('/company/security', { require_2fa }).then(r => r.data),
+};

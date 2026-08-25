@@ -68,6 +68,12 @@ export function AuthProvider({ children }) {
         return response.data;
     };
 
+    const verify2FA = async (mfa_token, code) => {
+        const response = await api.post('/auth/2fa/verify', { mfa_token, code });
+        await fetchUser();          // hydrate the user after the session cookie is set
+        return response.data;
+    };
+
     const logout = async () => {
         try {
             await api.post('/auth/logout');
@@ -79,7 +85,7 @@ export function AuthProvider({ children }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, requestOTP, loginOTP, signup, logout, fetchUser }}>
+        <AuthContext.Provider value={{ user, loading, login, requestOTP, loginOTP, verify2FA, signup, logout, fetchUser }}>
             {children}
         </AuthContext.Provider>
     );

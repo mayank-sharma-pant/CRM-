@@ -64,7 +64,7 @@ async def get_current_user(
     if token is None:
         raise credentials_exception
 
-    payload = decode_access_token(token)
+    payload = decode_access_token(token, audience="crm")
     if payload is None:
         raise credentials_exception
 

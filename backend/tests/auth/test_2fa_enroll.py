@@ -60,20 +60,17 @@ def test_disable_requires_password_and_clears(client, db):
 
 
 def test_disable_blocked_under_mandate(client, db):
-    auth_limiter._buckets.clear()
-    company = create_company(db, name="X Co", company_code="XCO")
-    company.require_2fa = True
-    db.commit()
-    create_active_user(db, email="u@x.co", role="admin", company_id=company.id)
-    resp = client.post(
-        "/api/auth/login",
-        data={"username": "u@x.co", "password": "pw"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    setup_token = resp.json()["setup_token"]
-    client.headers["Authorization"] = f"Bearer {setup_token}"
+    # Enroll with a REAL session first (company not yet mandated), then turn
+    # the mandate on. This is the only path a legitimate user can take —
+    # the setup_token challenge cannot itself authenticate protected
+    # endpoints (see get_current_user's "crm" audience enforcement).
+    company = _enrolled_login(client, db, require_2fa=False)
     secret = client.post("/api/auth/2fa/setup").json()["secret"]
     client.post("/api/auth/2fa/confirm", json={"code": totp.totp_now(secret)})
+
+    company.require_2fa = True
+    db.commit()
+
     r = client.post("/api/auth/2fa/disable", json={"password": "pw"})
     assert r.status_code == 403
 

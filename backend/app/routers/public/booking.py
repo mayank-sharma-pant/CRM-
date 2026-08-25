@@ -19,7 +19,6 @@ class PublicBookingIn(BaseModel):
     email: Optional[str] = None
     starts_at: Optional[str] = None
     ends_at: Optional[str] = None
-    notes: Optional[str] = None
     website: Optional[str] = None
 
 
@@ -53,7 +52,6 @@ def submit_public_booking(
         email=payload.email,
         starts_at=payload.starts_at,
         ends_at=payload.ends_at,
-        notes=payload.notes,
     )
     # 6.2 push, after the commit: a provider timeout must not lose the booking.
     sync_meeting_outbound(db, host, meeting)

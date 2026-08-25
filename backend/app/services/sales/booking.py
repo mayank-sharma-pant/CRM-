@@ -159,7 +159,6 @@ def book_meeting(
     email: Optional[str],
     starts_at: Optional[str],
     ends_at: Optional[str] = None,
-    notes: Optional[str] = None,
 ) -> Meeting:
     name = (name or "").strip()
     email = (email or "").strip()

@@ -20,7 +20,9 @@ export function middleware(request) {
     pathname === '/w' ||
     pathname.startsWith('/w/') ||
     pathname === '/p' ||
-    pathname.startsWith('/p/');
+    pathname.startsWith('/p/') ||
+    pathname === '/book' ||
+    pathname.startsWith('/book/');
 
   // Bounce signed-in users off login/signup only — not off /settings/security.
   if (token && isAuthEntry) {

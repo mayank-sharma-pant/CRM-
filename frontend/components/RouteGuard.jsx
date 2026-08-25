@@ -33,6 +33,7 @@ function isPublicPath(pathname) {
     if (pathname === '/w' || pathname.startsWith('/w/')) return true;
     if (pathname === '/p' || pathname.startsWith('/p/')) return true;
     if (pathname === '/c' || pathname.startsWith('/c/')) return true;
+    if (pathname === '/book' || pathname.startsWith('/book/')) return true;
     return PUBLIC_PATHS.some(p =>
         p === '/' ? pathname === '/' : pathname.startsWith(p)
     );

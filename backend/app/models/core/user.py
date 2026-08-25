@@ -24,7 +24,10 @@ class User(Base):
     last_active_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+    totp_secret = Column(String(255), nullable=True)
+    totp_enabled = Column(Boolean, default=False, nullable=False)
+    totp_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+
     # Company (Platform Admin may have company_id=NULL)
     company = relationship("Company", backref="users")
 

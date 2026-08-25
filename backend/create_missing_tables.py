@@ -20,6 +20,10 @@ _MISSING_COLUMNS = [
     ("leads", "deleted_at", "TIMESTAMP"),
     ("tasks", "reminded_at", "TIMESTAMP"),
     ("follow_ups", "reminded_at", "TIMESTAMP"),
+    ("users", "totp_secret", "VARCHAR(255)"),
+    ("users", "totp_enabled", "BOOLEAN DEFAULT FALSE"),
+    ("users", "totp_confirmed_at", "TIMESTAMP WITH TIME ZONE"),
+    ("companies", "require_2fa", "BOOLEAN DEFAULT FALSE"),
 ]
 
 

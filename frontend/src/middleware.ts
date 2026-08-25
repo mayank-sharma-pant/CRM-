@@ -13,7 +13,9 @@ export function middleware(request) {
     pathname.startsWith('/accept-invite');
   // Forced 2FA enrollment has a setup_token and no session cookie.
   const isPublicRoute =
-    isAuthEntry || pathname === '/settings/security';
+    isAuthEntry ||
+    pathname === '/settings/security' ||
+    pathname.startsWith('/p/');
 
   // Bounce signed-in users off login/signup only — not off /settings/security.
   if (token && isAuthEntry) {

@@ -258,6 +258,15 @@ required built-in fields on leave. Spec: [`superpowers/specs/2026-08-25-phase4-b
 - **Deploy:** `create_missing_tables.py` for `pipelines.blueprint_enabled` and `pipeline_stages.required_fields`.
 - **Residuals:** no transition-edge graph, no custom-field requirements, no approvals. Blueprint does **not** block deal **create** with an arbitrary `stage_id` (including Won) — per spec; field gates apply on the first *leave*, so readers should not assume the pipeline is sealed on create.
 
+### Phase 4.3 — Customer portal (view invoice/quote) — DONE (code)
+
+Staff-minted magic links; hash at rest; public view-only invoice/quote pages.
+Spec: [`superpowers/specs/2026-08-25-phase4-customer-portal-design.md`](./superpowers/specs/2026-08-25-phase4-customer-portal-design.md); plan: [`superpowers/plans/2026-08-25-phase4-customer-portal.md`](./superpowers/plans/2026-08-25-phase4-customer-portal.md).
+
+- **Verification:** `test_portal_schema.py`, `test_share_links_service.py`, `test_portal_api.py`, `test_portal_cross_tenant.py`.
+- **Deploy:** `create_missing_tables.py` for `share_token_hash` / `share_created_at` on `invoices` and `quotes`.
+- **Residuals:** no expiry, no email of link, no accept/pay; ALTER path may not add UNIQUE (model unique on fresh DBs); rate limit via `portal_limiter` if wired.
+
 ---
 
 ## Cross-cutting cleanups (do alongside, not as a phase)

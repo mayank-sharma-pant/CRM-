@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '../../../../services/api';
 import InvoiceGstSummary from '../../../../components/invoices/InvoiceGstSummary';
+import ShareLinkControls from '../../../../components/portal/ShareLinkControls';
 import {
     ArrowLeft,
     CheckCircle,
@@ -23,6 +24,7 @@ export default function ManagerInvoiceDetailPage() {
     const [invoice, setInvoice] = useState(null);
 
     useEffect(() => {
+        let cancelled = false;
         const fetchInvoice = async () => {
             try {
                 const res = await api.get(`/invoices/${params.invoiceId}`);
@@ -39,10 +41,12 @@ export default function ManagerInvoiceDetailPage() {
                 if (st === 'Paid') timeline.push({ date: d.due, event: 'Payment Received', status: 'complete' });
                 else timeline.push({ date: null, event: 'Payment Received', status: 'upcoming' });
 
-                setInvoice({
-                    id: d.number,
-                    db_id: d.id,
-                    status: st,
+                if (!cancelled) {
+                    setInvoice({
+                        id: d.number,
+                        db_id: d.id,
+                        share_active: d.share_active,
+                        status: st,
                     client: {
                         name: d.client?.name || 'Unknown',
                         contact: d.client?.name || '',
@@ -72,14 +76,27 @@ export default function ManagerInvoiceDetailPage() {
                         hsn: i.hsn || '',
                     }))
                 });
+                }
             } catch (err) {
                 console.error('Failed to fetch invoice:', err);
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
+        setLoading(true);
         fetchInvoice();
+        return () => { cancelled = true; };
     }, [params.invoiceId]);
+
+    const refetchInvoice = async () => {
+        try {
+            const res = await api.get(`/invoices/${params.invoiceId}`);
+            const d = res.data;
+            setInvoice((prev) => prev ? { ...prev, share_active: d.share_active } : prev);
+        } catch (err) {
+            console.error('Failed to refetch invoice:', err);
+        }
+    };
 
     const goBack = () => {
         router.back();
@@ -192,6 +209,16 @@ export default function ManagerInvoiceDetailPage() {
 
                 {/* Sidebar */}
                 <div className="col-span-12 lg:col-span-4 space-y-6">
+
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+                        <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white mb-3">Client portal</h3>
+                        <ShareLinkControls
+                            kind="invoice"
+                            id={invoice.db_id}
+                            shareActive={invoice.share_active}
+                            onChange={refetchInvoice}
+                        />
+                    </div>
 
                     {/* Client Info */}
                     <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">

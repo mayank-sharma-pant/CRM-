@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import api from '../../../../services/api';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import MeetingCallPanel from '../../../../components/activity/MeetingCallPanel';
+import ShareLinkControls from '../../../../components/portal/ShareLinkControls';
 
 export default function DealDetailPage() {
   const router = useRouter();
@@ -454,6 +455,14 @@ export default function DealDetailPage() {
                   {q.payment_url && (
                     <div className="mt-1 break-all text-xs text-blue-600">{q.payment_url}</div>
                   )}
+                  <div className="mt-2">
+                    <ShareLinkControls
+                      kind="quote"
+                      id={q.id}
+                      shareActive={q.share_active}
+                      onChange={fetchDeal}
+                    />
+                  </div>
                   {q.status === 'draft' && (
                     <div className="flex gap-2 mt-2">
                       <button type="button" disabled={quoteBusy} onClick={() => quoteAction(q.id, 'accept')}

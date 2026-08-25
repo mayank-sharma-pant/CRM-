@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '../../../../services/api';
 import InvoiceGstSummary from '../../../../components/invoices/InvoiceGstSummary';
+import ShareLinkControls from '../../../../components/portal/ShareLinkControls';
 import {
     ArrowLeft,
     CheckCircle,
@@ -34,10 +35,18 @@ export default function InvoiceDetailPage() {
     });
 
     useEffect(() => {
+        let cancelled = false;
         const fetchInvoice = async () => {
             try {
                 const res = await api.get(`/purchase/invoices/${params.invoiceId}`);
                 const d = res.data;
+                let shareActive = d.share_active;
+                try {
+                    const shareRes = await api.get(`/invoices/${params.invoiceId}`);
+                    shareActive = shareRes.data.share_active;
+                } catch {
+                    // purchase detail may omit share_active; invoices detail has it
+                }
                 const fmt = (v) => `₹${Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
                 const statusMap = { paid: 'Paid', pending: 'Pending', overdue: 'Overdue', draft: 'Draft', sent: 'Sent' };
                 const st = statusMap[(d.status || '').toLowerCase()] || d.status || 'Draft';
@@ -50,10 +59,12 @@ export default function InvoiceDetailPage() {
                 if (st === 'Paid') timeline.push({ date: d.due, event: 'Payment Received', status: 'complete' });
                 else timeline.push({ date: null, event: 'Payment Received', status: 'upcoming' });
 
-                setInvoice({
-                    id: d.number || `UNKNOWN-${d.id}`,
-                    db_id: d.id,
-                    status: st,
+                if (!cancelled) {
+                    setInvoice({
+                        id: d.number || `UNKNOWN-${d.id}`,
+                        db_id: d.id,
+                        share_active: shareActive,
+                        status: st,
                     client: {
                         name: d.client?.name || 'Unknown',
                         contact: d.client?.name || '',
@@ -85,14 +96,27 @@ export default function InvoiceDetailPage() {
                     })),
                     auditLog: []
                 });
+                }
             } catch (err) {
                 console.error('Failed to fetch invoice:', err);
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
+        setLoading(true);
         fetchInvoice();
+        return () => { cancelled = true; };
     }, [params.invoiceId]);
+
+    const refetchInvoice = async () => {
+        try {
+            const res = await api.get(`/invoices/${params.invoiceId}`);
+            const d = res.data;
+            setInvoice((prev) => prev ? { ...prev, share_active: d.share_active } : prev);
+        } catch (err) {
+            console.error('Failed to refetch invoice share state:', err);
+        }
+    };
 
     const handleSend = async () => {
         setActionLoading(true);
@@ -240,6 +264,16 @@ export default function InvoiceDetailPage() {
 
                 {/* Sidebar */}
                 <div className="col-span-12 lg:col-span-4 space-y-6">
+
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+                        <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white mb-3">Client portal</h3>
+                        <ShareLinkControls
+                            kind="invoice"
+                            id={invoice.db_id}
+                            shareActive={invoice.share_active}
+                            onChange={refetchInvoice}
+                        />
+                    </div>
 
                     {/* Approval Controls */}
                     {(isPending || isDraft) && (

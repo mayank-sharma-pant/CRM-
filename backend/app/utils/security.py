@@ -30,6 +30,17 @@ def create_access_token(
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
+def crm_access_token(user) -> str:
+    role = user.role.value if hasattr(user.role, "value") else user.role
+    return create_access_token(
+        data={
+            "sub": user.email,
+            "role": role,
+            "ver": int(getattr(user, "token_version", 0) or 0),
+        }
+    )
+
+
 def generate_refresh_token() -> tuple[str, str]:
     """Return (raw_token, token_hash). The raw token is given to the client;
     only the hash is persisted."""

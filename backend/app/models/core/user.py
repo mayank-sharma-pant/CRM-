@@ -27,6 +27,7 @@ class User(Base):
     totp_secret = Column(String(255), nullable=True)
     totp_enabled = Column(Boolean, default=False, nullable=False)
     totp_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    token_version = Column(Integer, nullable=False, default=0)
 
     # Company (Platform Admin may have company_id=NULL)
     company = relationship("Company", backref="users")

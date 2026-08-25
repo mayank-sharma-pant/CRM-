@@ -17,6 +17,7 @@ MISSING_COLUMNS = [
     ("users", "totp_secret", "VARCHAR(255)"),
     ("users", "totp_enabled", "BOOLEAN DEFAULT FALSE"),
     ("users", "totp_confirmed_at", "TIMESTAMP WITH TIME ZONE"),
+    ("users", "token_version", "INTEGER DEFAULT 0"),
     ("companies", "require_2fa", "BOOLEAN DEFAULT FALSE"),
     ("plans", "max_api_requests_per_day", "INTEGER"),
     ("clients", "gstin", "VARCHAR(15)"),

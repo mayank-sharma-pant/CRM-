@@ -33,7 +33,13 @@ async def get_enrolling_user(
         if payload and payload.get("sub"):
             user = db.query(User).filter(sa_func.lower(User.email) == payload["sub"].lower()).first()
             if user and user.is_active and user.status.value != "disabled":
-                return user
+                claimed = payload.get("ver", 0)
+                try:
+                    claimed = int(claimed)
+                except (TypeError, ValueError):
+                    claimed = None
+                if claimed is not None and int(getattr(user, "token_version", 0) or 0) == claimed:
+                    return user
     if x_setup_token:
         payload = decode_access_token(x_setup_token, audience="mfa_setup")
         if payload and payload.get("sub"):
@@ -145,7 +151,7 @@ class VerifyBody(BaseModel):
 @router.post("/verify")
 def verify(body: VerifyBody, request: Request, response: Response, db: Session = Depends(get_db)):
     from app.routers.auth.auth import _issue_refresh_token, _set_auth_cookie, _set_refresh_cookie
-    from app.utils.security import decode_access_token, create_access_token
+    from app.utils.security import decode_access_token, create_access_token, crm_access_token
     from app.utils.rate_limit import auth_limiter
 
     payload = decode_access_token(body.mfa_token, audience="mfa")
@@ -173,7 +179,7 @@ def verify(body: VerifyBody, request: Request, response: Response, db: Session =
         raise HTTPException(status_code=401, detail="Invalid code")
 
     user.last_active_at = datetime.now(timezone.utc)
-    access_token = create_access_token(data={"sub": user.email, "role": user.role})
+    access_token = crm_access_token(user)
     _set_auth_cookie(response, access_token)
     refresh_token = _issue_refresh_token(db, user)
     db.commit()

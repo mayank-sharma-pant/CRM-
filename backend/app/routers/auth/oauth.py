@@ -27,7 +27,7 @@ from app.services.auth.oauth import (
     providers_status,
     resolve_user,
 )
-from app.utils.security import create_access_token
+from app.utils.security import create_access_token, crm_access_token
 
 router = APIRouter(prefix="/oauth", tags=["OAuth"])
 
@@ -110,7 +110,7 @@ def oauth_callback(
             q = urlencode({"mfa_setup_required": "1", "setup_token": challenge["setup_token"]})
             return RedirectResponse(url=_frontend(f"/login?{q}"), status_code=302)
 
-    access_token = create_access_token(data={"sub": user.email, "role": user.role})
+    access_token = crm_access_token(user)
     refresh_token = _issue_refresh_token(db, user)
     db.commit()
 

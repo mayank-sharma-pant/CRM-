@@ -76,6 +76,14 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
 
+    claimed = payload.get("ver", 0)
+    try:
+        claimed = int(claimed)
+    except (TypeError, ValueError):
+        raise credentials_exception
+    if int(getattr(user, "token_version", 0) or 0) != claimed:
+        raise credentials_exception
+
     if not user.is_active or user.status.value == "disabled":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled")
 

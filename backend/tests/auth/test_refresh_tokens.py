@@ -69,6 +69,18 @@ def test_logout_revokes_refresh_token(client, db):
     assert resp.status_code == 401, "a revoked refresh token must not refresh"
 
 
+def test_logout_invalidates_access_token(client, db):
+    login = _login(client, db, email="kill@rt.co")
+    access = login.json()["access_token"]
+    refresh = login.json()["refresh_token"]
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {access}"})
+    assert me.status_code == 200, me.text
+    logout = client.post("/api/auth/logout", json={"refresh_token": refresh})
+    assert logout.status_code == 200
+    dead = client.get("/api/auth/me", headers={"Authorization": f"Bearer {access}"})
+    assert dead.status_code == 401, "logout must kill the access JWT immediately"
+
+
 def test_refresh_with_invalid_token_is_401(client, db):
     _login(client, db)
     resp = client.post("/api/auth/refresh", json={"refresh_token": "not-a-real-token"})

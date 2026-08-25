@@ -23,6 +23,8 @@ from app.models.sales.notification import Notification
 from app.models.ops.document import Document
 from app.models.ops.stock_item import StockItem
 from app.models.finance.ledger import LedgerEntry
+from app.models.core.team import Team
+from app.models.core.team_membership import TeamMembership
 from tests.helpers.auth import create_active_user, login_user
 from tests.helpers.factories import create_company
 
@@ -90,7 +92,10 @@ def two_companies(db):
         data={"party_name": "Vendor A", "amount": 1000},
         created_by=admin_a.id,
     )
-    db.add_all([task, follow_up, invoice, document, stock, notification, ledger_entry])
+    team = Team(company_id=company_a.id, name="Alpha Crew")
+    db.add_all([task, follow_up, invoice, document, stock, notification, ledger_entry, team])
+    db.commit()
+    db.add(TeamMembership(company_id=company_a.id, team_id=team.id, user_id=admin_a.id))
     db.commit()
 
     ids = {
@@ -103,6 +108,7 @@ def two_companies(db):
         "stock": stock.id,
         "notification": notification.id,
         "ledger_entry": ledger_entry.id,
+        "team": team.id,
     }
     return ids, admin_b.email
 
@@ -115,6 +121,7 @@ READ_CASES = [
     ("follow_up", "GET", "/api/follow-ups/{follow_up}"),
     ("invoice", "GET", "/api/invoices/{invoice}"),
     ("document", "GET", "/api/documents/download/{document}"),
+    ("team", "GET", "/api/admin/teams/{team}"),
 ]
 
 DELETE_CASES = [
@@ -126,6 +133,7 @@ DELETE_CASES = [
     ("stock", "DELETE", "/api/inventory/{stock}"),
     ("ledger_entry", "DELETE", "/api/ledgers/payments_made/{ledger_entry}"),
     ("notification_read", "POST", "/api/notifications/{notification}/read"),
+    ("team", "DELETE", "/api/admin/teams/{team}"),
 ]
 
 # (resource, method, url-template, valid body). Bodies are valid so the ONLY thing
@@ -136,6 +144,7 @@ MUTATION_CASES = [
     ("task", "PUT", "/api/tasks/{task}", {"title": "hacked"}),
     ("follow_up", "PUT", "/api/follow-ups/{follow_up}", {"notes": "hacked"}),
     ("stock", "PATCH", "/api/inventory/{stock}", {"name": "hacked"}),
+    ("team", "PUT", "/api/admin/teams/{team}", {"name": "hacked"}),
 ]
 
 
@@ -222,3 +231,21 @@ def test_users_list_is_company_scoped(client, two_companies):
     emails = {u["email"] for u in resp.json()["items"]}
     assert "admin@a.com" not in emails, f"LEAK: company B sees company A's users: {emails}"
     assert emails <= {"admin@b.com"}, f"LEAK: unexpected cross-tenant users: {emails}"
+
+
+def test_teams_list_and_mine_are_company_scoped(client, two_companies):
+    ids, admin_b_email = two_companies
+    login_user(client, "admin@a.com")
+    mine_a = client.get("/api/teams/mine")
+    assert mine_a.status_code == 200, mine_a.text
+    assert any(t["id"] == ids["team"] for t in mine_a.json()["teams"])
+
+    login_user(client, admin_b_email)
+    listed = client.get("/api/admin/teams")
+    assert listed.status_code == 200, listed.text
+    names = {t["name"] for t in listed.json()["teams"]}
+    assert "Alpha Crew" not in names, f"LEAK: company B lists company A's team: {names}"
+    mine_b = client.get("/api/teams/mine")
+    assert mine_b.status_code == 200, mine_b.text
+    mine_ids = {t["id"] for t in mine_b.json()["teams"]}
+    assert ids["team"] not in mine_ids, f"LEAK: company B /mine includes company A's team: {mine_ids}"

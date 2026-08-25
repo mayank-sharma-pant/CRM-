@@ -14,7 +14,7 @@ def _scripts() -> ScriptDirectory:
 def test_alembic_has_exactly_one_head():
     heads = _scripts().get_heads()
     assert len(heads) == 1, heads
-    assert heads == ["017_enrichment"]
+    assert heads == ["018_token_version"]
 
 
 def test_catchup_revision_follows_015():
@@ -27,3 +27,9 @@ def test_enrichment_revision_follows_016():
     rev = _scripts().get_revision("017_enrichment")
     assert rev is not None
     assert rev.down_revision == "016_schema_catchup"
+
+
+def test_token_version_revision_follows_017():
+    rev = _scripts().get_revision("018_token_version")
+    assert rev is not None
+    assert rev.down_revision == "017_enrichment"

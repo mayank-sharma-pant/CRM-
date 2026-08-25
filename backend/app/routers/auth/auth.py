@@ -21,6 +21,7 @@ from app.utils.security import (
     verify_password,
     get_password_hash,
     create_access_token,
+    crm_access_token,
     decode_access_token,
     generate_refresh_token,
     hash_refresh_token,
@@ -257,7 +258,7 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
         # The platform notification step is part of the signup workflow; fail with a sanitized error.
         raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
 
-    access_token = create_access_token(data={"sub": db_user.email, "role": db_user.role})
+    access_token = crm_access_token(db_user)
     _set_auth_cookie(response, access_token)
 
     return {
@@ -307,7 +308,7 @@ def login(request: Request, response: Response, form_data: OAuth2PasswordRequest
     if challenge is not None:
         return challenge
 
-    access_token = create_access_token(data={"sub": user.email, "role": user.role})
+    access_token = crm_access_token(user)
     _set_auth_cookie(response, access_token)
     refresh_token = _issue_refresh_token(db, user)
     db.commit()
@@ -390,7 +391,7 @@ def login_otp(request: Request, response: Response, payload: OTPLoginRequest, db
     if challenge is not None:
         return challenge
 
-    access_token = create_access_token(data={"sub": user.email, "role": user.role})
+    access_token = crm_access_token(user)
     _set_auth_cookie(response, access_token)
     refresh_token = _issue_refresh_token(db, user)
     db.commit()
@@ -434,6 +435,9 @@ def refresh(request: Request, response: Response, body: RefreshRequest | None = 
         db.query(RefreshToken).filter(
             RefreshToken.user_id == record.user_id, RefreshToken.revoked == False  # noqa: E712
         ).update({"revoked": True})
+        stolen = db.query(User).filter(User.id == record.user_id).first()
+        if stolen is not None:
+            stolen.token_version = int(stolen.token_version or 0) + 1
         db.commit()
         raise credentials_exception
 
@@ -448,7 +452,7 @@ def refresh(request: Request, response: Response, body: RefreshRequest | None = 
         raise credentials_exception
 
     record.revoked = True
-    access_token = create_access_token(data={"sub": user.email, "role": user.role})
+    access_token = crm_access_token(user)
     new_refresh = _issue_refresh_token(db, user)
     db.commit()
 
@@ -470,12 +474,34 @@ def refresh(request: Request, response: Response, body: RefreshRequest | None = 
 
 @router.post("/logout", response_model=MessageResponse)
 def logout(request: Request, response: Response, body: RefreshRequest | None = None, db: Session = Depends(get_db)):
-    """Revoke the presented refresh token and clear the auth cookies."""
+    """Revoke refresh tokens, bump token_version so access JWTs die now, clear cookies."""
+    user_id = None
     raw = _extract_refresh_token(request, body.refresh_token if body else None)
     if raw:
+        record = db.query(RefreshToken).filter(RefreshToken.token_hash == hash_refresh_token(raw)).first()
+        if record is not None:
+            user_id = record.user_id
+    if user_id is None:
+        bearer = None
+        auth = request.headers.get("authorization") or ""
+        if auth.lower().startswith("bearer "):
+            bearer = auth.split(" ", 1)[1].strip()
+        if not bearer:
+            bearer = request.cookies.get("access_token")
+        if bearer:
+            payload = decode_access_token(bearer, audience="crm")
+            email = (payload or {}).get("sub")
+            if email:
+                found = db.query(User).filter(sa_func.lower(User.email) == email.lower()).first()
+                if found is not None:
+                    user_id = found.id
+    if user_id is not None:
         db.query(RefreshToken).filter(
-            RefreshToken.token_hash == hash_refresh_token(raw), RefreshToken.revoked == False  # noqa: E712
+            RefreshToken.user_id == user_id, RefreshToken.revoked == False  # noqa: E712
         ).update({"revoked": True})
+        owner = db.query(User).filter(User.id == user_id).first()
+        if owner is not None:
+            owner.token_version = int(owner.token_version or 0) + 1
         db.commit()
 
     secure = settings.AUTH_COOKIE_SECURE if settings.AUTH_COOKIE_SECURE is not None else (settings.ENVIRONMENT == "production")
@@ -659,7 +685,7 @@ def accept_invite(
         db.refresh(new_user)
         
         # Create access token for immediate login
-        access_token = create_access_token(data={"sub": new_user.email, "role": new_user.role})
+        access_token = crm_access_token(new_user)
         _set_auth_cookie(response, access_token)
         
         return {

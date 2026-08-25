@@ -42,7 +42,7 @@ def post_sandbox(
 ):
     company = _caller_company(db, current_user)
     try:
-        sandbox, admin, raw_password = create_sandbox(db, parent=company)
+        sandbox, admin, raw_password, cloned = create_sandbox(db, parent=company)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -53,6 +53,7 @@ def post_sandbox(
         "admin_email": admin.email,
         "password": raw_password,
         "login_hint": "Log out and sign in with the sandbox admin email to use the sandbox.",
+        "cloned": cloned,
     }
 
 

@@ -11,6 +11,7 @@ from app.models.billing import Plan, Subscription
 from app.models.core.company import Company
 from app.models.core.enums import CompanyStatus, UserStatus
 from app.models.core.user import User
+from app.services.company.sandbox_clone import clone_parent_data
 from app.services.sales.lead_form_seed import ensure_default_lead_form
 from app.services.sales.pipeline_seed import ensure_default_pipeline
 from app.services.sales.workflow import ensure_default_workflow_rules
@@ -36,7 +37,7 @@ def _admin_email_for(parent_id: int) -> str:
     return f"sandbox.{parent_id}.{secrets.token_hex(4)}@sandbox.local"
 
 
-def create_sandbox(db: Session, *, parent: Company) -> tuple[Company, User, str]:
+def create_sandbox(db: Session, *, parent: Company) -> tuple[Company, User, str, dict]:
     if parent.is_sandbox:
         raise ValueError("cannot create sandbox from a sandbox")
     if find_active_sandbox(db, parent.id) is not None:
@@ -80,6 +81,15 @@ def create_sandbox(db: Session, *, parent: Company) -> tuple[Company, User, str]
     db.refresh(sandbox)
     db.refresh(admin)
 
+    cloned: dict = {}
+    try:
+        cloned = clone_parent_data(
+            db, parent_id=parent.id, sandbox_id=sandbox.id, admin_id=admin.id,
+        )
+    except Exception:
+        logger.exception("Sandbox data clone failed for sandbox company_id=%s", sandbox.id)
+        cloned = {}
+
     try:
         ensure_default_pipeline(db, sandbox.id)
     except Exception:
@@ -91,7 +101,7 @@ def create_sandbox(db: Session, *, parent: Company) -> tuple[Company, User, str]
     except Exception:
         logger.exception("Default form/workflow seed failed for sandbox company_id=%s", sandbox.id)
 
-    return sandbox, admin, raw_password
+    return sandbox, admin, raw_password, cloned
 
 
 def destroy_sandbox(db: Session, *, sandbox: Company) -> None:

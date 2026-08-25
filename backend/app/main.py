@@ -25,6 +25,7 @@ from app.routers.sales.custom_fields import router as custom_fields_router
 from app.routers.sales.custom_modules import router as custom_modules_router
 from app.routers.sales.marketplace import router as marketplace_router
 from app.routers.sales.campaigns import router as campaigns_router
+from app.routers.sales.mass_email import router as mass_email_router
 from app.routers.sales.cases import router as cases_router
 from app.routers.sales.emails import router as emails_router
 from app.routers.sales.mailbox import router as mailbox_router
@@ -162,6 +163,7 @@ app.include_router(custom_fields_router, prefix="/api/custom-fields", tags=["Cus
 app.include_router(custom_modules_router, prefix="/api/modules", tags=["Custom Modules"])
 app.include_router(marketplace_router, prefix="/api/marketplace", tags=["Marketplace"])
 app.include_router(campaigns_router, prefix="/api/campaigns", tags=["Campaigns"])
+app.include_router(mass_email_router, prefix="/api/mass-email", tags=["Mass Email"])
 app.include_router(cases_router, prefix="/api/cases", tags=["Cases"])
 app.include_router(emails_router, prefix="/api/emails", tags=["Emails"])
 app.include_router(mailbox_router, prefix="/api/mailbox", tags=["Mailbox"])

@@ -19,8 +19,8 @@ Last updated: **26 Aug 2026**. Status is from code + this file’s progress logs
 | **2 — Sales loop** | ✅ **DONE** (code) | Deals, web form, custom fields, quotes→invoice, workflows, cadence, email, tags/recycle/merge, reminders. |
 | **3 — Zoho Standard match** | ✅ **DONE** (code) | 3.1–3.9 shipped. |
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
-| **5 — Paid add-ons** | ❌ **IN PROGRESS** | **5.1–5.8 DONE.** 5.9–5.10 remain. |
-| **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** Phase 5 add-ons remain. |
+| **5 — Paid add-ons** | ✅ **DONE (code)** | **5.1–5.10 DONE.** |
+| **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** |
 
 ### Phase 4 checklist
 
@@ -73,8 +73,8 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **5.6** Marketplace / apps | ✅ DONE (first-party catalog) |
 | **5.7** Full email marketing / campaigns | ✅ DONE (integrate, don’t clone) |
 | **5.8** Helpdesk / cases / web-to-case | ✅ DONE (thin) |
-| **5.9** Deep sandbox data clone | ❌ PENDING |
-| **5.10** Mass email (capped) | ❌ PENDING |
+| **5.9** Deep sandbox data clone | ✅ DONE |
+| **5.10** Mass email (capped) | ✅ DONE |
 
 ### Also still open (folded into 6.x where noted)
 
@@ -85,7 +85,7 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 | **6.12** Brand drift | ✅ DONE |
 | **6.20** Alembic two-heads | ✅ DONE |
 
-**Resume next:** **Phase 5.9** Deep sandbox data clone.
+**Resume next:** Numbered phases 0–6 are done in code. Next is production verify/deploy (roadmap §8), not another 5.x item.
 
 ---
 
@@ -259,7 +259,7 @@ Phases 3 and 4 were pulled ahead of the original “only after revenue / trial a
 
 - **Phase 3** — ✅ **DONE (code):** 3.1–3.9 logged below.
 - **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
-- **Phase 5** — ❌ **IN PROGRESS:** **5.1 DONE;** 5.2–5.10 pending.
+- **Phase 5** — ✅ **DONE (code):** 5.1–5.10 logged below.
 - **Phase 6** — ✅ **DONE (code):** **6.1–6.20**.
 
 ### Phase 3.1 — TOTP 2FA — DONE
@@ -383,7 +383,7 @@ Separate empty sandbox tenant (`is_sandbox` + `sandbox_parent_id`). Admin/MD cre
 
 - **Verification:** `test_sandbox_schema.py`, `test_sandbox_service.py`, `test_sandbox_api.py`, `test_sandbox_cross_tenant.py` (13 tests).
 - **Deploy:** `create_missing_tables.py` for `companies.is_sandbox` / `sandbox_parent_id`.
-- **Residuals:** no data clone, no in-session company switch, no credential email, no expiry.
+- **Residuals:** ~~no data clone~~ **closed by 5.9**; no in-session company switch, no credential email, no expiry.
 
 ### Phase 4.7 — SSO (Google / Microsoft) — DONE (code)
 
@@ -685,8 +685,7 @@ Mailchimp/Zoho Campaigns (roadmap §7). Spec:
 - **Migration:** head **`024_campaigns`** off `023_marketplace`.
   **Run `alembic upgrade head` and/or `python create_missing_tables.py` on deploy.**
 - **Residuals:** no journeys, open/click tracking, designer, scheduled
-  send, live ESP. **5.10** still owns a later capped blast without a
-  campaign object.
+  send, live ESP. **5.10** is the capped one-shot blast (no campaign row).
 
 ### Phase 5.8 — Helpdesk / cases — DONE (code)
 
@@ -710,8 +709,44 @@ Thin client requests + web-to-case, not Zoho Desk (roadmap §7). Spec:
 - **Residuals:** no SLAs, agent workspace, email-to-case, CSAT, or
   customer ticket portal.
 
-### Phase 5.9 — Deep sandbox data clone — PENDING
-### Phase 5.10 — Mass email (capped) — PENDING
+### Phase 5.9 — Deep sandbox data clone — DONE (code)
+
+Clone a capped CRM snapshot into the 4.6 sandbox tenant at create.
+Spec: [`superpowers/specs/2026-08-26-phase5-sandbox-clone-design.md`](./superpowers/specs/2026-08-26-phase5-sandbox-clone-design.md).
+
+- **Copy:** pipelines/stages, products, custom fields, accounts, clients,
+  leads (not deleted), deals, quotes, invoices, scoring rules, custom
+  modules. **100 rows/table.** User FKs → sandbox admin. Share tokens
+  and `team_id` cleared. New lead-form slug (parent public URL not
+  copied).
+- **Never copied:** users/passwords, billing, mailbox/OAuth/API keys,
+  documents, email logs, webhooks, campaigns, cases.
+- **API:** `POST /api/sandbox` 201 includes `cloned` counts. Parent
+  rows unchanged; parent lead id 404 from sandbox.
+- **UI:** settings copy + cloned totals after create.
+- **Verification:** `tests/company/test_sandbox_clone.py` plus existing
+  sandbox suite — **17 tests green** (4 new). No new Alembic head.
+- **Residuals:** no re-sync, no file clone, no in-session switch.
+
+### Phase 5.10 — Mass email (capped) — DONE (code)
+
+One-shot blast through `deliver_and_log`, tighter caps than 5.7
+campaigns. Spec:
+[`superpowers/specs/2026-08-26-phase5-mass-email-design.md`](./superpowers/specs/2026-08-26-phase5-mass-email-design.md).
+
+- **Caps:** 25 eligible recipients per POST; 100 successful sends per
+  company per UTC day. Admin/MD only.
+- **Target:** `audience=leads|clients` or explicit `lead_ids` /
+  `client_ids` (exactly one). Foreign ids → 400.
+- **Model:** `mass_email_blasts`. Recipients are existing `email_logs`.
+- **API:** `GET|POST /api/mass-email`. Sales → 403.
+- **UI:** `/mass-email`; Settings card; sidebar.
+- **Verification:** `tests/sales/test_mass_email_{schema,service,api,cross_tenant}.py`,
+  `tests/ops/test_alembic_heads.py` — **10 new tests green** plus Alembic
+  head `026_mass_email`.
+- **Migration:** head **`026_mass_email`** off `025_cases`.
+  **Run `alembic upgrade head` and/or `python create_missing_tables.py` on deploy.**
+- **Residuals:** no schedule, unsubscribe, CSV upload, or attachments.
 
 ---
 
@@ -728,12 +763,11 @@ From roadmap §6 — also tracked as **6.11**, **6.12**, and backend debris:
 ## Sequencing summary
 
 ```
-Phase 0–4 ✅ (code)  →  Phase 6 (competitor parity) ✅ (code)  →  Phase 5 (add-ons) ❌
+Phase 0–4 ✅ (code)  →  Phase 6 (competitor parity) ✅ (code)  →  Phase 5 (add-ons) ✅ (code)
 ```
 
 **Verification checkpoints (roadmap §11):**
 - Phase 0: tenancy tests green. ✅ (RLS = **6.10** done in code).
 - Phase 1: payment + seat limit. ✅
 - Phase 2–4: sales loop + Standard + Professional extras. ✅ (code)
-- **Next:** Phase 5 add-ons if sold or requested.
-- Phase 5: only when a paid add-on is sold or repeatedly requested — still listed to build.
+- **Next:** none on the numbered roadmap; Phase 5 add-ons are done in code.

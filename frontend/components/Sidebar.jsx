@@ -259,6 +259,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         }
 
         navData.push({ name: 'Campaigns', href: '/campaigns', icon: 'Mail' });
+        navData.push({ name: 'Mass email', href: '/mass-email', icon: 'Mail' });
         navData.push({ name: 'Cases', href: '/cases', icon: 'Bug' });
 
         // Universal links for all roles

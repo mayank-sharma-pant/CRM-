@@ -92,3 +92,20 @@ def test_me_is_sandbox_false_for_live(client, db):
     _admin(client, db, "S06")
     me = client.get("/api/auth/me").json()
     assert me["is_sandbox"] is False
+
+
+def test_create_and_login_sees_cloned_lead(client, db):
+    company, _ = _admin(client, db, "S07")
+    from app.models.sales.lead import Lead
+    db.add(Lead(company_id=company.id, name="CloneMe", email="c@x.com", status="Active"))
+    db.commit()
+    res = client.post("/api/sandbox")
+    assert res.status_code == 201, res.text
+    assert res.json()["cloned"]["leads"] == 1
+    login_user(client, res.json()["admin_email"], password=res.json()["password"])
+    listed = client.get("/api/leads")
+    assert listed.status_code == 200
+    names = [row["name"] for row in listed.json()["items"]]
+    assert "CloneMe" in names
+    parent_id = db.query(Lead).filter(Lead.company_id == company.id).one().id
+    assert client.get(f"/api/leads/{parent_id}").status_code == 404

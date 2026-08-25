@@ -57,6 +57,7 @@ export default function SandboxSettingsPage() {
         email: res.data.admin_email,
         password: res.data.password,
         hint: res.data.login_hint,
+        cloned: res.data.cloned,
       });
       showToast('Sandbox created', 'success');
       await load();
@@ -121,7 +122,9 @@ export default function SandboxSettingsPage() {
           Sandbox
         </h1>
         <p className="mt-2 text-secondary text-sm">
-          An empty company for experiments. Log in with the sandbox admin account — live data stays untouched.
+          An isolated copy of this company for experiments. Live records are
+          copied (capped at 100 per type). Log in with the sandbox admin —
+          live data stays untouched.
         </p>
       </div>
 
@@ -154,6 +157,14 @@ export default function SandboxSettingsPage() {
             </button>
           </div>
           <p className="text-xs text-secondary">{credentials.hint}</p>
+          {credentials.cloned && (
+            <p className="text-xs text-secondary">
+              Copied {Object.entries(credentials.cloned)
+                .filter(([, n]) => n > 0)
+                .map(([k, n]) => `${n} ${k}`)
+                .join(', ') || 'no CRM rows'}
+            </p>
+          )}
         </div>
       )}
 

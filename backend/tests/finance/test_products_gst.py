@@ -65,3 +65,17 @@ def test_quote_snapshots_then_accept_copies_and_deducts_stock(client, db):
     assert invoice["tax"] == 108.0
     assert invoice["items"][0]["product_id"] == p18["id"]
     assert invoice["items"][0]["hsn"] == "9983"
+
+
+def test_invoice_omitted_unit_price_fills_from_catalog(client, db):
+    _company, _admin, customer, p18, _p5 = _setup(client, db)
+    created = client.post("/api/invoices", json={
+        "client_id": customer.id,
+        "items": [{"product_id": p18["id"], "description": "", "quantity": 2}],
+    })
+    assert created.status_code == 201, created.text
+    detail = client.get(f"/api/invoices/{created.json()['id']}").json()
+    line = detail["items"][0]
+    assert float(line["total"]) == 400.0
+    assert float(line["tax"]) == 72.0
+    assert float(line["unit_price"]) == 200.0

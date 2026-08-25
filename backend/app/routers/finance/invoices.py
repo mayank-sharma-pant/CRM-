@@ -26,7 +26,7 @@ router = APIRouter()
 class InvoiceItemCreate(BaseModel):
     description: str
     quantity: int = 1
-    unit_price: float = 0.0
+    unit_price: Optional[float] = None
     stock_item_id: Optional[int] = None
     hsn: Optional[str] = None
     product_id: Optional[int] = None

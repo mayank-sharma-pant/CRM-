@@ -106,3 +106,14 @@ def test_list_quotes_by_deal(client, db):
     listed = client.get("/api/quotes", params={"deal_id": deal["id"]})
     assert listed.status_code == 200
     assert listed.json()["total"] == 1
+
+
+def test_quote_free_text_without_unit_price_rejected(client, db):
+    _company, _admin, customer, deal = _setup(client, db)
+    created = client.post("/api/quotes", json={
+        "deal_id": deal["id"],
+        "client_id": customer.id,
+        "items": [{"description": "Work", "quantity": 1}],
+    })
+    assert created.status_code == 400
+    assert created.json()["detail"] == "unit_price is required when product_id is not set"

@@ -157,6 +157,8 @@ def create_quote(payload: QuoteCreate, db: Session = Depends(get_db), current_us
             raise HTTPException(status_code=400, detail="quantity must be > 0")
         if item.unit_price is not None and item.unit_price < 0:
             raise HTTPException(status_code=400, detail="unit_price must be >= 0")
+        if item.product_id is None and item.unit_price is None:
+            raise HTTPException(status_code=400, detail="unit_price is required when product_id is not set")
 
     settings = (
         db.query(CompanySettings)

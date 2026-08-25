@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ShieldCheck, ShieldAlert, Copy, Download, KeyRound, AlertTriangle } from 'lucide-react';
 import { twoFactor } from '../../../services/api';
@@ -10,7 +10,7 @@ function formatSecret(secret) {
   return secret.match(/.{1,4}/g)?.join(' ') || secret;
 }
 
-export default function SecuritySettingsPage() {
+function SecurityInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const setupToken = searchParams.get('setup_token') || undefined;
@@ -386,6 +386,18 @@ export default function SecuritySettingsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SecuritySettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-full bg-slate-50 dark:bg-slate-900 pb-10 flex items-center justify-center py-20">
+        <p className="text-sm text-slate-500 dark:text-slate-400">Loading…</p>
+      </div>
+    }>
+      <SecurityInner />
+    </Suspense>
   );
 }
 

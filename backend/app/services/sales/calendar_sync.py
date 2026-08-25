@@ -1,6 +1,7 @@
-"""Per-user Google / Microsoft calendar: OAuth and CRM→calendar push."""
+"""Per-user Google / Microsoft calendar: OAuth, CRM→calendar push, inbound pull."""
 from __future__ import annotations
 
+import re
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -8,9 +9,11 @@ from typing import Optional
 from urllib.parse import urlencode
 
 import httpx
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.models.core.enums import MeetingStatus
 from app.models.core.user import User
 from app.models.sales.calendar import CalendarConnection
 from app.models.sales.meeting import Meeting
@@ -33,6 +36,9 @@ GOOGLE_CAL_SCOPE = "https://www.googleapis.com/auth/calendar.events openid email
 MICROSOFT_CAL_SCOPES = "Calendars.ReadWrite offline_access openid email"
 GOOGLE_EVENTS = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 GRAPH_EVENTS = "https://graph.microsoft.com/v1.0/me/events"
+GRAPH_CALENDAR_VIEW = "https://graph.microsoft.com/v1.0/me/calendarView"
+INBOUND_WINDOW_DAYS = 14
+INBOUND_MAX_EVENTS = 250
 
 
 @dataclass(frozen=True)
@@ -391,3 +397,279 @@ def sync_meeting_outbound(db: Session, user: User, meeting: Meeting, *, deleted:
         connection.status = "error"
         connection.error_message = str(exc)[:500]
         db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Inbound: pull provider events into CRM meetings (7.2)
+# ---------------------------------------------------------------------------
+
+_FRACTION_RE = re.compile(r"(\.\d{1,})")
+
+
+@dataclass(frozen=True)
+class InboundEvent:
+    event_id: str
+    subject: str
+    starts_at: datetime
+    ends_at: datetime
+    location: Optional[str]
+    conference_url: Optional[str]
+
+
+def inbound_window(now: Optional[datetime] = None) -> tuple[datetime, datetime]:
+    start = now or datetime.now(timezone.utc)
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=timezone.utc)
+    else:
+        start = start.astimezone(timezone.utc)
+    return start, start + timedelta(days=INBOUND_WINDOW_DAYS)
+
+
+def parse_provider_datetime(raw: Optional[str]) -> Optional[datetime]:
+    """Provider ISO string → naive UTC. Graph emits 7 fractional digits, which
+    `fromisoformat` rejects below Python 3.11, and `Z` which it rejects below 3.11."""
+    if not raw:
+        return None
+    value = str(raw).strip()
+    if not value:
+        return None
+    if value.endswith(("Z", "z")):
+        value = value[:-1] + "+00:00"
+    match = _FRACTION_RE.search(value)
+    if match and len(match.group(1)) > 7:
+        value = value[: match.start(1)] + match.group(1)[:7] + value[match.end(1):]
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed
+    return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _clean_conference_url(raw: Optional[str]) -> Optional[str]:
+    url = (raw or "").strip()
+    if not url or len(url) > 500:
+        return None
+    if not url.lower().startswith(("http://", "https://")):
+        return None
+    return url
+
+
+def google_conference_url(event: dict) -> Optional[str]:
+    direct = _clean_conference_url(event.get("hangoutLink"))
+    if direct:
+        return direct
+    conference = event.get("conferenceData") or {}
+    for entry in conference.get("entryPoints") or []:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("entryPointType") != "video":
+            continue
+        candidate = _clean_conference_url(entry.get("uri"))
+        if candidate:
+            return candidate
+    return None
+
+
+def graph_conference_url(event: dict) -> Optional[str]:
+    online = event.get("onlineMeeting") or {}
+    if isinstance(online, dict):
+        candidate = _clean_conference_url(online.get("joinUrl"))
+        if candidate:
+            return candidate
+    return _clean_conference_url(event.get("onlineMeetingUrl"))
+
+
+def _subject_or_default(raw: Optional[str]) -> str:
+    subject = (raw or "").strip() or "(No title)"
+    return subject[:255]
+
+
+def normalize_google_event(event: dict) -> Optional[InboundEvent]:
+    if not isinstance(event, dict):
+        return None
+    event_id = str(event.get("id") or "").strip()
+    if not event_id or event.get("status") == "cancelled":
+        return None
+    start_block = event.get("start") or {}
+    end_block = event.get("end") or {}
+    if not isinstance(start_block, dict) or not isinstance(end_block, dict):
+        return None
+    if start_block.get("date") and not start_block.get("dateTime"):
+        return None  # all-day events are not meetings in v0
+    start = parse_provider_datetime(start_block.get("dateTime"))
+    if start is None:
+        return None
+    end = parse_provider_datetime(end_block.get("dateTime")) or start + timedelta(hours=1)
+    loc_raw = event.get("location")
+    if isinstance(loc_raw, dict):
+        loc_raw = loc_raw.get("displayName")
+    location = (loc_raw or "").strip() or None
+    return InboundEvent(
+        event_id=event_id,
+        subject=_subject_or_default(event.get("summary")),
+        starts_at=start,
+        ends_at=end,
+        location=location[:255] if location else None,
+        conference_url=google_conference_url(event),
+    )
+
+
+def normalize_graph_event(event: dict) -> Optional[InboundEvent]:
+    if not isinstance(event, dict):
+        return None
+    event_id = str(event.get("id") or "").strip()
+    if not event_id or event.get("isCancelled") or event.get("isAllDay"):
+        return None
+    start_block = event.get("start") or {}
+    end_block = event.get("end") or {}
+    if not isinstance(start_block, dict) or not isinstance(end_block, dict):
+        return None
+    start = parse_provider_datetime(start_block.get("dateTime"))
+    if start is None:
+        return None
+    end = parse_provider_datetime(end_block.get("dateTime")) or start + timedelta(hours=1)
+    location_block = event.get("location") or {}
+    location = None
+    if isinstance(location_block, dict):
+        location = (location_block.get("displayName") or "").strip() or None
+    return InboundEvent(
+        event_id=event_id,
+        subject=_subject_or_default(event.get("subject")),
+        starts_at=start,
+        ends_at=end,
+        location=location[:255] if location else None,
+        conference_url=graph_conference_url(event),
+    )
+
+
+def provider_list_events(
+    provider: str, access_token: str, window_start: datetime, window_end: datetime
+) -> dict:
+    """Raw provider response for the window. Raises RuntimeError on a >=400 reply."""
+    headers = {"Authorization": f"Bearer {access_token}"}
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    with httpx.Client(timeout=20.0) as client:
+        if provider == "google":
+            res = client.get(
+                GOOGLE_EVENTS,
+                params={
+                    "timeMin": window_start.strftime(fmt),
+                    "timeMax": window_end.strftime(fmt),
+                    "singleEvents": "true",
+                    "orderBy": "startTime",
+                    "maxResults": INBOUND_MAX_EVENTS,
+                },
+                headers=headers,
+            )
+            if res.status_code >= 400:
+                raise RuntimeError("google calendar list failed")
+            return res.json()
+        res = client.get(
+            GRAPH_CALENDAR_VIEW,
+            params={
+                "startDateTime": window_start.strftime(fmt),
+                "endDateTime": window_end.strftime(fmt),
+                "$top": INBOUND_MAX_EVENTS,
+            },
+            headers=headers,
+        )
+        if res.status_code >= 400:
+            raise RuntimeError("graph calendar list failed")
+        return res.json()
+
+
+def fetch_inbound_events(
+    db: Session, connection: CalendarConnection, window_start: datetime, window_end: datetime
+) -> tuple[list[InboundEvent], int]:
+    """(usable events, skipped count). Raises RuntimeError if the provider refuses."""
+    access = access_token_for(db, connection)
+    payload = provider_list_events(connection.provider, access, window_start, window_end)
+    if connection.provider == "google":
+        raw = (payload or {}).get("items") or []
+        normalize = normalize_google_event
+    else:
+        raw = (payload or {}).get("value") or []
+        normalize = normalize_graph_event
+    events: list[InboundEvent] = []
+    skipped = 0
+    for item in raw:
+        normalized = normalize(item)
+        if normalized is None:
+            skipped += 1
+            continue
+        events.append(normalized)
+    return events, skipped
+
+
+def _require_inbound_connection(db: Session, user: User) -> CalendarConnection:
+    connection = get_user_calendar(db, user.id)
+    if connection is None or connection.company_id != user.company_id:
+        raise HTTPException(
+            status_code=400,
+            detail="No calendar connected. Connect Google or Outlook calendar first.",
+        )
+    if connection.status != "active":
+        raise HTTPException(
+            status_code=400,
+            detail="Calendar connection needs attention. Reconnect your calendar and try again.",
+        )
+    return connection
+
+
+def sync_calendar_inbound(db: Session, user: User) -> dict:
+    """Pull the caller's own calendar for the next 14 days and upsert CRM meetings.
+
+    Upsert key is (company_id, calendar_event_id). Events that vanished from the
+    provider are left alone — a partial provider read must not delete CRM rows.
+    """
+    connection = _require_inbound_connection(db, user)
+    window_start, window_end = inbound_window()
+    try:
+        events, skipped = fetch_inbound_events(db, connection, window_start, window_end)
+    except Exception as exc:  # noqa: BLE001 — surfaced as 502, never a fake event
+        connection.status = "error"
+        connection.error_message = str(exc)[:500]
+        db.commit()
+        raise HTTPException(
+            status_code=502,
+            detail="Calendar provider rejected the request. Reconnect your calendar and try again.",
+        ) from exc
+
+    created = 0
+    updated = 0
+    for event in events:
+        meeting = (
+            db.query(Meeting)
+            .filter(
+                Meeting.company_id == user.company_id,
+                Meeting.calendar_event_id == event.event_id,
+            )
+            .first()
+        )
+        if meeting is None:
+            meeting = Meeting(
+                company_id=user.company_id,
+                status=MeetingStatus.SCHEDULED.value,
+                created_by_id=user.id,
+                calendar_event_id=event.event_id,
+            )
+            db.add(meeting)
+            created += 1
+        else:
+            updated += 1
+        meeting.subject = event.subject
+        meeting.starts_at = event.starts_at
+        meeting.ends_at = event.ends_at
+        meeting.location = event.location
+        meeting.conference_url = event.conference_url
+        meeting.calendar_provider = connection.provider
+    db.commit()
+    return {
+        "created": created,
+        "updated": updated,
+        "skipped": skipped,
+        "window_start": window_start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "window_end": window_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }

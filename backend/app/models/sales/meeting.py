@@ -26,6 +26,7 @@ class Meeting(Base):
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     calendar_event_id = Column(String(255), nullable=True)
     calendar_provider = Column(String(32), nullable=True)
+    conference_url = Column(String(500), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

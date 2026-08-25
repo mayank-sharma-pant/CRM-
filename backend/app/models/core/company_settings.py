@@ -37,5 +37,9 @@ class CompanySettings(Base):
     onboarding_dismissed = Column(Integer, default=0)
     retention_days = Column(Integer, nullable=True)
 
+    # Public meeting booking page (/book/{slug}); live only when both are set
+    booking_slug = Column(String(64), nullable=True, index=True)
+    booking_host_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     # Relationships
     company = relationship("Company", backref="settings")

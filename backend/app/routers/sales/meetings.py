@@ -13,10 +13,21 @@ from app.services.sales.activity_parents import (
     parse_iso_datetime,
     require_parent_in_company,
 )
+from app.services.sales.booking import (
+    booking_host,
+    get_or_create_settings,
+    serialize_booking,
+    set_booking_config,
+)
 from app.services.sales.calendar_sync import sync_meeting_outbound
 from app.utils.audit import log_activity
 from app.utils.datetime_json import isoformat_utc
-from app.utils.dependencies import apply_company_scope, ensure_company_access, get_current_user
+from app.utils.dependencies import (
+    apply_company_scope,
+    ensure_company_access,
+    get_current_user,
+    require_admin_or_md,
+)
 
 router = APIRouter()
 
@@ -33,6 +44,11 @@ class MeetingCreate(BaseModel):
     lead_id: Optional[int] = None
     client_id: Optional[int] = None
     deal_id: Optional[int] = None
+
+
+class BookingConfigPatch(BaseModel):
+    slug: Optional[str] = None
+    host_user_id: Optional[int] = None
 
 
 class MeetingUpdate(BaseModel):
@@ -85,6 +101,7 @@ def _serialize(meeting: Meeting) -> dict:
         "created_by_id": meeting.created_by_id,
         "calendar_event_id": meeting.calendar_event_id,
         "calendar_synced": bool(meeting.calendar_event_id),
+        "conference_url": meeting.conference_url,
         "created_at": isoformat_utc(meeting.created_at),
         "updated_at": isoformat_utc(meeting.updated_at),
     }
@@ -98,6 +115,41 @@ def _get_or_404(db: Session, current_user, meeting_id: int) -> Meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
     ensure_company_access(meeting, current_user)
     return meeting
+
+
+def _company_id(user: User) -> int:
+    if user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must belong to a company")
+    return user.company_id
+
+
+@router.get("/booking")
+def read_booking_config(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    company_id = _company_id(current_user)
+    row = get_or_create_settings(db, company_id)
+    host = booking_host(db, company_id, row.booking_host_user_id)
+    return serialize_booking(row, host)
+
+
+@router.patch("/booking")
+def update_booking_config(
+    payload: BookingConfigPatch,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_md),
+):
+    data = payload.model_dump(exclude_unset=True)
+    row, host = set_booking_config(
+        db,
+        _company_id(current_user),
+        slug=data.get("slug"),
+        slug_provided="slug" in data,
+        host_user_id=data.get("host_user_id"),
+        host_provided="host_user_id" in data,
+    )
+    return serialize_booking(row, host)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

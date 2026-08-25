@@ -21,7 +21,7 @@ Last updated: **26 Aug 2026**. Status is from code + this file’s progress logs
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
 | **5 — Paid add-ons** | ✅ **DONE (code)** | **5.1–5.10 DONE.** |
 | **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** |
-| **7 — Trial defense** | 🚧 **IN PROGRESS** | **7.1 DONE (code); 7.2–7.12 pending.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Resume **7.2**. |
+| **7 — Trial defense** | 🚧 **IN PROGRESS** | **7.1–7.2 DONE (code); 7.3–7.12 pending.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Resume **7.3**. |
 
 ### Phase 4 checklist
 
@@ -93,7 +93,7 @@ Thin edges after 0–6. Not Marketing Hub / Desk. Spec: [`superpowers/specs/2026
 | Item | Why they still win the trial | Status |
 |------|------------------------------|--------|
 | **7.1** Email open / click tracking | HubSpot Free wedge | ✅ DONE (code) |
-| **7.2** Meeting booking + inbound calendar | HubSpot meetings; 6.2 is CRM→calendar only | ⏳ PENDING |
+| **7.2** Meeting booking + inbound calendar | HubSpot meetings; 6.2 is CRM→calendar only | ✅ DONE (code) |
 | **7.3** Store-listed mobile | Apps in stores; 6.8 is code + STORE_RELEASE.md | ⏳ PENDING |
 | **7.4** Hindi UI (sales loop) | Zoho India expectation | ⏳ PENDING |
 | **7.5** Live Tally sync | 5.4 is a stub | ⏳ PENDING |
@@ -107,7 +107,7 @@ Thin edges after 0–6. Not Marketing Hub / Desk. Spec: [`superpowers/specs/2026
 
 **Out of Phase 7 (roadmap §7):** Marketing Hub, Zoho Desk, Salesforce objects, two-way live chat, layouts designer.
 
-**Resume next:** **7.2** meeting booking + inbound calendar (7.1 is in code). Production verify of 0–6 remains a deploy gate (roadmap §8), in parallel with 7.x.
+**Resume next:** **7.3** store-listed mobile (7.2 is in code). Production verify of 0–6 remains a deploy gate (roadmap §8), in parallel with 7.x.
 
 ---
 
@@ -283,7 +283,7 @@ Phases 3 and 4 were pulled ahead of the original “only after revenue / trial a
 - **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
 - **Phase 5** — ✅ **DONE (code):** 5.1–5.10 logged below.
 - **Phase 6** — ✅ **DONE (code):** **6.1–6.20**.
-- **Phase 7** — 🚧 **IN PROGRESS:** **7.1 DONE (code)**, 7.2–7.12 pending (trial defense). Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
+- **Phase 7** — 🚧 **IN PROGRESS:** **7.1–7.2 DONE (code)**, 7.3–7.12 pending (trial defense). Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
 
 ### Phase 3.1 — TOTP 2FA — DONE
 
@@ -790,9 +790,13 @@ Phases 0–6 are in code. This phase closes **first-week trial** gaps. It does *
 - **Known limit:** a tenant who can send a tracked email holds a valid click token and can therefore mint a signed redirect on this origin for any target. Inherent to click tracking; named in the spec non-goals.
 - **Residuals:** per-hit event log (first-open time, user agent), unique-vs-total opens, bot/scanner suppression, per-link click attribution, attachment and reply tracking, tracking UI beyond the two counts.
 
-### Phase 7.2 — Meeting booking + inbound calendar — PENDING
+### Phase 7.2 — Meeting booking + inbound calendar — DONE (code)
 
-Public book URL → `meetings` row. Pull Google/Outlook into CRM (6.2 residual).
+Public `/book/{slug}` writes a `meetings` row attributed to the configured host (60-minute default, guest in notes, in-company email lead match only). Config is `company_settings.booking_slug` + `booking_host_user_id`, live when both are set; admin/MD writes, members read. After commit, `sync_meeting_outbound` pushes to the host calendar; a mocked provider failure still returns 201. Inbound is JWT `POST /api/calendar/sync` over now→+14 days, upsert by `(company_id, calendar_event_id)`, never delete; conference URL stored only when the provider supplies `hangoutLink` / Graph `joinUrl`. Disconnected/errored calendar → 400; provider ≥400 → 502 and no fake row. Spec: [`superpowers/specs/2026-08-26-phase7-booking-calendar-design.md`](./superpowers/specs/2026-08-26-phase7-booking-calendar-design.md); plan: [`superpowers/plans/2026-08-26-phase7-booking-calendar.md`](./superpowers/plans/2026-08-26-phase7-booking-calendar.md). UI: `/book/[slug]` + settings booking block + **Pull events from calendar**.
+
+- **Verification:** `tests/sales/test_booking_calendar.py` (40 tests: config round-trip + 403, slug/host 400s, public GET/404, POST attribution/duration/notes, lead match vs foreign, honeypot, 429, mocked push + failure still 201, Google/Graph inbound upsert, no-delete, 400/502 no-write, cross-tenant) + `tests/ops/test_alembic_heads.py` (single head `028_booking_calendar`, `down_revision == 027_email_tracking`). Related `test_calendar_sync.py`, `test_meetings_calls_api.py`, web-to-case, public lead form, and cases API still pass. Full suite: 771 passed, 3 failed (`test_accept_invite_internal_error_is_sanitized`, `test_quota_429_then_next_utc_day_allowed`, `test_due_follow_up_notifies_owner`) — same pre-existing trio named under 7.1, unrelated.
+- **Deploy:** `alembic upgrade head` (`028_booking_calendar`) or `create_missing_tables.py` for `company_settings.booking_slug` / `booking_host_user_id` and `meetings.conference_url`. Booking goes live when an admin sets slug + host; `FRONTEND_URL` should be the public origin for the copyable link. Inbound needs the same Google/Microsoft OAuth client credentials as 6.2 plus a per-user connect.
+- **Residuals:** availability/timezone, guest ICS/email, reschedule/cancel, round-robin, webhook/cron inbound, all-day import, delete-on-vanish, attendees, composite `(company_id, calendar_event_id)` index on upgrades.
 
 ### Phase 7.3 — Store-listed mobile — PENDING
 
@@ -859,4 +863,4 @@ Phase 0–4 ✅ (code)  →  Phase 6 ✅ (code)  →  Phase 5 ✅ (code)  →  P
 - Phase 1: payment + seat limit. ✅
 - Phase 2–4: sales loop + Standard + Professional extras. ✅ (code)
 - Phase 5–6: add-ons + competitor parity. ✅ (code)
-- **Next:** **7.2** meeting booking + inbound calendar (7.1 email tracking is in code). Phase 7 done when the spec’s “Done when” list holds.
+- **Next:** **7.3** store-listed mobile (7.2 meeting booking + inbound calendar is in code). Phase 7 done when the spec’s “Done when” list holds.

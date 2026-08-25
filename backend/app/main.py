@@ -43,6 +43,7 @@ from app.routers.sales.saved_filters import router as saved_filters_router
 from app.routers.sales.outbound_webhooks import router as outbound_webhooks_router
 from app.routers.public.lead_forms import router as public_lead_forms_router
 from app.routers.public.cases import router as public_cases_router
+from app.routers.public.booking import router as public_booking_router
 from app.routers.public.widget import router as public_widget_router
 from app.routers.public.portal import router as portal_router
 from app.routers.public.tracking import router as public_tracking_router
@@ -182,6 +183,7 @@ app.include_router(outbound_webhooks_router, prefix="/api/webhooks", tags=["Outb
 app.include_router(reminders_router, prefix="/api/reminders", tags=["Reminders"])
 app.include_router(public_lead_forms_router, prefix="/api/public/forms", tags=["Public Forms"])
 app.include_router(public_cases_router, prefix="/api/public/cases", tags=["Web to Case"])
+app.include_router(public_booking_router, prefix="/api/public/book", tags=["Public Booking"])
 app.include_router(public_widget_router, prefix="/api/public/widget", tags=["Website Widget"])
 app.include_router(public_tracking_router, prefix="/api/public/track", tags=["Email Tracking"])
 app.include_router(portal_router, prefix="/api/portal", tags=["Portal"])

@@ -16,6 +16,7 @@ from app.services.sales.calendar_sync import (
     exchange_calendar_code,
     parse_calendar_state,
     serialize_calendar,
+    sync_calendar_inbound,
     upsert_calendar_connection,
 )
 from app.utils.dependencies import apply_company_scope, get_current_user
@@ -56,6 +57,16 @@ def calendar_disconnect(
         raise HTTPException(status_code=403, detail="User must belong to a company")
     delete_user_calendar(db, current_user.id)
     return None
+
+
+@router.post("/sync")
+def calendar_pull(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must belong to a company")
+    return sync_calendar_inbound(db, current_user)
 
 
 @router.get("/oauth/{provider}/start")

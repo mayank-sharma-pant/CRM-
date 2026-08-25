@@ -99,6 +99,9 @@ MISSING_COLUMNS = [
     ("accounts", "linkedin_url", "VARCHAR(500)"),
     ("accounts", "enriched_at", "TIMESTAMP"),
     ("accounts", "enrichment_source", "VARCHAR(32)"),
+    ("company_settings", "booking_slug", "VARCHAR(64)"),
+    ("company_settings", "booking_host_user_id", "INTEGER"),
+    ("meetings", "conference_url", "VARCHAR(500)"),
 ]
 
 

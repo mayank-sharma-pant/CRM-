@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -13,6 +13,7 @@ class Pipeline(Base):
     name = Column(String(255), nullable=False)
     is_default = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
+    blueprint_enabled = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -34,6 +35,7 @@ class PipelineStage(Base):
     )
     default_probability = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
+    required_fields = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     pipeline = relationship("Pipeline", back_populates="stages")

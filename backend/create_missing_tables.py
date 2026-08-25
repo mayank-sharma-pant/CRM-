@@ -50,6 +50,8 @@ _MISSING_COLUMNS = [
     ("invoice_items", "product_id", "INTEGER"),
     ("invoice_items", "tax_rate", "NUMERIC(5,2)"),
     ("invoice_items", "tax", "NUMERIC(12,2) DEFAULT 0"),
+    ("pipelines", "blueprint_enabled", "BOOLEAN DEFAULT FALSE"),
+    ("pipeline_stages", "required_fields", "TEXT"),
 ]
 
 

@@ -242,6 +242,13 @@ Existing `flutter_app/` already covered every role. This item is the **sales fie
 - **Verification:** `flutter_app/test/sales_home_test.dart` (home path, nav index, invoice parse). Flutter SDK was not installed in this environment — run `flutter test` locally.
 - **Residuals:** other roles still have full shells; no App Store/Play release; no 2FA enroll UI on mobile.
 
+### Phase 4.1 — Products price book + tax — DONE (code)
+
+Sellable catalog (`products`) with per-product GST snapshots on quote/invoice lines; free-text lines fall back to company `tax_rate`; stock deducts on invoice create / quote accept when a product links `stock_item_id`. Spec: [`superpowers/specs/2026-08-25-phase4-products-price-book-design.md`](./superpowers/specs/2026-08-25-phase4-products-price-book-design.md); plan: [`superpowers/plans/2026-08-25-phase4-products-price-book.md`](./superpowers/plans/2026-08-25-phase4-products-price-book.md). UI: role Products pages, invoice product picker, deal quote line editor.
+
+- **Verification:** `test_products_schema.py`, `test_products_api.py`, `test_product_lines.py`, `test_products_gst.py`, `test_gst.py`, `test_gst_invoice_api.py`, `test_quotes.py`, `test_products_cross_tenant.py`, `test_inventory_api.py`. New table/columns via `create_missing_tables.py` — **run on deploy.**
+- **Residuals:** no price books, no HSN rate table, no `product_id` on public `/api/v1`.
+
 ---
 
 ## Cross-cutting cleanups (do alongside, not as a phase)

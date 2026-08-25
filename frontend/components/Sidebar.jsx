@@ -32,6 +32,7 @@ import {
     Target,
     TrendingUp,
     Package,
+    ShoppingBag,
     Sparkles,
     Menu,
     X
@@ -63,6 +64,7 @@ const ICON_MAP = {
     Target,
     TrendingUp,
     Package,
+    ShoppingBag,
     Sparkles
 };
 
@@ -73,6 +75,7 @@ const ROLE_NAVIGATION = {
         { name: 'Clients', href: '/sales/clients', icon: 'Briefcase' },
         { name: 'My Orders', href: '/sales/orders', icon: 'Receipt' },
         { name: 'Stock', href: '/sales/stock', icon: 'Package' },
+        { name: 'Products', href: '/sales/products', icon: 'ShoppingBag' },
         { name: 'Tasks', href: '/sales/tasks', icon: 'CheckSquare' },
         { name: 'Follow-ups', href: '/sales/follow-ups', icon: 'Calendar' },
         { name: 'Performance', href: '/sales/performance', icon: 'BarChart' },
@@ -87,6 +90,7 @@ const ROLE_NAVIGATION = {
         { name: 'Leads', href: '/manager/leads', icon: 'Users' },
         { name: 'Clients', href: '/manager/clients', icon: 'Briefcase' },
         { name: 'Stock', href: '/manager/stock', icon: 'Package' },
+        { name: 'Products', href: '/manager/products', icon: 'ShoppingBag' },
         { name: 'Tasks', href: '/manager/tasks', icon: 'CheckSquare' },
         { name: 'Reports', href: '/manager/reports', icon: 'PieChart' },
         { name: 'Saved reports', href: '/reports', icon: 'BarChart3' },
@@ -98,6 +102,7 @@ const ROLE_NAVIGATION = {
         { name: 'Team Management', href: '/admin/teams', icon: 'GitBranch' },
         { name: 'Approvals', href: '/admin/approvals', icon: 'UserCheck' },
         { name: 'Audit Logs', href: '/admin/audit', icon: 'FileText' },
+        { name: 'Products', href: '/admin/products', icon: 'ShoppingBag' },
         { name: 'Saved reports', href: '/reports', icon: 'BarChart3' },
         { name: 'AI Assistant', href: '/admin/assistant', icon: 'Sparkles' },
     ],
@@ -109,6 +114,7 @@ const ROLE_NAVIGATION = {
         { name: 'Leads', href: '/md/leads', icon: 'Target' },
         { name: 'Clients', href: '/md/clients', icon: 'Briefcase' },
         { name: 'Stock', href: '/md/stock', icon: 'Package' },
+        { name: 'Products', href: '/md/products', icon: 'ShoppingBag' },
         { name: 'Invoices', href: '/md/invoices', icon: 'Receipt' },
         { name: 'Saved reports', href: '/reports', icon: 'BarChart3' },
         { name: 'AI Assistant', href: '/md/assistant', icon: 'Sparkles' },
@@ -117,6 +123,7 @@ const ROLE_NAVIGATION = {
         { name: 'Dashboard', href: '/purchase/dashboard', icon: 'LayoutDashboard' },
         { name: 'Sales Approvals', href: '/purchase/sales', icon: 'ShoppingCart' },
         { name: 'Stock', href: '/purchase/stock', icon: 'Package' },
+        { name: 'Products', href: '/purchase/products', icon: 'ShoppingBag' },
         { name: 'Invoice Management', href: '/purchase/invoices', icon: 'Receipt' },
         { name: 'Purchase Monitoring', href: '/purchase/monitoring', icon: 'BarChart3' },
         { name: 'AI Assistant', href: '/purchase/assistant', icon: 'Sparkles' },

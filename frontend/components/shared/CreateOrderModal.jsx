@@ -9,15 +9,17 @@ import {
     Receipt
 } from 'lucide-react';
 
-const EMPTY_ITEM = { description: '', quantity: 1, unit_price: 0, stock_item_id: null, hsn: '' };
+const EMPTY_ITEM = { description: '', quantity: 1, unit_price: 0, stock_item_id: null, hsn: '', product_id: null, tax_rate: null };
 
 export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId, clientName, endpoint = '/invoices' }) {
     const [clients, setClients] = useState([]);
     const [selectedClientId, setSelectedClientId] = useState(clientId || '');
     const [items, setItems] = useState([{ ...EMPTY_ITEM }]);
     const [inventory, setInventory] = useState([]);
+    const [products, setProducts] = useState([]);
     const [inventoryLoading, setInventoryLoading] = useState(false);
     const [tax, setTax] = useState(0);
+    const [taxTouched, setTaxTouched] = useState(false);
     const [discount, setDiscount] = useState(0);
     const [dueDays, setDueDays] = useState(30);
     const [notes, setNotes] = useState('');
@@ -39,10 +41,15 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
     useEffect(() => {
         if (!isOpen) return;
         setInventoryLoading(true);
-        api.get('/inventory', { params: { limit: 500, in_stock_only: true } }).then((res) => {
-            setInventory(res.data?.items || []);
+        Promise.all([
+            api.get('/inventory', { params: { limit: 500, in_stock_only: true } }),
+            api.get('/products', { params: { active_only: true } }),
+        ]).then(([invRes, prodRes]) => {
+            setInventory(invRes.data?.items || []);
+            setProducts(prodRes.data?.items || []);
         }).catch(() => {
             setInventory([]);
+            setProducts([]);
         }).finally(() => {
             setInventoryLoading(false);
         });
@@ -51,6 +58,11 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
     const stockById = useMemo(
         () => Object.fromEntries(inventory.map((item) => [item.id, item])),
         [inventory]
+    );
+
+    const productById = useMemo(
+        () => Object.fromEntries(products.map((item) => [item.id, item])),
+        [products]
     );
 
     const getReservedQty = (stockItemId, excludeIndex = -1) => {
@@ -84,10 +96,27 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
             updated[idx][field] = value;
         } else if (field === 'unit_price') {
             updated[idx][field] = value;
+        } else if (field === 'product_id') {
+            const productId = value ? parseInt(value, 10) : null;
+            updated[idx].product_id = Number.isFinite(productId) ? productId : null;
+            updated[idx].stock_item_id = null;
+            if (updated[idx].product_id) {
+                const selected = productById[updated[idx].product_id];
+                if (selected) {
+                    updated[idx].description = selected.name || updated[idx].description;
+                    updated[idx].unit_price = Number(selected.unit_price || 0);
+                    updated[idx].hsn = selected.hsn || '';
+                    updated[idx].tax_rate = Number(selected.tax_rate);
+                }
+            } else {
+                updated[idx].tax_rate = null;
+            }
         } else if (field === 'stock_item_id') {
             const stockId = value ? parseInt(value, 10) : null;
             updated[idx].stock_item_id = Number.isFinite(stockId) ? stockId : null;
             if (updated[idx].stock_item_id) {
+                updated[idx].product_id = null;
+                updated[idx].tax_rate = null;
                 const selectedStock = stockById[updated[idx].stock_item_id];
                 if (selectedStock) {
                     updated[idx].description = selectedStock.name || updated[idx].description;
@@ -102,8 +131,14 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
 
     if (!isOpen) return null;
 
-    const subtotal = items.reduce((sum, item) => sum + ((parseFloat(item.unit_price) || 0) * (parseInt(item.quantity) || 0)), 0);
-    const total = subtotal + tax - discount;
+    const subtotal = items.reduce((sum, item) => sum + ((parseFloat(item.unit_price) || 0) * (parseInt(item.quantity, 10) || 0)), 0);
+    const lineTaxSum = items.reduce((s, i) => {
+        const qty = parseInt(i.quantity, 10) || 0;
+        const price = parseFloat(i.unit_price) || 0;
+        return s + (qty * price * Number(i.tax_rate ?? 18) / 100);
+    }, 0);
+    const displayedTax = taxTouched ? tax : lineTaxSum;
+    const total = subtotal + displayedTax - discount;
 
     const handleSubmit = async () => {
         const targetClientId = clientId || selectedClientId;
@@ -122,9 +157,10 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                     quantity: parseInt(i.quantity, 10) || 1,
                     unit_price: parseFloat(i.unit_price) || 0,
                     stock_item_id: i.stock_item_id || null,
+                    product_id: i.product_id || null,
                     hsn: (i.hsn || '').trim() || null,
                 })),
-                ...(tax ? { tax } : {}),
+                ...(taxTouched ? { tax: displayedTax } : {}),
                 discount,
                 due_days: dueDays,
                 notes: notes || null
@@ -133,6 +169,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
             setItems([{ ...EMPTY_ITEM }]);
             setNotes('');
             setTax(0);
+            setTaxTouched(false);
             setDiscount(0);
             onCreated();
         } catch (err) {
@@ -157,7 +194,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                             <p className="text-xs text-slate-500 dark:text-slate-400">Initiate a new entry</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                         <X size={20} />
                     </button>
                 </div>
@@ -189,7 +226,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                     <div>
                         <div className="flex items-center justify-between mb-2 ml-1">
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Order Items</label>
-                            <button onClick={addItem} className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold">
+                            <button type="button" onClick={addItem} className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold">
                                 <Plus size={12} /> Add Row
                             </button>
                         </div>
@@ -197,8 +234,30 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                         <div className="space-y-3">
                             {items.map((item, idx) => (
                                 <div key={idx} className="grid grid-cols-12 gap-2 items-start group border border-slate-100 dark:border-slate-800 rounded-lg p-2.5">
-                                    <div className="col-span-12 md:col-span-4">
+                                    <div className="col-span-12 md:col-span-3">
+                                        <label className="sr-only" htmlFor={`order-product-${idx}`}>Product</label>
                                         <select
+                                            id={`order-product-${idx}`}
+                                            value={item.product_id || ''}
+                                            onChange={(e) => updateItem(idx, 'product_id', e.target.value)}
+                                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+                                        >
+                                            <option value="">No catalog product</option>
+                                            {products.map(product => (
+                                                <option key={product.id} value={product.id}>
+                                                    {product.name}{product.sku ? ` (${product.sku})` : ''} — {product.tax_rate}%
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5">
+                                            Catalog product (fills price / HSN / tax)
+                                        </p>
+                                    </div>
+
+                                    <div className="col-span-12 md:col-span-3">
+                                        <label className="sr-only" htmlFor={`order-stock-${idx}`}>Stock</label>
+                                        <select
+                                            id={`order-stock-${idx}`}
                                             value={item.stock_item_id || ''}
                                             onChange={(e) => updateItem(idx, 'stock_item_id', e.target.value)}
                                             className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
@@ -215,8 +274,10 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                                         </p>
                                     </div>
 
-                                    <div className="col-span-12 md:col-span-3">
+                                    <div className="col-span-12 md:col-span-2">
+                                        <label className="sr-only" htmlFor={`order-desc-${idx}`}>Description</label>
                                         <input
+                                            id={`order-desc-${idx}`}
                                             type="text"
                                             value={item.description}
                                             onChange={(e) => updateItem(idx, 'description', e.target.value)}
@@ -231,7 +292,9 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                                     </div>
 
                                     <div className="col-span-4 md:col-span-1">
+                                        <label className="sr-only" htmlFor={`order-qty-${idx}`}>Quantity</label>
                                         <input
+                                            id={`order-qty-${idx}`}
                                             type="number"
                                             value={item.quantity}
                                             onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
@@ -241,8 +304,10 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                                         />
                                     </div>
 
-                                    <div className="col-span-6 md:col-span-2">
+                                    <div className="col-span-6 md:col-span-1">
+                                        <label className="sr-only" htmlFor={`order-price-${idx}`}>Price</label>
                                         <input
+                                            id={`order-price-${idx}`}
                                             type="number"
                                             value={item.unit_price}
                                             onChange={(e) => updateItem(idx, 'unit_price', e.target.value)}
@@ -254,7 +319,9 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                                     </div>
 
                                     <div className="col-span-4 md:col-span-1">
+                                        <label className="sr-only" htmlFor={`order-hsn-${idx}`}>HSN</label>
                                         <input
+                                            id={`order-hsn-${idx}`}
                                             type="text"
                                             value={item.hsn || ''}
                                             onChange={(e) => updateItem(idx, 'hsn', e.target.value)}
@@ -266,7 +333,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
 
                                     <div className="col-span-2 md:col-span-1 flex justify-end">
                                         {items.length > 1 && (
-                                            <button onClick={() => removeItem(idx)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                                            <button type="button" onClick={() => removeItem(idx)} className="p-2 text-slate-300 hover:text-red-500 transition-colors" aria-label="Remove row">
                                                 <Trash2 size={16} />
                                             </button>
                                         )}
@@ -278,20 +345,28 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Tax Offset (₹)</label>
+                            <label htmlFor="order-tax" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Tax Offset (₹)</label>
                             <input
+                                id="order-tax"
                                 type="number"
-                                value={tax || ''}
-                                onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
+                                value={displayedTax || ''}
+                                onChange={(e) => {
+                                    setTaxTouched(true);
+                                    setTax(parseFloat(e.target.value) || 0);
+                                }}
                                 placeholder="0"
                                 className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
                                 min={0}
                                 step={0.01}
                             />
+                            {!taxTouched && (
+                                <p className="text-[10px] text-slate-500 mt-1 ml-1">Auto from line rates (edit to override)</p>
+                            )}
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Discount (₹)</label>
+                            <label htmlFor="order-discount" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Discount (₹)</label>
                             <input
+                                id="order-discount"
                                 type="number"
                                 value={discount || ''}
                                 onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
@@ -304,8 +379,9 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                     </div>
 
                     <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Order Memo</label>
+                        <label htmlFor="order-notes" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Order Memo</label>
                         <textarea
+                            id="order-notes"
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                             rows={2}
@@ -321,7 +397,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                         </div>
                         <div className="flex justify-between text-xs text-slate-400 font-medium">
                             <span>Admin/Tax (+)</span>
-                            <span className="text-emerald-500 font-mono">+₹{tax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                            <span className="text-emerald-500 font-mono">+₹{displayedTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between text-xs text-slate-400 font-medium">
                             <span>Incentive/Disc (-)</span>
@@ -336,12 +412,14 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
 
                 <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex gap-3">
                     <button
+                        type="button"
                         onClick={onClose}
                         className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm"
                     >
                         Keep Browsing
                     </button>
                     <button
+                        type="button"
                         onClick={handleSubmit}
                         disabled={submitting}
                         className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2"

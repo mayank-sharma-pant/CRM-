@@ -24,10 +24,21 @@ export default function DealDetailPage() {
   const [expectedClose, setExpectedClose] = useState('');
   const [quotes, setQuotes] = useState([]);
   const [quoteBusy, setQuoteBusy] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [quoteEditorOpen, setQuoteEditorOpen] = useState(false);
+  const [quoteLines, setQuoteLines] = useState([
+    { description: '', quantity: 1, unit_price: 0, product_id: null, tax_rate: null },
+  ]);
 
   useEffect(() => {
     fetchDeal();
   }, [id]);
+
+  useEffect(() => {
+    api.get('/products', { params: { active_only: true } })
+      .then((res) => setProducts(res.data?.items || []))
+      .catch(() => setProducts([]));
+  }, []);
 
   const fetchDeal = async () => {
     setLoading(true);
@@ -77,9 +88,72 @@ export default function DealDetailPage() {
     setQuotes(q.data.items || []);
   };
 
+  const openQuoteEditor = () => {
+    setQuoteLines([
+      {
+        description: deal?.title || '',
+        quantity: 1,
+        unit_price: Number(deal?.amount || 0),
+        product_id: null,
+        tax_rate: null,
+      },
+    ]);
+    setQuoteEditorOpen(true);
+  };
+
+  const updateQuoteLine = (idx, field, value) => {
+    setQuoteLines((prev) => {
+      const next = [...prev];
+      if (field === 'product_id') {
+        const productId = value ? parseInt(value, 10) : null;
+        next[idx] = {
+          ...next[idx],
+          product_id: Number.isFinite(productId) ? productId : null,
+        };
+        if (next[idx].product_id) {
+          const selected = products.find((p) => p.id === next[idx].product_id);
+          if (selected) {
+            next[idx].description = selected.name || next[idx].description;
+            next[idx].unit_price = Number(selected.unit_price || 0);
+            next[idx].tax_rate = Number(selected.tax_rate);
+          }
+        } else {
+          next[idx].tax_rate = null;
+        }
+      } else {
+        next[idx] = { ...next[idx], [field]: value };
+      }
+      return next;
+    });
+  };
+
+  const addQuoteLine = () => {
+    setQuoteLines((prev) => [
+      ...prev,
+      { description: '', quantity: 1, unit_price: 0, product_id: null, tax_rate: null },
+    ]);
+  };
+
+  const removeQuoteLine = (idx) => {
+    setQuoteLines((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)));
+  };
+
+  const quoteSubtotal = quoteLines.reduce(
+    (sum, line) => sum + (Number(line.unit_price) || 0) * (Number(line.quantity) || 0),
+    0
+  );
+  const quoteTaxPreview = quoteLines.reduce((sum, line) => {
+    const amount = (Number(line.unit_price) || 0) * (Number(line.quantity) || 0);
+    return sum + amount * (Number(line.tax_rate ?? 18) / 100);
+  }, 0);
+
   const createQuote = async () => {
     if (!deal.client_id) {
       showToast('Attach a client on this deal before quoting', 'error');
+      return;
+    }
+    if (quoteLines.some((line) => !String(line.description || '').trim())) {
+      showToast('Each quote line needs a description', 'error');
       return;
     }
     setQuoteBusy(true);
@@ -87,9 +161,15 @@ export default function DealDetailPage() {
       await api.post('/quotes', {
         deal_id: Number(id),
         client_id: deal.client_id,
-        items: [{ description: deal.title || 'Deal', quantity: 1, unit_price: String(deal.amount || '0') }],
+        items: quoteLines.map((line) => ({
+          description: String(line.description).trim(),
+          quantity: Number(line.quantity) || 1,
+          unit_price: String(Number(line.unit_price) || 0),
+          product_id: line.product_id || null,
+        })),
       });
       showToast('Quote created', 'success');
+      setQuoteEditorOpen(false);
       await refreshQuotes();
     } catch (err) {
       showToast(err.response?.data?.detail || 'Could not create quote', 'error');
@@ -246,15 +326,119 @@ export default function DealDetailPage() {
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Quotes</h2>
             <button
               type="button"
-              onClick={createQuote}
+              onClick={openQuoteEditor}
               disabled={quoteBusy}
               className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold uppercase rounded-lg disabled:opacity-50"
             >
               New quote
             </button>
           </div>
+
+          {quoteEditorOpen && (
+            <div className="border border-slate-200 dark:border-slate-600 rounded-lg p-4 space-y-3 bg-slate-50 dark:bg-slate-900/40">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Quote lines</h3>
+                <button
+                  type="button"
+                  onClick={addQuoteLine}
+                  className="text-[11px] font-bold text-blue-600 hover:underline"
+                >
+                  Add line
+                </button>
+              </div>
+              {quoteLines.map((line, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-12 md:col-span-3">
+                    <label htmlFor={`quote-product-${idx}`} className="block text-[10px] text-slate-400 uppercase mb-1">Product</label>
+                    <select
+                      id={`quote-product-${idx}`}
+                      value={line.product_id || ''}
+                      onChange={(e) => updateQuoteLine(idx, 'product_id', e.target.value)}
+                      className="w-full px-2 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700"
+                    >
+                      <option value="">Free-text</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} — {p.tax_rate}%
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-12 md:col-span-4">
+                    <label htmlFor={`quote-desc-${idx}`} className="block text-[10px] text-slate-400 uppercase mb-1">Description</label>
+                    <input
+                      id={`quote-desc-${idx}`}
+                      type="text"
+                      value={line.description}
+                      onChange={(e) => updateQuoteLine(idx, 'description', e.target.value)}
+                      className="w-full px-2 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700"
+                    />
+                  </div>
+                  <div className="col-span-4 md:col-span-2">
+                    <label htmlFor={`quote-qty-${idx}`} className="block text-[10px] text-slate-400 uppercase mb-1">Qty</label>
+                    <input
+                      id={`quote-qty-${idx}`}
+                      type="number"
+                      min={1}
+                      value={line.quantity}
+                      onChange={(e) => updateQuoteLine(idx, 'quantity', e.target.value)}
+                      className="w-full px-2 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700"
+                    />
+                  </div>
+                  <div className="col-span-5 md:col-span-2">
+                    <label htmlFor={`quote-price-${idx}`} className="block text-[10px] text-slate-400 uppercase mb-1">Price</label>
+                    <input
+                      id={`quote-price-${idx}`}
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={line.unit_price}
+                      onChange={(e) => updateQuoteLine(idx, 'unit_price', e.target.value)}
+                      className="w-full px-2 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700"
+                    />
+                  </div>
+                  <div className="col-span-3 md:col-span-1 flex justify-end pb-0.5">
+                    {quoteLines.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeQuoteLine(idx)}
+                        className="px-2 py-2 text-[11px] font-bold text-slate-400 hover:text-red-500"
+                        aria-label="Remove line"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200 dark:border-slate-700">
+                <div className="text-sm text-slate-600 dark:text-slate-300 space-x-4">
+                  <span>Subtotal ₹{quoteSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span>Tax ₹{quoteTaxPreview.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setQuoteEditorOpen(false)}
+                    className="px-3 py-1.5 border border-slate-300 text-[11px] font-bold uppercase rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={createQuote}
+                    disabled={quoteBusy}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold uppercase rounded-lg disabled:opacity-50"
+                  >
+                    Create quote
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {quotes.length === 0 ? (
-            <p className="text-sm text-slate-500">No quotes yet. Create one from this deal’s amount.</p>
+            <p className="text-sm text-slate-500">No quotes yet. Add lines and create one from this deal.</p>
           ) : (
             <ul className="space-y-3">
               {quotes.map((q) => (
@@ -263,7 +447,9 @@ export default function DealDetailPage() {
                     <span className="font-semibold">{q.quote_number}</span>
                     <span className="uppercase text-[10px] font-bold tracking-wide">{q.status}</span>
                   </div>
-                  <div className="text-slate-500 mt-1">Total {q.total}</div>
+                  <div className="text-slate-500 mt-1">
+                    Subtotal {q.subtotal ?? '—'} · Tax {q.tax ?? 0} · Total {q.total}
+                  </div>
                   {q.invoice_id && <div className="text-slate-500">Invoice #{q.invoice_id}</div>}
                   {q.payment_url && (
                     <div className="mt-1 break-all text-xs text-blue-600">{q.payment_url}</div>

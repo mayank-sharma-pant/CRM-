@@ -14,7 +14,11 @@ export default function Login() {
     const [otpSent, setOtpSent] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { login, requestOTP, loginOTP } = useAuth();
+    const [stage, setStage] = useState('credentials'); // 'credentials' or '2fa'
+    const [mfaToken, setMfaToken] = useState('');
+    const [twoFactorCode, setTwoFactorCode] = useState('');
+    const [useRecoveryCode, setUseRecoveryCode] = useState(false);
+    const { login, requestOTP, loginOTP, verify2FA } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const justRegistered = searchParams.get('registered') === 'true';
@@ -71,9 +75,38 @@ export default function Login() {
                 result = await loginOTP(email, otpCode);
             }
 
+            if (result.mfa_required) {
+                setMfaToken(result.mfa_token);
+                setStage('2fa');
+                return;
+            }
+
+            if (result.mfa_setup_required) {
+                router.push('/settings/security?setup_token=' + encodeURIComponent(result.setup_token) + '&forced=1');
+                return;
+            }
+
             handleRedirect(result.user);
         } catch (err) {
             setError(err.response?.data?.detail || 'Login failed. Please check your credentials.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerify2FA = async (e) => {
+        e.preventDefault();
+        if (!twoFactorCode) {
+            setError(useRecoveryCode ? 'Please enter a recovery code' : 'Please enter the 6-digit code');
+            return;
+        }
+        setError('');
+        setLoading(true);
+        try {
+            const res = await verify2FA(mfaToken, twoFactorCode);
+            handleRedirect(res.user);
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Verification failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -95,13 +128,73 @@ export default function Login() {
                             </div>
                         </Link>
                         <h2 className="text-2xl font-bold text-primary tracking-tight">
-                            Welcome back
+                            {stage === '2fa' ? 'Two-factor verification' : 'Welcome back'}
                         </h2>
                         <p className="mt-2 text-sm text-secondary">
-                            Sign in to access your dashboard
+                            {stage === '2fa' ? 'Enter the code from your authenticator app' : 'Sign in to access your dashboard'}
                         </p>
                     </div>
 
+                    {stage === '2fa' ? (
+                        <form className="space-y-6" onSubmit={handleVerify2FA}>
+                            {error && (
+                                <div className="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
+                                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    {error}
+                                </div>
+                            )}
+
+                            <div>
+                                <label htmlFor="twoFactorCode" className="block text-sm font-semibold text-secondary mb-1.5">
+                                    {useRecoveryCode ? 'Recovery code' : 'Authentication code'}
+                                </label>
+                                <input
+                                    id="twoFactorCode"
+                                    name="twoFactorCode"
+                                    type="text"
+                                    inputMode={useRecoveryCode ? 'text' : 'numeric'}
+                                    autoComplete="one-time-code"
+                                    maxLength={useRecoveryCode ? 8 : 6}
+                                    required
+                                    autoFocus
+                                    className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all shadow-sm tracking-widest text-center"
+                                    placeholder={useRecoveryCode ? 'XXXXXXXX' : '000000'}
+                                    value={twoFactorCode}
+                                    onChange={(e) => setTwoFactorCode(e.target.value)}
+                                />
+                            </div>
+
+                            <div>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full py-3 px-4 bg-accent hover:opacity-90 text-page font-semibold rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-sm transition-all duration-200"
+                                >
+                                    {loading ? 'Verifying...' : 'Verify'}
+                                </button>
+                            </div>
+
+                            <div className="flex items-center justify-between text-xs">
+                                <button
+                                    type="button"
+                                    onClick={() => { setUseRecoveryCode(!useRecoveryCode); setTwoFactorCode(''); setError(''); }}
+                                    className="font-medium text-accent hover:text-accent-hover transition-colors"
+                                >
+                                    {useRecoveryCode ? 'Use an authenticator code instead' : 'Use a recovery code'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setStage('credentials'); setMfaToken(''); setTwoFactorCode(''); setUseRecoveryCode(false); setError(''); }}
+                                    className="font-medium text-muted hover:text-secondary transition-colors"
+                                >
+                                    Back to sign in
+                                </button>
+                            </div>
+                        </form>
+                    ) : (
+                    <>
                     {justRegistered && (
                         <div className="bg-accent/10 border border-accent/20 text-accent px-4 py-3 rounded-lg text-sm flex items-center gap-2 mb-6 animate-fade-in">
                             <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -249,6 +342,8 @@ export default function Login() {
                             Create an account
                         </Link>
                     </div>
+                    </>
+                    )}
                 </div>
 
                 {/* Footer Polish */}

@@ -44,7 +44,7 @@ def test_owner_can_list_report_and_delete_quota(client, two_companies_with_quota
     report = client.get("/api/forecasting/report", params={"year": 2026, "month": 8})
     assert report.status_code == 200
     assert any(r["user_id"] == sales_a_id for r in report.json()["items"])
-    assert client.delete(f"/api/forecasting/quotas/{quota_id}").status_code == 200
+    assert client.delete(f"/api/forecasting/quotas/{quota_id}").status_code == 204
 
 
 def test_cross_tenant_put_denied(client, two_companies_with_quota):

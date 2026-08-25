@@ -107,6 +107,24 @@ def _require_write_access(
     return target
 
 
+def _require_delete_access(
+    db: Session,
+    current_user: User,
+    target_user_id: int,
+    active_team_id: Optional[int],
+) -> None:
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
+    role = _role(current_user)
+    if role in ("admin", "md"):
+        return
+    if role == "manager":
+        if not _can_write_quota_for(db, current_user, target_user_id, active_team_id):
+            raise HTTPException(status_code=403, detail="You cannot delete quotas for this user")
+        return
+    raise HTTPException(status_code=403, detail="You cannot delete quotas")
+
+
 def _serialize_quota(q: SalesQuota) -> dict:
     return {
         "id": q.id,
@@ -182,7 +200,7 @@ def upsert_quota(
     return _serialize_quota(quota)
 
 
-@router.delete("/quotas/{quota_id}")
+@router.delete("/quotas/{quota_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_quota(
     quota_id: int,
     db: Session = Depends(get_db),
@@ -195,10 +213,9 @@ def delete_quota(
     if quota is None:
         raise HTTPException(status_code=404, detail="Quota not found")
     ensure_company_access(quota, current_user)
-    _require_write_access(db, current_user, quota.user_id, active_team_id)
+    _require_delete_access(db, current_user, quota.user_id, active_team_id)
     db.delete(quota)
     db.commit()
-    return {"ok": True}
 
 
 @router.get("/report")

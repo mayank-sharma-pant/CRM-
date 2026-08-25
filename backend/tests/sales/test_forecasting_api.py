@@ -3,6 +3,7 @@ from decimal import Decimal
 
 import pytest
 
+from app.models.core.enums import UserStatus
 from app.models.core.team import Team
 from app.models.core.team_membership import TeamMembership
 from app.models.sales.deal import Deal
@@ -105,6 +106,29 @@ def test_manager_can_set_quota_for_team_member(client, db):
     assert resp.status_code == 200, resp.text
 
 
+def test_manager_cannot_put_quota_for_user_outside_active_team(client, db):
+    company = create_company(db, name="FC8", company_code="FC8")
+    team = Team(company_id=company.id, name="T-mgr")
+    other_team = Team(company_id=company.id, name="T-other")
+    db.add_all([team, other_team])
+    db.commit()
+    db.refresh(team)
+    db.refresh(other_team)
+    manager = create_active_user(
+        db, email="mgr@fc8.com", role="manager", company_id=company.id, team_id=team.id,
+    )
+    outsider = create_active_user(db, email="outsider@fc8.com", role="sales", company_id=company.id)
+    db.add(TeamMembership(company_id=company.id, team_id=team.id, user_id=manager.id))
+    db.add(TeamMembership(company_id=company.id, team_id=other_team.id, user_id=outsider.id))
+    db.commit()
+    login_user(client, manager.email)
+    client.headers["X-Team-Id"] = str(team.id)
+    resp = client.put("/api/forecasting/quotas", json={
+        "user_id": outsider.id, "year": 2026, "month": 8, "amount": "500.00",
+    })
+    assert resp.status_code == 403
+
+
 def test_manager_can_set_own_quota_with_active_team_without_membership(client, db):
     company = create_company(db, name="FC7", company_code="FC7")
     team = Team(company_id=company.id, name="T2")
@@ -139,6 +163,22 @@ def test_list_and_delete_quota(client, db):
     assert listed.status_code == 200
     assert any(q["id"] == quota_id for q in listed.json()["items"])
     deleted = client.delete(f"/api/forecasting/quotas/{quota_id}")
-    assert deleted.status_code == 200
+    assert deleted.status_code == 204
     listed_after = client.get("/api/forecasting/quotas", params={"year": 2026, "month": 8})
     assert not any(q["id"] == quota_id for q in listed_after.json()["items"])
+
+
+def test_delete_quota_after_user_deactivated(client, db):
+    company = create_company(db, name="FC9", company_code="FC9")
+    admin = create_active_user(db, email="admin@fc9.com", role="admin", company_id=company.id)
+    sales = create_active_user(db, email="sales@fc9.com", role="sales", company_id=company.id)
+    login_user(client, admin.email)
+    put = client.put("/api/forecasting/quotas", json={
+        "user_id": sales.id, "year": 2026, "month": 8, "amount": "300.00",
+    })
+    quota_id = put.json()["id"]
+    sales.is_active = False
+    sales.status = UserStatus.DISABLED
+    db.commit()
+    deleted = client.delete(f"/api/forecasting/quotas/{quota_id}")
+    assert deleted.status_code == 204

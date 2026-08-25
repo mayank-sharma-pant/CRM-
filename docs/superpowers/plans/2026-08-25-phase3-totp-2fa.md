@@ -523,8 +523,7 @@ def confirm(body: CodeBody, db: Session = Depends(get_db), user: User = Depends(
     user.totp_enabled = True
     user.totp_confirmed_at = datetime.now(timezone.utc)
     codes = _issue_recovery_codes(db, user)
-    log_activity(db, action="2fa:enabled", entity_type="user", entity_id=user.id,
-                 user_id=user.id, company_id=user.company_id)
+    log_activity(db, user=user, action="2fa:enabled", entity_type="user", entity_id=user.id)
     db.commit()
     return {"recovery_codes": codes}
 
@@ -551,8 +550,7 @@ def disable(body: PasswordBody, db: Session = Depends(get_db), user: User = Depe
     user.totp_secret = None
     user.totp_confirmed_at = None
     db.query(MfaRecoveryCode).filter(MfaRecoveryCode.user_id == user.id).delete()
-    log_activity(db, action="2fa:disabled", entity_type="user", entity_id=user.id,
-                 user_id=user.id, company_id=user.company_id)
+    log_activity(db, user=user, action="2fa:disabled", entity_type="user", entity_id=user.id)
     db.commit()
     return {"message": "2FA disabled"}
 
@@ -575,7 +573,7 @@ from app.routers.auth import mfa as auth_mfa
 app.include_router(auth_mfa.router, prefix="/api/auth")
 ```
 
-**Note:** verify `log_activity`'s real signature in `backend/app/utils/audit.py` before wiring — match its parameter names exactly (the call above assumes `action`, `entity_type`, `entity_id`, `user_id`, `company_id`; adjust to the actual signature if it differs, e.g. `actor_id`).
+**`log_activity` signature (verified):** `log_activity(db, *, user, action, entity_type, entity_id, entity_name=None, before=None, after=None)` — pass the **`user` object** (not `user_id`), and there is **no** `company_id` param. Calls above already use this exact shape.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -594,7 +592,7 @@ git commit -m "feat(2fa): enrollment endpoints (setup/confirm/status/disable/reg
 ### Task 5: Login challenge branch + `/2fa/verify` + LoginResponse schema
 
 **Files:**
-- Modify: `backend/app/schemas/admin.py` (`LoginResponse` — make token fields optional, add MFA fields)
+- Modify: `backend/app/schemas/admin/user.py` (`LoginResponse` at line 54 — make `access_token` and `user` optional, add MFA fields)
 - Modify: `backend/app/routers/auth/auth.py` (`/login`, `/login-otp` branch; add helper)
 - Modify: `backend/app/routers/auth/mfa.py` (add `POST /verify`)
 - Modify: `backend/app/routers/auth/__init__.py` if it re-exports (only if needed)
@@ -695,20 +693,27 @@ Expected: FAIL — enrolled login still returns tokens; `/2fa/verify` 404.
 
 - [ ] **Step 3: Write minimal implementation**
 
-In `backend/app/schemas/admin.py`, change `LoginResponse` so token fields are optional and MFA fields exist (keep existing `user`/`token_type`):
-
+In `backend/app/schemas/admin/user.py`, the current `LoginResponse` (line 54) is:
+```python
+class LoginResponse(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    token_type: str = "bearer"
+    user: LoginUserInfo
+```
+Change it so `access_token` and `user` are optional (a challenge response omits them) and add the MFA fields — keep `LoginUserInfo` as the `user` type:
 ```python
 class LoginResponse(BaseModel):
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
     token_type: str = "bearer"
-    user: Optional[dict] = None
+    user: Optional[LoginUserInfo] = None
     mfa_required: Optional[bool] = None
     mfa_token: Optional[str] = None
     mfa_setup_required: Optional[bool] = None
     setup_token: Optional[str] = None
 ```
-(ensure `from typing import Optional` is imported; keep any existing fields.)
+(`Optional` is already imported in this file.)
 
 In `backend/app/routers/auth/auth.py`, add a helper and call it in both login endpoints **before** issuing tokens. Add imports at top: `from app.models.core.mfa_recovery_code import MfaRecoveryCode`, `from app.utils import totp`, `from app.utils.totp_crypto import decrypt_secret, hash_recovery_code`, `from app.utils.dependencies import is_platform_admin`.
 
@@ -920,8 +925,8 @@ def set_security(body: SecurityBody, db: Session = Depends(get_db),
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
     company.require_2fa = body.require_2fa
-    log_activity(db, action="company:require_2fa_changed", entity_type="company",
-                 entity_id=company.id, user_id=user.id, company_id=company.id)
+    log_activity(db, user=user, action="company:require_2fa_changed",
+                 entity_type="company", entity_id=company.id)
     db.commit()
     return {"require_2fa": company.require_2fa}
 ```

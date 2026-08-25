@@ -23,6 +23,27 @@ def test_non_admin_cannot_set_mandate(client, db):
     assert r.status_code in (401, 403)
 
 
+def test_admin_gets_current_mandate(client, db):
+    auth_limiter._buckets.clear()
+    company = create_company(db, name="Get", company_code="GET")
+    create_active_user(db, email="getadm@x.co", role="admin", company_id=company.id)
+    login_user(client, "getadm@x.co")
+    company.require_2fa = True
+    db.commit()
+    r = client.get("/api/company/security")
+    assert r.status_code == 200, r.text
+    assert r.json()["require_2fa"] is True
+
+
+def test_non_admin_cannot_get_mandate(client, db):
+    auth_limiter._buckets.clear()
+    company = create_company(db, name="GetSal", company_code="GSL")
+    create_active_user(db, email="getsales@x.co", role="sales", company_id=company.id)
+    login_user(client, "getsales@x.co")
+    r = client.get("/api/company/security")
+    assert r.status_code in (401, 403)
+
+
 def test_forced_enrollment_with_setup_token(client, db):
     auth_limiter._buckets.clear()
     company = create_company(db, name="Force", company_code="FRC", status="active")

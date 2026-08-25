@@ -1,20 +1,28 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import api from '@/services/api';
+import api, { companySecurity } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import NotificationPreferencesPanel from '@/components/shared/NotificationPreferencesPanel';
 import {
     Building2,
     FileText,
     Bell,
     Upload,
-    Save
+    Save,
+    Shield
 } from 'lucide-react';
 
 export default function AdminSettingsPage() {
+    const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('company');
     const [saved, setSaved] = useState(false);
+
+    // 2FA mandate
+    const [require2FA, setRequire2FA] = useState(false);
+    const [require2FALoading, setRequire2FALoading] = useState(false);
+    const [require2FAError, setRequire2FAError] = useState('');
 
     // Company Profile
     const [companyName, setCompanyName] = useState('');
@@ -66,6 +74,29 @@ export default function AdminSettingsPage() {
     useEffect(() => {
         fetchSettings();
     }, []);
+
+    useEffect(() => {
+        if (user?.role !== 'admin') return;
+        companySecurity.getRequire2FA()
+            .then((data) => setRequire2FA(Boolean(data.require_2fa)))
+            .catch((err) => console.error('Failed to fetch 2FA mandate', err));
+    }, [user?.role]);
+
+    const handleToggleRequire2FA = async () => {
+        const next = !require2FA;
+        const previous = require2FA;
+        setRequire2FA(next);
+        setRequire2FAError('');
+        setRequire2FALoading(true);
+        try {
+            await companySecurity.setRequire2FA(next);
+        } catch (err) {
+            setRequire2FA(previous);
+            setRequire2FAError(err.response?.data?.detail || 'Could not update the 2FA requirement.');
+        } finally {
+            setRequire2FALoading(false);
+        }
+    };
 
     const handleSave = async () => {
         try {
@@ -194,6 +225,35 @@ export default function AdminSettingsPage() {
                                 <p className="text-xs text-slate-400">PNG, JPG up to 2MB</p>
                             </div>
                         </div>
+
+                        {user?.role === 'admin' && (
+                            <div className="pt-4 mt-2 border-t border-slate-200 dark:border-slate-700">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Shield size={16} className="text-slate-600 dark:text-slate-400" />
+                                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Security</h4>
+                                </div>
+                                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                    <div>
+                                        <div className="text-sm font-medium text-slate-800 dark:text-slate-200">Require 2FA for all members</div>
+                                        <div className="text-xs text-slate-500">Members without two-factor enabled must set it up on their next sign-in.</div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={require2FA}
+                                        aria-label="Require 2FA for all members"
+                                        onClick={handleToggleRequire2FA}
+                                        disabled={require2FALoading}
+                                        className={`w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 disabled:opacity-50 ${require2FA ? 'bg-slate-900 dark:bg-slate-600' : 'bg-slate-200 dark:bg-slate-700'}`}
+                                    >
+                                        <div className={`w-5 h-5 bg-white rounded-full transition-transform ${require2FA ? 'translate-x-6' : 'translate-x-0.5'}`}></div>
+                                    </button>
+                                </div>
+                                {require2FAError && (
+                                    <p className="text-xs text-rose-600 dark:text-rose-400 mt-2">{require2FAError}</p>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 

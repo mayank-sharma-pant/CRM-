@@ -15,6 +15,17 @@ class SecurityBody(BaseModel):
     require_2fa: bool
 
 
+@router.get("/security")
+def get_security(db: Session = Depends(get_db),
+                  user: User = Depends(get_current_user)):
+    if user.role.value != "admin" or user.company_id is None:
+        raise HTTPException(status_code=403, detail="Only company admins can view this")
+    company = db.query(Company).filter(Company.id == user.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return {"require_2fa": company.require_2fa}
+
+
 @router.patch("/security")
 def set_security(body: SecurityBody, db: Session = Depends(get_db),
                   user: User = Depends(get_current_user)):

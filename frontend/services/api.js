@@ -74,5 +74,6 @@ export const twoFactor = {
 };
 
 export const companySecurity = {
+  getRequire2FA: () => api.get('/company/security').then(r => r.data),
   setRequire2FA: (require_2fa) => api.patch('/company/security', { require_2fa }).then(r => r.data),
 };

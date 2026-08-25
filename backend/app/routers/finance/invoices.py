@@ -1,5 +1,5 @@
 """Invoice creation and list (company-scoped)."""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
@@ -18,6 +18,7 @@ from app.models.core.company_settings import CompanySettings
 from app.models.ops.stock_item import StockItem
 from app.utils.notify import notify_role_users
 from app.services.finance.gst import compute_gst
+from app.services.portal.share_links import apply_share, revoke_share
 from app.services.sales.product_lines import deduct_stock, resolve_sale_lines
 
 router = APIRouter()
@@ -342,6 +343,42 @@ def list_invoices(
         "limit": limit,
     }
 
+def _get_invoice_scoped(
+    db: Session,
+    current_user: User,
+    invoice_id: int,
+    active_team_id: Optional[int],
+) -> Invoice:
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
+
+    invoice = (
+        apply_company_scope(db.query(Invoice), Invoice, current_user)
+        .filter(Invoice.id == invoice_id)
+        .first()
+    )
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    if current_user.role == "sales" and invoice.created_by_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied to this invoice")
+    if current_user.role == "manager":
+        if active_team_id is None:
+            raise HTTPException(status_code=403, detail="Active team required")
+        creator_in_team = (
+            apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+            .filter(
+                TeamMembership.team_id == active_team_id,
+                TeamMembership.user_id == invoice.created_by_id,
+            )
+            .first()
+        )
+        if not creator_in_team:
+            raise HTTPException(status_code=403, detail="Access denied to another team's invoice")
+
+    return invoice
+
+
 @router.get("/{invoice_id}")
 def get_invoice(
     invoice_id: int,
@@ -350,30 +387,12 @@ def get_invoice(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Get a specific invoice by ID (company-scoped)."""
-    if current_user.company_id is None:
-        raise HTTPException(status_code=403, detail="User must be assigned to a company")
-        
-    invoice = apply_company_scope(db.query(Invoice), Invoice, current_user).filter(Invoice.id == invoice_id).first()
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-        
-    # Scoping checks
-    if current_user.role == "sales" and invoice.created_by_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied to this invoice")
-    if current_user.role == "manager":
-        if active_team_id is None:
-            raise HTTPException(status_code=403, detail="Active team required")
-        creator_in_team = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
-            TeamMembership.team_id == active_team_id,
-            TeamMembership.user_id == invoice.created_by_id,
-        ).first()
-        if not creator_in_team:
-            raise HTTPException(status_code=403, detail="Access denied to another team's invoice")
+    invoice = _get_invoice_scoped(db, current_user, invoice_id, active_team_id)
 
     client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == invoice.client_id).first()
 
     items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice.id).all()
-    
+
     return {
         "id": invoice.id,
         "number": invoice.invoice_number,
@@ -395,6 +414,8 @@ def get_invoice(
         "place_of_supply": invoice.place_of_supply,
         "issued": invoice.issued_date.isoformat() if invoice.issued_date else None,
         "due": invoice.due_date.isoformat() if invoice.due_date else None,
+        "share_active": bool(invoice.share_token_hash),
+        "share_created_at": invoice.share_created_at.isoformat() if invoice.share_created_at else None,
         "items": [
             {
                 "description": item.description,
@@ -408,6 +429,38 @@ def get_invoice(
             } for item in items
         ]
     }
+
+
+@router.post("/{invoice_id}/share")
+def share_invoice(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    invoice = _get_invoice_scoped(db, current_user, invoice_id, active_team_id)
+    raw, _ = apply_share(invoice)
+    db.commit()
+    db.refresh(invoice)
+    created = invoice.share_created_at
+    return {
+        "token": raw,
+        "url": f"/p/invoice/{raw}",
+        "created_at": created.isoformat() if created else None,
+    }
+
+
+@router.delete("/{invoice_id}/share", status_code=204)
+def revoke_invoice_share(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    invoice = _get_invoice_scoped(db, current_user, invoice_id, active_team_id)
+    revoke_share(invoice)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.post("/{invoice_id}/payment-link")

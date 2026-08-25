@@ -2,7 +2,7 @@ import uuid
 from decimal import Decimal
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,7 @@ from app.models.sales.deal import Deal
 from app.models.sales.product import Product
 from app.models.sales.quote import Quote, QuoteItem
 from app.services.finance.gst import compute_gst
+from app.services.portal.share_links import apply_share, revoke_share
 from app.services.sales.product_lines import ResolvedSaleLine, deduct_stock, resolve_sale_lines
 from app.services.sales.workflow import run_workflows
 from app.utils.dependencies import apply_company_scope, ensure_company_access, get_current_user
@@ -105,6 +106,8 @@ def _serialize(quote: Quote, payment_url=None) -> dict:
         "notes": quote.notes,
         "invoice_id": quote.invoice_id,
         "payment_url": payment_url,
+        "share_active": bool(quote.share_token_hash),
+        "share_created_at": quote.share_created_at.isoformat() if quote.share_created_at else None,
         "items": [
             {
                 "description": it.description,
@@ -249,6 +252,28 @@ def list_quotes(
 def get_quote(quote_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     quote = _get_quote(db, current_user, quote_id)
     return _serialize(quote, payment_url=_payment_url(db, quote))
+
+
+@router.post("/{quote_id:int}/share")
+def share_quote(quote_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    quote = _get_quote(db, current_user, quote_id)
+    raw, _ = apply_share(quote)
+    db.commit()
+    db.refresh(quote)
+    created = quote.share_created_at
+    return {
+        "token": raw,
+        "url": f"/p/quote/{raw}",
+        "created_at": created.isoformat() if created else None,
+    }
+
+
+@router.delete("/{quote_id:int}/share", status_code=204)
+def revoke_quote_share(quote_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    quote = _get_quote(db, current_user, quote_id)
+    revoke_share(quote)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.post("/{quote_id:int}/accept")

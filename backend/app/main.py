@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.routers.auth import auth
 from app.routers.auth import mfa as auth_mfa
-from app.routers.admin import users, admin, platform, notifications
+from app.routers.admin import users, admin, platform, notifications, company_security
 from app.routers.sales import leads, tasks, clients, follow_ups, search, timeline
 from app.routers.sales.deals import router as deals_router
 from app.routers.sales.quotes import router as quotes_router
@@ -121,6 +121,7 @@ app.include_router(md.router, prefix="/api/md", tags=["Managing Director"])
 app.include_router(purchase.router, prefix="/api/purchase", tags=["Purchase"])
 app.include_router(invoices.router, prefix="/api/invoices", tags=["Invoices"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(company_security.router, prefix="/api")
 app.include_router(ledgers.router) # Prefix is defined in the router itself
 app.include_router(leaves.router, prefix="/api/leaves", tags=["Leaves"])
 app.include_router(platform.router, prefix="/api/platform", tags=["Platform"])

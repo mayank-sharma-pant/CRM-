@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import func as sa_func
+from typing import Optional
 from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models.core.user import User
 from app.models.core.company import Company
 from app.models.core.mfa_recovery_code import MfaRecoveryCode
-from app.utils.dependencies import get_current_user
-from app.utils.security import verify_password
+from app.utils.dependencies import get_current_user, oauth2_scheme
+from app.utils.security import verify_password, decode_access_token
 from app.utils import totp
 from app.utils.totp_crypto import (
     encrypt_secret, decrypt_secret, generate_recovery_codes, hash_recovery_code,
@@ -17,6 +19,28 @@ from app.utils.audit import log_activity
 from app.utils.rate_limit import auth_limiter
 
 router = APIRouter(prefix="/2fa", tags=["2fa"])
+
+
+async def get_enrolling_user(
+    x_setup_token: Optional[str] = Header(default=None),
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    """Accepts either a real session (aud="crm") or a forced-enrollment
+    challenge token (aud="mfa_setup") for the 2FA setup/confirm endpoints."""
+    if token:
+        payload = decode_access_token(token, audience="crm")
+        if payload and payload.get("sub"):
+            user = db.query(User).filter(sa_func.lower(User.email) == payload["sub"].lower()).first()
+            if user and user.is_active and user.status.value != "disabled":
+                return user
+    if x_setup_token:
+        payload = decode_access_token(x_setup_token, audience="mfa_setup")
+        if payload and payload.get("sub"):
+            user = db.query(User).filter(sa_func.lower(User.email) == payload["sub"].lower()).first()
+            if user and user.is_active and user.status.value != "disabled":
+                return user
+    raise HTTPException(status_code=401, detail="Not authenticated")
 
 
 class CodeBody(BaseModel):
@@ -43,7 +67,7 @@ def _issue_recovery_codes(db: Session, user: User) -> list[str]:
 
 
 @router.post("/setup")
-def setup(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def setup(db: Session = Depends(get_db), user: User = Depends(get_enrolling_user)):
     if user.totp_enabled:
         raise HTTPException(status_code=400, detail="2FA is already enabled")
     secret = totp.generate_secret()
@@ -56,7 +80,7 @@ def setup(db: Session = Depends(get_db), user: User = Depends(get_current_user))
 
 
 @router.post("/confirm")
-def confirm(request: Request, body: CodeBody, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def confirm(request: Request, body: CodeBody, db: Session = Depends(get_db), user: User = Depends(get_enrolling_user)):
     auth_limiter.check(request, f"2fa_confirm:{user.id}", max_attempts=10, window_seconds=600)
     if user.totp_enabled:
         raise HTTPException(status_code=400, detail="2FA is already enabled")

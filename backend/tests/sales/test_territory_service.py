@@ -102,6 +102,22 @@ def test_assign_or_rules_any_match(db):
     assert lead.assigned_to_id is not None
 
 
+def test_assign_skips_when_team_already_set(db):
+    company = create_company(db, name="Team Co", company_code="TMC")
+    team_a = _team(db, company, "A")
+    team_b = _team(db, company, "B")
+    _sales_on_team(db, "a@tmc.com", company, team_a)
+    _territory(db, company, team_a, rules=[("service_type", "x")])
+
+    lead = _lead(db, company, service_type="x", team_id=team_b.id)
+    assign_lead_by_territory(db, lead)
+    db.commit()
+    db.refresh(lead)
+
+    assert lead.team_id == team_b.id
+    assert lead.assigned_to_id is None
+
+
 def test_assign_skips_when_already_assigned(db):
     company = create_company(db, name="Skip Co", company_code="SKC")
     team = _team(db, company)

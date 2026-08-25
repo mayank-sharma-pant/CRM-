@@ -138,6 +138,67 @@ def test_cross_tenant_territory_is_404(client, db):
     ).status_code == 404
 
 
+def test_manager_lead_create_preserves_explicit_team_id(client, db):
+    company = create_company(db, name="Mgr Team Co", company_code="MTC")
+    team_a = _team(db, company, "Territory Team")
+    team_b = _team(db, company, "Chosen Team")
+    _sales_on_team(db, "sales@mtc.com", company, team_a)
+
+    admin = create_active_user(db, email="admin@mtc.com", role="admin", company_id=company.id)
+    login_user(client, admin.email)
+    client.post("/api/territories", json={
+        "name": "Consulting",
+        "team_id": team_a.id,
+        "rules": [{"match_field": "service_type", "match_value": "consulting"}],
+    })
+
+    mgr = create_active_user(
+        db, email="mgr@mtc.com", role="manager",
+        company_id=company.id, full_name="Territory Manager",
+    )
+    db.add(TeamMembership(company_id=company.id, team_id=team_b.id, user_id=mgr.id))
+    db.commit()
+
+    login_user(client, mgr.email)
+    client.headers["X-Team-Id"] = str(team_b.id)
+
+    lead_id = client.post("/api/leads", json={
+        "name": "Prospect",
+        "email": "p@mtc.com",
+        "service_type": "Consulting",
+        "team_id": team_b.id,
+    }).json()["id"]
+
+    lead = db.query(Lead).filter(Lead.id == lead_id).one()
+    assert lead.team_id == team_b.id
+    assert lead.assigned_to_id is None
+
+
+def test_platform_admin_without_company_cannot_add_territory_rule(client, db):
+    company, _admin = _setup_admin(client, db, "TRN")
+    team = _team(db, company)
+    territory_id = client.post("/api/territories", json={
+        "name": "N",
+        "team_id": team.id,
+    }).json()["id"]
+
+    platform_admin = create_active_user(
+        db,
+        email="platform@trn.com",
+        role="admin",
+        company_id=None,
+        full_name="Platform Admin",
+    )
+    login_user(client, platform_admin.email)
+
+    resp = client.post(f"/api/territories/{territory_id}/rules", json={
+        "match_field": "source",
+        "match_value": "x",
+    })
+    assert resp.status_code == 403
+    assert "company" in resp.json()["detail"].lower()
+
+
 def test_admin_lead_create_assigns_by_territory(client, db):
     company, _admin = _setup_admin(client, db, "TRL")
     team = _team(db, company)
@@ -164,14 +225,12 @@ def test_public_form_assigns_by_territory(client, db):
     company, _admin = _setup_admin(client, db, "TRP")
     team = _team(db, company)
     sales = _sales_on_team(db, "sales@trp.com", company, team)
-    other_team = _team(db, company, name="Default")
     form = LeadForm(
         company_id=company.id,
         slug="trp-form",
         name="Website",
         headline="Contact",
         is_active=True,
-        default_team_id=other_team.id,
         default_source="Website",
     )
     db.add(form)
@@ -192,3 +251,37 @@ def test_public_form_assigns_by_territory(client, db):
     lead = db.query(Lead).filter(Lead.company_id == company.id).one()
     assert lead.team_id == team.id
     assert lead.assigned_to_id == sales.id
+
+
+def test_public_form_default_team_wins_over_territory(client, db):
+    company, _admin = _setup_admin(client, db, "TRD")
+    territory_team = _team(db, company, "Territory")
+    other_team = _team(db, company, name="Default")
+    _sales_on_team(db, "sales@trd.com", company, territory_team)
+    form = LeadForm(
+        company_id=company.id,
+        slug="trd-form",
+        name="Website",
+        headline="Contact",
+        is_active=True,
+        default_team_id=other_team.id,
+        default_source="Website",
+    )
+    db.add(form)
+    db.commit()
+
+    client.post("/api/territories", json={
+        "name": "Waterproofing",
+        "team_id": territory_team.id,
+        "rules": [{"match_field": "service_type", "match_value": "waterproofing"}],
+    })
+
+    assert client.post("/api/public/forms/trd-form/submit", json={
+        "name": "Ravi",
+        "phone": "999",
+        "service_type": "Waterproofing",
+    }).status_code == 201
+
+    lead = db.query(Lead).filter(Lead.company_id == company.id).one()
+    assert lead.team_id == other_team.id
+    assert lead.assigned_to_id is None

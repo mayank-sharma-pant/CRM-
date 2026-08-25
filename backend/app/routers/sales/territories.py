@@ -188,6 +188,8 @@ def add_territory_rule(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_md),
 ):
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must belong to a company")
     territory = _get_territory(db, territory_id, current_user)
     value = _validate_match_value(payload.match_field, payload.match_value)
     rule = TerritoryRule(

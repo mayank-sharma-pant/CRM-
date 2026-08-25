@@ -27,7 +27,7 @@ def round_robin_sales_on_team(db: Session, *, company_id: int, team_id: int) -> 
 
 
 def assign_lead_by_territory(db: Session, lead: Lead) -> None:
-    if lead.assigned_to_id:
+    if lead.assigned_to_id or lead.team_id:
         return
     territories = (
         db.query(Territory)

@@ -289,7 +289,7 @@ Route new unassigned leads to a team via `service_type` / `source` rules, then r
 
 - **Verification:** `test_territory_schema.py`, `test_territory_service.py`, `test_territory_api.py`, `test_territory_cross_tenant.py`, `test_workflows.py`.
 - **Deploy:** `create_missing_tables.py` / `create_all` for `territories` and `territory_rules` — **run on deploy.**
-- **Residuals:** no geo/pincode; OR rules only (not AND); no reassign on lead update; manager cannot configure territories in v0.
+- **Residuals:** no geo/pincode; OR rules only (not AND); no reassign on lead update; manager cannot configure territories in v0; explicit `team_id` on lead create is not overridden by territory.
 
 ---
 

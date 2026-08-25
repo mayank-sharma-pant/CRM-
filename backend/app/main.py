@@ -14,6 +14,7 @@ from app.routers.sales.calls import router as calls_router
 from app.routers.sales.reports import router as reports_router
 from app.routers.sales.dashboards import router as dashboards_router
 from app.routers.sales.quotes import router as quotes_router
+from app.routers.sales.products import router as products_router
 from app.routers.sales.lead_forms import router as lead_forms_router
 from app.routers.sales.custom_fields import router as custom_fields_router
 from app.routers.sales.emails import router as emails_router
@@ -117,6 +118,7 @@ app.include_router(calls_router, prefix="/api/calls", tags=["Calls"])
 app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
 app.include_router(dashboards_router, prefix="/api/dashboards", tags=["Dashboards"])
 app.include_router(quotes_router, prefix="/api/quotes", tags=["Quotes"])
+app.include_router(products_router, prefix="/api/products", tags=["Products"])
 app.include_router(lead_forms_router, prefix="/api/lead-forms", tags=["Lead Forms"])
 app.include_router(custom_fields_router, prefix="/api/custom-fields", tags=["Custom Fields"])
 app.include_router(emails_router, prefix="/api/emails", tags=["Emails"])

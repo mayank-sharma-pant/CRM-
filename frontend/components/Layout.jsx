@@ -2,16 +2,19 @@
 
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '../contexts/AuthContext';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 
 export default function Layout({ children }) {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const pathname = usePathname();
+    const { user } = useAuth();
     const isPublic = ['/', '/login', '/signup'].includes(pathname)
         || pathname.startsWith('/platform')
         || pathname.startsWith('/admin')
-        || pathname.startsWith('/f/');
+        || pathname.startsWith('/f/')
+        || (pathname === '/settings/security' && !user);
 
     if (isPublic) {
         return <>{children}</>;

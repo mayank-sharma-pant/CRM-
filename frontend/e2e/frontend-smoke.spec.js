@@ -16,10 +16,11 @@ async function login(page, user) {
 }
 
 test.describe('Frontend smoke (seeded E2E users)', () => {
-  test('login page renders', async ({ page }) => {
-    await page.goto('/login');
-    await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
-    await expect(page.getByLabel('Email address')).toBeVisible();
+  test('forced 2FA setup page is reachable without a session', async ({ page }) => {
+    await page.goto('/settings/security?setup_token=pending-setup&forced=1');
+    await expect(page).toHaveURL(/\/settings\/security/);
+    await expect(page.getByText(/your company requires two-factor authentication/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Enable 2FA' })).toBeVisible();
   });
 
   test('bad password shows error', async ({ page }) => {

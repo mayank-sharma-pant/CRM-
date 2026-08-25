@@ -22,6 +22,7 @@ function LoginInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const justRegistered = searchParams.get('registered') === 'true';
+    const justEnrolled = searchParams.get('enrolled') === 'true';
 
     const handleRedirect = (userObj) => {
         const role = userObj?.role || 'sales';
@@ -195,6 +196,14 @@ function LoginInner() {
                         </form>
                     ) : (
                     <>
+                    {justEnrolled && (
+                        <div className="bg-accent/10 border border-accent/20 text-accent px-4 py-3 rounded-lg text-sm flex items-center gap-2 mb-6 animate-fade-in">
+                            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Two-factor authentication is on. Sign in again and enter the code from your authenticator app.
+                        </div>
+                    )}
                     {justRegistered && (
                         <div className="bg-accent/10 border border-accent/20 text-accent px-4 py-3 rounded-lg text-sm flex items-center gap-2 mb-6 animate-fade-in">
                             <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

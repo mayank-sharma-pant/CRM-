@@ -54,6 +54,29 @@ def test_verify_with_wrong_code_401(client, db):
     assert r.status_code == 401
 
 
+def test_verify_with_expired_mfa_token_401(client, db):
+    from datetime import timedelta
+    from app.utils.security import create_access_token
+
+    _make_enrolled(client, db)
+    token = create_access_token(
+        data={"sub": "v@x.co"}, expires_delta=timedelta(seconds=-5), audience="mfa"
+    )
+    r = client.post("/api/auth/2fa/verify", json={"mfa_token": token, "code": "000000"})
+    assert r.status_code == 401
+
+
+def test_verify_is_rate_limited(client, db):
+    _make_enrolled(client, db)
+    mfa_token = _password_login(client).json()["mfa_token"]
+    auth_limiter._buckets.clear()
+    for _ in range(10):
+        r = client.post("/api/auth/2fa/verify", json={"mfa_token": mfa_token, "code": "000000"})
+        assert r.status_code == 401
+    r = client.post("/api/auth/2fa/verify", json={"mfa_token": mfa_token, "code": "000000"})
+    assert r.status_code == 429
+
+
 def test_recovery_code_single_use(client, db):
     _, _, codes = _make_enrolled(client, db)
     mfa_token = _password_login(client).json()["mfa_token"]

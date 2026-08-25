@@ -25,7 +25,7 @@ const ROLE_DASHBOARDS = {
 };
 
 /** Pages that anyone can access (logged in or not) */
-const PUBLIC_PATHS = ['/', '/login', '/signup', '/platform', '/accept-invite', '/forgot-password', '/reset-password'];
+const PUBLIC_PATHS = ['/', '/login', '/signup', '/platform', '/accept-invite', '/forgot-password', '/reset-password', '/settings/security'];
 const SHARED_PATHS = ['/profile', '/settings', '/finance', '/financial-ledgers', '/report-bug'];
 
 function isPublicPath(pathname) {

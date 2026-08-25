@@ -39,8 +39,11 @@ export function AuthProvider({ children }) {
             }
         });
 
-        await fetchUser();
-        return response.data;
+        const data = response.data;
+        if (!data.mfa_required && !data.mfa_setup_required) {
+            await fetchUser();
+        }
+        return data;
     };
 
     const requestOTP = async (email) => {
@@ -50,8 +53,11 @@ export function AuthProvider({ children }) {
 
     const loginOTP = async (email, otp_code) => {
         const response = await api.post('/auth/login-otp', { email, otp_code });
-        await fetchUser();
-        return response.data;
+        const data = response.data;
+        if (!data.mfa_required && !data.mfa_setup_required) {
+            await fetchUser();
+        }
+        return data;
     };
 
     const signup = async (userData) => {

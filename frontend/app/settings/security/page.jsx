@@ -14,9 +14,9 @@ function SecurityInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const setupToken = searchParams.get('setup_token') || undefined;
-  const forced = searchParams.get('forced') === '1';
+  const forced = searchParams.get('forced') === '1' || Boolean(setupToken);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!setupToken);
   const [error, setError] = useState('');
   const [status, setStatus] = useState(null); // { enabled, confirmed_at, recovery_codes_remaining }
 
@@ -53,8 +53,14 @@ function SecurityInner() {
   }, []);
 
   useEffect(() => {
+    if (setupToken) {
+      setLoading(false);
+      setError('');
+      setStatus({ enabled: false, confirmed_at: null, recovery_codes_remaining: 0 });
+      return;
+    }
     fetchStatus();
-  }, [fetchStatus]);
+  }, [setupToken, fetchStatus]);
 
   const handleEnable = async () => {
     setEnrollError('');
@@ -92,10 +98,11 @@ function SecurityInner() {
   const handleAcknowledge = async () => {
     setAcknowledged(true);
     setRecoveryCodes(null);
-    await fetchStatus();
-    if (forced) {
-      router.push('/settings/security');
+    if (forced || setupToken) {
+      router.push('/login?enrolled=true');
+      return;
     }
+    await fetchStatus();
   };
 
   const handleCopyCodes = async (codes) => {
@@ -201,10 +208,11 @@ function SecurityInner() {
             onCopy={() => handleCopyCodes(recoveryCodes)}
             onDownload={() => handleDownloadCodes(recoveryCodes)}
             onAcknowledge={handleAcknowledge}
+            acknowledgeLabel={forced || setupToken ? "I've saved these codes — continue to sign in" : "I've saved these codes"}
           />
         )}
 
-        {!loading && !error && status && !status.enabled && !recoveryCodes && (
+        {!loading && !error && ((status && !status.enabled) || setupToken) && !recoveryCodes && (
           <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 p-1.5 rounded-md bg-slate-100 dark:bg-slate-700">
@@ -401,7 +409,7 @@ export default function SecuritySettingsPage() {
   );
 }
 
-function RecoveryCodesCard({ codes, copied, onCopy, onDownload, onAcknowledge }) {
+function RecoveryCodesCard({ codes, copied, onCopy, onDownload, onAcknowledge, acknowledgeLabel = "I've saved these codes" }) {
   return (
     <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
       <div className="text-sm font-semibold text-slate-900 dark:text-white">Save your recovery codes</div>
@@ -441,7 +449,7 @@ function RecoveryCodesCard({ codes, copied, onCopy, onDownload, onAcknowledge })
         onClick={onAcknowledge}
         className="mt-5 w-full px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
       >
-        I've saved these codes
+        {acknowledgeLabel}
       </button>
     </div>
   );

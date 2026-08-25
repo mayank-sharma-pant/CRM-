@@ -5,15 +5,18 @@ export function middleware(request) {
   const { pathname } = request.nextUrl;
 
   // Define route categories
-  const isPublicRoute = 
-    pathname === '/login' || 
-    pathname === '/signup' || 
-    pathname.startsWith('/forgot-password') || 
+  const isAuthEntry =
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/accept-invite');
+  // Forced 2FA enrollment has a setup_token and no session cookie.
+  const isPublicRoute =
+    isAuthEntry || pathname === '/settings/security';
 
-  // 1. If user is authenticated and tries to access public auth routes, redirect to home
-  if (token && isPublicRoute) {
+  // Bounce signed-in users off login/signup only — not off /settings/security.
+  if (token && isAuthEntry) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 

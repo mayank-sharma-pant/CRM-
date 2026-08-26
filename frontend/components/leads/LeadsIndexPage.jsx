@@ -12,6 +12,7 @@ import LeadModal from './LeadModal';
 import LeadImportModal from './LeadImportModal';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useT } from '../../contexts/LocaleContext';
 import Skeleton, { TableRowSkeleton } from '../shared/Skeleton';
 import {
   Plus, ChevronRight, Filter, Briefcase, LayoutList, Upload
@@ -44,6 +45,7 @@ export default function Leads() {
   const basePath = leadsHomePath(pathname);
   const { showToast } = useNotification();
   const { user } = useAuth();
+  const t = useT();
   const [formMeta, setFormMeta] = useState(null);
   const [copied, setCopied] = useState(false);
   const [copiedWidget, setCopiedWidget] = useState(false);
@@ -185,7 +187,7 @@ export default function Leads() {
       <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
         <div className="flex flex-col items-center gap-3">
           <div className="text-[13px] text-error font-bold uppercase tracking-widest">{error}</div>
-          <button onClick={fetchLeads} className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight">Retry</button>
+          <button onClick={fetchLeads} className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight">{t('Retry')}</button>
         </div>
       </div>
     );
@@ -196,7 +198,7 @@ export default function Leads() {
       <div className="bg-surface border-b border-border px-6 py-4">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-primary tracking-tight">Leads Registry</h1>
+            <h1 className="text-xl font-bold text-primary tracking-tight">{t('Leads Registry')}</h1>
             <p className="text-[12px] text-muted font-medium mt-0.5 opacity-80 uppercase tracking-wider">Efficient Lead Tracking and Engagement</p>
           </div>
           <div className="flex items-center gap-3">
@@ -229,14 +231,14 @@ export default function Leads() {
                   onClick={copyFormLink}
                   className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated"
                 >
-                  {copied ? 'Copied' : 'Website form'}
+                  {copied ? t('Copied') : t('Website form')}
                 </button>
                 <button
                   type="button"
                   onClick={copyWidgetSnippet}
                   className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated"
                 >
-                  {copiedWidget ? 'Copied' : 'Chat widget'}
+                  {copiedWidget ? t('Copied') : t('Chat widget')}
                 </button>
               </div>
             )}
@@ -244,20 +246,20 @@ export default function Leads() {
               href={`${basePath}/trash`}
               className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated inline-flex items-center"
             >
-              Trash
+              {t('Trash')}
             </Link>
             <button
               type="button"
               onClick={() => setIsImportOpen(true)}
               className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated inline-flex items-center gap-1.5"
             >
-              <Upload size={14} strokeWidth={2.5} /> Import CSV
+              <Upload size={14} strokeWidth={2.5} /> {t('Import CSV')}
             </button>
             <button
               onClick={() => setIsModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-bold uppercase tracking-tight transition-all shadow-sm shadow-accent/10"
             >
-              <Plus size={14} strokeWidth={2.5} /> Add Lead
+              <Plus size={14} strokeWidth={2.5} /> {t('Add Lead')}
             </button>
           </div>
         </div>
@@ -276,7 +278,7 @@ export default function Leads() {
                   : 'text-muted hover:bg-surface-elevated hover:text-primary'
                   }`}
               >
-                {tab.label}
+                {t(tab.label)}
               </button>
             ))}
           </div>
@@ -286,9 +288,9 @@ export default function Leads() {
       <div className="max-w-[1400px] mx-auto px-6 py-4 flex-1 w-full">
         <div className="bg-surface rounded border border-border overflow-hidden shadow-sm">
           <div className="hidden lg:flex items-center gap-4 px-5 py-2.5 bg-surface-elevated/50 border-b border-border">
-            <div className="w-[30%] text-[10px] font-black text-muted uppercase tracking-widest">Lead Entity</div>
-            <div className="w-[20%] text-[10px] font-black text-muted uppercase tracking-widest text-center">Status</div>
-            <div className="flex-1 text-[10px] font-black text-muted uppercase tracking-widest">Next Engagement</div>
+            <div className="w-[30%] text-[10px] font-black text-muted uppercase tracking-widest">{t('Lead Entity')}</div>
+            <div className="w-[20%] text-[10px] font-black text-muted uppercase tracking-widest text-center">{t('Status')}</div>
+            <div className="flex-1 text-[10px] font-black text-muted uppercase tracking-widest">{t('Next Engagement')}</div>
             <div className="w-8"></div>
           </div>
           <div className="divide-y divide-border/50">
@@ -299,7 +301,7 @@ export default function Leads() {
                   animate={{ opacity: 1 }}
                   className="p-12 text-center text-muted text-[13px] font-medium italic"
                 >
-                  No leads found in this view.
+                  {t('No leads found in this view.')}
                 </motion.div>
               ) : (
                 filteredLeads.map((lead, idx) => {
@@ -331,7 +333,7 @@ export default function Leads() {
                         </div>
                         <div className="w-[20%] flex justify-center">
                           <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${STATUS_STYLES[lead.status] || STATUS_STYLES['Active']}`}>
-                            {lead.status === 'Converted' ? 'Client' : lead.status}
+                            {t(lead.status === 'Converted' ? 'Client' : lead.status)}
                           </span>
                         </div>
                         <div className="flex-1 min-w-0">

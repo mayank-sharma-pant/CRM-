@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { useT } from '../contexts/LocaleContext';
+import LanguageToggle from './LanguageToggle';
 import { financeService } from '../services/financeService';
 import api from '../services/api';
 import {
@@ -182,6 +184,7 @@ const ROLE_NAVIGATION = {
 export default function Sidebar({ isOpen, setIsOpen }) {
     const pathname = usePathname();
     const { user, loading } = useAuth();
+    const t = useT();
     const [navigation, setNavigation] = useState([]);
     const [authorizedLedgers, setAuthorizedLedgers] = useState([]);
     const [ledgerError, setLedgerError] = useState(null);
@@ -343,6 +346,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                     Icon={Icon}
                                     isOpen={isOpen}
                                     pathname={pathname}
+                                    t={t}
                                 />
                             );
                         })}
@@ -350,6 +354,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
                     {/* Footer */}
                     <div className="p-4 border-t border-border shrink-0 space-y-1">
+                        <LanguageToggle isOpen={isOpen} />
                     </div>
                 </div>
             </div>
@@ -358,9 +363,10 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 }
 
 // Sub-component for individual items to handle toggle state cleanly
-function NavItem({ item, isActive, Icon, isOpen, pathname }) {
+function NavItem({ item, isActive, Icon, isOpen, pathname, t = (s) => s }) {
     const [expanded, setExpanded] = useState(isActive);
     const hasChildren = item.children && item.children.length > 0;
+    const label = t(item.name);
 
     // Auto-expand if a child is active
     useEffect(() => {
@@ -398,7 +404,7 @@ function NavItem({ item, isActive, Icon, isOpen, pathname }) {
                     {isOpen && (
                         <>
                             <span className={`text-[13px] flex-1 text-left ${isActive ? 'font-semibold' : 'font-medium'}`}>
-                                {item.name}
+                                {label}
                             </span>
                             {/* Chevron */}
                             <svg
@@ -454,7 +460,7 @@ function NavItem({ item, isActive, Icon, isOpen, pathname }) {
             />
             {isOpen && (
                 <span className={`text-sm ${isActive ? 'font-semibold' : 'font-medium'}`}>
-                    {item.name}
+                    {label}
                 </span>
             )}
         </Link>

@@ -31,7 +31,7 @@ class Invoice(Base):
     irn = Column(String(64), nullable=True)
     ack_no = Column(String(32), nullable=True)
     ack_date = Column(DateTime, nullable=True)
-    signed_qr = Column(String(64), nullable=True)
+    signed_qr = Column(Text, nullable=True)
 
     status = Column(Enum(InvoiceStatus, values_callable=lambda x: [e.value for e in x], native_enum=False), default=InvoiceStatus.DRAFT)
     

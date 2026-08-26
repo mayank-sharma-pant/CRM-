@@ -10,6 +10,7 @@
     "test:landing": "node --test lib/landingHonesty.test.cjs",
     "test:brand": "node --test lib/brandDrift.test.cjs",
     "test:store": "node --test lib/storePrivacy.test.cjs",
+    "test:i18n": "node --test lib/i18n/i18n.test.cjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",

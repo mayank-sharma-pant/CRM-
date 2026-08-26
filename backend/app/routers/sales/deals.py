@@ -22,6 +22,11 @@ from app.models.sales.pipeline import Pipeline, PipelineStage
 from app.services.sales.pipeline_seed import attach_default_stages, ensure_default_pipeline
 from app.services.sales.custom_fields import get_values_map, set_values
 from app.services.sales.deal_views import apply_deal_view
+from app.services.sales.deal_next_activity import (
+    NextActivityRequired,
+    assert_next_activity_for_move,
+    enrich_deal_activity_fields,
+)
 from app.services.scoring.engine import score_entity
 from app.services.scoring.recompute import active_rules, recompute_one
 from app.services.predictions.convert import predict_deal
@@ -149,6 +154,7 @@ def _serialize_deal(deal: Deal, stage: PipelineStage, db: Session | None = None)
     }
     if db is not None:
         payload["custom_fields"] = get_values_map(db, deal.company_id, "deal", deal.id)
+        payload.update(enrich_deal_activity_fields(db, deal, stage))
     return payload
 
 
@@ -229,7 +235,9 @@ def list_deals(db: Session = Depends(get_db), current_user: User = Depends(get_c
         query = query.filter(Deal.stage_id == stage_id)
     if assigned_to_id is not None:
         query = query.filter(Deal.assigned_to_id == assigned_to_id)
-    query = apply_deal_view(query, view, current_user.id)
+    query = apply_deal_view(
+        query, view, current_user.id, db=db, company_id=current_user.company_id,
+    )
     if min_score is not None:
         query = query.filter(Deal.score >= min_score)
     from sqlalchemy import func as _sqlfunc
@@ -243,7 +251,7 @@ def list_deals(db: Session = Depends(get_db), current_user: User = Depends(get_c
         .filter(PipelineStage.id.in_(stage_ids or [-1])).all()
     }
     return {
-        "items": [_serialize_deal(d, stage_map.get(d.stage_id)) for d in deals],
+        "items": [_serialize_deal(d, stage_map.get(d.stage_id), db) for d in deals],
         "total": total, "skip": skip, "limit": limit,
     }
 
@@ -308,6 +316,8 @@ def update_deal(deal_id: int, payload: DealUpdate, db: Session = Depends(get_db)
     )
     for field, value in data.items():
         setattr(deal, field, value)
+    if "expected_close" in data:
+        deal.due_reminded_at = None
     audit_after = {**data, "amount": str(data["amount"])} if data.get("amount") is not None else data
     log_activity(db, user=current_user, action="updated", entity_type="deal",
                  entity_id=deal.id, entity_name=deal.title, after=json.dumps(audit_after, default=str))
@@ -369,6 +379,13 @@ def move_deal_stage(deal_id: int, payload: DealStageUpdate, db: Session = Depend
             )
         raise HTTPException(status_code=400, detail=err.message)
 
+    try:
+        assert_next_activity_for_move(
+            db, deal=deal, current_stage=current_stage, target_stage=stage,
+        )
+    except NextActivityRequired as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
     before_stage = deal.stage_id
     deal.stage_id = stage.id
     if stage.stage_type in (DealStageType.WON, DealStageType.LOST):
@@ -389,7 +406,7 @@ def move_deal_stage(deal_id: int, payload: DealStageUpdate, db: Session = Depend
         "stage_name": stage.name,
         "previous_stage_id": before_stage,
     })
-    return _serialize_deal(deal, stage)
+    return _serialize_deal(deal, stage, db)
 
 
 @router.get("/board")
@@ -411,7 +428,9 @@ def deal_board(db: Session = Depends(get_db), current_user: User = Depends(get_c
 
     deals_q = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.pipeline_id == pipeline_id)
     deals_q = _apply_role_scope(db, deals_q, current_user, active_team_id)
-    deals_q = apply_deal_view(deals_q, view, current_user.id)
+    deals_q = apply_deal_view(
+        deals_q, view, current_user.id, db=db, company_id=current_user.company_id,
+    )
     deals = deals_q.all()
 
     by_stage = {s.id: [] for s in stages}
@@ -439,7 +458,7 @@ def deal_board(db: Session = Depends(get_db), current_user: User = Depends(get_c
             "stage_total": str(stage_total.quantize(Decimal("0.01"))),
             "weighted_value": str(weighted.quantize(Decimal("0.01"))),
             "required_fields": parse_required_fields(s.required_fields),
-            "deals": [_serialize_deal(d, s) for d in s_deals],
+            "deals": [_serialize_deal(d, s, db) for d in s_deals],
         })
 
     return {

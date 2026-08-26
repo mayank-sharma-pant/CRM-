@@ -14,7 +14,7 @@ def _scripts() -> ScriptDirectory:
 def test_alembic_has_exactly_one_head():
     heads = _scripts().get_heads()
     assert len(heads) == 1, heads
-    assert heads == ["028_booking_calendar"]
+    assert heads == ["033_sales_orders"]
 
 
 def test_catchup_revision_follows_015():
@@ -93,3 +93,33 @@ def test_booking_calendar_revision_follows_027():
     rev = _scripts().get_revision("028_booking_calendar")
     assert rev is not None
     assert rev.down_revision == "027_email_tracking"
+
+
+def test_tally_live_revision_follows_028():
+    rev = _scripts().get_revision("029_tally_live")
+    assert rev is not None
+    assert rev.down_revision == "028_booking_calendar"
+
+
+def test_einvoice_live_revision_follows_029():
+    rev = _scripts().get_revision("030_einvoice_live")
+    assert rev is not None
+    assert rev.down_revision == "029_tally_live"
+
+
+def test_price_books_revision_follows_030():
+    rev = _scripts().get_revision("031_price_books")
+    assert rev is not None
+    assert rev.down_revision == "030_einvoice_live"
+
+
+def test_next_activity_revision_follows_031():
+    rev = _scripts().get_revision("032_next_activity_nag")
+    assert rev is not None
+    assert rev.down_revision == "031_price_books"
+
+
+def test_sales_orders_revision_follows_032():
+    rev = _scripts().get_revision("033_sales_orders")
+    assert rev is not None
+    assert rev.down_revision == "032_next_activity_nag"

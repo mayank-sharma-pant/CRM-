@@ -11,7 +11,9 @@ from .pipeline import Pipeline, PipelineStage
 from .deal import Deal
 from .lead_form import LeadForm
 from .quote import Quote, QuoteItem
+from .sales_order import SalesOrder, SalesOrderItem
 from .product import Product
+from .price_book import PriceBook, PriceBookEntry
 from .workflow_rule import WorkflowRule
 from .custom_field import CustomFieldDef, CustomFieldValue
 from .custom_module import CustomModule, CustomModuleField, CustomModuleRecord

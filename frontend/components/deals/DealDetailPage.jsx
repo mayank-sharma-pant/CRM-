@@ -5,6 +5,7 @@ import { useRouter, useParams, usePathname } from 'next/navigation';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import api from '../../services/api';
 import { useNotification } from '../../contexts/NotificationContext';
+import { useAuth } from '../../contexts/AuthContext';
 import MeetingCallPanel from '../activity/MeetingCallPanel';
 import LeadEmailPanel from '../leads/LeadEmailPanel';
 import ActivityFeed from '../activity/ActivityFeed';
@@ -17,6 +18,7 @@ export default function DealDetailPage() {
   const pathname = usePathname();
   const { id } = useParams();
   const { showToast } = useNotification();
+  const { user } = useAuth();
 
   const [deal, setDeal] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,6 +37,9 @@ export default function DealDetailPage() {
   const [quoteLines, setQuoteLines] = useState([
     { description: '', quantity: 1, unit_price: 0, product_id: null, tax_rate: null },
   ]);
+  const [nextTaskTitle, setNextTaskTitle] = useState('');
+  const [nextTaskDue, setNextTaskDue] = useState('');
+  const [nextTaskBusy, setNextTaskBusy] = useState(false);
 
   useEffect(() => {
     fetchDeal();
@@ -185,13 +190,31 @@ export default function DealDetailPage() {
     }
   };
 
+  const convertQuoteToInvoice = async (quoteId, salesOrderId) => {
+    setQuoteBusy(true);
+    try {
+      const res = await api.post(`/sales-orders/${salesOrderId}/invoice`);
+      const invoiceId = res.data.invoice_id;
+      if (invoiceId) {
+        await api.post(`/invoices/${invoiceId}/payment-link`);
+        showToast('Invoice created — payment link ready', 'success');
+      } else {
+        showToast('Invoice created', 'success');
+      }
+      await refreshQuotes();
+    } catch (err) {
+      showToast(err.response?.data?.detail || 'Could not create invoice', 'error');
+    } finally {
+      setQuoteBusy(false);
+    }
+  };
+
   const quoteAction = async (quoteId, action) => {
     setQuoteBusy(true);
     try {
       const res = await api.post(`/quotes/${quoteId}/${action}`);
-      if (action === 'accept' && res.data.invoice_id) {
-        await api.post(`/invoices/${res.data.invoice_id}/payment-link`);
-        showToast('Quote accepted — payment link ready', 'success');
+      if (action === 'accept' && res.data.sales_order_id) {
+        showToast('Quote accepted — sales order created', 'success');
         await refreshQuotes();
         return;
       }
@@ -201,6 +224,35 @@ export default function DealDetailPage() {
       showToast(err.response?.data?.detail || 'Quote action failed', 'error');
     } finally {
       setQuoteBusy(false);
+    }
+  };
+
+  const scheduleNextTask = async () => {
+    const title = nextTaskTitle.trim();
+    if (!title) {
+      showToast('Task title is required', 'error');
+      return;
+    }
+    if (!nextTaskDue) {
+      showToast('Due date is required', 'error');
+      return;
+    }
+    setNextTaskBusy(true);
+    try {
+      await api.post('/tasks', {
+        title,
+        due_date: nextTaskDue,
+        deal_id: Number(id),
+        assigned_to_id: deal?.assigned_to_id || user?.id || null,
+      });
+      showToast('Next step scheduled', 'success');
+      setNextTaskTitle('');
+      setNextTaskDue('');
+      await fetchDeal();
+    } catch (err) {
+      showToast(err.response?.data?.detail || 'Could not schedule task', 'error');
+    } finally {
+      setNextTaskBusy(false);
     }
   };
 
@@ -328,6 +380,50 @@ export default function DealDetailPage() {
           </button>
         </div>
       </div>
+
+      {deal.missing_next_activity && (
+        <div className="max-w-4xl mx-auto px-6 pb-6">
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-5 space-y-3">
+            <h2 className="text-xs font-bold text-amber-800 dark:text-amber-200 uppercase tracking-wide">
+              Schedule next step
+            </h2>
+            <p className="text-sm text-amber-900/80 dark:text-amber-100/80">
+              This open deal has no upcoming task or meeting. Add one before moving stages.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="block sm:col-span-2">
+                <span className="block text-[10px] text-amber-800/70 dark:text-amber-200/70 uppercase mb-1">Task title</span>
+                <input
+                  type="text"
+                  value={nextTaskTitle}
+                  onChange={(e) => setNextTaskTitle(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </label>
+              <label className="block">
+                <span className="block text-[10px] text-amber-800/70 dark:text-amber-200/70 uppercase mb-1">Due date</span>
+                <input
+                  type="date"
+                  value={nextTaskDue}
+                  onChange={(e) => setNextTaskDue(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </label>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={scheduleNextTask}
+                  disabled={nextTaskBusy}
+                  className="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {nextTaskBusy && <Loader2 size={14} className="animate-spin" />}
+                  Add next task
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-4xl mx-auto px-6">
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 space-y-4">
@@ -459,6 +555,9 @@ export default function DealDetailPage() {
                   <div className="text-slate-500 mt-1">
                     Subtotal {q.subtotal ?? '—'} · Tax {q.tax ?? 0} · Total {q.total}
                   </div>
+                  {q.sales_order_id && !q.invoice_id && (
+                    <div className="text-slate-500 mt-1">Sales order #{q.sales_order_id}</div>
+                  )}
                   {q.invoice_id && <div className="text-slate-500">Invoice #{q.invoice_id}</div>}
                   {q.payment_url && (
                     <div className="mt-1 break-all text-xs text-blue-600">{q.payment_url}</div>
@@ -471,6 +570,18 @@ export default function DealDetailPage() {
                       onChange={fetchDeal}
                     />
                   </div>
+                  {q.status === 'accepted' && q.sales_order_id && !q.invoice_id && (
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        type="button"
+                        disabled={quoteBusy}
+                        onClick={() => convertQuoteToInvoice(q.id, q.sales_order_id)}
+                        className="px-2 py-1 bg-blue-600 text-white text-[11px] font-bold uppercase rounded"
+                      >
+                        Create invoice
+                      </button>
+                    </div>
+                  )}
                   {q.status === 'draft' && (
                     <div className="flex gap-2 mt-2">
                       <button type="button" disabled={quoteBusy} onClick={() => quoteAction(q.id, 'accept')}

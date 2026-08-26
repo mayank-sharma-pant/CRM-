@@ -106,4 +106,5 @@ def portal_quote_dto(quote, *, client, company) -> dict:
         "can_accept": status == QuoteStatus.DRAFT.value,
         "can_reject": status == QuoteStatus.DRAFT.value,
         "invoice_id": getattr(quote, "invoice_id", None),
+        "sales_order_id": getattr(quote, "sales_order_id", None),
     }

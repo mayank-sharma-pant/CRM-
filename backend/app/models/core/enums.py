@@ -84,6 +84,11 @@ class QuoteStatus(str, enum.Enum):
     REJECTED = "rejected"
 
 
+class SalesOrderStatus(str, enum.Enum):
+    OPEN = "open"
+    INVOICED = "invoiced"
+
+
 class MeetingStatus(str, enum.Enum):
     SCHEDULED = "scheduled"
     COMPLETED = "completed"

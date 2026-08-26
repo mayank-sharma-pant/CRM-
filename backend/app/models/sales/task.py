@@ -20,9 +20,10 @@ class Task(Base):
     due_date = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     
-    # Related entity (Lead or Client)
+    # Related entity (Lead or Client or Deal)
     lead_id = Column(Integer, ForeignKey("leads.id"), nullable=True)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=True)
+    deal_id = Column(Integer, ForeignKey("deals.id"), nullable=True, index=True)
     
     # Assignment
     assigned_to_id = Column(Integer, ForeignKey("users.id"), nullable=True)

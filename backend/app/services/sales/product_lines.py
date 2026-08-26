@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.core.user import User
 from app.models.ops.stock_item import StockItem
 from app.models.sales.product import Product
+from app.services.sales.price_books import resolve_product_unit_price
 from app.services.finance.gst import line_tax
 from app.utils.dependencies import apply_company_scope
 
@@ -31,7 +32,14 @@ def _attr(item, name, default=None):
     return getattr(item, name, default)
 
 
-def resolve_sale_lines(db: Session, *, company_id: int, items: list, company_tax_rate: float) -> list[ResolvedSaleLine]:
+def resolve_sale_lines(
+    db: Session,
+    *,
+    company_id: int,
+    items: list,
+    company_tax_rate: float,
+    price_book_id: Optional[int] = None,
+) -> list[ResolvedSaleLine]:
     resolved: list[ResolvedSaleLine] = []
     for item in items:
         product_id = _attr(item, "product_id")
@@ -54,7 +62,16 @@ def resolve_sale_lines(db: Session, *, company_id: int, items: list, company_tax
             req_hsn = req_hsn.strip() or None
 
         description = req_description or (product.name if product is not None else "")
-        unit_price = product.unit_price if product is not None and req_price is None else req_price
+        if product is not None:
+            unit_price = resolve_product_unit_price(
+                db,
+                company_id=company_id,
+                product=product,
+                price_book_id=price_book_id,
+                explicit_price=req_price,
+            )
+        else:
+            unit_price = req_price
         hsn = req_hsn if req_hsn is not None else (product.hsn if product is not None else None)
         tax_rate = Decimal(str(product.tax_rate if product is not None else company_tax_rate))
         qty = int(_attr(item, "quantity") or 0)

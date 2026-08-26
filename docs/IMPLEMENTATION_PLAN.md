@@ -10,7 +10,7 @@
 
 ## Status board (resume here)
 
-Last updated: **26 Aug 2026**. Status is from code + this file’s progress logs, not from memory.
+Last updated: **27 Aug 2026**. Status is from code + this file’s progress logs, not from memory.
 
 | Phase | Status | Notes |
 |-------|--------|--------|
@@ -21,7 +21,7 @@ Last updated: **26 Aug 2026**. Status is from code + this file’s progress logs
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
 | **5 — Paid add-ons** | ✅ **DONE (code)** | **5.1–5.10 DONE.** |
 | **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** |
-| **7 — Trial defense** | 🚧 **IN PROGRESS** | **7.1–7.3 DONE (code); 7.4–7.12 pending.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Resume **7.4**. |
+| **7 — Trial defense** | 🚧 **IN PROGRESS** | **7.1–7.9 DONE (code); 7.10–7.12 pending.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Resume **7.10**. |
 
 ### Phase 4 checklist
 
@@ -95,19 +95,19 @@ Thin edges after 0–6. Not Marketing Hub / Desk. Spec: [`superpowers/specs/2026
 | **7.1** Email open / click tracking | HubSpot Free wedge | ✅ DONE (code) |
 | **7.2** Meeting booking + inbound calendar | HubSpot meetings; 6.2 is CRM→calendar only | ✅ DONE (code) |
 | **7.3** Store-listed mobile | Apps in stores; 6.8 is code + STORE_RELEASE.md | ✅ DONE (code) |
-| **7.4** Hindi UI (sales loop) | Zoho India expectation | ⏳ PENDING |
-| **7.5** Live Tally sync | 5.4 is a stub | ⏳ PENDING |
-| **7.6** Live GST IRN (IRP/NIC) | 6.16 is a hash stub | ⏳ PENDING |
-| **7.7** Price books | 4.1 products, no books | ⏳ PENDING |
-| **7.8** Next-activity nag (mandatory + last-touch rotting + due email) | Pipedrive | ⏳ PENDING |
-| **7.9** Quote → sales order → invoice | Zoho money chain | ⏳ PENDING |
+| **7.4** Hindi UI (sales loop) | Zoho India expectation | ✅ DONE (code) |
+| **7.5** Live Tally sync | 5.4 is a stub | ✅ DONE (code) |
+| **7.6** Live GST IRN (IRP/NIC) | 6.16 is a hash stub | ✅ DONE (code) |
+| **7.7** Price books | 4.1 products, no books | ✅ DONE (code) |
+| **7.8** Next-activity nag (mandatory + last-touch rotting + due email) | Pipedrive | ✅ DONE (code) |
+| **7.9** Quote → sales order → invoice | Zoho money chain | ✅ DONE (code) |
 | **7.10** Deal / discount approvals | Zoho process; purchase approvals only today | ⏳ PENDING |
 | **7.11** Import undo + clients/deals CSV | 3.6 is leads-only | ⏳ PENDING |
 | **7.12** More report types + scheduled email | 3.4 is one type, no schedule | ⏳ PENDING |
 
 **Out of Phase 7 (roadmap §7):** Marketing Hub, Zoho Desk, Salesforce objects, two-way live chat, layouts designer.
 
-**Resume next:** **7.4** Hindi UI (7.3 is in code). Production verify of 0–6 remains a deploy gate (roadmap §8), in parallel with 7.x.
+**Resume next:** **7.10** Deal / discount approvals (7.9 Quote → SO → invoice is in code). Production verify of 0–6 remains a deploy gate (roadmap §8), in parallel with 7.x.
 
 ---
 
@@ -283,7 +283,7 @@ Phases 3 and 4 were pulled ahead of the original “only after revenue / trial a
 - **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
 - **Phase 5** — ✅ **DONE (code):** 5.1–5.10 logged below.
 - **Phase 6** — ✅ **DONE (code):** **6.1–6.20**.
-- **Phase 7** — 🚧 **IN PROGRESS:** **7.1–7.3 DONE (code)**, 7.4–7.12 pending (trial defense). Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
+- **Phase 7** — 🚧 **IN PROGRESS:** **7.1–7.9 DONE (code)**, 7.10–7.12 pending (trial defense). Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
 
 ### Phase 3.1 — TOTP 2FA — DONE
 
@@ -775,7 +775,7 @@ campaigns. Spec:
 
 ## Phase 7 — Trial defense (thin edges vs HubSpot / Zoho / Pipedrive)
 
-**Status: ⏳ PENDING.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md); index plan: [`superpowers/plans/2026-08-26-phase7-trial-defense.md`](./superpowers/plans/2026-08-26-phase7-trial-defense.md).
+**Status: 🚧 IN PROGRESS (7.1–7.5 done in code).** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md); index plan: [`superpowers/plans/2026-08-26-phase7-trial-defense.md`](./superpowers/plans/2026-08-26-phase7-trial-defense.md).
 
 Phases 0–6 are in code. This phase closes **first-week trial** gaps. It does **not** clone HubSpot Marketing Hub or Zoho Desk.
 
@@ -806,29 +806,182 @@ Made the mobile listing **submittable from git** — the parts that can live in 
 - **Deploy:** ship the frontend so `/privacy` is live **before** submitting the listing. Then, on a machine with Flutter + store credentials, follow `STORE_RELEASE.md`: `flutter create`, keystore from `key.properties.example`, `flutter build appbundle`/`ipa`, paste `store/metadata/` copy + the `/privacy` URL, upload. No migration, no env var, no dependency.
 - **Residuals:** submittable, **not submitted** — no `flutter create`/build/upload here (human step); `en-US` listing only; no screenshots / feature graphic (design step); no Fastlane/CI upload automation; no terms-of-service or pricing page; `android/`/`ios/` still generated locally so the signing scaffold lives in `store/`, not the regenerated `android/` tree.
 
-### Phase 7.4 — Hindi UI — PENDING
+### Phase 7.4 — Hindi UI — DONE (code)
 
-Sales loop (leads, deals, invoices, quotes). Not 28 locales.
+Hindi on the **sales-loop chrome** (nav, leads, deals, invoices/orders) via a
+Context + message-catalog, mirroring `ThemeContext` — **no `next-intl`** (its
+App-Router `[locale]` segment would collide with the existing auth/public-path
+gates). Message ids are the English source string (gettext style): a missing key
+falls back to English, so partial coverage degrades gracefully and untranslated
+strings never show a raw key. Two locales only (`en`, `hi`); English default; a
+sidebar EN/हिं toggle persists `crm_locale` in `localStorage` (per browser, like
+`theme`) and sets `document.documentElement.lang`. The `mounted` gate keeps
+SSR/first paint English (no hydration mismatch). Spec:
+[`superpowers/specs/2026-08-26-phase7-hindi-ui-design.md`](./superpowers/specs/2026-08-26-phase7-hindi-ui-design.md);
+plan: [`superpowers/plans/2026-08-26-phase7-hindi-ui.md`](./superpowers/plans/2026-08-26-phase7-hindi-ui.md).
 
-### Phase 7.5 — Live Tally — PENDING
+- **Core:** `lib/i18n/hi.cjs` (flat `{english: hindi}` catalog), `translate.cjs`
+  (`translate(locale, source)` = `catalogs[locale]?.[source] ?? source`),
+  `index.js` (ESM re-export). `.cjs`+ESM interop matches `lib/objectPaths.cjs`.
+- **Runtime:** `contexts/LocaleContext.jsx` (`LocaleProvider` / `useLocale` /
+  `useT`), wired into `app/layout.js` inside `ThemeProvider`;
+  `components/LanguageToggle.jsx` in the sidebar footer.
+- **Wired:** `Sidebar.jsx` sales nav labels (via `t(item.name)`) + Settings group
+  label, `components/leads/LeadsIndexPage.jsx`, `components/deals/DealsBoard.jsx`,
+  `app/sales/orders/page.jsx` (title, primary actions, filter tabs, search
+  placeholder, column headers, status badges, empty/error states).
+- **Verification:** `frontend/lib/i18n/i18n.test.cjs` (9 tests: every hi value
+  non-empty + differs from source, Devanagari sample, `hi`/`en`/unknown-locale
+  translate + fallback, null passthrough, **no duplicate keys** in the catalog
+  source), wired as `npm run test:i18n`. `next build` clean; `test:paths` /
+  `test:landing` / `test:brand` / `test:store` still green. No backend change,
+  no migration, no new dependency.
+- **Residuals:** sales-loop chrome only — detail forms, settings sub-pages, and
+  manager/MD/admin/purchase-only screens (and dynamic ledger/module nav children)
+  stay English (graceful fallback). No backend per-user locale column
+  (`localStorage` only); no date/number/currency localization
+  (`toLocaleString` unchanged); source-string keys mean an English copy edit
+  drops that Hindi string to fallback until the catalog is updated; two locales,
+  no RTL, no `Accept-Language` negotiation.
 
-Real adapter when configured; 5.4 stub remains the offline/test path.
+### Phase 7.5 — Live Tally — DONE (code)
 
-### Phase 7.6 — Live GST IRN — PENDING
+The 5.4 Tally path now **pushes to a real Tally HTTP gateway** when a company
+configures a URL; **QuickBooks stays stub** (no OAuth in 7.5). Live is gated by
+config, not a global flag: `provider == "tally"` **and** `tally_url` set → live,
+else the 5.4 stub (which stays the honest offline/test path — connecting Tally
+with no URL still stubs). No new dependency (`httpx`, already used); Tally's XML
+gateway is unauthenticated, so the URL is stored plain and returned by the API.
+Spec: [`superpowers/specs/2026-08-26-phase7-live-tally-design.md`](./superpowers/specs/2026-08-26-phase7-live-tally-design.md);
+plan: [`superpowers/plans/2026-08-26-phase7-live-tally.md`](./superpowers/plans/2026-08-26-phase7-live-tally.md).
 
-IRP/NIC when GSTINs + creds exist; no fake registered IRN.
+- **Transport:** `app/services/accounting/tally_transport.py` —
+  `render_tally_xml` wraps the existing `tally_payload` voucher in an
+  Import-Data `ENVELOPE` (`SVCURRENTCOMPANY`, `YYYYMMDD` date, one
+  `ALLLEDGERENTRIES.LIST` per ledger with Tally's debit=negative sign
+  convention, XML-escaped); `push_tally` POSTs it and parses the response —
+  raising `TallyPushError` on HTTP ≥400, transport error, `LINEERROR`, or a body
+  with no `CREATED`/`ALTERED`/`LASTVCHID` marker. `external_id` is Tally's
+  `LASTVCHID` (else a `tally-live-<sha1>` marker, distinct from the 5.4 stub id).
+- **No fake success (phase-7 §5):** every sync item now carries `mode`
+  (`"stub"`/`"live"`). A live push only reports `synced` when Tally confirms
+  creation; a live failure marks the item `failed` with the real message on
+  `connection.last_error` and **no `external_id`** — and does **not** raise, so
+  bulk and single endpoints share one shape and one bad invoice never aborts a
+  batch (`sync_all` now counts `failed` items correctly). `AccountingNotConnected`
+  still 400s. Idempotency unchanged: an unchanged, already-synced row never
+  re-hits Tally and preserves the live voucher id.
+- **Schema/API:** `AccountingConnection.tally_url` (VARCHAR 500) +
+  `tally_company_name` (VARCHAR 200), both nullable; `MISSING_COLUMNS` +
+  Alembic `029_tally_live` (`down_revision 028_booking_calendar`). `PUT
+  /api/accounting/connection` accepts the two fields (bad URL scheme → 400);
+  `GET` returns them plus a derived `live` boolean.
+- **UI:** `/settings/accounting` gains Tally URL + company inputs (shown for
+  Tally), a Live/Stub badge, `last_error`, and a sync toast that reports
+  `failed`.
+- **Verification:** `tests/finance/test_tally_live.py` (render fields + ledger
+  signs + escaping; push success/LINEERROR/HTTP-error/transport-error/no-marker;
+  live success records the voucher id + hits the URL; live failure → `failed` +
+  `last_error`, no raise; stub mode makes **no** HTTP call and keeps 5.4
+  idempotency; QuickBooks-with-a-URL stays stub; bad-URL 400; GET/PUT reflect
+  `tally_url`/`live`), `tests/ops/test_alembic_heads.py` (single head
+  `029_tally_live`), and the existing `test_accounting_*` suite. **Full backend:
+  790 passed, 1 pre-existing unrelated red** (`test_accept_invite_internal_error_is_sanitized`,
+  the auth red named under 7.1/7.2). `next build` clean.
+- **Deploy:** `alembic upgrade head` (`029_tally_live`) or
+  `python create_missing_tables.py` for the two columns. Then a company sets its
+  Tally URL in `/settings/accounting`; the backend must be able to reach that
+  Tally gateway (LAN).
+- **Residuals:** QuickBooks stays stub (no OAuth); one-way push only (no pull,
+  no party/item master creation — the party ledger must exist in Tally or Tally
+  auto-creates per its config); no WAN auth/tunnel; no live-failure retry queue
+  or scheduler; the Tally sign convention and success markers are coded to
+  Tally's documented XML but **not verified against a live Tally** here (tests
+  pin the request/response contract against a fake).
 
-### Phase 7.7 — Price books — PENDING
+### Phase 7.6 — Live GST IRN — DONE (code)
 
-Named books; quote/invoice lines can use a book price.
+Spec: [`superpowers/specs/2026-08-26-phase7-live-irn-design.md`](./superpowers/specs/2026-08-26-phase7-live-irn-design.md);
+plan: [`superpowers/plans/2026-08-26-phase7-live-irn.md`](./superpowers/plans/2026-08-26-phase7-live-irn.md).
 
-### Phase 7.8 — Next-activity nag — PENDING
+- **Live when credentials set:** `CompanySettings` gains `einvoice_base_url`,
+  `einvoice_username`, `einvoice_password_encrypted`, `einvoice_client_id`,
+  `einvoice_client_secret_encrypted`. Live only when all five are set; otherwise
+  the 6.16 SHA-256 stub path runs (no HTTP). Secrets Fernet-encrypted; GET never
+  returns them (`password_set` / `client_secret_set` only).
+- **Transport:** `app/services/finance/einvoice_transport.py` — NIC-shaped
+  `POST …/eivital/v1.04/auth` then `POST …/eicore/v1.03/Invoice` via httpx;
+  `EinvoicePushError` on transport/HTTP/missing Irn. Configurable base URL covers
+  NIC sandbox or a GSP that speaks the same contract.
+- **No fake success:** `POST /api/invoices/{id}/einvoice` returns `mode`
+  (`stub`|`live`). Live failure → **502**, invoice `irn` left null (never falls
+  back to stub IRN). Idempotent if IRN already set (no re-hit).
+- **Schema/API:** `invoices.signed_qr` widened to TEXT; Alembic `030_einvoice_live`
+  (`down_revision 029_tally_live`). `GET`/`PUT /api/einvoice/connection`
+  (admin/MD write); bad URL scheme → 400.
+- **UI:** `/settings/einvoice` + Settings home card; Live/Stub badge.
+- **Verification:** `tests/finance/test_einvoice_live.py` (transport + stub/live/
+  502/idempotent/secrets/cross-tenant) + `test_invoice_pdf_irn.py` +
+  `tests/ops/test_alembic_heads.py` (single head `030_einvoice_live`) — **30
+  tests green** in that set.
+- **Deploy:** `alembic upgrade head` (`030_einvoice_live`) or
+  `python create_missing_tables.py`. Then set NIC/GSP credentials in
+  `/settings/einvoice`.
+- **Residuals:** No GSTR-1, e-way, CN/DN/cancel IRN, QR image on PDF, or live
+  NIC verification in this environment (tests pin a fake).
 
-Open deal needs a next activity; rotting from last timeline touch; `due_today` email.
+### Phase 7.7 — Price books — DONE (code)
 
-### Phase 7.9 — Quote → sales order → invoice — PENDING
+Spec: [`superpowers/specs/2026-08-26-phase7-price-books-design.md`](./superpowers/specs/2026-08-26-phase7-price-books-design.md);
+plan: [`superpowers/plans/2026-08-26-phase7-price-books.md`](./superpowers/plans/2026-08-26-phase7-price-books.md).
 
-Accepted quote can mint SO; SO → invoice.
+- **Tables:** `price_books` (name, `is_default`, `is_active`) and
+  `price_book_entries` (per-product `unit_price`). Alembic `031_price_books`
+  (`down_revision 030_einvoice_live`).
+- **Resolution:** `resolve_sale_lines(..., price_book_id=)` uses entry price when
+  present, else company default book entry, else `products.unit_price`. Explicit
+  line `unit_price` still wins.
+- **API:** CRUD `/api/price-books`, `PUT …/entries` upsert, set-default via PATCH.
+  Quote/invoice create accept optional `price_book_id`.
+- **UI:** `/settings/price-books`; Settings card; `CreateOrderModal` price book
+  selector passes `price_book_id`.
+- **Verification:** `tests/sales/test_price_books.py` (CRUD, default, resolution,
+  invoice wiring, cross-tenant) + existing product/GST tests + heads
+  `031_price_books` — **29 tests green** in that set.
+
+### Phase 7.8 — Next-activity nag — DONE (code)
+
+Spec: [`superpowers/specs/2026-08-26-phase7-next-activity-design.md`](./superpowers/specs/2026-08-26-phase7-next-activity-design.md);
+plan: [`superpowers/plans/2026-08-26-phase7-next-activity.md`](./superpowers/plans/2026-08-26-phase7-next-activity.md).
+
+- **Schema:** `tasks.deal_id`; `deals.due_reminded_at`. Alembic `032_next_activity_nag`
+  (`down_revision 031_price_books`).
+- **Next activity:** earliest future incomplete task (due ≥ UTC day start) or scheduled
+  meeting on deal. Forward stage move or won/lost blocked with 400 when missing.
+- **Rotting:** last timeline touch (email/call/meeting/task/audit); fallback
+  `deals.created_at`; 14-day cutoff (replaces `updated_at`).
+- **Reminders:** `run_due_reminders` emails assignee for open deals with
+  `expected_close` = today once per UTC day; respects `task_reminders_enabled`.
+- **API:** deal serialize adds `next_activity`, `last_touch_at`,
+  `missing_next_activity`; `POST /tasks` accepts `deal_id`.
+- **UI:** Deals board **No next step** badge; deal detail quick next-task form.
+- **Verification:** `tests/sales/test_deal_next_activity.py` + saved filters + heads
+  `032_next_activity_nag` — **28 tests green** in that set.
+
+### Phase 7.9 — Quote → sales order → invoice — DONE (code)
+
+Spec: [`superpowers/specs/2026-08-26-phase7-quote-order-invoice-design.md`](./superpowers/specs/2026-08-26-phase7-quote-order-invoice-design.md);
+plan: [`superpowers/plans/2026-08-26-phase7-quote-order-invoice.md`](./superpowers/plans/2026-08-26-phase7-quote-order-invoice.md).
+
+- **Tables:** `sales_orders`, `sales_order_items`; `quotes.sales_order_id` (indexed int).
+  Alembic `033_sales_orders` (`down_revision 032_next_activity_nag`).
+- **Flow:** accept quote → open sales order (no invoice, no stock deduct);
+  `POST /api/sales-orders/{id}/invoice` → invoice + stock deduct + link quote.
+- **API:** list/get sales orders; quote serialize adds `sales_order_id`; portal accept
+  creates SO only.
+- **UI:** Deal detail — accept shows SO; **Create invoice** converts + payment link.
+- **Verification:** `tests/sales/test_sales_orders.py` + updated quote/portal/GST
+  tests + heads `033_sales_orders` — **38 tests green** in that set.
 
 ### Phase 7.10 — Deal / discount approvals — PENDING
 
@@ -867,4 +1020,4 @@ Phase 0–4 ✅ (code)  →  Phase 6 ✅ (code)  →  Phase 5 ✅ (code)  →  P
 - Phase 1: payment + seat limit. ✅
 - Phase 2–4: sales loop + Standard + Professional extras. ✅ (code)
 - Phase 5–6: add-ons + competitor parity. ✅ (code)
-- **Next:** **7.3** store-listed mobile (7.2 meeting booking + inbound calendar is in code). Phase 7 done when the spec’s “Done when” list holds.
+- **Next:** **7.6** live GST IRN (7.5 live Tally is in code). Phase 7 done when the spec’s “Done when” list holds.

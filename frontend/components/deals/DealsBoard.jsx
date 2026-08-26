@@ -7,6 +7,7 @@ import { dealsHomePath } from '../../lib/leadsPaths';
 import api from '../../services/api';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useT } from '../../contexts/LocaleContext';
 import Skeleton from '../shared/Skeleton';
 import { Plus, TrendingUp, Trophy } from 'lucide-react';
 
@@ -54,6 +55,7 @@ export default function DealsBoard() {
   const basePath = dealsHomePath(usePathname());
   const { showToast } = useNotification();
   const { user } = useAuth();
+  const t = useT();
   const canConfigure = ['admin', 'md'].includes(roleOf(user));
 
   useEffect(() => {
@@ -259,7 +261,7 @@ export default function DealsBoard() {
       <div className="bg-surface border-b border-border px-6 py-4">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-primary tracking-tight">Deals Pipeline</h1>
+            <h1 className="text-xl font-bold text-primary tracking-tight">{t('Deals Pipeline')}</h1>
             <p className="text-[12px] text-muted font-medium mt-0.5 opacity-80 uppercase tracking-wider">
               {selected?.name || board?.pipeline_name || 'Track opportunities across stages'}
             </p>
@@ -279,7 +281,7 @@ export default function DealsBoard() {
                     view === opt.id ? 'bg-accent text-white' : 'bg-surface text-primary hover:bg-surface-elevated'
                   }`}
                 >
-                  {opt.label}
+                  {t(opt.label)}
                 </button>
               ))}
             </div>
@@ -293,7 +295,7 @@ export default function DealsBoard() {
                 }}
                 className="text-[11px] font-bold uppercase tracking-tight bg-surface border border-border rounded px-2 py-1.5 text-primary focus:outline-none focus:border-accent"
               >
-                <option value="">Saved views</option>
+                <option value="">{t('Saved views')}</option>
                 {savedFilters.map((f) => (
                   <option key={f.id} value={f.id}>{f.name}</option>
                 ))}
@@ -305,7 +307,7 @@ export default function DealsBoard() {
               disabled={savingFilter}
               className="px-2.5 py-1.5 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary disabled:opacity-50"
             >
-              Save view
+              {t('Save view')}
             </button>
             <label className="flex items-center gap-2">
               <span className="sr-only">Pipeline</span>
@@ -330,7 +332,7 @@ export default function DealsBoard() {
                   disabled={togglingBlueprint}
                   className="rounded border-border"
                 />
-                Enforce blueprint
+                {t('Enforce blueprint')}
               </label>
             )}
             {canConfigure && (
@@ -339,19 +341,19 @@ export default function DealsBoard() {
                 onClick={handleNewPipeline}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-md text-[12px] font-bold uppercase tracking-tight text-primary hover:border-accent"
               >
-                New pipeline
+                {t('New pipeline')}
               </button>
             )}
             <div className="hidden sm:flex items-center gap-4 px-4 py-1.5 bg-surface-elevated/50 border border-border rounded-md shadow-inner">
               <div className="flex items-center gap-1.5">
                 <TrendingUp size={14} strokeWidth={2.5} className="text-accent" />
-                <span className="text-[10px] font-black text-muted uppercase tracking-widest">Open Forecast</span>
+                <span className="text-[10px] font-black text-muted uppercase tracking-widest">{t('Open Forecast')}</span>
                 <span className="text-[12px] font-bold text-primary tabular-nums">{formatMoney(board?.open_forecast)}</span>
               </div>
               <div className="w-px h-4 bg-border" />
               <div className="flex items-center gap-1.5">
                 <Trophy size={14} strokeWidth={2.5} className="text-success" />
-                <span className="text-[10px] font-black text-muted uppercase tracking-widest">Won</span>
+                <span className="text-[10px] font-black text-muted uppercase tracking-widest">{t('Won')}</span>
                 <span className="text-[12px] font-bold text-primary tabular-nums">{formatMoney(board?.won_value)}</span>
               </div>
             </div>
@@ -360,7 +362,7 @@ export default function DealsBoard() {
               disabled={creating}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-bold uppercase tracking-tight transition-all shadow-sm shadow-accent/10 disabled:opacity-50"
             >
-              <Plus size={14} strokeWidth={2.5} /> New Deal
+              <Plus size={14} strokeWidth={2.5} /> {t('New Deal')}
             </button>
           </div>
         </div>
@@ -370,10 +372,10 @@ export default function DealsBoard() {
         {totalDeals === 0 && (
           <p className="text-[13px] text-muted font-medium italic mb-4">
             {view === 'due_today'
-              ? 'No deals due today.'
+              ? t('No deals due today.')
               : view === 'rotting'
-                ? 'No rotting deals.'
-                : 'No deals in this pipeline yet.'}
+                ? t('No rotting deals.')
+                : t('No deals in this pipeline yet.')}
           </p>
         )}
         <div className="flex gap-4 overflow-x-auto pb-4">
@@ -427,7 +429,14 @@ export default function DealsBoard() {
                   stage.deals.map((deal) => (
                     <div key={deal.id} className="bg-surface-elevated/40 border border-border rounded-md p-3 hover:border-accent/40 transition-colors">
                       <Link href={`${basePath}/${deal.id}`} className="block">
-                        <p className="text-[12px] font-bold text-primary truncate">{deal.title}</p>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-[12px] font-bold text-primary truncate">{deal.title}</p>
+                          {deal.missing_next_activity && (
+                            <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 rounded">
+                              {t('No next step')}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[12px] font-bold text-accent tabular-nums mt-1">{formatMoney(deal.amount)}</p>
                         <p className="text-[10px] text-muted font-medium uppercase tracking-wide mt-0.5">
                           {deal.effective_probability != null ? `${deal.effective_probability}% probability` : ''}

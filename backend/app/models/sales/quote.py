@@ -30,6 +30,7 @@ class Quote(Base):
     total = Column(Numeric(12, 2), default=0)
     notes = Column(Text, nullable=True)
     invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=True)
+    sales_order_id = Column(Integer, nullable=True, index=True)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

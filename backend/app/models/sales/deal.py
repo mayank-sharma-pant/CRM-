@@ -28,9 +28,11 @@ class Deal(Base):
     source = Column(String(100), nullable=True)
     score = Column(Integer, nullable=True)
     score_updated_at = Column(DateTime, nullable=True)
+    due_reminded_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     pipeline = relationship("Pipeline")
     stage = relationship("PipelineStage")
+    assigned_to = relationship("User", foreign_keys=[assigned_to_id])

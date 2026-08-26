@@ -6,6 +6,7 @@ def test_connection_columns():
     assert cols == {
         "id", "company_id", "provider", "status",
         "connected_at", "last_sync_at", "last_error",
+        "tally_url", "tally_company_name",
     }
 
 

@@ -69,4 +69,4 @@ those integrations are unset.
 Same as 6.x: one item spec, one item plan, TDD, tests green, then the next
 item. Do not start 7.n+1 until 7.n is in the repo and verified.
 
-**Resume:** **7.1**.
+**Resume:** **7.8** (7.1–7.7 in code).

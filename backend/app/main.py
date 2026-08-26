@@ -19,7 +19,9 @@ from app.routers.sales.calls import router as calls_router
 from app.routers.sales.reports import router as reports_router
 from app.routers.sales.dashboards import router as dashboards_router
 from app.routers.sales.quotes import router as quotes_router
+from app.routers.sales.sales_orders import router as sales_orders_router
 from app.routers.sales.products import router as products_router
+from app.routers.sales.price_books import router as price_books_router
 from app.routers.sales.lead_forms import router as lead_forms_router
 from app.routers.sales.custom_fields import router as custom_fields_router
 from app.routers.sales.custom_modules import router as custom_modules_router
@@ -50,6 +52,7 @@ from app.routers.public.tracking import router as public_tracking_router
 from app.routers.public.v1 import router as public_v1_router
 from app.routers.finance import invoices, purchase, ledgers, export
 from app.routers.finance.accounting import router as accounting_router
+from app.routers.finance.einvoice_settings import router as einvoice_settings_router
 from app.routers.ops import leaves, documents, bug_report, imports, inventory
 from app.routers.management import md, manager
 from app.routers.ai.company_assistant import router as company_ai_router
@@ -159,7 +162,9 @@ app.include_router(calls_router, prefix="/api/calls", tags=["Calls"])
 app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
 app.include_router(dashboards_router, prefix="/api/dashboards", tags=["Dashboards"])
 app.include_router(quotes_router, prefix="/api/quotes", tags=["Quotes"])
+app.include_router(sales_orders_router, prefix="/api/sales-orders", tags=["Sales Orders"])
 app.include_router(products_router, prefix="/api/products", tags=["Products"])
+app.include_router(price_books_router, prefix="/api/price-books", tags=["Price Books"])
 app.include_router(lead_forms_router, prefix="/api/lead-forms", tags=["Lead Forms"])
 app.include_router(custom_fields_router, prefix="/api/custom-fields", tags=["Custom Fields"])
 app.include_router(custom_modules_router, prefix="/api/modules", tags=["Custom Modules"])
@@ -195,6 +200,7 @@ app.include_router(md.router, prefix="/api/md", tags=["Managing Director"])
 app.include_router(purchase.router, prefix="/api/purchase", tags=["Purchase"])
 app.include_router(invoices.router, prefix="/api/invoices", tags=["Invoices"])
 app.include_router(accounting_router, prefix="/api/accounting", tags=["Accounting"])
+app.include_router(einvoice_settings_router, prefix="/api/einvoice", tags=["E-Invoice"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(company_security.router, prefix="/api")
 app.include_router(saml_settings_router, prefix="/api/saml", tags=["SAML Settings"])

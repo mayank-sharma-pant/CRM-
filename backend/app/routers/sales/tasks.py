@@ -13,6 +13,7 @@ from app.models.core.team_membership import TeamMembership
 from app.models.sales.task import Task
 from app.models.sales.lead import Lead
 from app.models.sales.client import Client
+from app.models.sales.deal import Deal
 from app.schemas.sales import TaskListResponse
 from app.schemas.admin import MessageResponse
 from app.models.core.enums import TaskStatus
@@ -62,6 +63,7 @@ class TaskCreateBody(BaseModel):
     assigned_to_id: Optional[int] = None
     lead_id: Optional[int] = None
     client_id: Optional[int] = None
+    deal_id: Optional[int] = None
 
 
 class TaskUpdateBody(BaseModel):
@@ -435,6 +437,7 @@ def get_task(
         "due_date": task.due_date.isoformat() if task.due_date else None,
         "lead_id": task.lead_id,
         "client_id": task.client_id,
+        "deal_id": task.deal_id,
         "is_manager_assigned": task.is_manager_assigned,
         "created_at": task.created_at.isoformat() if task.created_at else None
     }
@@ -461,6 +464,10 @@ def create_task(
         client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == body.client_id).first()
         if not client:
             raise HTTPException(status_code=404, detail="Client not found")
+    if body.deal_id:
+        deal = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.id == body.deal_id).first()
+        if not deal:
+            raise HTTPException(status_code=404, detail="Deal not found")
 
     new_task = Task(
         company_id=current_user.company_id,
@@ -470,6 +477,7 @@ def create_task(
         due_date=due_date_val,
         lead_id=body.lead_id,
         client_id=body.client_id,
+        deal_id=body.deal_id,
         assigned_to_id=assignee_id,
         assigned_by_id=current_user.id,
         status="Pending"

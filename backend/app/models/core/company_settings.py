@@ -41,5 +41,12 @@ class CompanySettings(Base):
     booking_slug = Column(String(64), nullable=True, index=True)
     booking_host_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
+    # Live GST e-invoice (NIC/IRP); live only when url + user + secrets set
+    einvoice_base_url = Column(String(500), nullable=True)
+    einvoice_username = Column(String(100), nullable=True)
+    einvoice_password_encrypted = Column(Text, nullable=True)
+    einvoice_client_id = Column(String(100), nullable=True)
+    einvoice_client_secret_encrypted = Column(Text, nullable=True)
+
     # Relationships
     company = relationship("Company", backref="settings")

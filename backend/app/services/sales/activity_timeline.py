@@ -121,7 +121,7 @@ def build_activity_feed(
             row.starts_at or row.created_at,
         ))
 
-    if entity_type in ("lead", "client"):
+    if entity_type in ("lead", "client", "deal"):
         notes = _filter_parent(scoped(Note), Note, entity_type, entity_id).all()
         for row in notes:
             items.append(_item("note", row.id, "Note", _clip(row.content), row.created_at))
@@ -133,7 +133,7 @@ def build_activity_feed(
                 row.id,
                 row.title,
                 _clip(_enum_val(row.status)),
-                row.created_at,
+                row.due_date or row.created_at,
             ))
 
         wa = _filter_parent(scoped(WhatsAppMessage), WhatsAppMessage, entity_type, entity_id).all()

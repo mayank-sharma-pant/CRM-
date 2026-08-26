@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from app.models.sales.audit import AuditLog
 from app.models.sales.deal import Deal
 from app.services.sales.deal_views import utc_today
 from app.utils.rate_limit import auth_limiter
@@ -62,7 +63,13 @@ def test_rotting_is_open_and_stale(client, db):
     stale = client.post("/api/deals", json={"title": "Stale", "amount": "1"}).json()
     fresh = client.post("/api/deals", json={"title": "Fresh", "amount": "1"}).json()
     row = db.query(Deal).filter(Deal.id == stale["id"]).one()
-    row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=20)
+    stale_created = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=20)
+    row.created_at = stale_created
+    row.updated_at = stale_created
+    db.query(AuditLog).filter(
+        AuditLog.entity_type == "deal",
+        AuditLog.entity_id == str(stale["id"]),
+    ).update({AuditLog.timestamp: stale_created}, synchronize_session=False)
     db.commit()
     resp = client.get("/api/deals", params={"view": "rotting"})
     assert resp.status_code == 200, resp.text

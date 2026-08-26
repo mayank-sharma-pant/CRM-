@@ -1,11 +1,11 @@
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Query
+from sqlalchemy.orm import Query, Session
 
 from app.models.sales.deal import Deal
+from app.services.sales.deal_next_activity import ROTTING_DAYS, apply_rotting_by_last_touch
 
-ROTTING_DAYS = 14
 ALLOWED_VIEWS = frozenset({"due_today", "rotting"})
 ALLOWED_FILTER_KEYS = frozenset({"view", "pipeline_id", "stage_id", "assigned_to_id"})
 ALLOWED_OBJECT_TYPES = frozenset({"deal"})
@@ -19,7 +19,14 @@ def rotting_cutoff() -> datetime:
     return datetime.utcnow() - timedelta(days=ROTTING_DAYS)
 
 
-def apply_deal_view(query: Query, view: str | None, user_id: int) -> Query:
+def apply_deal_view(
+    query: Query,
+    view: str | None,
+    user_id: int,
+    *,
+    db: Session | None = None,
+    company_id: int | None = None,
+) -> Query:
     if not view:
         return query
     if view not in ALLOWED_VIEWS:
@@ -29,6 +36,8 @@ def apply_deal_view(query: Query, view: str | None, user_id: int) -> Query:
             Deal.expected_close == utc_today(),
             Deal.assigned_to_id == user_id,
         )
+    if db is not None and company_id is not None:
+        return apply_rotting_by_last_touch(query, db, company_id)
     return query.filter(
         Deal.closed_at.is_(None),
         Deal.updated_at < rotting_cutoff(),

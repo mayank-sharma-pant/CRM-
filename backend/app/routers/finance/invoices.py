@@ -24,6 +24,7 @@ from app.services.finance.invoice_pay import ensure_payment_url
 from app.services.finance.invoice_pdf import build_invoice_pdf
 from app.services.finance.einvoice import generate_irn
 from app.services.portal.share_links import apply_share, revoke_share
+from app.services.sales.price_books import validate_price_book_id
 from app.services.sales.product_lines import deduct_stock, resolve_sale_lines
 
 router = APIRouter()
@@ -41,6 +42,7 @@ class InvoiceItemCreate(BaseModel):
 class InvoiceCreate(BaseModel):
     client_id: int
     items: List[InvoiceItemCreate]
+    price_book_id: Optional[int] = None
     invoice_number: Optional[str] = None
     issued_date: Optional[date] = None
     due_date: Optional[date] = None
@@ -153,11 +155,17 @@ def create_invoice(
         invoice_number = f"DRAFT-{uuid.uuid4().hex[:8].upper()}"
 
     try:
+        validate_price_book_id(db, company_id, body.price_book_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    try:
         lines = resolve_sale_lines(
             db,
             company_id=company_id,
             items=body.items,
             company_tax_rate=tax_rate,
+            price_book_id=body.price_book_id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -545,12 +553,13 @@ def create_einvoice(
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     invoice = _get_invoice_scoped(db, current_user, invoice_id, active_team_id)
-    invoice = generate_irn(db, invoice)
+    invoice, mode = generate_irn(db, invoice)
     return {
         "id": invoice.id,
         "irn": invoice.irn,
         "ack_no": invoice.ack_no,
         "ack_date": invoice.ack_date.isoformat() if invoice.ack_date else None,
+        "mode": mode,
     }
 
 

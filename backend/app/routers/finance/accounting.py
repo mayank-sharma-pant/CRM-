@@ -22,6 +22,8 @@ router = APIRouter()
 
 class ConnectIn(BaseModel):
     provider: str
+    tally_url: Optional[str] = None
+    tally_company_name: Optional[str] = None
 
 
 def _iso(value: Optional[datetime]) -> Optional[str]:
@@ -36,6 +38,9 @@ def _connection_out(row: AccountingConnection | None) -> dict:
             "connected_at": None,
             "last_sync_at": None,
             "last_error": None,
+            "tally_url": None,
+            "tally_company_name": None,
+            "live": False,
         }
     return {
         "provider": row.provider,
@@ -43,6 +48,9 @@ def _connection_out(row: AccountingConnection | None) -> dict:
         "connected_at": _iso(row.connected_at),
         "last_sync_at": _iso(row.last_sync_at),
         "last_error": row.last_error,
+        "tally_url": row.tally_url,
+        "tally_company_name": row.tally_company_name,
+        "live": row.provider == "tally" and bool(row.tally_url),
     }
 
 
@@ -61,7 +69,13 @@ def put_connection(
     current_user: User = Depends(require_admin_or_md),
 ):
     try:
-        row = connect(db, current_user.company_id, payload.provider)
+        row = connect(
+            db,
+            current_user.company_id,
+            payload.provider,
+            tally_url=payload.tally_url,
+            tally_company_name=payload.tally_company_name,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _connection_out(row)

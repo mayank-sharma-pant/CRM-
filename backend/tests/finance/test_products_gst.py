@@ -60,8 +60,13 @@ def test_quote_snapshots_then_accept_copies_and_deducts_stock(client, db):
     accepted = client.post(f"/api/quotes/{q['id']}/accept")
     assert accepted.status_code == 200, accepted.text
     db.refresh(stock)
+    assert stock.quantity == 10
+    so_id = accepted.json()["sales_order_id"]
+    invoiced = client.post(f"/api/sales-orders/{so_id}/invoice")
+    assert invoiced.status_code == 200, invoiced.text
+    db.refresh(stock)
     assert stock.quantity == 7
-    invoice = client.get(f"/api/invoices/{accepted.json()['invoice_id']}").json()
+    invoice = client.get(f"/api/invoices/{invoiced.json()['invoice_id']}").json()
     assert invoice["tax"] == 108.0
     assert invoice["items"][0]["product_id"] == p18["id"]
     assert invoice["items"][0]["hsn"] == "9983"

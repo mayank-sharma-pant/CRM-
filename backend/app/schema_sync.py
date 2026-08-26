@@ -88,7 +88,7 @@ MISSING_COLUMNS = [
     ("invoices", "irn", "VARCHAR(64)"),
     ("invoices", "ack_no", "VARCHAR(32)"),
     ("invoices", "ack_date", "TIMESTAMP"),
-    ("invoices", "signed_qr", "VARCHAR(64)"),
+    ("invoices", "signed_qr", "TEXT"),
     ("company_settings", "retention_days", "INTEGER"),
     ("leads", "website", "VARCHAR(500)"),
     ("leads", "industry", "VARCHAR(100)"),
@@ -102,6 +102,16 @@ MISSING_COLUMNS = [
     ("company_settings", "booking_slug", "VARCHAR(64)"),
     ("company_settings", "booking_host_user_id", "INTEGER"),
     ("meetings", "conference_url", "VARCHAR(500)"),
+    ("accounting_connections", "tally_url", "VARCHAR(500)"),
+    ("accounting_connections", "tally_company_name", "VARCHAR(200)"),
+    ("company_settings", "einvoice_base_url", "VARCHAR(500)"),
+    ("company_settings", "einvoice_username", "VARCHAR(100)"),
+    ("company_settings", "einvoice_password_encrypted", "TEXT"),
+    ("company_settings", "einvoice_client_id", "VARCHAR(100)"),
+    ("company_settings", "einvoice_client_secret_encrypted", "TEXT"),
+    ("tasks", "deal_id", "INTEGER"),
+    ("deals", "due_reminded_at", "TIMESTAMP"),
+    ("quotes", "sales_order_id", "INTEGER"),
 ]
 
 

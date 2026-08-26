@@ -17,6 +17,9 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
     const [items, setItems] = useState([{ ...EMPTY_ITEM }]);
     const [inventory, setInventory] = useState([]);
     const [products, setProducts] = useState([]);
+    const [priceBooks, setPriceBooks] = useState([]);
+    const [priceBookId, setPriceBookId] = useState('');
+    const [bookPrices, setBookPrices] = useState({});
     const [inventoryLoading, setInventoryLoading] = useState(false);
     const [tax, setTax] = useState(0);
     const [taxTouched, setTaxTouched] = useState(false);
@@ -44,16 +47,43 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
         Promise.all([
             api.get('/inventory', { params: { limit: 500, in_stock_only: true } }),
             api.get('/products', { params: { active_only: true } }),
-        ]).then(([invRes, prodRes]) => {
+            api.get('/price-books', { params: { active_only: true } }),
+        ]).then(([invRes, prodRes, booksRes]) => {
             setInventory(invRes.data?.items || []);
             setProducts(prodRes.data?.items || []);
+            const books = booksRes.data?.items || [];
+            setPriceBooks(books);
+            const defaultBook = books.find((b) => b.is_default) || books[0];
+            if (defaultBook) {
+                setPriceBookId(String(defaultBook.id));
+            } else {
+                setPriceBookId('');
+            }
         }).catch(() => {
             setInventory([]);
             setProducts([]);
+            setPriceBooks([]);
+            setPriceBookId('');
         }).finally(() => {
             setInventoryLoading(false);
         });
     }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || !priceBookId) {
+            setBookPrices({});
+            return;
+        }
+        api.get(`/price-books/${priceBookId}`)
+            .then((res) => {
+                const map = {};
+                (res.data?.entries || []).forEach((e) => {
+                    map[e.product_id] = Number(e.unit_price);
+                });
+                setBookPrices(map);
+            })
+            .catch(() => setBookPrices({}));
+    }, [isOpen, priceBookId]);
 
     const stockById = useMemo(
         () => Object.fromEntries(inventory.map((item) => [item.id, item])),
@@ -64,6 +94,27 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
         () => Object.fromEntries(products.map((item) => [item.id, item])),
         [products]
     );
+
+    const priceForProduct = (productId) => {
+        if (!productId) return null;
+        const selected = productById[productId];
+        if (!selected) return null;
+        if (priceBookId && bookPrices[productId] != null) {
+            return bookPrices[productId];
+        }
+        return Number(selected.unit_price || 0);
+    };
+
+    useEffect(() => {
+        if (!isOpen || !priceBookId) return;
+        setItems((prev) => prev.map((item) => {
+            if (!item.product_id) return item;
+            const nextPrice = priceForProduct(item.product_id);
+            if (nextPrice == null) return item;
+            return { ...item, unit_price: nextPrice };
+        }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [bookPrices, priceBookId, isOpen]);
 
     const getReservedQty = (stockItemId, excludeIndex = -1) => {
         return items.reduce((sum, item, index) => {
@@ -104,7 +155,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                 const selected = productById[updated[idx].product_id];
                 if (selected) {
                     updated[idx].description = selected.name || updated[idx].description;
-                    updated[idx].unit_price = Number(selected.unit_price || 0);
+                    updated[idx].unit_price = priceForProduct(updated[idx].product_id) ?? Number(selected.unit_price || 0);
                     updated[idx].hsn = selected.hsn || '';
                     updated[idx].tax_rate = Number(selected.tax_rate);
                 }
@@ -152,6 +203,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
         try {
             await api.post(endpoint, {
                 client_id: parseInt(targetClientId, 10),
+                ...(priceBookId ? { price_book_id: parseInt(priceBookId, 10) } : {}),
                 items: items.map(i => ({
                     description: i.description,
                     quantity: parseInt(i.quantity, 10) || 1,
@@ -220,6 +272,24 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                         <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg px-4 py-3 border border-slate-100 dark:border-slate-700/50">
                             <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Order For</span>
                             <span className="text-sm font-semibold text-slate-900 dark:text-white">{clientName || 'Selected Client'}</span>
+                        </div>
+                    )}
+
+                    {priceBooks.length > 0 && (
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Price book</label>
+                            <select
+                                value={priceBookId}
+                                onChange={(e) => setPriceBookId(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+                            >
+                                <option value="">List price only</option>
+                                {priceBooks.map((b) => (
+                                    <option key={b.id} value={b.id}>
+                                        {b.name}{b.is_default ? ' (default)' : ''}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     )}
 

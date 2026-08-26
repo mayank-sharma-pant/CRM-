@@ -15,6 +15,10 @@ class AccountingConnection(Base):
     connected_at = Column(DateTime, nullable=True)
     last_sync_at = Column(DateTime, nullable=True)
     last_error = Column(Text, nullable=True)
+    # Live Tally (7.5): HTTP-gateway origin + Tally company; live when both provider
+    # is tally and tally_url is set. No secret (Tally's gateway is unauthenticated).
+    tally_url = Column(String(500), nullable=True)
+    tally_company_name = Column(String(200), nullable=True)
 
 
 class AccountingSyncItem(Base):

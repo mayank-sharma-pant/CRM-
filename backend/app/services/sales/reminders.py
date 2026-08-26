@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.core.company_settings import CompanySettings
 from app.models.core.enums import TaskStatus
+from app.models.core.enums import TaskStatus
 from app.models.core.user import User
+from app.models.sales.deal import Deal
 from app.models.sales.follow_up import FollowUp
 from app.models.sales.task import Task
 from app.services.sales.whatsapp import send_cadence_whatsapp
@@ -110,6 +112,40 @@ def run_due_reminders(db: Session, now: datetime | None = None) -> dict:
         item.reminded_at = now
         follow_count += 1
 
+    deals_due = (
+        db.query(Deal)
+        .options(joinedload(Deal.assigned_to))
+        .filter(
+            Deal.due_reminded_at.is_(None),
+            Deal.expected_close == now.date(),
+            Deal.assigned_to_id.isnot(None),
+            Deal.closed_at.is_(None),
+        )
+        .all()
+    )
+    deal_count = 0
+    for deal in deals_due:
+        company_id = deal.company_id
+        if company_id not in flags:
+            flags[company_id] = _flags(db, company_id)
+        if not flags[company_id][0]:
+            continue
+        assignee = deal.assigned_to
+        title = f"Deal due today: {deal.title}"
+        message = f'"{deal.title}" is expected to close today.'
+        send_notification(
+            db,
+            deal.assigned_to_id,
+            title,
+            message,
+            type="warning",
+            link=f"/sales/deals/{deal.id}",
+            category="deals",
+        )
+        _email(assignee, title, message)
+        deal.due_reminded_at = now
+        deal_count += 1
+
     wa_follow_ups = (
         db.query(FollowUp)
         .options(joinedload(FollowUp.lead))
@@ -130,4 +166,4 @@ def run_due_reminders(db: Session, now: datetime | None = None) -> dict:
         item.reminded_at = now
 
     db.commit()
-    return {"tasks": task_count, "follow_ups": follow_count, "whatsapp": whatsapp_count}
+    return {"tasks": task_count, "follow_ups": follow_count, "deals_due": deal_count, "whatsapp": whatsapp_count}

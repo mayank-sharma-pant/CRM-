@@ -16,6 +16,7 @@ from app.models.sales.deal import Deal
 from app.models.sales.quote import Quote, QuoteItem
 from app.services.finance.gst import compute_gst
 from app.services.portal.share_links import apply_share, revoke_share
+from app.services.sales.price_books import validate_price_book_id
 from app.services.sales.product_lines import resolve_sale_lines
 from app.services.sales.quote_lifecycle import accept_quote as accept_quote_record
 from app.services.sales.quote_lifecycle import reject_quote as reject_quote_record
@@ -37,6 +38,7 @@ class QuoteCreate(BaseModel):
     deal_id: Optional[int] = None
     title: Optional[str] = None
     notes: Optional[str] = None
+    price_book_id: Optional[int] = None
     items: List[QuoteItemIn]
 
 
@@ -64,6 +66,7 @@ def _serialize(quote: Quote, payment_url=None) -> dict:
         "place_of_supply": quote.place_of_supply,
         "notes": quote.notes,
         "invoice_id": quote.invoice_id,
+        "sales_order_id": quote.sales_order_id,
         "payment_url": payment_url,
         "share_active": bool(quote.share_token_hash),
         "share_created_at": quote.share_created_at.isoformat() if quote.share_created_at else None,
@@ -132,11 +135,17 @@ def create_quote(payload: QuoteCreate, db: Session = Depends(get_db), current_us
         company_tax_rate = getattr(settings, "tax_rate", 18.0) or 18.0
 
     try:
+        validate_price_book_id(db, current_user.company_id, payload.price_book_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    try:
         lines = resolve_sale_lines(
             db,
             company_id=current_user.company_id,
             items=payload.items,
             company_tax_rate=company_tax_rate,
+            price_book_id=payload.price_book_id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

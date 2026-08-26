@@ -24,7 +24,7 @@ def _setup(client, db):
     return company, admin, customer, deal
 
 
-def test_create_and_accept_quote_creates_invoice(client, db):
+def test_create_and_accept_quote_creates_sales_order(client, db):
     _company, _admin, customer, deal = _setup(client, db)
     created = client.post("/api/quotes", json={
         "deal_id": deal["id"],
@@ -38,14 +38,19 @@ def test_create_and_accept_quote_creates_invoice(client, db):
     assert body["tax"] == "2700.00"
     assert body["total"] == "17700.00"
     assert body["invoice_id"] is None
+    assert body["sales_order_id"] is None
 
     accepted = client.post(f"/api/quotes/{body['id']}/accept")
     assert accepted.status_code == 200, accepted.text
     out = accepted.json()
     assert out["status"] == "accepted"
-    assert out["invoice_id"] is not None
+    assert out["sales_order_id"] is not None
+    assert out["invoice_id"] is None
 
-    invoice = db.query(Invoice).filter(Invoice.id == out["invoice_id"]).one()
+    converted = client.post(f"/api/sales-orders/{out['sales_order_id']}/invoice")
+    assert converted.status_code == 200, converted.text
+    invoice_id = converted.json()["invoice_id"]
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).one()
     assert invoice.client_id == customer.id
     assert str(invoice.total) == "17700.00"
 
@@ -86,7 +91,9 @@ def test_payment_link_after_accept(client, db):
         "client_id": customer.id,
         "items": [{"description": "Work", "quantity": 2, "unit_price": "100.00"}],
     }).json()["id"]
-    invoice_id = client.post(f"/api/quotes/{qid}/accept").json()["invoice_id"]
+    invoice_id = client.post(
+        f"/api/sales-orders/{client.post(f'/api/quotes/{qid}/accept').json()['sales_order_id']}/invoice"
+    ).json()["invoice_id"]
     link = client.post(f"/api/invoices/{invoice_id}/payment-link")
     assert link.status_code == 200, link.text
     url = link.json()["payment_url"]

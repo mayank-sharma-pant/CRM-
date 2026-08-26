@@ -28,6 +28,8 @@ export default function AccountingSettingsPage() {
   const [connection, setConnection] = useState(null);
   const [items, setItems] = useState([]);
   const [provider, setProvider] = useState('tally');
+  const [tallyUrl, setTallyUrl] = useState('');
+  const [tallyCompany, setTallyCompany] = useState('');
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -44,6 +46,8 @@ export default function AccountingSettingsPage() {
       ]);
       setConnection(connRes.data);
       if (connRes.data.provider) setProvider(connRes.data.provider);
+      setTallyUrl(connRes.data.tally_url || '');
+      setTallyCompany(connRes.data.tally_company_name || '');
       setItems(itemsRes.data.items || []);
     } catch (err) {
       setError(formatError(err, 'Could not load accounting.'));
@@ -59,9 +63,15 @@ export default function AccountingSettingsPage() {
   const doConnect = async () => {
     setBusy(true);
     try {
-      const res = await api.put('/accounting/connection', { provider });
+      const body = { provider };
+      if (provider === 'tally') {
+        body.tally_url = tallyUrl.trim();
+        body.tally_company_name = tallyCompany.trim();
+      }
+      const res = await api.put('/accounting/connection', body);
       setConnection(res.data);
-      showToast(`Connected ${provider === 'tally' ? 'Tally' : 'QuickBooks'} (stub)`, 'success');
+      const mode = res.data.live ? 'live' : 'stub';
+      showToast(`Connected ${provider === 'tally' ? 'Tally' : 'QuickBooks'} (${mode})`, 'success');
       await load();
     } catch (err) {
       showToast(formatError(err, 'Could not connect.'), 'error');
@@ -88,9 +98,11 @@ export default function AccountingSettingsPage() {
     setBusy(true);
     try {
       const res = await api.post('/accounting/sync');
+      const { pushed, skipped, unchanged, failed } = res.data;
       showToast(
-        `Pushed ${res.data.pushed}, skipped ${res.data.skipped}, unchanged ${res.data.unchanged}`,
-        'success',
+        `Pushed ${pushed}, skipped ${skipped}, unchanged ${unchanged}` +
+          (failed ? `, failed ${failed}` : ''),
+        failed ? 'error' : 'success',
       );
       await load();
     } catch (err) {
@@ -124,7 +136,9 @@ export default function AccountingSettingsPage() {
             Accounting sync
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Push invoices to Tally or QuickBooks. This build uses a stub provider — no live books API.
+            Push invoices to Tally or QuickBooks. Set a Tally URL to push to a live
+            Tally gateway; without one (and for QuickBooks) a stub records the
+            mapping without a live call.
           </p>
         </div>
       </div>
@@ -141,7 +155,19 @@ export default function AccountingSettingsPage() {
               <div className="text-sm font-semibold text-slate-900 dark:text-white">Connection</div>
               <p className="text-xs text-slate-500">
                 Status: {connected ? `Connected (${connection.provider})` : 'Disconnected'}
+                {connected && (
+                  <span
+                    className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${connection.live
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                      : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}
+                  >
+                    {connection.live ? 'Live' : 'Stub'}
+                  </span>
+                )}
               </p>
+              {connection?.last_error && (
+                <p className="text-xs text-red-600 dark:text-red-400">Last error: {connection.last_error}</p>
+              )}
               <div className="flex flex-wrap items-center gap-3">
                 <label className="text-xs text-slate-500" htmlFor="provider">
                   Provider
@@ -182,6 +208,42 @@ export default function AccountingSettingsPage() {
                   Sync invoices
                 </button>
               </div>
+              {provider === 'tally' && (
+                <div className="grid gap-3 sm:grid-cols-2 pt-1">
+                  <div>
+                    <label className="text-xs text-slate-500" htmlFor="tally-url">
+                      Tally URL (leave blank for stub)
+                    </label>
+                    <input
+                      id="tally-url"
+                      type="text"
+                      value={tallyUrl}
+                      onChange={(e) => setTallyUrl(e.target.value)}
+                      disabled={busy}
+                      placeholder="http://localhost:9000"
+                      className="mt-1 w-full text-sm rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500" htmlFor="tally-company">
+                      Tally company name
+                    </label>
+                    <input
+                      id="tally-company"
+                      type="text"
+                      value={tallyCompany}
+                      onChange={(e) => setTallyCompany(e.target.value)}
+                      disabled={busy}
+                      placeholder="As shown in Tally"
+                      className="mt-1 w-full text-sm rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5"
+                    />
+                  </div>
+                  <p className="sm:col-span-2 text-[11px] text-slate-400">
+                    Re-connect after changing these. The Tally gateway is a LAN
+                    service; reach it from where this server runs.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">

@@ -38,7 +38,7 @@ def _quote_token(client, db):
     return company, admin, qid, token
 
 
-def test_portal_accept_quote_creates_invoice(client, db):
+def test_portal_accept_quote_creates_sales_order(client, db):
     _company, _admin, qid, token = _quote_token(client, db)
     _clear_auth(client)
     got = client.get(f"/api/portal/quotes/{token}")
@@ -50,7 +50,8 @@ def test_portal_accept_quote_creates_invoice(client, db):
     assert acc.json()["can_accept"] is False
     row = db.query(Quote).filter(Quote.id == qid).one()
     assert row.status == QuoteStatus.ACCEPTED
-    assert row.invoice_id is not None
+    assert row.sales_order_id is not None
+    assert row.invoice_id is None
     again = client.post(f"/api/portal/quotes/{token}/accept")
     assert again.status_code == 400
 

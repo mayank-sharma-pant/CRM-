@@ -89,6 +89,12 @@ class SalesOrderStatus(str, enum.Enum):
     INVOICED = "invoiced"
 
 
+class ApprovalStatus(str, enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
 class MeetingStatus(str, enum.Enum):
     SCHEDULED = "scheduled"
     COMPLETED = "completed"

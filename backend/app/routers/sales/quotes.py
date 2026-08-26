@@ -20,7 +20,16 @@ from app.services.sales.price_books import validate_price_book_id
 from app.services.sales.product_lines import resolve_sale_lines
 from app.services.sales.quote_lifecycle import accept_quote as accept_quote_record
 from app.services.sales.quote_lifecycle import reject_quote as reject_quote_record
-from app.utils.dependencies import apply_company_scope, ensure_company_access, get_current_user
+from app.services.sales.approvals import (
+    ApprovalRequired,
+    approve_quote,
+    assert_quote_approved_for_accept,
+    max_line_discount_percent,
+    refresh_quote_approval,
+    reject_quote as reject_quote_approval,
+)
+from app.models.core.enums import ApprovalStatus
+from app.utils.dependencies import apply_company_scope, ensure_company_access, get_current_user, require_admin_or_md
 
 router = APIRouter()
 
@@ -67,6 +76,7 @@ def _serialize(quote: Quote, payment_url=None) -> dict:
         "notes": quote.notes,
         "invoice_id": quote.invoice_id,
         "sales_order_id": quote.sales_order_id,
+        "approval_status": quote.approval_status,
         "payment_url": payment_url,
         "share_active": bool(quote.share_token_hash),
         "share_created_at": quote.share_created_at.isoformat() if quote.share_created_at else None,
@@ -198,6 +208,13 @@ def create_quote(payload: QuoteCreate, db: Session = Depends(get_db), current_us
             tax_rate=line.tax_rate,
             tax=line.tax,
         ))
+    discount_pct = max_line_discount_percent(
+        db,
+        company_id=current_user.company_id,
+        lines=lines,
+        price_book_id=payload.price_book_id,
+    )
+    refresh_quote_approval(db, quote=quote, discount_pct=discount_pct, actor=current_user)
     db.commit()
     db.refresh(quote)
     return _serialize(quote)
@@ -247,12 +264,39 @@ def revoke_quote_share(quote_id: int, db: Session = Depends(get_db), current_use
 @router.post("/{quote_id:int}/accept")
 def accept_quote(quote_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     quote = _get_quote(db, current_user, quote_id)
+    try:
+        assert_quote_approved_for_accept(quote)
+    except ApprovalRequired as err:
+        raise HTTPException(status_code=400, detail=str(err))
     quote = accept_quote_record(db, quote)
     return _serialize(quote)
 
 
-@router.post("/{quote_id:int}/reject")
-def reject_quote(quote_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@router.post("/{quote_id:int}/approve")
+def approve_quote_route(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_md),
+):
     quote = _get_quote(db, current_user, quote_id)
+    if quote.approval_status != ApprovalStatus.PENDING.value:
+        raise HTTPException(status_code=400, detail="Quote is not pending approval")
+    quote = approve_quote(db, quote, current_user)
+    return _serialize(quote)
+
+
+@router.post("/{quote_id:int}/reject")
+def reject_quote(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    quote = _get_quote(db, current_user, quote_id)
+    if quote.approval_status == ApprovalStatus.PENDING.value:
+        role = getattr(current_user.role, "value", str(current_user.role or "")).lower()
+        if role not in ("admin", "md"):
+            raise HTTPException(status_code=403, detail="Admin or MD access required")
+        quote = reject_quote_approval(db, quote, current_user)
+        return _serialize(quote)
     quote = reject_quote_record(db, quote)
     return _serialize(quote)

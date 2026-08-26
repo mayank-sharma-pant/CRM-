@@ -16,6 +16,11 @@ def _status(quote: Quote) -> str:
 def accept_quote(db: Session, quote: Quote) -> Quote:
     if _status(quote) != QuoteStatus.DRAFT.value:
         raise HTTPException(status_code=400, detail="Only draft quotes can be accepted")
+    from app.services.sales.approvals import assert_quote_approved_for_accept, ApprovalRequired
+    try:
+        assert_quote_approved_for_accept(quote)
+    except ApprovalRequired as err:
+        raise HTTPException(status_code=400, detail=str(err)) from err
     create_sales_order_from_quote(db, quote)
     quote.status = QuoteStatus.ACCEPTED
     run_workflows(db, "quote_accepted", quote=quote)

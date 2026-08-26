@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, Float, ForeignKey, Numeric
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -47,6 +47,9 @@ class CompanySettings(Base):
     einvoice_password_encrypted = Column(Text, nullable=True)
     einvoice_client_id = Column(String(100), nullable=True)
     einvoice_client_secret_encrypted = Column(Text, nullable=True)
+
+    deal_approval_amount_threshold = Column(Numeric(12, 2), nullable=True)
+    discount_approval_percent_threshold = Column(Float, nullable=True)
 
     # Relationships
     company = relationship("Company", backref="settings")

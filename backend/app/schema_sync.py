@@ -112,6 +112,14 @@ MISSING_COLUMNS = [
     ("tasks", "deal_id", "INTEGER"),
     ("deals", "due_reminded_at", "TIMESTAMP"),
     ("quotes", "sales_order_id", "INTEGER"),
+    ("company_settings", "deal_approval_amount_threshold", "NUMERIC(12,2)"),
+    ("company_settings", "discount_approval_percent_threshold", "FLOAT"),
+    ("deals", "approval_status", "VARCHAR(20)"),
+    ("deals", "approved_by_id", "INTEGER"),
+    ("deals", "approved_at", "TIMESTAMP"),
+    ("quotes", "approval_status", "VARCHAR(20)"),
+    ("quotes", "approved_by_id", "INTEGER"),
+    ("quotes", "approved_at", "TIMESTAMP"),
 ]
 
 

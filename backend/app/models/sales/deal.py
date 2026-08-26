@@ -30,6 +30,10 @@ class Deal(Base):
     score_updated_at = Column(DateTime, nullable=True)
     due_reminded_at = Column(DateTime, nullable=True)
 
+    approval_status = Column(String(20), nullable=True, index=True)
+    approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

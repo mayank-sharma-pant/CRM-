@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, get_active_team_id
+from app.utils.dependencies import get_current_user, apply_company_scope, ensure_company_access, get_active_team_id, require_admin_or_md
 from app.utils.audit import log_activity
 from app.models.core.user import User
 from app.models.core.team import Team
@@ -27,6 +27,14 @@ from app.services.sales.deal_next_activity import (
     assert_next_activity_for_move,
     enrich_deal_activity_fields,
 )
+from app.services.sales.approvals import (
+    ApprovalRequired,
+    approve_deal,
+    assert_deal_approved_for_close,
+    refresh_deal_approval,
+    reject_deal,
+)
+from app.models.core.enums import ApprovalStatus
 from app.services.scoring.engine import score_entity
 from app.services.scoring.recompute import active_rules, recompute_one
 from app.services.predictions.convert import predict_deal
@@ -150,6 +158,7 @@ def _serialize_deal(deal: Deal, stage: PipelineStage, db: Session | None = None)
         "assigned_to_id": deal.assigned_to_id,
         "source": deal.source,
         "score": deal.score,
+        "approval_status": deal.approval_status,
         "created_at": deal.created_at.isoformat() if deal.created_at else None,
     }
     if db is not None:
@@ -208,6 +217,7 @@ def create_deal(payload: DealCreate, db: Session = Depends(get_db),
     )
     db.add(deal)
     db.flush()
+    refresh_deal_approval(db, deal=deal, amount=deal.amount, actor=current_user)
     log_activity(db, user=current_user, action="created", entity_type="deal",
                  entity_id=deal.id, entity_name=deal.title,
                  after=json.dumps({"amount": str(deal.amount), "stage_id": stage_id}))
@@ -316,6 +326,8 @@ def update_deal(deal_id: int, payload: DealUpdate, db: Session = Depends(get_db)
     )
     for field, value in data.items():
         setattr(deal, field, value)
+    if "amount" in data:
+        refresh_deal_approval(db, deal=deal, amount=deal.amount, actor=current_user)
     if "expected_close" in data:
         deal.due_reminded_at = None
     audit_after = {**data, "amount": str(data["amount"])} if data.get("amount") is not None else data
@@ -386,6 +398,11 @@ def move_deal_stage(deal_id: int, payload: DealStageUpdate, db: Session = Depend
     except NextActivityRequired as err:
         raise HTTPException(status_code=400, detail=str(err))
 
+    try:
+        assert_deal_approved_for_close(deal, stage)
+    except ApprovalRequired as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
     before_stage = deal.stage_id
     deal.stage_id = stage.id
     if stage.stage_type in (DealStageType.WON, DealStageType.LOST):
@@ -406,6 +423,42 @@ def move_deal_stage(deal_id: int, payload: DealStageUpdate, db: Session = Depend
         "stage_name": stage.name,
         "previous_stage_id": before_stage,
     })
+    return _serialize_deal(deal, stage, db)
+
+
+@router.post("/{deal_id:int}/approve")
+def approve_deal_route(
+    deal_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_md),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    deal = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.id == deal_id).first()
+    if deal is None:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    ensure_company_access(deal, current_user)
+    if deal.approval_status != ApprovalStatus.PENDING.value:
+        raise HTTPException(status_code=400, detail="Deal is not pending approval")
+    deal = approve_deal(db, deal, current_user)
+    stage = _get_stage(db, current_user, deal.stage_id)
+    return _serialize_deal(deal, stage, db)
+
+
+@router.post("/{deal_id:int}/reject")
+def reject_deal_route(
+    deal_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_md),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    deal = apply_company_scope(db.query(Deal), Deal, current_user).filter(Deal.id == deal_id).first()
+    if deal is None:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    ensure_company_access(deal, current_user)
+    if deal.approval_status != ApprovalStatus.PENDING.value:
+        raise HTTPException(status_code=400, detail="Deal is not pending approval")
+    deal = reject_deal(db, deal, current_user)
+    stage = _get_stage(db, current_user, deal.stage_id)
     return _serialize_deal(deal, stage, db)
 
 

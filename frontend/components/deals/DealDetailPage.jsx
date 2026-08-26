@@ -19,6 +19,7 @@ export default function DealDetailPage() {
   const { id } = useParams();
   const { showToast } = useNotification();
   const { user } = useAuth();
+  const canApprove = ['admin', 'md'].includes(String(user?.role || '').toLowerCase());
 
   const [deal, setDeal] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -256,6 +257,32 @@ export default function DealDetailPage() {
     }
   };
 
+  const approveDeal = async () => {
+    setQuoteBusy(true);
+    try {
+      await api.post(`/deals/${id}/approve`);
+      showToast('Deal approved', 'success');
+      await fetchDeal();
+    } catch (err) {
+      showToast(err.response?.data?.detail || 'Could not approve deal', 'error');
+    } finally {
+      setQuoteBusy(false);
+    }
+  };
+
+  const approveQuote = async (quoteId) => {
+    setQuoteBusy(true);
+    try {
+      await api.post(`/quotes/${quoteId}/approve`);
+      showToast('Quote approved', 'success');
+      await refreshQuotes();
+    } catch (err) {
+      showToast(err.response?.data?.detail || 'Could not approve quote', 'error');
+    } finally {
+      setQuoteBusy(false);
+    }
+  };
+
   const backHref = pathname.replace(/\/[^/]+$/, '');
 
   if (loading) {
@@ -306,6 +333,16 @@ export default function DealDetailPage() {
               </span>
               <ScoreBadge entity="deals" id={id} />
               <PredictionBadge id={id} />
+              {deal.approval_status === 'pending' && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase tracking-wide border border-amber-200">
+                  Pending approval
+                </span>
+              )}
+              {deal.approval_status === 'rejected' && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 uppercase tracking-wide border border-red-200">
+                  Approval rejected
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
               <span>Amount: {deal.amount}</span>
@@ -380,6 +417,19 @@ export default function DealDetailPage() {
           </button>
         </div>
       </div>
+
+      {deal.approval_status === 'pending' && canApprove && (
+        <div className="max-w-4xl mx-auto px-6 pb-4">
+          <button
+            type="button"
+            onClick={approveDeal}
+            disabled={quoteBusy}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50"
+          >
+            Approve deal amount
+          </button>
+        </div>
+      )}
 
       {deal.missing_next_activity && (
         <div className="max-w-4xl mx-auto px-6 pb-6">
@@ -552,6 +602,9 @@ export default function DealDetailPage() {
                     <span className="font-semibold">{q.quote_number}</span>
                     <span className="uppercase text-[10px] font-bold tracking-wide">{q.status}</span>
                   </div>
+                  {q.approval_status === 'pending' && (
+                    <div className="text-[10px] font-bold uppercase text-amber-700 mt-1">Discount pending approval</div>
+                  )}
                   <div className="text-slate-500 mt-1">
                     Subtotal {q.subtotal ?? '—'} · Tax {q.tax ?? 0} · Total {q.total}
                   </div>
@@ -582,7 +635,19 @@ export default function DealDetailPage() {
                       </button>
                     </div>
                   )}
-                  {q.status === 'draft' && (
+                  {q.status === 'draft' && q.approval_status === 'pending' && canApprove && (
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        type="button"
+                        disabled={quoteBusy}
+                        onClick={() => approveQuote(q.id)}
+                        className="px-2 py-1 bg-emerald-600 text-white text-[11px] font-bold uppercase rounded"
+                      >
+                        Approve quote
+                      </button>
+                    </div>
+                  )}
+                  {q.status === 'draft' && q.approval_status !== 'pending' && (
                     <div className="flex gap-2 mt-2">
                       <button type="button" disabled={quoteBusy} onClick={() => quoteAction(q.id, 'accept')}
                         className="px-2 py-1 bg-emerald-600 text-white text-[11px] font-bold uppercase rounded">Accept</button>

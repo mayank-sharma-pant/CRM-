@@ -21,7 +21,7 @@ Last updated: **27 Aug 2026**. Status is from code + this file’s progress logs
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
 | **5 — Paid add-ons** | ✅ **DONE (code)** | **5.1–5.10 DONE.** |
 | **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** |
-| **7 — Trial defense** | 🚧 **IN PROGRESS** | **7.1–7.9 DONE (code); 7.10–7.12 pending.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Resume **7.10**. |
+| **7 — Trial defense** | 🚧 **IN PROGRESS** | **7.1–7.10 DONE (code); 7.11–7.12 pending.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Resume **7.11**. |
 
 ### Phase 4 checklist
 
@@ -101,13 +101,13 @@ Thin edges after 0–6. Not Marketing Hub / Desk. Spec: [`superpowers/specs/2026
 | **7.7** Price books | 4.1 products, no books | ✅ DONE (code) |
 | **7.8** Next-activity nag (mandatory + last-touch rotting + due email) | Pipedrive | ✅ DONE (code) |
 | **7.9** Quote → sales order → invoice | Zoho money chain | ✅ DONE (code) |
-| **7.10** Deal / discount approvals | Zoho process; purchase approvals only today | ⏳ PENDING |
+| **7.10** Deal / discount approvals | Zoho process; purchase approvals only today | ✅ DONE (code) |
 | **7.11** Import undo + clients/deals CSV | 3.6 is leads-only | ⏳ PENDING |
 | **7.12** More report types + scheduled email | 3.4 is one type, no schedule | ⏳ PENDING |
 
 **Out of Phase 7 (roadmap §7):** Marketing Hub, Zoho Desk, Salesforce objects, two-way live chat, layouts designer.
 
-**Resume next:** **7.10** Deal / discount approvals (7.9 Quote → SO → invoice is in code). Production verify of 0–6 remains a deploy gate (roadmap §8), in parallel with 7.x.
+**Resume next:** **7.11** Import undo + clients/deals CSV (7.10 Deal/discount approvals is in code). Production verify of 0–6 remains a deploy gate (roadmap §8), in parallel with 7.x.
 
 ---
 
@@ -283,7 +283,7 @@ Phases 3 and 4 were pulled ahead of the original “only after revenue / trial a
 - **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
 - **Phase 5** — ✅ **DONE (code):** 5.1–5.10 logged below.
 - **Phase 6** — ✅ **DONE (code):** **6.1–6.20**.
-- **Phase 7** — 🚧 **IN PROGRESS:** **7.1–7.9 DONE (code)**, 7.10–7.12 pending (trial defense). Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
+- **Phase 7** — 🚧 **IN PROGRESS:** **7.1–7.10 DONE (code)**, 7.11–7.12 pending (trial defense). Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
 
 ### Phase 3.1 — TOTP 2FA — DONE
 
@@ -983,9 +983,21 @@ plan: [`superpowers/plans/2026-08-26-phase7-quote-order-invoice.md`](./superpowe
 - **Verification:** `tests/sales/test_sales_orders.py` + updated quote/portal/GST
   tests + heads `033_sales_orders` — **38 tests green** in that set.
 
-### Phase 7.10 — Deal / discount approvals — PENDING
+### Phase 7.10 — Deal / discount approvals — DONE (code)
 
-Threshold → pending until admin/MD approve.
+Spec: [`superpowers/specs/2026-08-26-phase7-deal-discount-approvals-design.md`](./superpowers/specs/2026-08-26-phase7-deal-discount-approvals-design.md);
+plan: [`superpowers/plans/2026-08-26-phase7-deal-discount-approvals.md`](./superpowers/plans/2026-08-26-phase7-deal-discount-approvals.md).
+
+- **Settings:** `deal_approval_amount_threshold`, `discount_approval_percent_threshold`
+  on `company_settings`; `GET/PUT /api/settings/approvals`.
+- **Deals:** amount ≥ threshold → `approval_status=pending` (non admin/md);
+  won/lost blocked until approved; `POST /api/deals/{id}/approve|reject`.
+- **Quotes:** product line discount ≥ threshold → pending; accept blocked;
+  `POST /api/quotes/{id}/approve`; reject routes approval vs draft reject.
+- **Queue:** `GET /api/approvals/pending`; notify admin/md on new pending.
+- **UI:** `/settings/approvals`; deal detail badges + approve actions.
+- **Verification:** `tests/sales/test_deal_discount_approvals.py` + heads
+  `034_deal_discount_approvals` — **34 tests green** in that set.
 
 ### Phase 7.11 — Import undo + clients/deals CSV — PENDING
 

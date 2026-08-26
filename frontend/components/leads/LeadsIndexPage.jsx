@@ -10,12 +10,13 @@ import { normalizeLeadStatus } from '../../lib/leadStatus';
 import { leadsHomePath } from '../../lib/leadsPaths';
 import LeadModal from './LeadModal';
 import LeadImportModal from './LeadImportModal';
+import { useImportUndo } from '../shared/CsvImportModal';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useT } from '../../contexts/LocaleContext';
 import Skeleton, { TableRowSkeleton } from '../shared/Skeleton';
 import {
-  Plus, ChevronRight, Filter, Briefcase, LayoutList, Upload
+  Plus, ChevronRight, Filter, Briefcase, LayoutList, Upload, Undo2
 } from 'lucide-react';
 
 const TABS = [
@@ -91,6 +92,8 @@ export default function Leads() {
       setLoading(false);
     }
   };
+
+  const { canUndo, undo, undoing, refreshBatch } = useImportUndo('lead', fetchLeads);
 
   const formUrl = formMeta?.public_path
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}${formMeta.public_path}`
@@ -248,6 +251,16 @@ export default function Leads() {
             >
               {t('Trash')}
             </Link>
+            {canUndo && (
+              <button
+                type="button"
+                onClick={undo}
+                disabled={undoing}
+                className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated inline-flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Undo2 size={14} strokeWidth={2.5} /> {t('Undo last import')}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setIsImportOpen(true)}
@@ -372,7 +385,7 @@ export default function Leads() {
       <LeadImportModal
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
-        onRefresh={fetchLeads}
+        onRefresh={() => { fetchLeads(); refreshBatch(); }}
       />
     </div>
   );

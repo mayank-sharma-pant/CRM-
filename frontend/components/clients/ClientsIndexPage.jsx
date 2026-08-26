@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { clientsHomePath } from '../../lib/leadsPaths';
 import Link from 'next/link';
-import { ChevronRight, Briefcase, Loader2 } from 'lucide-react';
+import { ChevronRight, Briefcase, Loader2, Upload, Undo2 } from 'lucide-react';
 import api from '../../services/api';
+import CsvImportModal, { useImportUndo } from '../shared/CsvImportModal';
 
 export default function ClientsPage() {
     const pathname = usePathname();
@@ -15,20 +16,25 @@ export default function ClientsPage() {
     const [clients, setClients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [importOpen, setImportOpen] = useState(false);
+
+    const fetchClients = async () => {
+        try {
+            setLoading(true);
+            const res = await api.get('/clients');
+            const raw = res.data?.items ?? res.data;
+            setClients(Array.isArray(raw) ? raw : []);
+        } catch (err) {
+            console.error('Failed to fetch clients:', err);
+            setError('Failed to load clients');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const { canUndo, undo, undoing, refreshBatch } = useImportUndo('client', fetchClients);
 
     useEffect(() => {
-        const fetchClients = async () => {
-            try {
-                const res = await api.get('/clients');
-                const raw = res.data?.items ?? res.data;
-                setClients(Array.isArray(raw) ? raw : []);
-            } catch (err) {
-                console.error('Failed to fetch clients:', err);
-                setError('Failed to load clients');
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchClients();
     }, []);
 
@@ -51,13 +57,34 @@ export default function ClientsPage() {
     return (
         <div className="bg-slate-50 dark:bg-slate-900 min-h-full">
             <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 py-6">
-                <div className="max-w-5xl mx-auto">
+                <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+                    <div>
                     <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
                         Clients
                     </h1>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
                         {isManager ? 'Team managed accounts' : 'Converted leads and ongoing accounts'}
                     </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {canUndo && (
+                            <button
+                                type="button"
+                                onClick={undo}
+                                disabled={undoing}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border border-slate-300 dark:border-slate-600"
+                            >
+                                <Undo2 size={12} /> Undo last import
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setImportOpen(true)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-blue-600 text-white"
+                        >
+                            <Upload size={12} /> Import CSV
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -131,6 +158,12 @@ export default function ClientsPage() {
                     </p>
                 </div>
             </div>
+            <CsvImportModal
+                entity="clients"
+                isOpen={importOpen}
+                onClose={() => setImportOpen(false)}
+                onRefresh={() => { fetchClients(); refreshBatch(); }}
+            />
         </div>
     );
 }

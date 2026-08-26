@@ -9,7 +9,8 @@ import { useNotification } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useT } from '../../contexts/LocaleContext';
 import Skeleton from '../shared/Skeleton';
-import { Plus, TrendingUp, Trophy } from 'lucide-react';
+import { Plus, TrendingUp, Trophy, Upload, Undo2 } from 'lucide-react';
+import CsvImportModal, { useImportUndo } from '../shared/CsvImportModal';
 
 function formatMoney(value) {
   const n = Number(value);
@@ -51,6 +52,7 @@ export default function DealsBoard() {
   const [view, setView] = useState('');
   const [savedFilters, setSavedFilters] = useState([]);
   const [savingFilter, setSavingFilter] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const basePath = dealsHomePath(usePathname());
   const { showToast } = useNotification();
@@ -107,6 +109,12 @@ export default function DealsBoard() {
       setLoading(false);
     }
   };
+
+  const refreshBoard = () => {
+    if (pipelineId != null) fetchBoard(pipelineId, view);
+  };
+
+  const { canUndo, undo, undoing, refreshBatch } = useImportUndo('deal', refreshBoard);
 
   const handleCreateDeal = async () => {
     const title = window.prompt('Deal title:');
@@ -357,6 +365,23 @@ export default function DealsBoard() {
                 <span className="text-[12px] font-bold text-primary tabular-nums">{formatMoney(board?.won_value)}</span>
               </div>
             </div>
+            {canUndo && (
+              <button
+                type="button"
+                onClick={undo}
+                disabled={undoing}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated disabled:opacity-50"
+              >
+                <Undo2 size={14} strokeWidth={2.5} /> {t('Undo last import')}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated"
+            >
+              <Upload size={14} strokeWidth={2.5} /> {t('Import CSV')}
+            </button>
             <button
               onClick={handleCreateDeal}
               disabled={creating}
@@ -460,6 +485,12 @@ export default function DealsBoard() {
           ))}
         </div>
       </div>
+      <CsvImportModal
+        entity="deals"
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        onRefresh={() => { refreshBoard(); refreshBatch(); }}
+      />
     </div>
   );
 }

@@ -12,7 +12,8 @@ from app.routers.finance.export import make_csv_response
 from app.services.sales.report_runner import (
     normalize_filters,
     normalize_report_type,
-    run_leads_invoices_report,
+    report_csv_headers_and_rows,
+    run_report,
 )
 from app.utils.audit import log_activity
 from app.utils.datetime_json import isoformat_utc
@@ -84,7 +85,7 @@ def create_saved_report(
 ):
     name = _require_name(payload.name, required=True)
     report_type = normalize_report_type(payload.report_type)
-    filters = normalize_filters(payload.filters)
+    filters = normalize_filters(payload.filters, report_type)
     report = SavedReport(
         company_id=current_user.company_id,
         name=name,
@@ -138,7 +139,8 @@ def update_saved_report(
     if payload.report_type is not None:
         report.report_type = normalize_report_type(payload.report_type)
     if payload.filters is not None:
-        report.filters = normalize_filters(payload.filters)
+        rt = _enum_val(report.report_type)
+        report.filters = normalize_filters(payload.filters, rt)
     log_activity(
         db, user=current_user, action="updated", entity_type="saved_report",
         entity_id=report.id, entity_name=report.name,
@@ -175,7 +177,8 @@ def run_saved_report(
     current_user: User = Depends(get_current_user),
 ):
     report = _get_or_404(db, current_user, report_id)
-    return run_leads_invoices_report(db, current_user, report.filters or {})
+    rt = _enum_val(report.report_type)
+    return run_report(db, current_user, rt, report.filters or {})
 
 
 @router.get("/{report_id:int}/csv")
@@ -185,11 +188,8 @@ def csv_saved_report(
     current_user: User = Depends(get_current_user),
 ):
     report = _get_or_404(db, current_user, report_id)
-    result = run_leads_invoices_report(db, current_user, report.filters or {})
-    headers = ["Invoice", "Client", "Date", "Source", "Product", "Status", "Amount"]
-    rows = [
-        [r.get("id"), r.get("client"), r.get("date"), r.get("source"), r.get("service_type"), r.get("status"), r.get("amount")]
-        for r in result.get("gridData") or []
-    ]
+    rt = _enum_val(report.report_type)
+    result = run_report(db, current_user, rt, report.filters or {})
+    headers, rows = report_csv_headers_and_rows(rt, result)
     safe_name = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in report.name)[:40] or "report"
     return make_csv_response(rows, headers, f"{safe_name}.csv")

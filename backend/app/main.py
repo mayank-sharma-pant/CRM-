@@ -23,6 +23,7 @@ from app.routers.sales.sales_orders import router as sales_orders_router
 from app.routers.sales.products import router as products_router
 from app.routers.sales.price_books import router as price_books_router
 from app.routers.sales.approval_settings import router as approval_settings_router
+from app.routers.sales.report_schedule import router as report_schedule_router
 from app.routers.sales.approvals import router as approvals_router
 from app.routers.sales.lead_forms import router as lead_forms_router
 from app.routers.sales.custom_fields import router as custom_fields_router
@@ -168,6 +169,7 @@ app.include_router(sales_orders_router, prefix="/api/sales-orders", tags=["Sales
 app.include_router(products_router, prefix="/api/products", tags=["Products"])
 app.include_router(price_books_router, prefix="/api/price-books", tags=["Price Books"])
 app.include_router(approval_settings_router, prefix="/api/settings/approvals", tags=["Approval Settings"])
+app.include_router(report_schedule_router, prefix="/api/settings/report-schedule", tags=["Report Schedule"])
 app.include_router(approvals_router, prefix="/api/approvals", tags=["Approvals"])
 app.include_router(lead_forms_router, prefix="/api/lead-forms", tags=["Lead Forms"])
 app.include_router(custom_fields_router, prefix="/api/custom-fields", tags=["Custom Fields"])

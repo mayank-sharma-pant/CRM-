@@ -21,7 +21,7 @@ Last updated: **27 Aug 2026**. Status is from code + this file’s progress logs
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
 | **5 — Paid add-ons** | ✅ **DONE (code)** | **5.1–5.10 DONE.** |
 | **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** |
-| **7 — Trial defense** | 🚧 **IN PROGRESS** | **7.1–7.10 DONE (code); 7.11–7.12 pending.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Resume **7.11**. |
+| **7 — Trial defense** | ✅ **DONE (code)** | **7.1–7.12 in code.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Production verify of 0–6 remains deploy gate. |
 
 ### Phase 4 checklist
 
@@ -102,12 +102,12 @@ Thin edges after 0–6. Not Marketing Hub / Desk. Spec: [`superpowers/specs/2026
 | **7.8** Next-activity nag (mandatory + last-touch rotting + due email) | Pipedrive | ✅ DONE (code) |
 | **7.9** Quote → sales order → invoice | Zoho money chain | ✅ DONE (code) |
 | **7.10** Deal / discount approvals | Zoho process; purchase approvals only today | ✅ DONE (code) |
-| **7.11** Import undo + clients/deals CSV | 3.6 is leads-only | ⏳ PENDING |
-| **7.12** More report types + scheduled email | 3.4 is one type, no schedule | ⏳ PENDING |
+| **7.11** Import undo + clients/deals CSV | 3.6 is leads-only | ✅ DONE (code) |
+| **7.12** More report types + scheduled email | 3.4 is one type, no schedule | ✅ DONE (code) |
 
 **Out of Phase 7 (roadmap §7):** Marketing Hub, Zoho Desk, Salesforce objects, two-way live chat, layouts designer.
 
-**Resume next:** **7.11** Import undo + clients/deals CSV (7.10 Deal/discount approvals is in code). Production verify of 0–6 remains a deploy gate (roadmap §8), in parallel with 7.x.
+**Resume next:** Phase 7 code complete (7.1–7.12). Production verify of 0–6 remains a deploy gate (roadmap §8).
 
 ---
 
@@ -283,7 +283,7 @@ Phases 3 and 4 were pulled ahead of the original “only after revenue / trial a
 - **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
 - **Phase 5** — ✅ **DONE (code):** 5.1–5.10 logged below.
 - **Phase 6** — ✅ **DONE (code):** **6.1–6.20**.
-- **Phase 7** — 🚧 **IN PROGRESS:** **7.1–7.10 DONE (code)**, 7.11–7.12 pending (trial defense). Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
+- **Phase 7** — ✅ **DONE (code):** trial defense 7.1–7.12. Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
 
 ### Phase 3.1 — TOTP 2FA — DONE
 
@@ -999,15 +999,23 @@ plan: [`superpowers/plans/2026-08-26-phase7-deal-discount-approvals.md`](./super
 - **Verification:** `tests/sales/test_deal_discount_approvals.py` + heads
   `034_deal_discount_approvals` — **34 tests green** in that set.
 
-### Phase 7.11 — Import undo + clients/deals CSV — PENDING
+### Phase 7.11 — Import undo + clients/deals CSV — DONE (code)
 
-Mapper beyond leads; last-batch undo.
+- **`import_batches` + `import_batch_items`**; undo last batch per company.
+- **API:** `POST /import/clients|deals/preview|commit`, `GET /import/last`, `POST /import/undo`.
+- **Undo:** leads soft-delete; clients/deals hard-delete when unused (skip linked rows).
+- **UI:** Import CSV + undo on clients, deals board, leads list (`CsvImportModal`).
+- **Verification:** `tests/ops/test_import_undo_clients_deals.py` + heads `035_import_batches` — **30 tests green** in that set.
 
-### Phase 7.12 — Reports + schedule — PENDING
+### Phase 7.12 — Reports + schedule — DONE (code)
 
-Deals + GST invoice reports; scheduled CSV email to admins.
+- **Types:** `deals_pipeline`, `gst_invoices` (+ existing `leads_invoices`).
+- **Runner:** stage/owner pipeline KPIs; GST grid with CGST/SGST/IGST/GSTIN/IRN.
+- **Schedule:** `company_settings` + `GET/PUT /api/settings/report-schedule`, cron `POST …/run`.
+- **UI:** `/reports` type picker + scheduled email panel.
+- **Verification:** `tests/sales/test_report_types_schedule.py` + heads `036_report_schedule` — **33 tests green** in report set.
 
-**Phase 7 done when:** tracked open visible; public booking writes a meeting; store build path documented/shippable; Hindi on sales UI; Tally/IRN live when configured; price book; deal nag; quote→SO→invoice; import undo; scheduled report.
+**Phase 7 done when:** tracked open visible; public booking writes a meeting; store build path documented/shippable; Hindi on sales UI; Tally/IRN live when configured; price book; deal nag; quote→SO→invoice; import undo; scheduled report. *(All items in code; production verify separate.)*
 
 ---
 

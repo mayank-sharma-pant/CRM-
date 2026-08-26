@@ -35,6 +35,15 @@ def make_csv_response(rows: list, headers: list, filename: str):
     )
 
 
+def build_csv_string(rows: list, headers: list) -> str:
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    for row in rows:
+        writer.writerow(row)
+    return output.getvalue()
+
+
 @router.get("/leads")
 def export_leads(
     status: Optional[str] = Query(None),

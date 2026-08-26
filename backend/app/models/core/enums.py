@@ -108,6 +108,8 @@ class CallDirection(str, enum.Enum):
 
 class SavedReportType(str, enum.Enum):
     LEADS_INVOICES = "leads_invoices"
+    DEALS_PIPELINE = "deals_pipeline"
+    GST_INVOICES = "gst_invoices"
 
 
 class DashboardWidgetViz(str, enum.Enum):

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Float, ForeignKey, Numeric
+from sqlalchemy import Column, Integer, String, Text, Float, ForeignKey, Numeric, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -50,6 +50,11 @@ class CompanySettings(Base):
 
     deal_approval_amount_threshold = Column(Numeric(12, 2), nullable=True)
     discount_approval_percent_threshold = Column(Float, nullable=True)
+
+    report_schedule_enabled = Column(Integer, default=0)
+    report_schedule_frequency = Column(String(20), nullable=True)
+    report_schedule_saved_report_id = Column(Integer, ForeignKey("saved_reports.id"), nullable=True)
+    report_schedule_last_sent_at = Column(DateTime, nullable=True)
 
     # Relationships
     company = relationship("Company", backref="settings")

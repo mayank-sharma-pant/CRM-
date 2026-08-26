@@ -15,6 +15,7 @@ export function middleware(request) {
   const isPublicRoute =
     isAuthEntry ||
     pathname === '/settings/security' ||
+    pathname === '/privacy' ||
     pathname === '/f' ||
     pathname.startsWith('/f/') ||
     pathname === '/w' ||

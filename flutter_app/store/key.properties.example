@@ -1,0 +1,6 @@
+# Copy to android/key.properties (gitignored) after `flutter create`, then fill in
+# real values from your upload keystore. Never commit the real file or the .jks.
+storePassword=changeme
+keyPassword=changeme
+keyAlias=upload
+storeFile=/absolute/path/to/upload-keystore.jks

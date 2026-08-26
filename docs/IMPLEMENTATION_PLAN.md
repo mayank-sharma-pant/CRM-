@@ -21,7 +21,7 @@ Last updated: **26 Aug 2026**. Status is from code + this file’s progress logs
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
 | **5 — Paid add-ons** | ✅ **DONE (code)** | **5.1–5.10 DONE.** |
 | **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** |
-| **7 — Trial defense** | 🚧 **IN PROGRESS** | **7.1–7.2 DONE (code); 7.3–7.12 pending.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Resume **7.3**. |
+| **7 — Trial defense** | 🚧 **IN PROGRESS** | **7.1–7.3 DONE (code); 7.4–7.12 pending.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Resume **7.4**. |
 
 ### Phase 4 checklist
 
@@ -94,7 +94,7 @@ Thin edges after 0–6. Not Marketing Hub / Desk. Spec: [`superpowers/specs/2026
 |------|------------------------------|--------|
 | **7.1** Email open / click tracking | HubSpot Free wedge | ✅ DONE (code) |
 | **7.2** Meeting booking + inbound calendar | HubSpot meetings; 6.2 is CRM→calendar only | ✅ DONE (code) |
-| **7.3** Store-listed mobile | Apps in stores; 6.8 is code + STORE_RELEASE.md | ⏳ PENDING |
+| **7.3** Store-listed mobile | Apps in stores; 6.8 is code + STORE_RELEASE.md | ✅ DONE (code) |
 | **7.4** Hindi UI (sales loop) | Zoho India expectation | ⏳ PENDING |
 | **7.5** Live Tally sync | 5.4 is a stub | ⏳ PENDING |
 | **7.6** Live GST IRN (IRP/NIC) | 6.16 is a hash stub | ⏳ PENDING |
@@ -107,7 +107,7 @@ Thin edges after 0–6. Not Marketing Hub / Desk. Spec: [`superpowers/specs/2026
 
 **Out of Phase 7 (roadmap §7):** Marketing Hub, Zoho Desk, Salesforce objects, two-way live chat, layouts designer.
 
-**Resume next:** **7.3** store-listed mobile (7.2 is in code). Production verify of 0–6 remains a deploy gate (roadmap §8), in parallel with 7.x.
+**Resume next:** **7.4** Hindi UI (7.3 is in code). Production verify of 0–6 remains a deploy gate (roadmap §8), in parallel with 7.x.
 
 ---
 
@@ -283,7 +283,7 @@ Phases 3 and 4 were pulled ahead of the original “only after revenue / trial a
 - **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
 - **Phase 5** — ✅ **DONE (code):** 5.1–5.10 logged below.
 - **Phase 6** — ✅ **DONE (code):** **6.1–6.20**.
-- **Phase 7** — 🚧 **IN PROGRESS:** **7.1–7.2 DONE (code)**, 7.3–7.12 pending (trial defense). Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
+- **Phase 7** — 🚧 **IN PROGRESS:** **7.1–7.3 DONE (code)**, 7.4–7.12 pending (trial defense). Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
 
 ### Phase 3.1 — TOTP 2FA — DONE
 
@@ -798,9 +798,13 @@ Public `/book/{slug}` writes a `meetings` row attributed to the configured host 
 - **Deploy:** `alembic upgrade head` (`028_booking_calendar`) or `create_missing_tables.py` for `company_settings.booking_slug` / `booking_host_user_id` and `meetings.conference_url`. Booking goes live when an admin sets slug + host; `FRONTEND_URL` should be the public origin for the copyable link. Inbound needs the same Google/Microsoft OAuth client credentials as 6.2 plus a per-user connect.
 - **Residuals:** availability/timezone, guest ICS/email, reschedule/cancel, round-robin, webhook/cron inbound, all-day import, delete-on-vanish, attendees, composite `(company_id, calendar_event_id)` index on upgrades.
 
-### Phase 7.3 — Store-listed mobile — PENDING
+### Phase 7.3 — Store-listed mobile — DONE (code)
 
-`flutter_app/store/STORE_RELEASE.md`; android/ios from `flutter create`; listing copy. Secrets not in git. 6.8 MFA path already exists.
+Made the mobile listing **submittable from git** — the parts that can live in the repo and be tested here, since this environment has no Flutter SDK and no store credentials (same boundary as 6.8). Three real gaps closed: (1) a **public `/privacy` page** (`frontend/app/privacy/page.jsx`, no auth, no API) — a hard store-review requirement the 6.8 doc admitted was missing, also the 6.11 legal-page residual; whitelisted in **all four** public-path gates (middleware, `RouteGuard`, `Layout`, api.js 401 interceptor), the same set `/settings/security` needed. (2) **Versioned listing copy** as Fastlane-layout files under `flutter_app/store/metadata/` (android/ios `en-US` title/short/full, `data_safety.md`, `privacy_url.txt`) — the single source of truth `STORE_RELEASE.md` now points at. (3) **Signing scaffold**: `store/key.properties.example` (placeholders only) + a copy-pasteable `signingConfigs.release` Gradle block in the doc. Spec: [`superpowers/specs/2026-08-26-phase7-store-mobile-design.md`](./superpowers/specs/2026-08-26-phase7-store-mobile-design.md); plan: [`superpowers/plans/2026-08-26-phase7-store-mobile.md`](./superpowers/plans/2026-08-26-phase7-store-mobile.md).
+
+- **Verification:** `frontend/lib/storePrivacy.test.cjs` (4 tests: page disclosures + no-auth + no fabricated vendors/scale; `/privacy` in all four gates; metadata length limits — Android title ≤ 30 / short ≤ 80, iOS name ≤ 30 / subtitle ≤ 30; `privacy_url` ends `/privacy`) — green, wired as `npm run test:store`. `test:landing` / `test:brand` / `test:paths` still green. `npm run build` clean — `/privacy` renders as a static route, distinct from the authenticated `/settings/privacy`. `flutter_app/test/store_release_test.dart` pins the pubspec version shape (`^\d+\.\d+\.\d+\+\d+$`) and `name: perioxia_crm` — **run `flutter test` locally** (no SDK here, same residual as 6.8 / 3.9).
+- **Deploy:** ship the frontend so `/privacy` is live **before** submitting the listing. Then, on a machine with Flutter + store credentials, follow `STORE_RELEASE.md`: `flutter create`, keystore from `key.properties.example`, `flutter build appbundle`/`ipa`, paste `store/metadata/` copy + the `/privacy` URL, upload. No migration, no env var, no dependency.
+- **Residuals:** submittable, **not submitted** — no `flutter create`/build/upload here (human step); `en-US` listing only; no screenshots / feature graphic (design step); no Fastlane/CI upload automation; no terms-of-service or pricing page; `android/`/`ios/` still generated locally so the signing scaffold lives in `store/`, not the regenerated `android/` tree.
 
 ### Phase 7.4 — Hindi UI — PENDING
 

@@ -2,6 +2,12 @@
 
 These rules override style and formatting preferences. Correctness wins every conflict; if a rule forces you to deviate from an instruction, say so in one line.
 
+## Model routing (Cursor)
+
+- **Orchestrator:** Cursor Grok 4.6 — plans, reviews, rulings, and coordinates the work.
+- **Task implementer (default):** Composer 2.5 — writes the code, tests, and commits for each task.
+- **Task implementer (complex):** Grok 4.5 — use when the task needs heavier reasoning (multi-file architecture, subtle bugs, ambiguous specs).
+
 ## Decide and proceed (default: do not ask)
 
 You are expected to choose the best option and act. The user trusts agent judgment over permission theater.

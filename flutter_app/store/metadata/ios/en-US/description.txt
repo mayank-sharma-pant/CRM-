@@ -1,0 +1,19 @@
+Perioxia CRM for field sales.
+
+Sign in to your Perioxia company account and take your pipeline with you. This app is for existing Perioxia customers — your company creates the account on the web; the app is where your sales team works in the field.
+
+What you can do:
+- Work your leads: open a lead, update its stage, add notes.
+- Complete follow-ups so nothing slips.
+- View GST invoices, with CGST/SGST/IGST lines when your company is set up for GST.
+
+Security:
+- Two-factor authentication (TOTP) is supported when your company enables it.
+- Your session token is held in the device's secure storage.
+
+Privacy:
+- The app handles your account email and the CRM records your company already gives you access to.
+- No advertising SDK, no third-party analytics, no location tracking, no data sale.
+- Privacy policy: https://crm.perioxia.com/privacy
+
+This app does not create a company by itself as the primary path — start your trial on the web.

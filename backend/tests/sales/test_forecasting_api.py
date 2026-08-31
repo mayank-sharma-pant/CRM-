@@ -10,7 +10,7 @@ from app.models.sales.deal import Deal
 from app.models.sales.pipeline import PipelineStage
 from app.utils.rate_limit import auth_limiter
 from tests.helpers.auth import create_active_user, login_user
-from tests.helpers.factories import create_company
+from tests.helpers.factories import create_company, schedule_next_activity
 
 
 @pytest.fixture(autouse=True)
@@ -40,6 +40,7 @@ def test_upsert_quota_and_report_closed_and_weighted(client, db):
         "/api/deals",
         json={"title": "Won", "amount": "500", "assigned_to_id": sales.id},
     ).json()
+    schedule_next_activity(client, won_deal["id"])
     client.patch(
         f"/api/deals/{won_deal['id']}/stage",
         json={"stage_id": stages["Won"].id},
@@ -52,6 +53,7 @@ def test_upsert_quota_and_report_closed_and_weighted(client, db):
         "/api/deals",
         json={"title": "Neg", "amount": "200", "assigned_to_id": sales.id},
     ).json()
+    schedule_next_activity(client, neg["id"])
     client.patch(
         f"/api/deals/{neg['id']}/stage",
         json={"stage_id": stages["Negotiation"].id},

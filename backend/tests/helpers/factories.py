@@ -1,6 +1,22 @@
 """Small test factories for common business entities."""
 
+from datetime import datetime, timedelta, timezone
+
 from app.models import Company, Client
+
+
+def schedule_next_activity(client, deal_id, *, title="Follow up"):
+    """Satisfy the Phase 7.8 next-activity gate before a forward stage move.
+
+    Posts a future-dated task linked to the deal via the API using the currently
+    logged-in client. Returns the response.
+    """
+    tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).date().isoformat()
+    return client.post("/api/tasks", json={
+        "title": title,
+        "due_date": tomorrow,
+        "deal_id": deal_id,
+    })
 
 
 def create_company(db, *, name: str, company_code: str, status: str = "active") -> Company:

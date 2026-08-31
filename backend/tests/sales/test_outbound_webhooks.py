@@ -9,7 +9,7 @@ from app.models.sales.webhook_endpoint import WebhookDelivery
 from app.services.finance.invoice_pay import mark_invoice_paid
 from app.utils.rate_limit import auth_limiter
 from tests.helpers.auth import create_active_user, login_user
-from tests.helpers.factories import create_client, create_company
+from tests.helpers.factories import create_client, create_company, schedule_next_activity
 
 
 @pytest.fixture(autouse=True)
@@ -130,6 +130,7 @@ def test_deal_stage_and_invoice_paid(client, db, monkeypatch):
     deal = client.post("/api/deals", json={"title": "Move me", "amount": "1"}).json()
     stages = client.get("/api/deals/stages", params={"pipeline_id": deal["pipeline_id"]}).json()["items"]
     other = next(s for s in stages if s["id"] != deal["stage_id"])
+    schedule_next_activity(client, deal["id"])
     moved = client.patch(f"/api/deals/{deal['id']}/stage", json={"stage_id": other["id"]})
     assert moved.status_code == 200, moved.text
     assert "deal.stage_changed" in events

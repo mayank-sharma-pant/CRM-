@@ -2,7 +2,7 @@ import pytest
 
 from app.utils.rate_limit import auth_limiter
 from tests.helpers.auth import create_active_user, login_user
-from tests.helpers.factories import create_client, create_company
+from tests.helpers.factories import create_client, create_company, schedule_next_activity
 
 
 @pytest.fixture(autouse=True)
@@ -17,6 +17,7 @@ def _setup(client, db):
     create_active_user(db, email="sales@bp1.com", role="sales", company_id=company.id)
     login_user(client, admin.email)
     deal = client.post("/api/deals", json={"title": "Job", "amount": "0"}).json()
+    schedule_next_activity(client, deal["id"])
     stages = client.get("/api/deals/stages", params={"pipeline_id": deal["pipeline_id"]}).json()["items"]
     opens = [s for s in stages if s["stage_type"] == "open"]
     won = next(s for s in stages if s["stage_type"] == "won")

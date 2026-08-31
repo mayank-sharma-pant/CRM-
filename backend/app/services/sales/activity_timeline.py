@@ -122,10 +122,6 @@ def build_activity_feed(
         ))
 
     if entity_type in ("lead", "client", "deal"):
-        notes = _filter_parent(scoped(Note), Note, entity_type, entity_id).all()
-        for row in notes:
-            items.append(_item("note", row.id, "Note", _clip(row.content), row.created_at))
-
         tasks = _filter_parent(scoped(Task), Task, entity_type, entity_id).all()
         for row in tasks:
             items.append(_item(
@@ -135,6 +131,12 @@ def build_activity_feed(
                 _clip(_enum_val(row.status)),
                 row.due_date or row.created_at,
             ))
+
+    # Notes and WhatsApp messages are only linked to leads/clients, not deals.
+    if entity_type in ("lead", "client"):
+        notes = _filter_parent(scoped(Note), Note, entity_type, entity_id).all()
+        for row in notes:
+            items.append(_item("note", row.id, "Note", _clip(row.content), row.created_at))
 
         wa = _filter_parent(scoped(WhatsAppMessage), WhatsAppMessage, entity_type, entity_id).all()
         for row in wa:

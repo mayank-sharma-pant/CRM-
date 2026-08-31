@@ -5,7 +5,7 @@ import pytest
 
 from app.utils.rate_limit import auth_limiter
 from tests.helpers.auth import create_active_user, login_user
-from tests.helpers.factories import create_company
+from tests.helpers.factories import create_company, schedule_next_activity
 
 NO_ACCESS = (403, 404)
 
@@ -36,6 +36,7 @@ def test_owner_can_read_and_mutate_own_deal(client, two_companies_with_deal):
     login_user(client, "admin@a.com")
     assert client.get(f"/api/deals/{deal_id}").status_code == 200
     assert client.patch(f"/api/deals/{deal_id}", json={"amount": "2000"}).status_code == 200
+    schedule_next_activity(client, deal_id)
     assert client.patch(f"/api/deals/{deal_id}/stage", json={"stage_id": target_stage}).status_code == 200
 
 

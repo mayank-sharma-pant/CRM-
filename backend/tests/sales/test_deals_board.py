@@ -6,7 +6,7 @@ from app.models.sales.pipeline import Pipeline, PipelineStage
 from app.models.core.enums import DealStageType
 from app.utils.rate_limit import auth_limiter
 from tests.helpers.auth import create_active_user, login_user
-from tests.helpers.factories import create_company
+from tests.helpers.factories import create_company, schedule_next_activity
 
 
 @pytest.fixture(autouse=True)
@@ -28,6 +28,7 @@ def test_stage_move_sets_and_clears_closed_at(client, db):
     won = db.query(PipelineStage).filter(PipelineStage.stage_type == DealStageType.WON).first()
     qual = db.query(PipelineStage).filter(PipelineStage.name == "Qualification").first()
 
+    schedule_next_activity(client, deal["id"])
     moved = client.patch(f"/api/deals/{deal['id']}/stage", json={"stage_id": won.id})
     assert moved.status_code == 200
     assert moved.json()["closed_at"] is not None
@@ -55,9 +56,11 @@ def test_board_weighted_forecast_arithmetic(client, db):
     # Pipeline is lazily seeded on first deal creation; look up stages only now.
     stages = {s.name: s for s in db.query(PipelineStage).all()}
     b = client.post("/api/deals", json={"title": "B", "amount": "200"}).json()
+    schedule_next_activity(client, b["id"])
     client.patch(f"/api/deals/{b['id']}/stage", json={"stage_id": stages['Negotiation'].id})
     # One won deal: 500 -> won_value 500, not in open forecast
     c = client.post("/api/deals", json={"title": "C", "amount": "500"}).json()
+    schedule_next_activity(client, c["id"])
     client.patch(f"/api/deals/{c['id']}/stage", json={"stage_id": stages['Won'].id})
 
     board = client.get("/api/deals/board").json()

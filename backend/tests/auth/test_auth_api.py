@@ -149,7 +149,7 @@ def test_accept_invite_internal_error_is_sanitized(client, db, monkeypatch):
     def _boom(*_args, **_kwargs):
         raise RuntimeError("SECRET_TOKEN_FAILURE")
 
-    monkeypatch.setattr(auth_router, "create_access_token", _boom)
+    monkeypatch.setattr(auth_router, "crm_access_token", _boom)
     response = client.post(
         f"/api/auth/accept-invite/{invite.token}",
         json={"password": "newpassword123"},

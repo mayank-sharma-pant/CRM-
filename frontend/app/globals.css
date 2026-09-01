@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -560,4 +560,81 @@
 
 .stagger-5 {
   animation-delay: 0.25s;
+}
+
+/* ==================
+   LANDING (marketing only)
+================== */
+.landing-display {
+  font-family: 'Bricolage Grotesque', Inter, system-ui, sans-serif;
+}
+
+.landing .headline-xl {
+  font-family: 'Bricolage Grotesque', Inter, sans-serif;
+  font-optical-sizing: auto;
+}
+
+.landing .headline-lg {
+  font-family: 'Bricolage Grotesque', Inter, sans-serif;
+}
+
+@media (max-width: 767px) {
+  .landing .headline-xl {
+    font-size: 2.35rem;
+  }
+
+  .landing .headline-lg {
+    font-size: 1.85rem;
+  }
+}
+
+.landing-mark {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.45rem;
+  background: var(--color-text-primary);
+  color: var(--color-page);
+  display: grid;
+  place-items: center;
+  font-family: 'Bricolage Grotesque', Inter, sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.04em;
+}
+
+.landing-board {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  box-shadow: 0 24px 48px -28px rgba(17, 24, 39, 0.35);
+  overflow: hidden;
+}
+
+.dark .landing-board {
+  box-shadow: 0 24px 48px -24px rgba(0, 0, 0, 0.7);
+}
+
+.landing-ticket {
+  border: 1px solid var(--color-border);
+  background: var(--color-page);
+  border-radius: 0.65rem;
+  padding: 0.75rem 0.85rem;
+}
+
+.landing-ticket.is-live {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+.landing-cta:focus-visible,
+.landing a:focus-visible,
+.landing button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-ticket.is-live {
+    transition: none;
+  }
 }

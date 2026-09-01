@@ -8,8 +8,8 @@ import RouteGuard from '../components/RouteGuard';
 import ErrorBoundary from '../components/ErrorBoundary';
 
 export const metadata = {
-    title: 'Perioxia CRM - Simple CRM for Service Businesses',
-    description: 'A simple, fast CRM that helps local service businesses track leads, automate follow-ups, and grow revenue.',
+    title: 'Perioxia CRM — Leads, quotes, GST invoices, and payment',
+    description: 'CRM for local service businesses. Capture leads from your website and WhatsApp, send quotes, invoice with GST, and collect payment on a 14-day trial.',
 };
 
 export default function RootLayout({ children }) {

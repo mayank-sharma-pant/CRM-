@@ -21,7 +21,7 @@ Last updated: **27 Aug 2026**. Status is from code + this file’s progress logs
 | **4 — Professional extras** | ✅ **DONE** (code) | 4.1–4.7 shipped. |
 | **5 — Paid add-ons** | ✅ **DONE (code)** | **5.1–5.10 DONE.** |
 | **6 — Competitor parity (buyers still feel)** | ✅ **DONE** (code) | **6.1–6.20 DONE.** |
-| **7 — Trial defense** | ✅ **DONE (code)** | **7.1–7.12 in code.** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md). Production verify of 0–6 remains deploy gate. |
+| **7 — Trial defense** | ✅ **DONE (code)** | **7.1–7.12 in code.** Production verify of 0–6 remains deploy gate. |
 
 ### Phase 4 checklist
 
@@ -88,7 +88,7 @@ Ordered for India-first service businesses (WhatsApp / pay / calendar first), th
 
 ### Phase 7 checklist — trial defense (HubSpot / Zoho / Pipedrive week-one)
 
-Thin edges after 0–6. Not Marketing Hub / Desk. Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md); index plan: [`superpowers/plans/2026-08-26-phase7-trial-defense.md`](./superpowers/plans/2026-08-26-phase7-trial-defense.md). Spec + plan per item before code.
+Thin edges after 0–6. Not Marketing Hub / Desk.
 
 | Item | Why they still win the trial | Status |
 |------|------------------------------|--------|
@@ -210,7 +210,7 @@ Expand `backend/tests/tenancy/` (currently only `test_multi_tenancy.py`) to cove
 
 ### Progress log
 
-- **PHASE 1 DONE.** Full suite **162 passing** (139 baseline + 23 new billing/trial tests), verified. Executed subagent-driven with per-task review + a whole-branch final review; all work uncommitted on `main` per decision. Spec: [`superpowers/specs/2026-08-24-phase1-billing-design.md`](./superpowers/specs/2026-08-24-phase1-billing-design.md); plan: [`superpowers/plans/2026-08-24-phase1-billing.md`](./superpowers/plans/2026-08-24-phase1-billing.md).
+- **PHASE 1 DONE.** Full suite **162 passing** (139 baseline + 23 new billing/trial tests), verified. Executed subagent-driven with per-task review + a whole-branch final review; all work uncommitted on `main` per decision.
   - **1.1 plans schema — DONE.** New `app/models/billing/{plan,subscription,webhook_event}.py`; idempotent `seed_plans` (Starter/Growth/Enterprise) wired into `create_missing_tables.py`. `platform.py` `/plans` reads the table; platform admin `PATCH /plans/{id}` edits limits/price.
   - **1.2 payment adapter — DONE.** `app/services/billing/` — `BillingProvider` ABC, `RazorpayProvider` (lazy SDK import), `NullProvider` (offline tests), `get_billing_provider()`. HMAC-SHA256 webhook verification with `compare_digest`, **fail-closed on empty secret**. `POST /api/billing/webhook` (no JWT, raw-body verify), **idempotent** via unique `webhook_events.event_id` + IntegrityError-catch on the concurrent-duplicate race.
   - **1.3 self-serve signup — DONE.** `CompanyStatus.TRIAL` + `Company.trial_ends_at`; signup creates a `trial` company (14-day) + active owner + Starter `trialing` subscription (atomic). Trial-aware auth at **both** login (`_check_company_status`) and every request (`get_current_user`); expired trials blocked. Portal: `GET /subscription`, `POST /checkout`, `POST /cancel` (company-admin, IDOR-safe). **Paid webhook flips `Company.status`→active and clears `trial_ends_at`** (the trial→paid seam).
@@ -283,11 +283,11 @@ Phases 3 and 4 were pulled ahead of the original “only after revenue / trial a
 - **Phase 4** — ✅ **DONE (code):** 4.1–4.7 logged below.
 - **Phase 5** — ✅ **DONE (code):** 5.1–5.10 logged below.
 - **Phase 6** — ✅ **DONE (code):** **6.1–6.20**.
-- **Phase 7** — ✅ **DONE (code):** trial defense 7.1–7.12. Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
+- **Phase 7** — ✅ **DONE (code):** trial defense 7.1–7.12.
 
 ### Phase 3.1 — TOTP 2FA — DONE
 
-Pulled forward ahead of the pull-based gate by explicit decision. Opt-in per-user TOTP + recovery codes + a company-admin mandate, full stack. Spec: [`superpowers/specs/2026-08-25-phase3-totp-2fa-design.md`](./superpowers/specs/2026-08-25-phase3-totp-2fa-design.md); plan: [`superpowers/plans/2026-08-25-phase3-totp-2fa.md`](./superpowers/plans/2026-08-25-phase3-totp-2fa.md). Executed subagent-driven with per-task review, direct on `main`. The first whole-branch review did not finish (session limit); a follow-up closed the forced-enrollment UI hole.
+Pulled forward ahead of the pull-based gate by explicit decision. Opt-in per-user TOTP + recovery codes + a company-admin mandate, full stack. Executed subagent-driven with per-task review, direct on `main`. The first whole-branch review did not finish (session limit); a follow-up closed the forced-enrollment UI hole.
 
 - **Endpoints:** `/api/auth/2fa/{setup,confirm,status,disable,recovery-codes/regenerate,verify}` and `GET`/`PATCH /api/company/security`. `/login` and `/login-otp` now return an MFA challenge (`{mfa_required, mfa_token}` or, for a mandated-but-unenrolled user, `{mfa_setup_required, setup_token}`) instead of session tokens when 2FA applies; `POST /2fa/verify` exchanges the challenge + a TOTP or single-use recovery code for the real tokens.
 - **Crypto:** stdlib RFC 6238 TOTP (`app/utils/totp.py`, pinned to published RFC vectors — **no `pyotp`**); secret Fernet-encrypted at rest with a key derived from `SECRET_KEY` (`app/utils/totp_crypto.py`, uses the already-present `cryptography`). QR is **manual key entry** in v0 (no QR library, no external image host). Recovery codes: SHA-256 one-way, shown once, single-use.
@@ -300,60 +300,58 @@ Pulled forward ahead of the pull-based gate by explicit decision. Opt-in per-use
 
 ### Phase 3.2 — Meetings + call log — DONE (code)
 
-Pulled forward after 3.1 by explicit decision. Spec: [`superpowers/specs/2026-08-25-phase3-meetings-calls-design.md`](./superpowers/specs/2026-08-25-phase3-meetings-calls-design.md); plan: [`superpowers/plans/2026-08-25-phase3-meetings-calls.md`](./superpowers/plans/2026-08-25-phase3-meetings-calls.md). Two tables (`meetings`, `call_logs`); CRUD under `/api/meetings` and `/api/calls`; UI on lead + deal detail. No telephony, no calendar sync, no Alembic, no new pip deps.
+Pulled forward after 3.1 by explicit decision. Two tables (`meetings`, `call_logs`); CRUD under `/api/meetings` and `/api/calls`; UI on lead + deal detail. No telephony, no calendar sync, no Alembic, no new pip deps.
 
 - **Verification:** 16 new tests green (`test_meetings_calls_schema.py`, `test_meetings_calls_api.py`, `test_meetings_calls_cross_tenant.py`); `next build` clean. New tables via `create_all` — **run `create_missing_tables.py` on deploy.**
 - **Residuals:** follow-ups with `channel=call` remain reminders, not logged calls; no calendar sync, attendees, or click-to-call.
 
-### Phase 3.3 — Multiple pipelines — DONE (code)
-
-Spec: [`superpowers/specs/2026-08-25-phase3-multiple-pipelines-design.md`](./superpowers/specs/2026-08-25-phase3-multiple-pipelines-design.md). Admin/MD create extra pipelines (default stages cloned); board switches by `pipeline_id`; deals created on the selected pipeline. Cannot delete the default pipeline or one that still has deals. No deal-move-across-pipelines.
+### Phase 3.3 — Multiple pipelines — DONE (code) Admin/MD create extra pipelines (default stages cloned); board switches by `pipeline_id`; deals created on the selected pipeline. Cannot delete the default pipeline or one that still has deals. No deal-move-across-pipelines.
 
 ### Phase 3.4 — Saved reports + simple dashboard builder — DONE (code)
 
-Pulled forward after 3.3 by explicit decision. Spec: [`superpowers/specs/2026-08-25-phase3-saved-reports-design.md`](./superpowers/specs/2026-08-25-phase3-saved-reports-design.md); plan: [`superpowers/plans/2026-08-25-phase3-saved-reports.md`](./superpowers/plans/2026-08-25-phase3-saved-reports.md). Named `leads_invoices` reports (date range + filters), live run, CSV of the grid, one company dashboard of kpi/chart/table widgets. Canonical UI at `/reports`. No Alembic, no new pip deps.
+Pulled forward after 3.3 by explicit decision. Named `leads_invoices` reports (date range + filters), live run, CSV of the grid, one company dashboard of kpi/chart/table widgets. Canonical UI at `/reports`. No Alembic, no new pip deps.
 
 - **Verification:** 15 new tests (`test_saved_reports_schema.py`, `test_saved_reports_api.py`, `test_saved_reports_cross_tenant.py`). New tables via `create_all` — **run `create_missing_tables.py` on deploy.**
 - **Residuals:** one report type only; no scheduled email, no drag-drop grid, no per-user dashboards. `GET /api/md/reports/custom` still exists and now shares the runner.
 
 ### Phase 3.5 — Public API keys + quota — DONE (code)
 
-Pulled forward after 3.4 by explicit decision. Spec: [`superpowers/specs/2026-08-25-phase3-public-api-keys-design.md`](./superpowers/specs/2026-08-25-phase3-public-api-keys-design.md); plan: [`superpowers/plans/2026-08-25-phase3-public-api-keys.md`](./superpowers/plans/2026-08-25-phase3-public-api-keys.md). Dedicated `/api/v1/` (leads, clients, deals, invoices) authenticated by company-issued `crm_live_` keys (`read`/`write`); JWT management at `/api/api-keys` (admin/MD); daily quota from `plans.max_api_requests_per_day` (Starter 1000 / Growth 10000 / Enterprise unlimited). UI at `/settings/api-keys`. No Alembic, no new pip deps.
+Pulled forward after 3.4 by explicit decision. Dedicated `/api/v1/` (leads, clients, deals, invoices) authenticated by company-issued `crm_live_` keys (`read`/`write`); JWT management at `/api/api-keys` (admin/MD); daily quota from `plans.max_api_requests_per_day` (Starter 1000 / Growth 10000 / Enterprise unlimited). UI at `/settings/api-keys`. No Alembic, no new pip deps.
 
 - **Verification:** 14 new tests (`test_api_keys_schema.py`, `test_api_keys_api.py`, `test_api_keys_cross_tenant.py`). New tables via `create_all`; `plans.max_api_requests_per_day` via `create_missing_tables.py` + `backfill_api_quotas`. **Run `create_missing_tables.py` on deploy.**
 - **Residuals:** integer public ids; no DELETE on CRM records via the public API; no invoice PATCH.
 
 ### Phase 3.6 — Import mapper + duplicate preview — DONE (code)
 
-Leads-only CSV: map columns (with aliases), preview new/duplicate/invalid, commit inserts new rows and skips duplicates. Existing `POST /api/import/leads` unchanged. UI: Import CSV on the shared leads list. Spec: [`superpowers/specs/2026-08-25-phase3-import-mapper-design.md`](./superpowers/specs/2026-08-25-phase3-import-mapper-design.md).
+Leads-only CSV: map columns (with aliases), preview new/duplicate/invalid, commit inserts new rows and skips duplicates. Existing `POST /api/import/leads` unchanged. UI: Import CSV on the shared leads list.
 
 - **Verification:** `test_import_mapper.py`, `test_import_mapper_cross_tenant.py`, legacy import tests green.
 - **Residuals:** no undo, no client/deal import, no saved mapping templates.
 
 ### Phase 3.7 — GST-compliant invoice — DONE (code)
 
-India GST v0: snapshot seller GSTIN from `company_settings.gst_number` and buyer GSTIN from `clients.gstin`. Intra-state → CGST+SGST; inter-state → IGST. No seller GSTIN → legacy lump `tax` (existing 18% invoice tests unchanged). Optional line HSN. Spec: [`superpowers/specs/2026-08-25-phase3-gst-invoice-design.md`](./superpowers/specs/2026-08-25-phase3-gst-invoice-design.md).
+India GST v0: snapshot seller GSTIN from `company_settings.gst_number` and buyer GSTIN from `clients.gstin`. Intra-state → CGST+SGST; inter-state → IGST. No seller GSTIN → legacy lump `tax` (existing 18% invoice tests unchanged). Optional line HSN.
 
 - **Verification:** `test_gst.py`, `test_gst_invoice_api.py`, plus existing `test_leads_invoices_flow`. New columns via `create_missing_tables.py` — **run on deploy.**
 - **Residuals:** no PDF layout, no e-invoice/IRN, no HSN rate table.
 
 ### Phase 3.8 — WhatsApp Business templates — DONE (code)
 
-Gupshup template send only. Company API key + source number (key never returned). Admin/MD CRUD templates; any company user can send to an in-company lead/client phone. Spec: [`superpowers/specs/2026-08-25-phase3-whatsapp-templates-design.md`](./superpowers/specs/2026-08-25-phase3-whatsapp-templates-design.md). UI: `/settings/whatsapp` and lead detail.
+Gupshup template send only. Company API key + source number (key never returned). Admin/MD CRUD templates; any company user can send to an in-company lead/client phone. UI: `/settings/whatsapp` and lead detail.
 
 - **Verification:** `test_whatsapp_schema.py`, `test_whatsapp_api.py`, `test_whatsapp_cross_tenant.py`. New tables via `create_all`; settings columns via `create_missing_tables.py` — **run on deploy.**
 - **Residuals:** no Interakt, no inbound webhook, no reminder auto-send, no free-text session messages.
 
 ### Phase 3.9 — Minimal Flutter sales path — DONE (code)
 
-Existing `flutter_app/` already covered every role. This item is the **sales field path**: login lands on leads; bottom tabs are Leads / Follow-ups / Invoices / More. Invoice list reads `items`; detail shows GST lines when `tax_mode` is set. Other roles unchanged. Spec: [`superpowers/specs/2026-08-25-phase3-flutter-sales-path-design.md`](./superpowers/specs/2026-08-25-phase3-flutter-sales-path-design.md).
+Existing `flutter_app/` already covered every role. This item is the **sales field path**: login lands on leads; bottom tabs are Leads / Follow-ups / Invoices / More. Invoice list reads `items`; detail shows GST lines when `tax_mode` is set. Other roles unchanged.
 
 - **Verification:** `flutter_app/test/sales_home_test.dart` (home path, nav index, invoice parse). Flutter SDK was not installed in this environment — run `flutter test` locally.
 - **Residuals:** other roles still have full shells.
 
 ### Phase 4.1 — Products price book + tax — DONE (code)
 
-Sellable catalog (`products`) with per-product GST snapshots on quote/invoice lines; free-text lines fall back to company `tax_rate`; stock deducts on invoice create / quote accept when a product links `stock_item_id`. Spec: [`superpowers/specs/2026-08-25-phase4-products-price-book-design.md`](./superpowers/specs/2026-08-25-phase4-products-price-book-design.md); plan: [`superpowers/plans/2026-08-25-phase4-products-price-book.md`](./superpowers/plans/2026-08-25-phase4-products-price-book.md). UI: role Products pages, invoice product picker, deal quote line editor.
+Sellable catalog (`products`) with per-product GST snapshots on quote/invoice lines; free-text lines fall back to company `tax_rate`; stock deducts on invoice create / quote accept when a product links `stock_item_id`. UI: role Products pages, invoice product picker, deal quote line editor.
 
 - **Verification:** `test_products_schema.py`, `test_products_api.py`, `test_product_lines.py`, `test_products_gst.py`, `test_gst.py`, `test_gst_invoice_api.py`, `test_quotes.py`, `test_products_cross_tenant.py`, `test_inventory_api.py`. New table/columns via `create_missing_tables.py` — **run on deploy.**
 - **Residuals:** no price books, no HSN rate table, no `product_id` on public `/api/v1`.
@@ -361,7 +359,7 @@ Sellable catalog (`products`) with per-product GST snapshots on quote/invoice li
 ### Phase 4.2 — Blueprint (required stages) — DONE (code)
 
 Opt-in per pipeline. Adjacent open moves; Lost from any open; Won from last open;
-required built-in fields on leave. Spec: [`superpowers/specs/2026-08-25-phase4-blueprint-design.md`](./superpowers/specs/2026-08-25-phase4-blueprint-design.md); plan: [`superpowers/plans/2026-08-25-phase4-blueprint.md`](./superpowers/plans/2026-08-25-phase4-blueprint.md).
+required built-in fields on leave.
 
 - **Verification:** `test_blueprint_schema.py`, `test_blueprint_service.py`, `test_blueprint_api.py`, `test_blueprint_cross_tenant.py`.
 - **Deploy:** `create_missing_tables.py` for `pipelines.blueprint_enabled` and `pipeline_stages.required_fields`.
@@ -370,7 +368,6 @@ required built-in fields on leave. Spec: [`superpowers/specs/2026-08-25-phase4-b
 ### Phase 4.3 — Customer portal (view invoice/quote) — DONE (code)
 
 Staff-minted magic links; hash at rest; public view-only invoice/quote pages.
-Spec: [`superpowers/specs/2026-08-25-phase4-customer-portal-design.md`](./superpowers/specs/2026-08-25-phase4-customer-portal-design.md); plan: [`superpowers/plans/2026-08-25-phase4-customer-portal.md`](./superpowers/plans/2026-08-25-phase4-customer-portal.md).
 
 - **Verification:** `test_portal_schema.py`, `test_share_links_service.py`, `test_portal_api.py`, `test_portal_cross_tenant.py`.
 - **Deploy:** `create_missing_tables.py` for `share_token_hash` / `share_created_at` on `invoices` and `quotes`. `_MISSING_COLUMNS` / `add_missing_columns` issues a plain `ALTER TABLE ADD COLUMN` only — it does **not** add a UNIQUE constraint or index on `share_token_hash`. Fresh DBs created via `create_all` get `unique=True, index=True` from the model; **existing prod DBs must run manual DDL** for portal GET lookup performance:
@@ -386,7 +383,7 @@ Spec: [`superpowers/specs/2026-08-25-phase4-customer-portal-design.md`](./superp
 
 ### Phase 4.4 — Forecasting (quota vs pipeline) — DONE (code)
 
-Per-user monthly quotas compared to closed-won and weighted open pipeline. Spec: [`superpowers/specs/2026-08-25-phase4-forecasting-design.md`](./superpowers/specs/2026-08-25-phase4-forecasting-design.md); plan: [`superpowers/plans/2026-08-25-phase4-forecasting.md`](./superpowers/plans/2026-08-25-phase4-forecasting.md). UI: `/reports/forecast` (sidebar Forecast link for admin/md/manager/sales).
+Per-user monthly quotas compared to closed-won and weighted open pipeline. UI: `/reports/forecast` (sidebar Forecast link for admin/md/manager/sales).
 
 - **Verification:** `test_forecasting_schema.py`, `test_forecasting_service.py`, `test_forecasting_api.py`, `test_forecasting_cross_tenant.py`, `test_deals_board.py` (`test_board_weighted_forecast_arithmetic`).
 - **Deploy:** `create_missing_tables.py` / `create_all` for `sales_quotas` — **run on deploy.**
@@ -394,7 +391,7 @@ Per-user monthly quotas compared to closed-won and weighted open pipeline. Spec:
 
 ### Phase 4.5 — Territory assignment — DONE (code)
 
-Route new unassigned leads to a team via `service_type` / `source` rules, then round-robin sales on that team; workflow RR remains fallback when no territory matches. Spec: [`superpowers/specs/2026-08-25-phase4-territory-assignment-design.md`](./superpowers/specs/2026-08-25-phase4-territory-assignment-design.md); plan: [`superpowers/plans/2026-08-25-phase4-territory-assignment.md`](./superpowers/plans/2026-08-25-phase4-territory-assignment.md). UI: `/settings/territories` (sidebar Settings → Territories for admin/md).
+Route new unassigned leads to a team via `service_type` / `source` rules, then round-robin sales on that team; workflow RR remains fallback when no territory matches. UI: `/settings/territories` (sidebar Settings → Territories for admin/md).
 
 - **Verification:** `test_territory_schema.py`, `test_territory_service.py`, `test_territory_api.py`, `test_territory_cross_tenant.py`, `test_workflows.py`.
 - **Deploy:** `create_missing_tables.py` / `create_all` for `territories` and `territory_rules` — **run on deploy.**
@@ -402,7 +399,7 @@ Route new unassigned leads to a team via `service_type` / `source` rules, then r
 
 ### Phase 4.6 — Sandbox — DONE (code)
 
-Separate empty sandbox tenant (`is_sandbox` + `sandbox_parent_id`). Admin/MD create one sandbox per live company; dedicated `sandbox.{parent}.{token}@sandbox.local` admin (password once); destroy suspends + disables users. Billing checkout blocked. Spec: [`superpowers/specs/2026-08-25-phase4-sandbox-design.md`](./superpowers/specs/2026-08-25-phase4-sandbox-design.md); plan: [`superpowers/plans/2026-08-25-phase4-sandbox.md`](./superpowers/plans/2026-08-25-phase4-sandbox.md). UI: `/settings/sandbox` + amber banner when `is_sandbox`.
+Separate empty sandbox tenant (`is_sandbox` + `sandbox_parent_id`). Admin/MD create one sandbox per live company; dedicated `sandbox.{parent}.{token}@sandbox.local` admin (password once); destroy suspends + disables users. Billing checkout blocked. UI: `/settings/sandbox` + amber banner when `is_sandbox`.
 
 - **Verification:** `test_sandbox_schema.py`, `test_sandbox_service.py`, `test_sandbox_api.py`, `test_sandbox_cross_tenant.py` (13 tests).
 - **Deploy:** `create_missing_tables.py` for `companies.is_sandbox` / `sandbox_parent_id`.
@@ -410,7 +407,7 @@ Separate empty sandbox tenant (`is_sandbox` + `sandbox_parent_id`). Admin/MD cre
 
 ### Phase 4.7 — SSO (Google / Microsoft) — DONE (code)
 
-OAuth login for **existing** users only (match email; persist `oauth_identities`). Google + Microsoft; SAML deferred. Env: `PUBLIC_API_URL`, `GOOGLE_OAUTH_*`, `MICROSOFT_OAUTH_*`. Spec: [`superpowers/specs/2026-08-25-phase4-sso-design.md`](./superpowers/specs/2026-08-25-phase4-sso-design.md); plan: [`superpowers/plans/2026-08-25-phase4-sso.md`](./superpowers/plans/2026-08-25-phase4-sso.md). Login UI shows provider buttons when configured.
+OAuth login for **existing** users only (match email; persist `oauth_identities`). Google + Microsoft; SAML deferred. Env: `PUBLIC_API_URL`, `GOOGLE_OAUTH_*`, `MICROSOFT_OAUTH_*`. Login UI shows provider buttons when configured.
 
 - **Verification:** `test_oauth_schema.py`, `test_oauth_service.py`, `test_oauth_api.py` (12 tests).
 - **Deploy:** `create_all` / `create_missing_tables.py` for `oauth_identities`; set OAuth env + redirect URIs to `{PUBLIC_API_URL}/api/auth/oauth/{google|microsoft}/callback`.
@@ -426,7 +423,7 @@ OAuth login for **existing** users only (match email; persist `oauth_identities`
 
 ### Phase 6.1 — Gmail / Outlook sync + send/log — DONE (code)
 
-Per-user mailbox OAuth (Gmail send+readonly / Graph Mail.Send+Mail.Read); send from CRM uses mailbox when connected else SMTP; inbound/outbound matching lead/client/deal emails logged on `email_logs`. Spec: [`superpowers/specs/2026-08-25-phase6-gmail-outlook-design.md`](./superpowers/specs/2026-08-25-phase6-gmail-outlook-design.md); plan: [`superpowers/plans/2026-08-25-phase6-gmail-outlook.md`](./superpowers/plans/2026-08-25-phase6-gmail-outlook.md). UI: `/settings/email`, lead + deal email panels.
+Per-user mailbox OAuth (Gmail send+readonly / Graph Mail.Send+Mail.Read); send from CRM uses mailbox when connected else SMTP; inbound/outbound matching lead/client/deal emails logged on `email_logs`. UI: `/settings/email`, lead + deal email panels.
 
 - **Verification:** `tests/sales/test_mailbox.py` + existing `test_crm_email.py`.
 - **Deploy:** `create_missing_tables.py` for `mailbox_connections` and `email_logs` columns; add OAuth redirect URIs `{PUBLIC_API_URL}/api/mailbox/oauth/{google|microsoft}/callback` (same client IDs as login SSO, extra mail scopes).
@@ -434,7 +431,7 @@ Per-user mailbox OAuth (Gmail send+readonly / Graph Mail.Send+Mail.Read); send f
 
 ### Phase 6.2 — Google / Microsoft Calendar sync — DONE (code)
 
-CRM→calendar only. Per-user `calendar_connections` (separate from mailbox). Create/update/delete of meetings push to Google Calendar or Outlook; missing `ends_at` defaults to 60 minutes. Calendar API failure does not fail the meeting write. Spec: [`superpowers/specs/2026-08-25-phase6-calendar-sync-design.md`](./superpowers/specs/2026-08-25-phase6-calendar-sync-design.md); plan: [`superpowers/plans/2026-08-25-phase6-calendar-sync.md`](./superpowers/plans/2026-08-25-phase6-calendar-sync.md). UI: `/settings/calendar` + meeting panel hint.
+CRM→calendar only. Per-user `calendar_connections` (separate from mailbox). Create/update/delete of meetings push to Google Calendar or Outlook; missing `ends_at` defaults to 60 minutes. Calendar API failure does not fail the meeting write. UI: `/settings/calendar` + meeting panel hint.
 
 - **Verification:** `tests/sales/test_calendar_sync.py` + existing meetings tests.
 - **Deploy:** `create_missing_tables.py` for `calendar_connections` and `meetings.calendar_*`; add OAuth redirect URIs `{PUBLIC_API_URL}/api/calendar/oauth/{google|microsoft}/callback` and enable Calendar API / Calendars.ReadWrite.
@@ -442,7 +439,7 @@ CRM→calendar only. Per-user `calendar_connections` (separate from mailbox). Cr
 
 ### Phase 6.3 — Click-to-call / telephony — DONE (code)
 
-Exotel Connect only (Twilio deferred). Company SID + encrypted API token + ExoPhone; click-to-call dials agent (`users.phone` or `from_phone`) then customer; writes `call_logs` with `provider_call_id`; webhook updates duration/outcome. Spec: [`superpowers/specs/2026-08-25-phase6-click-to-call-design.md`](./superpowers/specs/2026-08-25-phase6-click-to-call-design.md). UI: `/settings/telephony`, Call on lead + meeting panel.
+Exotel Connect only (Twilio deferred). Company SID + encrypted API token + ExoPhone; click-to-call dials agent (`users.phone` or `from_phone`) then customer; writes `call_logs` with `provider_call_id`; webhook updates duration/outcome. UI: `/settings/telephony`, Call on lead + meeting panel.
 
 - **Verification:** `tests/sales/test_telephony.py` (8 tests).
 - **Deploy:** `create_missing_tables.py`; set Exotel StatusCallback to `{PUBLIC_API_URL}/api/telephony/exotel/webhook`; agents need `users.phone`.
@@ -450,21 +447,21 @@ Exotel Connect only (Twilio deferred). Company SID + encrypted API token + ExoPh
 
 ### Phase 6.4 — Unified activity timeline — DONE (code)
 
-Projected feed (no extra table): `GET /api/timeline/{lead|client|deal}/{id}` unions email, call, meeting, note, task, follow-up, WhatsApp, and audit, sorted by `occurred_at`. Missing parent → 404. Invoice/task/user keep audit-only. Spec: [`superpowers/specs/2026-08-25-phase6-activity-timeline-design.md`](./superpowers/specs/2026-08-25-phase6-activity-timeline-design.md). UI: `ActivityFeed` on lead + deal; compose panels keep forms and hide duplicate lists.
+Projected feed (no extra table): `GET /api/timeline/{lead|client|deal}/{id}` unions email, call, meeting, note, task, follow-up, WhatsApp, and audit, sorted by `occurred_at`. Missing parent → 404. Invoice/task/user keep audit-only. UI: `ActivityFeed` on lead + deal; compose panels keep forms and hide duplicate lists.
 
 - **Verification:** `tests/sales/test_activity_timeline.py` (5 tests).
 - **Residuals:** infinite scroll / kind filters.
 
 ### Phase 6.5 — One object UI (collapse role apps) — DONE (code)
 
-Role prefixes stay (`/sales`, `/manager`, `/md`); object screens are shared components. Spec: [`superpowers/specs/2026-08-25-phase6-one-object-ui-design.md`](./superpowers/specs/2026-08-25-phase6-one-object-ui-design.md). Client record includes ActivityFeed. Deals in sales/manager/MD nav.
+Role prefixes stay (`/sales`, `/manager`, `/md`); object screens are shared components. Client record includes ActivityFeed. Deals in sales/manager/MD nav.
 
 - **Verification:** `frontend/lib/objectPaths.test.cjs` (4 tests).
 - **Residuals:** purchase invoice payment UI still separate (`/purchase/invoices`); MD `/md/clients` remains analytics (not a list); invoice *lists* still role-specific.
 
 ### Phase 6.6 — Portal pay + quote accept — DONE (code)
 
-Magic-link customers can **Pay now** on a shared invoice and **Accept/Reject** a shared quote. Razorpay payment links when keys are set; otherwise stub `/p/pay/{token}`. Paid via webhook `payment_link.paid` / `payment.captured` (`notes.crm_invoice_id`) or stub complete. Spec: [`superpowers/specs/2026-08-25-phase6-portal-pay-design.md`](./superpowers/specs/2026-08-25-phase6-portal-pay-design.md).
+Magic-link customers can **Pay now** on a shared invoice and **Accept/Reject** a shared quote. Razorpay payment links when keys are set; otherwise stub `/p/pay/{token}`. Paid via webhook `payment_link.paid` / `payment.captured` (`notes.crm_invoice_id`) or stub complete.
 
 - **Verification:** `tests/portal/test_portal_actions.py` + webhook invoice-paid test.
 - **Deploy:** Razorpay keys + webhook URL `{PUBLIC_API_URL}/api/billing/webhook` with `payment_link.paid` / `payment.captured`.
@@ -472,7 +469,7 @@ Magic-link customers can **Pay now** on a shared invoice and **Accept/Reject** a
 
 ### Phase 6.7 — WhatsApp inbound + auto sequences — DONE (code)
 
-Gupshup inbound `POST /api/whatsapp/webhook` (always 204). Match company by destination/`?source=` vs `whatsapp_source`; match lead/client by phone; log inbound with a 24h session. Cadence day-1 becomes WhatsApp when `whatsapp_cadence_template_id` is set; `POST /api/reminders/run` sends that template for pending `channel=whatsapp` follow-ups (including cadence rows with no owner). Session text: `POST /api/whatsapp/session-send`. Spec: [`superpowers/specs/2026-08-25-phase6-whatsapp-inbound-design.md`](./superpowers/specs/2026-08-25-phase6-whatsapp-inbound-design.md).
+Gupshup inbound `POST /api/whatsapp/webhook` (always 204). Match company by destination/`?source=` vs `whatsapp_source`; match lead/client by phone; log inbound with a 24h session. Cadence day-1 becomes WhatsApp when `whatsapp_cadence_template_id` is set; `POST /api/reminders/run` sends that template for pending `channel=whatsapp` follow-ups (including cadence rows with no owner). Session text: `POST /api/whatsapp/session-send`.
 
 - **Verification:** `tests/sales/test_whatsapp_inbound.py`.
 - **Deploy:** point Gupshup callback to `{PUBLIC_API_URL}/api/whatsapp/webhook?source=<whatsapp_source>`; run `create_missing_tables.py` for new columns.
@@ -480,7 +477,7 @@ Gupshup inbound `POST /api/whatsapp/webhook` (always 204). Match company by dest
 
 ### Phase 6.8 — Mobile store release + mobile 2FA — DONE (code)
 
-Flutter login honors TOTP challenges (`mfa_required` / `mfa_setup_required`), verify + enroll screens, Profile → 2FA, Bearer token in secure storage. Sales field path is still the v1 listing. Spec: [`superpowers/specs/2026-08-25-phase6-mobile-2fa-store-design.md`](./superpowers/specs/2026-08-25-phase6-mobile-2fa-store-design.md). Play/App copy and `flutter create` steps: [`flutter_app/store/STORE_RELEASE.md`](../flutter_app/store/STORE_RELEASE.md).
+Flutter login honors TOTP challenges (`mfa_required` / `mfa_setup_required`), verify + enroll screens, Profile → 2FA, Bearer token in secure storage. Sales field path is still the v1 listing. Play/App copy and `flutter create` steps: [`flutter_app/store/STORE_RELEASE.md`](../flutter_app/store/STORE_RELEASE.md).
 
 - **Verification:** `flutter_app/test/mfa_login_test.dart` + existing `sales_home_test.dart`. Flutter SDK was not in this environment — run `flutter test` locally.
 - **Deploy residual:** generate `android/` + `ios/` with `flutter create`, sign, upload AAB/IPA from Play Console / App Store Connect (credentials not in repo).
@@ -488,7 +485,7 @@ Flutter login honors TOTP challenges (`mfa_required` / `mfa_setup_required`), ve
 
 ### Phase 6.9 — In-app onboarding — DONE (code)
 
-Checklist on sales / manager / MD dashboards until complete or dismissed: sample leads, CSV import, mailbox, website form, quote. `POST /api/onboarding/sample-data` seeds 3 leads + 1 deal (idempotent). Spec: [`superpowers/specs/2026-08-25-phase6-onboarding-design.md`](./superpowers/specs/2026-08-25-phase6-onboarding-design.md).
+Checklist on sales / manager / MD dashboards until complete or dismissed: sample leads, CSV import, mailbox, website form, quote. `POST /api/onboarding/sample-data` seeds 3 leads + 1 deal (idempotent).
 
 - **Verification:** `tests/sales/test_onboarding.py`.
 - **Deploy:** `create_missing_tables.py` for `company_settings.onboarding_dismissed`.
@@ -496,7 +493,7 @@ Checklist on sales / manager / MD dashboards until complete or dismissed: sample
 
 ### Phase 6.10 — Postgres RLS (Phase 0.1) — DONE (code)
 
-`SET LOCAL` via `set_config(..., true)` on each transaction (`after_begin`). Tenant tables with `company_id` get FORCE RLS; login/bootstrap tables excluded. Platform admin and public webhooks/portal/auth bypass. Spec: [`superpowers/specs/2026-08-25-phase6-postgres-rls-design.md`](./superpowers/specs/2026-08-25-phase6-postgres-rls-design.md).
+`SET LOCAL` via `set_config(..., true)` on each transaction (`after_begin`). Tenant tables with `company_id` get FORCE RLS; login/bootstrap tables excluded. Platform admin and public webhooks/portal/auth bypass.
 
 - **Verification:** `tests/tenancy/test_rls.py` (SQLite no-op). Policies are not exercised in CI (no Postgres).
 - **Deploy:** run `create_missing_tables.py` against Postgres so `enable_rls` installs policies.
@@ -504,21 +501,21 @@ Checklist on sales / manager / MD dashboards until complete or dismissed: sample
 
 ### Phase 6.11 — Landing honesty — DONE
 
-Removed fabricated testimonials, volume claims, Stripe/QB/Slack/Zapier strip, and footer `#` links. Copy matches shipped Gmail/Outlook/Calendar/WhatsApp/Razorpay + 14-day trial. Spec: [`superpowers/specs/2026-08-25-phase6-landing-honesty-design.md`](./superpowers/specs/2026-08-25-phase6-landing-honesty-design.md).
+Removed fabricated testimonials, volume claims, Stripe/QB/Slack/Zapier strip, and footer `#` links. Copy matches shipped Gmail/Outlook/Calendar/WhatsApp/Razorpay + 14-day trial.
 
 - **Verification:** `cd frontend && npm run test:landing`.
 - **Residuals:** no pricing/legal pages; no real customer quotes yet.
 
 ### Phase 6.12 — Brand drift — DONE
 
-Buyer-facing name is Perioxia CRM: auth footers, npm package `perioxia-crm-frontend`, OpenAPI `Perioxia CRM API`. Spec: [`superpowers/specs/2026-08-25-phase6-brand-drift-design.md`](./superpowers/specs/2026-08-25-phase6-brand-drift-design.md).
+Buyer-facing name is Perioxia CRM: auth footers, npm package `perioxia-crm-frontend`, OpenAPI `Perioxia CRM API`.
 
 - **Verification:** `cd frontend && npm run test:brand`.
 - **Residuals:** git directory may still be `CRM-`; README body still describes a generic multi-tenant OS.
 
 ### Phase 6.13 — Accounts vs Contacts — DONE
 
-Optional `accounts` row (buyer company) with `clients.account_id`. Client remains the contact. Spec: [`superpowers/specs/2026-08-25-phase6-accounts-contacts-design.md`](./superpowers/specs/2026-08-25-phase6-accounts-contacts-design.md).
+Optional `accounts` row (buyer company) with `clients.account_id`. Client remains the contact.
 
 - **Verification:** `tests/sales/test_accounts.py`.
 - **Deploy:** `create_missing_tables.py` (`accounts` table + `clients.account_id`).
@@ -526,7 +523,7 @@ Optional `accounts` row (buyer company) with `clients.account_id`. Client remain
 
 ### Phase 6.14 — Saved filters / due views — DONE
 
-`view=due_today|rotting` on deal list/board. Named per-user `saved_filters` (`/api/saved-filters`). Deals board pills + save/apply. Spec: [`superpowers/specs/2026-08-25-phase6-saved-filters-design.md`](./superpowers/specs/2026-08-25-phase6-saved-filters-design.md).
+`view=due_today|rotting` on deal list/board. Named per-user `saved_filters` (`/api/saved-filters`). Deals board pills + save/apply.
 
 - **Verification:** `tests/sales/test_saved_filters.py`.
 - **Deploy:** `create_missing_tables.py` for `saved_filters`.
@@ -534,7 +531,7 @@ Optional `accounts` row (buyer company) with `clients.account_id`. Client remain
 
 ### Phase 6.15 — Outbound webhooks — DONE
 
-Company HTTPS endpoints with HMAC (`X-Perioxia-Signature`). Events: `lead.created`, `deal.stage_changed`, `invoice.paid`. Failed posts retry via `POST /api/webhooks/retry` (max 3). Spec: [`superpowers/specs/2026-08-25-phase6-outbound-webhooks-design.md`](./superpowers/specs/2026-08-25-phase6-outbound-webhooks-design.md).
+Company HTTPS endpoints with HMAC (`X-Perioxia-Signature`). Events: `lead.created`, `deal.stage_changed`, `invoice.paid`. Failed posts retry via `POST /api/webhooks/retry` (max 3).
 
 - **Verification:** `tests/sales/test_outbound_webhooks.py`.
 - **Deploy:** `create_missing_tables.py` (`webhook_endpoints`, `webhook_deliveries`).
@@ -542,7 +539,7 @@ Company HTTPS endpoints with HMAC (`X-Perioxia-Signature`). Events: `lead.create
 
 ### Phase 6.16 — Invoice PDF + e-invoice/IRN — DONE
 
-Stdlib GST tax-invoice PDF (`GET /api/invoices/{id}/pdf`) and IRN path when both GSTINs exist (`POST /api/invoices/{id}/einvoice`, SHA-256 stub, not live NIC). Spec: [`superpowers/specs/2026-08-25-phase6-invoice-pdf-irn-design.md`](./superpowers/specs/2026-08-25-phase6-invoice-pdf-irn-design.md).
+Stdlib GST tax-invoice PDF (`GET /api/invoices/{id}/pdf`) and IRN path when both GSTINs exist (`POST /api/invoices/{id}/einvoice`, SHA-256 stub, not live NIC).
 
 - **Verification:** `tests/finance/test_invoice_pdf_irn.py`.
 - **Deploy:** `create_missing_tables.py` (`invoices.irn/ack_no/ack_date/signed_qr`).
@@ -550,14 +547,14 @@ Stdlib GST tax-invoice PDF (`GET /api/invoices/{id}/pdf`) and IRN path when both
 
 ### Phase 6.17 — Live chat / website widget → lead — DONE
 
-Embeddable iframe widget (`/w/{slug}`) that creates a lead with `source=Website widget`. Not live agent chat. Spec: [`superpowers/specs/2026-08-25-phase6-website-widget-design.md`](./superpowers/specs/2026-08-25-phase6-website-widget-design.md).
+Embeddable iframe widget (`/w/{slug}`) that creates a lead with `source=Website widget`. Not live agent chat.
 
 - **Verification:** `tests/sales/test_website_widget.py`.
 - **Residuals:** no two-way chat, no bot; snippet copy lives on the leads list.
 
 ### Phase 6.18 — SAML / enterprise SSO — DONE
 
-Company IdP metadata; SP-initiated Redirect + POST ACS; email must match an existing user in that company. Spec: [`superpowers/specs/2026-08-25-phase6-saml-sso-design.md`](./superpowers/specs/2026-08-25-phase6-saml-sso-design.md).
+Company IdP metadata; SP-initiated Redirect + POST ACS; email must match an existing user in that company.
 
 - **Verification:** `tests/auth/test_saml_sso.py`.
 - **Deploy:** `create_all` for `saml_configs`. ACS `{PUBLIC_API_URL}/api/auth/saml/{company_code}/acs`.
@@ -565,7 +562,7 @@ Company IdP metadata; SP-initiated Redirect + POST ACS; email must match an exis
 
 ### Phase 6.19 — GDPR / DPDP — DONE
 
-Admin/MD export and erase PII on leads and clients; invoices kept. Staff `GET /api/privacy/me`. Trashed-lead retention days + on-demand apply. Spec: [`superpowers/specs/2026-08-25-phase6-gdpr-dpdp-design.md`](./superpowers/specs/2026-08-25-phase6-gdpr-dpdp-design.md).
+Admin/MD export and erase PII on leads and clients; invoices kept. Staff `GET /api/privacy/me`. Trashed-lead retention days + on-demand apply.
 
 - **Verification:** `tests/privacy/test_gdpr_dpdp.py`.
 - **Deploy:** `create_missing_tables.py` (`company_settings.retention_days`, `privacy_requests`).
@@ -573,7 +570,7 @@ Admin/MD export and erase PII on leads and clients; invoices kept. Staff `GET /a
 
 ### Phase 6.20 — Alembic two-heads cleanup — DONE
 
-The old two heads were already merged at `13a3c2d1e5b7`. Unique head is now `016_schema_catchup` (idempotent `create_all` + missing columns + RLS). Helper lives in `app/schema_sync.py` so importing it does not mutate the live DB. `create_missing_tables.py` still seeds plans when run as a script. Backend-root `tmp_*` / `check_*` / `test_*.py` one-offs removed. Spec: [`superpowers/specs/2026-08-25-phase6-alembic-heads-design.md`](./superpowers/specs/2026-08-25-phase6-alembic-heads-design.md).
+The old two heads were already merged at `13a3c2d1e5b7`. Unique head is now `016_schema_catchup` (idempotent `create_all` + missing columns + RLS). Helper lives in `app/schema_sync.py` so importing it does not mutate the live DB. `create_missing_tables.py` still seeds plans when run as a script. Backend-root `tmp_*` / `check_*` / `test_*.py` one-offs removed.
 
 - **Verification:** `tests/ops/test_alembic_heads.py`; `alembic heads` → `016_schema_catchup`.
 - **Deploy:** `alembic upgrade head` and/or `python create_missing_tables.py` (both idempotent). Stamp existing prod DBs if Alembic version is behind: `alembic stamp 015_ai_reasoning` then upgrade, or upgrade through 016 (catch-up is idempotent).
@@ -585,7 +582,7 @@ The old two heads were already merged at `13a3c2d1e5b7`. Unique head is now `016
 
 ### Phase 5.1 — Data enrichment — DONE
 
-Domain-stub enrich (no Clearbit HTTP). Empty fields only. Spec: [`superpowers/specs/2026-08-26-phase5-data-enrichment-design.md`](./superpowers/specs/2026-08-26-phase5-data-enrichment-design.md).
+Domain-stub enrich (no Clearbit HTTP). Empty fields only.
 
 - **Verification:** `tests/sales/test_enrichment.py`; `tests/ops/test_alembic_heads.py` (head `017_enrichment`).
 - **Deploy:** `alembic upgrade head` and/or `python create_missing_tables.py`.
@@ -595,8 +592,6 @@ Domain-stub enrich (no Clearbit HTTP). Empty fields only. Spec: [`superpowers/sp
 
 Admin-configurable, deterministic point rules on leads **and** deals; one shared
 pure engine + explainable breakdown. ML/predictive is deliberately left to 5.3.
-Spec: [`superpowers/specs/2026-08-26-phase5-lead-deal-scoring-design.md`](./superpowers/specs/2026-08-26-phase5-lead-deal-scoring-design.md);
-plan: [`superpowers/plans/2026-08-26-phase5-lead-deal-scoring.md`](./superpowers/plans/2026-08-26-phase5-lead-deal-scoring.md).
 
 - **Model/engine:** `scoring_rules` (company-scoped, `entity_type` lead|deal, field/operator/value/points/is_active). Pure `app/services/scoring/engine.py` (`score_entity → {total, breakdown}`), total-safe (a bad rule never crashes a recompute). Field whitelist + per-field operator gating enforced at rule-create (400 on unknown field / invalid operator). Computed fields `days_since_last_contact` / `age_days` / `days_to_expected_close` with a `10**6` NULL sentinel. `app/services/scoring/recompute.py` persists `leads.score` / `deals.score`.
 - **API:** `/api/scoring/rules` CRUD + `/api/scoring/recompute` (admin/MD, cross-tenant 404); `GET /api/leads/{id}/score` + `GET /api/deals/{id}/score` live breakdown (any company user). Score persisted on lead/deal create+update (+ deal stage move), and on any rule change (bulk recompute of that type). Lead/deal lists gain `score` + `?sort=score` + `?min_score=`. Privacy: lead export includes `score`, erase nulls it.
@@ -608,8 +603,7 @@ plan: [`superpowers/plans/2026-08-26-phase5-lead-deal-scoring.md`](./superpowers
 ### Phase 5.3 — Predictive AI (convert / churn) — DONE (code)
 
 Per-company **trained** deal win-probability + **derived** client churn risk, stdlib
-only (no ML dep). Spec: [`superpowers/specs/2026-08-26-phase5-predictive-ai-design.md`](./superpowers/specs/2026-08-26-phase5-predictive-ai-design.md);
-plan: [`superpowers/plans/2026-08-26-phase5-predictive-ai.md`](./superpowers/plans/2026-08-26-phase5-predictive-ai.md).
+only (no ML dep).
 
 - **Convert (trained):** a log-odds scorecard (Naive-Bayes style, chosen over gradient-descent LR for small-data robustness — flagged in spec) fit from the company's closed deals (WON/LOST). Features `source` / `amount_band` / `has_client` / `has_owner`, smoothed win-rates; leakage-avoided (no current stage/probability). `< 10` closed deals or single-class → `model:"fallback"` (base rate, no fake confidence). Stored per company in `prediction_models` (params JSON); prediction computed **live** from the stored card — no per-deal column, no write hooks. `predict_deal` lazy-trains and never 500s.
 - **Churn (derived):** stateless RFM over a client's invoices — recency ÷ the client's own median inter-invoice interval → risk 0–1 + band. Single invoice → recency-vs-180d; zero invoices → not a churn subject.
@@ -622,8 +616,7 @@ plan: [`superpowers/plans/2026-08-26-phase5-predictive-ai.md`](./superpowers/pla
 ### Phase 5.4 — Tally / QuickBooks sync — DONE (code)
 
 One-way CRM→accounting invoice push behind a stub Tally / QuickBooks adapter
-(no live HTTP, same pattern as 5.1 enrich and 6.16 IRN). Spec:
-[`superpowers/specs/2026-08-26-phase5-accounting-sync-design.md`](./superpowers/specs/2026-08-26-phase5-accounting-sync-design.md).
+(no live HTTP, same pattern as 5.1 enrich and 6.16 IRN). Spec:.
 
 - **Model:** `accounting_connections` (one per company, `tally|quickbooks`,
   connected/disconnected) and `accounting_sync_items` (invoice mapping,
@@ -645,8 +638,7 @@ One-way CRM→accounting invoice push behind a stub Tally / QuickBooks adapter
 
 ### Phase 5.5 — Custom modules — DONE (code)
 
-Company-defined objects (not extra fields on leads). Spec:
-[`superpowers/specs/2026-08-26-phase5-custom-modules-design.md`](./superpowers/specs/2026-08-26-phase5-custom-modules-design.md).
+Company-defined objects (not extra fields on leads). Spec:.
 
 - **Model:** `custom_modules` / `custom_module_fields` / `custom_module_records`
   (`title` + JSON values). Caps 10 modules / 20 fields. Reserved slugs for
@@ -666,8 +658,7 @@ Company-defined objects (not extra fields on leads). Spec:
 ### Phase 5.6 — Marketplace — DONE (code)
 
 First-party app catalog + per-company install, not a third-party store
-(roadmap §7). Spec:
-[`superpowers/specs/2026-08-26-phase5-marketplace-design.md`](./superpowers/specs/2026-08-26-phase5-marketplace-design.md).
+(roadmap §7). Spec:.
 
 - **Catalog:** nine locked slugs (`scoring`, `predictions`, `accounting`,
   `custom_modules`, `email`, `calendar`, `whatsapp`, `telephony`,
@@ -690,8 +681,7 @@ First-party app catalog + per-company install, not a third-party store
 ### Phase 5.7 — Email campaigns — DONE (code)
 
 Integrate with existing CRM send (`deliver_and_log`), do not clone
-Mailchimp/Zoho Campaigns (roadmap §7). Spec:
-[`superpowers/specs/2026-08-26-phase5-campaigns-design.md`](./superpowers/specs/2026-08-26-phase5-campaigns-design.md).
+Mailchimp/Zoho Campaigns (roadmap §7). Spec:.
 
 - **Model:** `email_campaigns` (draft|sent, audience `leads|clients`)
   and `email_campaign_recipients`. No new columns on `email_logs`.
@@ -712,8 +702,7 @@ Mailchimp/Zoho Campaigns (roadmap §7). Spec:
 
 ### Phase 5.8 — Helpdesk / cases — DONE (code)
 
-Thin client requests + web-to-case, not Zoho Desk (roadmap §7). Spec:
-[`superpowers/specs/2026-08-26-phase5-cases-design.md`](./superpowers/specs/2026-08-26-phase5-cases-design.md).
+Thin client requests + web-to-case, not Zoho Desk (roadmap §7). Spec:.
 
 - **Model:** `support_cases` (`open|pending|closed`, source `crm|web`,
   optional `client_id`) and `web_to_case_forms` (one slug per company).
@@ -735,7 +724,6 @@ Thin client requests + web-to-case, not Zoho Desk (roadmap §7). Spec:
 ### Phase 5.9 — Deep sandbox data clone — DONE (code)
 
 Clone a capped CRM snapshot into the 4.6 sandbox tenant at create.
-Spec: [`superpowers/specs/2026-08-26-phase5-sandbox-clone-design.md`](./superpowers/specs/2026-08-26-phase5-sandbox-clone-design.md).
 
 - **Copy:** pipelines/stages, products, custom fields, accounts, clients,
   leads (not deleted), deals, quotes, invoices, scoring rules, custom
@@ -754,8 +742,7 @@ Spec: [`superpowers/specs/2026-08-26-phase5-sandbox-clone-design.md`](./superpow
 ### Phase 5.10 — Mass email (capped) — DONE (code)
 
 One-shot blast through `deliver_and_log`, tighter caps than 5.7
-campaigns. Spec:
-[`superpowers/specs/2026-08-26-phase5-mass-email-design.md`](./superpowers/specs/2026-08-26-phase5-mass-email-design.md).
+campaigns. Spec:.
 
 - **Caps:** 25 eligible recipients per POST; 100 successful sends per
   company per UTC day. Admin/MD only.
@@ -775,7 +762,7 @@ campaigns. Spec:
 
 ## Phase 7 — Trial defense (thin edges vs HubSpot / Zoho / Pipedrive)
 
-**Status: 🚧 IN PROGRESS (7.1–7.5 done in code).** Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md); index plan: [`superpowers/plans/2026-08-26-phase7-trial-defense.md`](./superpowers/plans/2026-08-26-phase7-trial-defense.md).
+**Status: 🚧 IN PROGRESS (7.1–7.5 done in code).**
 
 Phases 0–6 are in code. This phase closes **first-week trial** gaps. It does **not** clone HubSpot Marketing Hub or Zoho Desk.
 
@@ -783,7 +770,7 @@ Phases 0–6 are in code. This phase closes **first-week trial** gaps. It does *
 
 ### Phase 7.1 — Email open / click tracking — DONE (code)
 
-`deliver_and_log` mints one opaque token per kind (open / click), stores only the SHA-256 hash on `email_logs`, and injects a 1×1 pixel plus click-wrapped links into the HTML actually sent — SMTP and mailbox (Gmail/Graph now send HTML). Stored `EmailLog.body` keeps the original text. Public `GET /api/public/track/o/{token}.gif` always returns a GIF (unknown token: no increment, no existence leak); `GET /api/public/track/c/{token}?u=&s=` verifies an HMAC over the target before a 302 and 404s otherwise, so the redirect cannot be reused as an open redirect. `open_count` / `click_count` ride on `serialize_email` and move by a single SQL `UPDATE … COALESCE + 1`, so concurrent hits cannot lose each other; hashes never leave the database. Tracking is off (no injection, NULL hashes) whenever `PUBLIC_API_URL` is empty, loopback, or scheme-less — the setting ships as `http://localhost:8000`, so an unconfigured install sends links unwrapped instead of rewriting them to localhost. Campaigns and mass email inherit it for free. Spec: [`superpowers/specs/2026-08-26-phase7-email-tracking-design.md`](./superpowers/specs/2026-08-26-phase7-email-tracking-design.md); plan: [`superpowers/plans/2026-08-26-phase7-email-tracking.md`](./superpowers/plans/2026-08-26-phase7-email-tracking.md).
+`deliver_and_log` mints one opaque token per kind (open / click), stores only the SHA-256 hash on `email_logs`, and injects a 1×1 pixel plus click-wrapped links into the HTML actually sent — SMTP and mailbox (Gmail/Graph now send HTML). Stored `EmailLog.body` keeps the original text. Public `GET /api/public/track/o/{token}.gif` always returns a GIF (unknown token: no increment, no existence leak); `GET /api/public/track/c/{token}?u=&s=` verifies an HMAC over the target before a 302 and 404s otherwise, so the redirect cannot be reused as an open redirect. `open_count` / `click_count` ride on `serialize_email` and move by a single SQL `UPDATE … COALESCE + 1`, so concurrent hits cannot lose each other; hashes never leave the database. Tracking is off (no injection, NULL hashes) whenever `PUBLIC_API_URL` is empty, loopback, or scheme-less — the setting ships as `http://localhost:8000`, so an unconfigured install sends links unwrapped instead of rewriting them to localhost. Campaigns and mass email inherit it for free.
 
 - **Verification:** `tests/sales/test_email_tracking.py` (17 tests: pixel increment, click 302 + increment, original body preserved, unknown token GIF, unknown/tampered click 404, cross-tenant isolation, counts-not-hashes serialization, no-injection across 7 unusable bases including the shipped localhost default, non-loopback base injects, mailbox transport) + `tests/ops/test_alembic_heads.py` (single head `027_email_tracking`). Existing `test_crm_email.py`, `test_mailbox.py`, campaigns, mass email, and portal suites still pass; 3 suite failures (`test_accept_invite_internal_error_is_sanitized`, `test_quota_429_then_next_utc_day_allowed`, `test_due_follow_up_notifies_owner`) are pre-existing on `main` and unrelated.
 - **Deploy:** `alembic upgrade head` (`027_email_tracking`) or `create_missing_tables.py` for `email_logs.open_count` / `click_count` / `open_token_hash` / `click_token_hash`. Then set `PUBLIC_API_URL` to this backend's **public, non-loopback** origin (`.env.example` carries it): tracking stays off — links sent unwrapped, hashes NULL — while it is empty or still `localhost`, and production boot now warns in that case.
@@ -792,7 +779,7 @@ Phases 0–6 are in code. This phase closes **first-week trial** gaps. It does *
 
 ### Phase 7.2 — Meeting booking + inbound calendar — DONE (code)
 
-Public `/book/{slug}` writes a `meetings` row attributed to the configured host (60-minute default, guest in notes, in-company email lead match only). Config is `company_settings.booking_slug` + `booking_host_user_id`, live when both are set; admin/MD writes, members read. After commit, `sync_meeting_outbound` pushes to the host calendar; a mocked provider failure still returns 201. Inbound is JWT `POST /api/calendar/sync` over now→+14 days, upsert by `(company_id, calendar_event_id)`, never delete; conference URL stored only when the provider supplies `hangoutLink` / Graph `joinUrl`. Disconnected/errored calendar → 400; provider ≥400 → 502 and no fake row. Spec: [`superpowers/specs/2026-08-26-phase7-booking-calendar-design.md`](./superpowers/specs/2026-08-26-phase7-booking-calendar-design.md); plan: [`superpowers/plans/2026-08-26-phase7-booking-calendar.md`](./superpowers/plans/2026-08-26-phase7-booking-calendar.md). UI: `/book/[slug]` + settings booking block + **Pull events from calendar**.
+Public `/book/{slug}` writes a `meetings` row attributed to the configured host (60-minute default, guest in notes, in-company email lead match only). Config is `company_settings.booking_slug` + `booking_host_user_id`, live when both are set; admin/MD writes, members read. After commit, `sync_meeting_outbound` pushes to the host calendar; a mocked provider failure still returns 201. Inbound is JWT `POST /api/calendar/sync` over now→+14 days, upsert by `(company_id, calendar_event_id)`, never delete; conference URL stored only when the provider supplies `hangoutLink` / Graph `joinUrl`. Disconnected/errored calendar → 400; provider ≥400 → 502 and no fake row. UI: `/book/[slug]` + settings booking block + **Pull events from calendar**.
 
 - **Verification:** `tests/sales/test_booking_calendar.py` (40 tests: config round-trip + 403, slug/host 400s, public GET/404, POST attribution/duration/notes, lead match vs foreign, honeypot, 429, mocked push + failure still 201, Google/Graph inbound upsert, no-delete, 400/502 no-write, cross-tenant) + `tests/ops/test_alembic_heads.py` (single head `028_booking_calendar`, `down_revision == 027_email_tracking`). Related `test_calendar_sync.py`, `test_meetings_calls_api.py`, web-to-case, public lead form, and cases API still pass. Full suite: 771 passed, 3 failed (`test_accept_invite_internal_error_is_sanitized`, `test_quota_429_then_next_utc_day_allowed`, `test_due_follow_up_notifies_owner`) — same pre-existing trio named under 7.1, unrelated.
 - **Deploy:** `alembic upgrade head` (`028_booking_calendar`) or `create_missing_tables.py` for `company_settings.booking_slug` / `booking_host_user_id` and `meetings.conference_url`. Booking goes live when an admin sets slug + host; `FRONTEND_URL` should be the public origin for the copyable link. Inbound needs the same Google/Microsoft OAuth client credentials as 6.2 plus a per-user connect.
@@ -800,7 +787,7 @@ Public `/book/{slug}` writes a `meetings` row attributed to the configured host 
 
 ### Phase 7.3 — Store-listed mobile — DONE (code)
 
-Made the mobile listing **submittable from git** — the parts that can live in the repo and be tested here, since this environment has no Flutter SDK and no store credentials (same boundary as 6.8). Three real gaps closed: (1) a **public `/privacy` page** (`frontend/app/privacy/page.jsx`, no auth, no API) — a hard store-review requirement the 6.8 doc admitted was missing, also the 6.11 legal-page residual; whitelisted in **all four** public-path gates (middleware, `RouteGuard`, `Layout`, api.js 401 interceptor), the same set `/settings/security` needed. (2) **Versioned listing copy** as Fastlane-layout files under `flutter_app/store/metadata/` (android/ios `en-US` title/short/full, `data_safety.md`, `privacy_url.txt`) — the single source of truth `STORE_RELEASE.md` now points at. (3) **Signing scaffold**: `store/key.properties.example` (placeholders only) + a copy-pasteable `signingConfigs.release` Gradle block in the doc. Spec: [`superpowers/specs/2026-08-26-phase7-store-mobile-design.md`](./superpowers/specs/2026-08-26-phase7-store-mobile-design.md); plan: [`superpowers/plans/2026-08-26-phase7-store-mobile.md`](./superpowers/plans/2026-08-26-phase7-store-mobile.md).
+Made the mobile listing **submittable from git** — the parts that can live in the repo and be tested here, since this environment has no Flutter SDK and no store credentials (same boundary as 6.8). Three real gaps closed: (1) a **public `/privacy` page** (`frontend/app/privacy/page.jsx`, no auth, no API) — a hard store-review requirement the 6.8 doc admitted was missing, also the 6.11 legal-page residual; whitelisted in **all four** public-path gates (middleware, `RouteGuard`, `Layout`, api.js 401 interceptor), the same set `/settings/security` needed. (2) **Versioned listing copy** as Fastlane-layout files under `flutter_app/store/metadata/` (android/ios `en-US` title/short/full, `data_safety.md`, `privacy_url.txt`) — the single source of truth `STORE_RELEASE.md` now points at. (3) **Signing scaffold**: `store/key.properties.example` (placeholders only) + a copy-pasteable `signingConfigs.release` Gradle block in the doc.
 
 - **Verification:** `frontend/lib/storePrivacy.test.cjs` (4 tests: page disclosures + no-auth + no fabricated vendors/scale; `/privacy` in all four gates; metadata length limits — Android title ≤ 30 / short ≤ 80, iOS name ≤ 30 / subtitle ≤ 30; `privacy_url` ends `/privacy`) — green, wired as `npm run test:store`. `test:landing` / `test:brand` / `test:paths` still green. `npm run build` clean — `/privacy` renders as a static route, distinct from the authenticated `/settings/privacy`. `flutter_app/test/store_release_test.dart` pins the pubspec version shape (`^\d+\.\d+\.\d+\+\d+$`) and `name: perioxia_crm` — **run `flutter test` locally** (no SDK here, same residual as 6.8 / 3.9).
 - **Deploy:** ship the frontend so `/privacy` is live **before** submitting the listing. Then, on a machine with Flutter + store credentials, follow `STORE_RELEASE.md`: `flutter create`, keystore from `key.properties.example`, `flutter build appbundle`/`ipa`, paste `store/metadata/` copy + the `/privacy` URL, upload. No migration, no env var, no dependency.
@@ -816,9 +803,7 @@ falls back to English, so partial coverage degrades gracefully and untranslated
 strings never show a raw key. Two locales only (`en`, `hi`); English default; a
 sidebar EN/हिं toggle persists `crm_locale` in `localStorage` (per browser, like
 `theme`) and sets `document.documentElement.lang`. The `mounted` gate keeps
-SSR/first paint English (no hydration mismatch). Spec:
-[`superpowers/specs/2026-08-26-phase7-hindi-ui-design.md`](./superpowers/specs/2026-08-26-phase7-hindi-ui-design.md);
-plan: [`superpowers/plans/2026-08-26-phase7-hindi-ui.md`](./superpowers/plans/2026-08-26-phase7-hindi-ui.md).
+SSR/first paint English (no hydration mismatch). Spec:;
 
 - **Core:** `lib/i18n/hi.cjs` (flat `{english: hindi}` catalog), `translate.cjs`
   (`translate(locale, source)` = `catalogs[locale]?.[source] ?? source`),
@@ -852,8 +837,6 @@ config, not a global flag: `provider == "tally"` **and** `tally_url` set → liv
 else the 5.4 stub (which stays the honest offline/test path — connecting Tally
 with no URL still stubs). No new dependency (`httpx`, already used); Tally's XML
 gateway is unauthenticated, so the URL is stored plain and returned by the API.
-Spec: [`superpowers/specs/2026-08-26-phase7-live-tally-design.md`](./superpowers/specs/2026-08-26-phase7-live-tally-design.md);
-plan: [`superpowers/plans/2026-08-26-phase7-live-tally.md`](./superpowers/plans/2026-08-26-phase7-live-tally.md).
 
 - **Transport:** `app/services/accounting/tally_transport.py` —
   `render_tally_xml` wraps the existing `tally_payload` voucher in an
@@ -901,9 +884,6 @@ plan: [`superpowers/plans/2026-08-26-phase7-live-tally.md`](./superpowers/plans/
 
 ### Phase 7.6 — Live GST IRN — DONE (code)
 
-Spec: [`superpowers/specs/2026-08-26-phase7-live-irn-design.md`](./superpowers/specs/2026-08-26-phase7-live-irn-design.md);
-plan: [`superpowers/plans/2026-08-26-phase7-live-irn.md`](./superpowers/plans/2026-08-26-phase7-live-irn.md).
-
 - **Live when credentials set:** `CompanySettings` gains `einvoice_base_url`,
   `einvoice_username`, `einvoice_password_encrypted`, `einvoice_client_id`,
   `einvoice_client_secret_encrypted`. Live only when all five are set; otherwise
@@ -932,9 +912,6 @@ plan: [`superpowers/plans/2026-08-26-phase7-live-irn.md`](./superpowers/plans/20
 
 ### Phase 7.7 — Price books — DONE (code)
 
-Spec: [`superpowers/specs/2026-08-26-phase7-price-books-design.md`](./superpowers/specs/2026-08-26-phase7-price-books-design.md);
-plan: [`superpowers/plans/2026-08-26-phase7-price-books.md`](./superpowers/plans/2026-08-26-phase7-price-books.md).
-
 - **Tables:** `price_books` (name, `is_default`, `is_active`) and
   `price_book_entries` (per-product `unit_price`). Alembic `031_price_books`
   (`down_revision 030_einvoice_live`).
@@ -950,9 +927,6 @@ plan: [`superpowers/plans/2026-08-26-phase7-price-books.md`](./superpowers/plans
   `031_price_books` — **29 tests green** in that set.
 
 ### Phase 7.8 — Next-activity nag — DONE (code)
-
-Spec: [`superpowers/specs/2026-08-26-phase7-next-activity-design.md`](./superpowers/specs/2026-08-26-phase7-next-activity-design.md);
-plan: [`superpowers/plans/2026-08-26-phase7-next-activity.md`](./superpowers/plans/2026-08-26-phase7-next-activity.md).
 
 - **Schema:** `tasks.deal_id`; `deals.due_reminded_at`. Alembic `032_next_activity_nag`
   (`down_revision 031_price_books`).
@@ -970,9 +944,6 @@ plan: [`superpowers/plans/2026-08-26-phase7-next-activity.md`](./superpowers/pla
 
 ### Phase 7.9 — Quote → sales order → invoice — DONE (code)
 
-Spec: [`superpowers/specs/2026-08-26-phase7-quote-order-invoice-design.md`](./superpowers/specs/2026-08-26-phase7-quote-order-invoice-design.md);
-plan: [`superpowers/plans/2026-08-26-phase7-quote-order-invoice.md`](./superpowers/plans/2026-08-26-phase7-quote-order-invoice.md).
-
 - **Tables:** `sales_orders`, `sales_order_items`; `quotes.sales_order_id` (indexed int).
   Alembic `033_sales_orders` (`down_revision 032_next_activity_nag`).
 - **Flow:** accept quote → open sales order (no invoice, no stock deduct);
@@ -984,9 +955,6 @@ plan: [`superpowers/plans/2026-08-26-phase7-quote-order-invoice.md`](./superpowe
   tests + heads `033_sales_orders` — **38 tests green** in that set.
 
 ### Phase 7.10 — Deal / discount approvals — DONE (code)
-
-Spec: [`superpowers/specs/2026-08-26-phase7-deal-discount-approvals-design.md`](./superpowers/specs/2026-08-26-phase7-deal-discount-approvals-design.md);
-plan: [`superpowers/plans/2026-08-26-phase7-deal-discount-approvals.md`](./superpowers/plans/2026-08-26-phase7-deal-discount-approvals.md).
 
 - **Settings:** `deal_approval_amount_threshold`, `discount_approval_percent_threshold`
   on `company_settings`; `GET/PUT /api/settings/approvals`.

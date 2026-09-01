@@ -382,8 +382,6 @@ Close first-week gaps vs HubSpot Free / Zoho CRM / Pipedrive. **Do not** clone M
 
 **Done when:** a trialist sees a tracked open, books a visit from a link, can use a store/sideload sales app, switches Hindi, syncs Tally/IRN when configured, prices from a book, gets nagged on a deal with no next step, and runs quote→order→invoice.
 
-Spec: [`superpowers/specs/2026-08-26-phase7-trial-defense-design.md`](./superpowers/specs/2026-08-26-phase7-trial-defense-design.md).
-
 ---
 
 ## 9. Suggested file map (when we implement)

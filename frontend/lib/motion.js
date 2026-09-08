@@ -5,28 +5,30 @@
  * No heavy springs, no flashy effects.
  */
 
-// Gentle transitions for editorial feel
+// One soothing easing curve, reused everywhere for a coherent feel
+const EASE = [0.16, 1, 0.3, 1]; // Expo-out — premium, decisive settle
+
 export const TRANSITIONS = {
     // Default smooth transition
     gentle: {
-        duration: 0.5,
-        ease: [0.25, 0.1, 0.25, 1], // Smooth ease-out
+        duration: 0.55,
+        ease: EASE,
     },
     // Slightly delayed for reveals
     delayed: {
         duration: 0.6,
         delay: 0.1,
-        ease: [0.25, 0.1, 0.25, 1],
+        ease: EASE,
     },
     // Fast for UI interactions
     fast: {
-        duration: 0.2,
-        ease: [0.25, 0.1, 0.25, 1],
+        duration: 0.25,
+        ease: EASE,
     },
     // For page transitions
     page: {
         duration: 0.4,
-        ease: [0.25, 0.1, 0.25, 1],
+        ease: EASE,
     },
 };
 

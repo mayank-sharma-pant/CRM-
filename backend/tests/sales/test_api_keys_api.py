@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -161,7 +161,7 @@ def test_quota_429_then_next_utc_day_allowed(client, db):
     second = client.get("/api/v1/leads")
     assert second.status_code == 429
     assert "Retry-After" in second.headers
-    yesterday = date.today() - timedelta(days=1)
+    yesterday = datetime.utcnow().date() - timedelta(days=1)
     row = db.query(ApiUsageDaily).filter(ApiUsageDaily.company_id == company.id).one()
     row.usage_date = yesterday
     db.commit()

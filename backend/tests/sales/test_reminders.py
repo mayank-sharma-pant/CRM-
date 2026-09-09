@@ -99,7 +99,7 @@ def test_due_follow_up_notifies_owner(mock_send, client, db):
     db.add(FollowUp(
         company_id=company.id,
         lead_id=lead.id,
-        scheduled_date=date.today(),
+        scheduled_date=datetime.utcnow().date(),
         status="Pending",
         created_by_id=admin.id,
         notes="Day 1 SMS",

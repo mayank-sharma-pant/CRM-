@@ -78,3 +78,4 @@ backend/uploads/
 backend/tmp/
 backend/backend/tests/_tmp_docs/
 
+passwords.md

@@ -343,6 +343,7 @@ def list_leads(
     search: Optional[str] = Query(None, description="Search by name, email, company"),
     sort: Optional[str] = Query(None, description="sort=score to order by score desc"),
     min_score: Optional[int] = Query(None, description="Only leads with score >= this"),
+    unassigned: bool = Query(False),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
@@ -382,6 +383,10 @@ def list_leads(
             query = query.filter(False)
         else:
             query = query.filter(Lead.team_id == active_team_id)
+    if unassigned:
+        if _user_role_str(current_user) == "purchase":
+            raise HTTPException(status_code=403, detail="Not allowed")
+        query = query.filter(Lead.assigned_to_id.is_(None))
     if status:
         query = query.filter(Lead.status == status)
     if search:
@@ -406,6 +411,11 @@ def list_leads(
     if assignee_ids:
         for u in db.query(User).filter(User.id.in_(assignee_ids)).all():
             assignee_map[u.id] = u.full_name
+    team_ids = {l.team_id for l in leads if l.team_id}
+    team_map = {}
+    if team_ids:
+        for team in db.query(Team).filter(Team.id.in_(team_ids)).all():
+            team_map[team.id] = team.name
 
     return {
         "items": [
@@ -420,6 +430,7 @@ def list_leads(
                 "service_type": lead.service_type,
                 "assigned_to_id": lead.assigned_to_id,
                 "assigned_to_name": assignee_map.get(lead.assigned_to_id) if lead.assigned_to_id else None,
+                "team_name": team_map.get(lead.team_id) if lead.team_id else None,
                 "created_at": lead.created_at.strftime("%Y-%m-%d") if lead.created_at else None,
                 "last_contacted_at": lead.last_contacted_at.isoformat() if lead.last_contacted_at else None,
                 "last_response_at": lead.last_response_at.isoformat() if lead.last_response_at else None,
@@ -435,28 +446,46 @@ def list_leads(
 
 @router.get("/team-members")
 def list_team_members_for_assignment(
-    team_id: Optional[int] = Query(None, description="Team to list sales execs for (manager only)"),
+    team_id: Optional[int] = Query(None, description="Team to list sales execs for (manager or md)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     active_team_id: Optional[int] = Depends(get_active_team_id),
 ):
     """Return sales execs in the active team (for the assign-to dropdown)."""
     requested_team_id = team_id
+    role = _user_role_str(current_user)
     if requested_team_id is not None:
-        # Managers can only fetch members for a team they manage (or belong to)
-        if _user_role_str(current_user) != "manager":
-            raise HTTPException(status_code=403, detail="Only managers can query team members by team_id")
-        is_member = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
-            TeamMembership.team_id == requested_team_id,
-            TeamMembership.user_id == current_user.id,
-        ).first()
-        if not is_member:
+        if role == "md":
             team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == requested_team_id).first()
             if not team:
                 raise HTTPException(status_code=404, detail="Team not found")
-            if getattr(team, "manager_id", None) != current_user.id:
-                raise HTTPException(status_code=403, detail="You are not allowed to view members for this team")
+        elif role != "manager":
+            raise HTTPException(status_code=403, detail="Only managers can query team members by team_id")
+        else:
+            # Managers can only fetch members for a team they manage (or belong to)
+            is_member = apply_company_scope(db.query(TeamMembership), TeamMembership, current_user).filter(
+                TeamMembership.team_id == requested_team_id,
+                TeamMembership.user_id == current_user.id,
+            ).first()
+            if not is_member:
+                team = apply_company_scope(db.query(Team), Team, current_user).filter(Team.id == requested_team_id).first()
+                if not team:
+                    raise HTTPException(status_code=404, detail="Team not found")
+                if getattr(team, "manager_id", None) != current_user.id:
+                    raise HTTPException(status_code=403, detail="You are not allowed to view members for this team")
         team_scope_id = requested_team_id
+    elif role == "md":
+        members = (
+            apply_company_scope(db.query(User), User, current_user)
+            .filter(User.role == "sales")
+            .all()
+        )
+        return {
+            "members": [
+                {"id": m.id, "full_name": m.full_name, "email": m.email}
+                for m in members
+            ]
+        }
     else:
         team_scope_id = active_team_id
 
@@ -932,11 +961,11 @@ def update_lead(
         if _user_role_str(current_user) == "sales":
             raise HTTPException(status_code=403, detail="Sales executives cannot reassign leads")
 
-        # Managers cannot reassign leads that a sales exec created or that are already converted
+        # Managers cannot reassign converted leads. Unassigned team leads may be assigned from the pool.
         if _user_role_str(current_user) == "manager":
             if _lead_status_value(lead) == LeadStatus.CONVERTED.value:
                 raise HTTPException(status_code=403, detail="Cannot reassign a converted lead")
-            if lead.created_by_id:
+            if lead.assigned_to_id and lead.created_by_id:
                 creator = db.query(User).filter(User.id == lead.created_by_id).first()
                 if creator and _user_role_str(creator) == "sales":
                     raise HTTPException(status_code=403, detail="Cannot reassign a lead created by a sales executive")

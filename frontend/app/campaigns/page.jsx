@@ -33,6 +33,14 @@ export default function CampaignsPage() {
   const [body, setBody] = useState('');
   const [audience, setAudience] = useState('leads');
   const [busy, setBusy] = useState(false);
+  const [templates, setTemplates] = useState([]);
+
+  const applyTemplate = (templateId) => {
+    const tpl = templates.find((row) => String(row.id) === String(templateId));
+    if (!tpl) return;
+    setSubject(tpl.subject || '');
+    setBody(tpl.body || '');
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,6 +60,14 @@ export default function CampaignsPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    api.get('/email-templates').then((res) => {
+      setTemplates(Array.isArray(res.data?.items) ? res.data.items : []);
+    }).catch(() => {
+      setTemplates([]);
+    });
+  }, []);
 
   useEffect(() => {
     if (!selectedId) {
@@ -149,6 +165,24 @@ export default function CampaignsPage() {
                       className="mt-1 w-full text-sm rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5"
                     />
                   </label>
+                  {!body.trim() && templates.length > 0 && (
+                    <label className="block text-xs text-slate-500">
+                      Insert template
+                      <select
+                        defaultValue=""
+                        onChange={(e) => {
+                          applyTemplate(e.target.value);
+                          e.target.value = '';
+                        }}
+                        className="mt-1 w-full text-sm rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5"
+                      >
+                        <option value="">Choose a template</option>
+                        {templates.map((tpl) => (
+                          <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <label className="block text-xs text-slate-500">
                     Subject
                     <input

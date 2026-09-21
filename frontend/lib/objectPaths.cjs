@@ -13,6 +13,24 @@ function leadsHomePath(pathname = "") {
   return `${prefix}/leads`;
 }
 
+function unassignedLeadsPath(pathname = "") {
+  const prefix = rolePrefix(pathname);
+  if (prefix === "/purchase" || prefix === "/admin") return "/sales/leads/unassigned";
+  return `${prefix}/leads/unassigned`;
+}
+
+function appointmentsHomePath(pathname = "") {
+  const prefix = rolePrefix(pathname);
+  if (prefix === "/purchase" || prefix === "/admin") return "/sales/appointments";
+  return `${prefix}/appointments`;
+}
+
+function conversationsHomePath(pathname = "") {
+  const prefix = rolePrefix(pathname);
+  if (prefix === "/purchase" || prefix === "/admin") return "/sales/conversations";
+  return `${prefix}/conversations`;
+}
+
 function clientsHomePath(pathname = "") {
   const prefix = rolePrefix(pathname);
   if (prefix === "/purchase" || prefix === "/admin") return "/sales/clients";
@@ -42,6 +60,9 @@ function accountsHomePath(pathname = "") {
 module.exports = {
   rolePrefix,
   leadsHomePath,
+  unassignedLeadsPath,
+  appointmentsHomePath,
+  conversationsHomePath,
   clientsHomePath,
   dealsHomePath,
   invoicesHomePath,

@@ -22,6 +22,7 @@ def test_foreign_campaign_404(client, db):
     login_user(client, admin_b.email)
     assert client.get(f"/api/campaigns/{cid}").status_code == 404
     assert client.post(f"/api/campaigns/{cid}/send").status_code == 404
+    assert client.patch(f"/api/campaigns/{cid}", json={"subject": "X", "body": "Y"}).status_code == 405
     assert client.delete(f"/api/campaigns/{cid}").status_code == 404
     assert client.get("/api/campaigns").json()["total"] == 0
 

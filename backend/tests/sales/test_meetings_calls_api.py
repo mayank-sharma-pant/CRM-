@@ -82,6 +82,7 @@ def test_meeting_list_get_patch_delete_roundtrip(client, db):
     listed = client.get("/api/meetings", params={"lead_id": lead_id})
     assert listed.status_code == 200
     assert listed.json()["total"] == 1
+    assert listed.json()["items"][0]["lead_name"] == "Ravi"
     assert client.get(f"/api/meetings/{mid}").json()["subject"] == "Site visit"
 
     patched = client.patch(f"/api/meetings/{mid}", json={"status": "completed"})

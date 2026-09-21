@@ -2,6 +2,9 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {
   leadsHomePath,
+  unassignedLeadsPath,
+  appointmentsHomePath,
+  conversationsHomePath,
   clientsHomePath,
   dealsHomePath,
   invoicesHomePath,
@@ -14,6 +17,30 @@ test("leads stay on the role prefix except purchase/admin", () => {
   assert.equal(leadsHomePath("/md/clients/9"), "/md/leads");
   assert.equal(leadsHomePath("/purchase/invoices"), "/sales/leads");
   assert.equal(leadsHomePath("/admin/users"), "/sales/leads");
+});
+
+test("unassigned pool stays on the role prefix except purchase/admin", () => {
+  assert.equal(unassignedLeadsPath("/sales/leads"), "/sales/leads/unassigned");
+  assert.equal(unassignedLeadsPath("/manager/dashboard"), "/manager/leads/unassigned");
+  assert.equal(unassignedLeadsPath("/md/clients/9"), "/md/leads/unassigned");
+  assert.equal(unassignedLeadsPath("/purchase/invoices"), "/sales/leads/unassigned");
+  assert.equal(unassignedLeadsPath("/admin/users"), "/sales/leads/unassigned");
+});
+
+test("appointments stay on the role prefix except purchase/admin", () => {
+  assert.equal(appointmentsHomePath("/sales/leads"), "/sales/appointments");
+  assert.equal(appointmentsHomePath("/manager/dashboard"), "/manager/appointments");
+  assert.equal(appointmentsHomePath("/md/clients/9"), "/md/appointments");
+  assert.equal(appointmentsHomePath("/purchase/invoices"), "/sales/appointments");
+  assert.equal(appointmentsHomePath("/admin/users"), "/sales/appointments");
+});
+
+test("conversations stay on the role prefix except purchase/admin", () => {
+  assert.equal(conversationsHomePath("/sales/leads"), "/sales/conversations");
+  assert.equal(conversationsHomePath("/manager/dashboard"), "/manager/conversations");
+  assert.equal(conversationsHomePath("/md/clients/9"), "/md/conversations");
+  assert.equal(conversationsHomePath("/purchase/invoices"), "/sales/conversations");
+  assert.equal(conversationsHomePath("/admin/users"), "/sales/conversations");
 });
 
 test("clients stay on the role prefix except purchase/admin", () => {

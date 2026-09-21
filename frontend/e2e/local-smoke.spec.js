@@ -63,4 +63,50 @@ test.describe('Local dev stack (external servers)', () => {
 
     expect(errors, `page errors: ${errors.join('; ')}`).toEqual([]);
   });
+
+  test('unassigned, appointments, conversations load for sales/manager/md', async ({ page }) => {
+    await login(page, process.env.PW_LOGIN_EMAIL, process.env.PW_LOGIN_PASSWORD);
+    const path = new URL(page.url()).pathname;
+    const role = path.startsWith('/sales/')
+      ? 'sales'
+      : path.startsWith('/manager/')
+        ? 'manager'
+        : path.startsWith('/md/')
+          ? 'md'
+          : null;
+    test.skip(!role, 'This check is for sales, manager, or md');
+
+    const pages = [
+      {
+        path: `/${role}/leads/unassigned`,
+        heading: 'Unassigned Pool',
+        error: /unable to load|please retry|could not load the pool/i,
+      },
+      {
+        path: `/${role}/appointments`,
+        heading: 'Appointments',
+        error: /unable to load|please retry|could not load appointments/i,
+      },
+      {
+        path: `/${role}/conversations`,
+        heading: 'Conversations',
+        error: /unable to load|please retry|could not load conversations/i,
+      },
+    ];
+    for (const item of pages) {
+      await page.goto(item.path);
+      await expect(page.getByRole('heading', { name: item.heading })).toBeVisible({ timeout: 20000 });
+      await expect(page.getByText(item.error)).toHaveCount(0);
+    }
+  });
+
+  test('purchase does not see unassigned pool, appointments, or conversations', async ({ page }) => {
+    await login(page, process.env.PW_LOGIN_EMAIL, process.env.PW_LOGIN_PASSWORD);
+    const path = new URL(page.url()).pathname;
+    test.skip(!path.startsWith('/purchase/'), 'This check is for purchase');
+    await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('link', { name: 'Unassigned Pool' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Appointments' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Conversations' })).toHaveCount(0);
+  });
 });

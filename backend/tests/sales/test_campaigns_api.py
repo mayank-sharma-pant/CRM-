@@ -61,3 +61,18 @@ def test_delete_campaign(client, db):
     }).json()["id"]
     assert client.delete(f"/api/campaigns/{cid}").status_code == 204
     assert client.get(f"/api/campaigns/{cid}").status_code == 404
+
+
+def test_campaign_patch_is_gone(client, db):
+    _admin(client, db, "CAPI5")
+    cid = client.post("/api/campaigns", json={
+        "name": "Draft", "subject": "Old", "body": "Already written", "audience": "leads",
+    }).json()["id"]
+    patched = client.patch(f"/api/campaigns/{cid}", json={
+        "subject": "Welcome", "body": "Hello from template",
+    })
+    assert patched.status_code == 405
+    got = client.get(f"/api/campaigns/{cid}")
+    assert got.json()["subject"] == "Old"
+    assert got.json()["body"] == "Already written"
+    assert got.json()["status"] == "draft"

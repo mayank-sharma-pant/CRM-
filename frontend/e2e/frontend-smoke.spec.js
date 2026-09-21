@@ -71,6 +71,47 @@ test.describe('Frontend smoke (seeded E2E users)', () => {
     await expect(page.getByRole('heading', { name: 'Leads' })).toBeVisible({ timeout: 15000 });
   });
 
+  for (const role of ['sales', 'manager', 'md']) {
+    test(`${role}: unassigned pool loads`, async ({ page }) => {
+      await login(page, USERS[role]);
+      await page.goto(`/${role}/leads/unassigned`);
+      await expect(page.getByRole('heading', { name: 'Unassigned Pool' })).toBeVisible({ timeout: 15000 });
+      await expect(page.getByText(/unable to load|please retry|could not load the pool/i)).toHaveCount(0);
+    });
+  }
+
+  for (const role of ['sales', 'manager', 'md']) {
+    test(`${role}: appointments page loads`, async ({ page }) => {
+      await login(page, USERS[role]);
+      await page.goto(`/${role}/appointments`);
+      await expect(page.getByRole('heading', { name: 'Appointments' })).toBeVisible({ timeout: 15000 });
+      await expect(page.getByText(/unable to load|please retry|could not load appointments/i)).toHaveCount(0);
+    });
+  }
+
+  for (const role of ['sales', 'manager', 'md']) {
+    test(`${role}: conversations page loads`, async ({ page }) => {
+      await login(page, USERS[role]);
+      await page.goto(`/${role}/conversations`);
+      await expect(page.getByRole('heading', { name: 'Conversations' })).toBeVisible({ timeout: 15000 });
+      await expect(page.getByText(/unable to load|please retry|could not load conversations/i)).toHaveCount(0);
+    });
+  }
+
+  test('purchase: unassigned pool, appointments, and conversations are not in nav', async ({ page }) => {
+    await login(page, USERS.purchase);
+    await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('link', { name: 'Unassigned Pool' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Appointments' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Conversations' })).toHaveCount(0);
+  });
+
+  test('sales: unassigned pool is in nav', async ({ page }) => {
+    await login(page, USERS.sales);
+    await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('link', { name: 'Unassigned Pool' })).toBeVisible();
+  });
+
   test('md: teams overview loads', async ({ page }) => {
     await login(page, USERS.md);
     await page.goto('/md/teams');

@@ -7,7 +7,7 @@ import { formatDistanceToNow, parseISO, differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../services/api';
 import { normalizeLeadStatus } from '../../lib/leadStatus';
-import { leadsHomePath } from '../../lib/leadsPaths';
+import { leadsHomePath, unassignedLeadsPath } from '../../lib/leadsPaths';
 import LeadModal from './LeadModal';
 import LeadImportModal from './LeadImportModal';
 import { useImportUndo } from '../shared/CsvImportModal';
@@ -235,6 +235,12 @@ export default function Leads() {
                 </button>
               </div>
             )}
+            <Link
+              href={unassignedLeadsPath(pathname)}
+              className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated inline-flex items-center"
+            >
+              {t('Unassigned Pool')}
+            </Link>
             <Link
               href={`${basePath}/trash`}
               className="btn btn-secondary h-8"

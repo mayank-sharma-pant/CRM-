@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { Bell, Calendar, Settings2, Sun, Moon, Shield, KeyRound, MessageCircle, MapPin, Mail, Phone, Webhook, Target, Brain, BookMarked, Layers, Store, FileText, Tags, ShieldCheck } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useT } from '../../contexts/LocaleContext';
 import NotificationPreferencesPanel from '../../components/shared/NotificationPreferencesPanel';
 
 export default function SettingsHomePage() {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const t = useT();
 
   return (
     <div className="min-h-full bg-slate-50 dark:bg-slate-900 pb-10">
@@ -96,6 +98,29 @@ export default function SettingsHomePage() {
             >
               <Mail size={12} />
               Manage mailbox
+            </Link>
+          </div>
+        </div>
+
+        <div className="p-6 rounded-xl border border-border bg-surface">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 p-1.5 rounded-md bg-surface-elevated">
+                <FileText size={14} className="text-muted" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-primary">{t('Email templates')}</div>
+                <div className="text-xs text-muted">
+                  {t('Reusable subject and body for email campaigns.')}
+                </div>
+              </div>
+            </div>
+            <Link
+              href="/settings/email-templates"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border border-border text-secondary hover:bg-surface-elevated"
+            >
+              <FileText size={12} />
+              {t('Email templates')}
             </Link>
           </div>
         </div>

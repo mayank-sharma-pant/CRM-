@@ -3,10 +3,12 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.core.company_settings import CompanySettings
+from app.models.core.team_membership import TeamMembership
 from app.models.core.user import User
 from app.models.sales.client import Client
 from app.models.sales.lead import Lead
@@ -20,9 +22,11 @@ from app.services.sales.whatsapp import (
     post_gupshup_template,
     session_open_until,
 )
+from app.utils.datetime_json import isoformat_utc
 from app.utils.dependencies import (
     apply_company_scope,
     ensure_company_access,
+    get_active_team_id,
     get_current_user,
     require_admin_or_md,
 )
@@ -114,6 +118,138 @@ def _get_template(db: Session, user: User, template_id: int) -> WhatsAppTemplate
         raise HTTPException(status_code=404, detail="Not found")
     ensure_company_access(row, user)
     return row
+
+
+_THREAD_LIST_ROLES = frozenset({"sales", "manager", "md", "admin"})
+_THREAD_COMPANY_ROLES = frozenset({"md", "admin"})
+
+
+def _user_role_str(user: User) -> str:
+    role = getattr(user, "role", None)
+    if role is None:
+        return ""
+    return str(getattr(role, "value", role))
+
+
+def _latest_thread_ids(db: Session, current_user: User):
+    def grouped(filters, group_col):
+        q = apply_company_scope(
+            db.query(func.max(WhatsAppMessage.id)),
+            WhatsAppMessage,
+            current_user,
+        )
+        for predicate in filters:
+            q = q.filter(predicate)
+        return q.group_by(group_col)
+
+    return grouped(
+        [WhatsAppMessage.lead_id.isnot(None)],
+        WhatsAppMessage.lead_id,
+    ).union_all(
+        grouped(
+            [WhatsAppMessage.lead_id.is_(None), WhatsAppMessage.client_id.isnot(None)],
+            WhatsAppMessage.client_id,
+        ),
+        grouped(
+            [WhatsAppMessage.lead_id.is_(None), WhatsAppMessage.client_id.is_(None)],
+            WhatsAppMessage.to_phone,
+        ),
+    )
+
+
+def _scoped_threads_query(db: Session, current_user: User, active_team_id: Optional[int]):
+    role = _user_role_str(current_user)
+    if role not in _THREAD_LIST_ROLES:
+        raise HTTPException(status_code=403, detail="Not allowed")
+    query = (
+        apply_company_scope(db.query(WhatsAppMessage, Lead, Client), WhatsAppMessage, current_user)
+        .outerjoin(Lead, WhatsAppMessage.lead_id == Lead.id)
+        .outerjoin(Client, WhatsAppMessage.client_id == Client.id)
+        .filter(WhatsAppMessage.id.in_(_latest_thread_ids(db, current_user)))
+    )
+    if role == "sales":
+        return query.filter(
+            or_(
+                WhatsAppMessage.sent_by_id == current_user.id,
+                Lead.assigned_to_id == current_user.id,
+                and_(
+                    WhatsAppMessage.lead_id.is_(None),
+                    Client.assigned_to_id == current_user.id,
+                ),
+            )
+        )
+    if role == "manager":
+        if active_team_id is None:
+            return query.filter(False)
+        member_ids = [
+            uid
+            for (uid,) in apply_company_scope(
+                db.query(TeamMembership.user_id), TeamMembership, current_user
+            )
+            .filter(TeamMembership.team_id == active_team_id)
+            .all()
+        ]
+        sent_in_team = WhatsAppMessage.sent_by_id.in_(member_ids) if member_ids else False
+        return query.filter(
+            or_(
+                and_(
+                    WhatsAppMessage.lead_id.isnot(None),
+                    or_(Lead.team_id == active_team_id, sent_in_team),
+                ),
+                and_(
+                    WhatsAppMessage.lead_id.is_(None),
+                    WhatsAppMessage.client_id.isnot(None),
+                    or_(Client.team_id == active_team_id, sent_in_team),
+                ),
+            )
+        )
+    if role in _THREAD_COMPANY_ROLES:
+        return query
+    raise HTTPException(status_code=403, detail="Not allowed")
+
+
+def _serialize_thread(row: WhatsAppMessage, lead: Optional[Lead], client: Optional[Client]) -> dict:
+    if row.lead_id is not None:
+        name = lead.name if lead is not None else None
+        phone = lead.phone if lead is not None else row.to_phone
+    elif row.client_id is not None:
+        name = client.name if client is not None else None
+        phone = client.phone if client is not None else row.to_phone
+    else:
+        name = row.to_phone
+        phone = row.to_phone
+    direction = getattr(row, "direction", None) or "outbound"
+    return {
+        "lead_id": row.lead_id,
+        "client_id": row.client_id,
+        "name": name,
+        "phone": phone,
+        "last_direction": direction,
+        "last_body": getattr(row, "body", None),
+        "last_at": isoformat_utc(row.created_at),
+        "unanswered": direction == "inbound",
+    }
+
+
+@router.get("/threads")
+def list_threads(
+    unanswered: bool = Query(False),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: Optional[int] = Depends(get_active_team_id),
+):
+    _company_user(current_user)
+    query = _scoped_threads_query(db, current_user, active_team_id)
+    if unanswered:
+        query = query.filter(WhatsAppMessage.direction == "inbound")
+    total = query.with_entities(WhatsAppMessage.id).order_by(None).count()
+    rows = query.order_by(WhatsAppMessage.id.desc()).offset(skip).limit(limit).all()
+    return {
+        "items": [_serialize_thread(message, lead, client) for message, lead, client in rows],
+        "total": total,
+    }
 
 
 @router.get("/connection")

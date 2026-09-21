@@ -38,3 +38,4 @@ from .webhook_endpoint import WebhookEndpoint, WebhookDelivery
 from .privacy_request import PrivacyRequest
 from .scoring import ScoringRule
 from .prediction import PredictionModel
+from .email_template import EmailTemplate

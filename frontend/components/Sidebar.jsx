@@ -40,6 +40,7 @@ import {
     Menu,
     PanelLeftClose,
     Mail,
+    MessageCircle,
     Building2,
     Layers,
 } from 'lucide-react';
@@ -73,6 +74,7 @@ const ICON_MAP = {
     ShoppingBag,
     Sparkles,
     Mail,
+    MessageCircle,
     Building2,
     Layers,
 };
@@ -83,9 +85,12 @@ const ROLE_NAVIGATION = {
         { name: 'Dashboard', href: '/sales/dashboard', icon: 'LayoutDashboard' },
         { name: 'Tasks', href: '/sales/tasks', icon: 'CheckSquare' },
         { name: 'Follow-ups', href: '/sales/follow-ups', icon: 'Calendar' },
+        { name: 'Conversations', href: '/sales/conversations', icon: 'MessageCircle' },
+        { name: 'Appointments', href: '/sales/appointments', icon: 'Calendar' },
         { name: 'AI Assistant', href: '/sales/assistant', icon: 'Sparkles' },
         { category: 'Pipeline' },
         { name: 'Leads', href: '/sales/leads', icon: 'Users' },
+        { name: 'Unassigned Pool', href: '/sales/leads/unassigned', icon: 'Users' },
         { name: 'Clients', href: '/sales/clients', icon: 'Briefcase' },
         { name: 'Accounts', href: '/sales/accounts', icon: 'Building2' },
         { name: 'Deals', href: '/sales/deals', icon: 'Target' },
@@ -102,9 +107,12 @@ const ROLE_NAVIGATION = {
         { name: 'Dashboard', href: '/manager/dashboard', icon: 'LayoutDashboard' },
         { name: 'Team', href: '/manager/team', icon: 'UsersRound' },
         { name: 'Tasks', href: '/manager/tasks', icon: 'CheckSquare' },
+        { name: 'Conversations', href: '/manager/conversations', icon: 'MessageCircle' },
+        { name: 'Appointments', href: '/manager/appointments', icon: 'Calendar' },
         { name: 'AI Assistant', href: '/manager/assistant', icon: 'Sparkles' },
         { category: 'Pipeline' },
         { name: 'Leads', href: '/manager/leads', icon: 'Users' },
+        { name: 'Unassigned Pool', href: '/manager/leads/unassigned', icon: 'Users' },
         { name: 'Clients', href: '/manager/clients', icon: 'Briefcase' },
         { name: 'Accounts', href: '/manager/accounts', icon: 'Building2' },
         { name: 'Deals', href: '/manager/deals', icon: 'Target' },
@@ -149,6 +157,9 @@ const ROLE_NAVIGATION = {
         { name: 'Teams', href: '/md/teams', icon: 'Users' },
         { name: 'Employee Lookup', href: '/md/employee-lookup', icon: 'UserSearch' },
         { name: 'Leads', href: '/md/leads', icon: 'Target' },
+        { name: 'Unassigned Pool', href: '/md/leads/unassigned', icon: 'Users' },
+        { name: 'Appointments', href: '/md/appointments', icon: 'Calendar' },
+        { name: 'Conversations', href: '/md/conversations', icon: 'MessageCircle' },
         { name: 'Clients', href: '/md/clients', icon: 'Briefcase' },
         { name: 'Accounts', href: '/md/accounts', icon: 'Building2' },
         { name: 'Deals', href: '/md/deals', icon: 'Target' },
@@ -195,6 +206,9 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     const [ledgerError, setLedgerError] = useState(null);
     const [ledgerLoading, setLedgerLoading] = useState(true);
     const [customModules, setCustomModules] = useState([]);
+    const [unassignedCount, setUnassignedCount] = useState(0);
+    const [overdueCount, setOverdueCount] = useState(0);
+    const [unansweredCount, setUnansweredCount] = useState(0);
 
     const fetchLedgers = useCallback(async () => {
         setLedgerError(null);
@@ -227,6 +241,69 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         if (loading || !user) return;
         fetchModules();
     }, [fetchModules, loading, user]);
+
+    useEffect(() => {
+        if (loading || !user) return;
+        const role = user?.role || 'sales';
+        const hasPool = (ROLE_NAVIGATION[role] || []).some((item) => item.name === 'Unassigned Pool');
+        if (!hasPool) {
+            setUnassignedCount(0);
+            return undefined;
+        }
+        let cancelled = false;
+        api.get('/leads', { params: { unassigned: true, limit: 1 } })
+            .then((res) => {
+                if (!cancelled) setUnassignedCount(Number(res.data?.total) || 0);
+            })
+            .catch(() => {
+                if (!cancelled) setUnassignedCount(0);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [loading, user?.role, user?.id]);
+
+    useEffect(() => {
+        if (loading || !user) return;
+        const role = user?.role || 'sales';
+        const hasAppointments = (ROLE_NAVIGATION[role] || []).some((item) => item.name === 'Appointments');
+        if (!hasAppointments) {
+            setOverdueCount(0);
+            return undefined;
+        }
+        let cancelled = false;
+        api.get('/meetings/summary')
+            .then((res) => {
+                if (!cancelled) setOverdueCount(Number(res.data?.overdue) || 0);
+            })
+            .catch(() => {
+                if (!cancelled) setOverdueCount(0);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [loading, user?.role, user?.id]);
+
+    useEffect(() => {
+        if (loading || !user) return;
+        const role = user?.role || 'sales';
+        const hasConversations = (ROLE_NAVIGATION[role] || []).some((item) => item.name === 'Conversations');
+        if (!hasConversations) {
+            setUnansweredCount(0);
+            return undefined;
+        }
+        let cancelled = false;
+        api.get('/whatsapp/threads', { params: { unanswered: true, limit: 1 } })
+            .then((res) => {
+                if (!cancelled) setUnansweredCount(Number(res.data?.total) || 0);
+            })
+            .catch(() => {
+                if (!cancelled) setUnansweredCount(0);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [loading, user?.role, user?.id]);
 
     // Build navigation: role-based nav (dashboard, leads, etc.) + Financial Ledgers from API only
     useEffect(() => {
@@ -348,6 +425,15 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                     isOpen={isOpen}
                                     pathname={pathname}
                                     t={t}
+                                    badge={
+                                        item.name === 'Unassigned Pool' && unassignedCount > 0
+                                            ? unassignedCount
+                                            : item.name === 'Appointments' && overdueCount > 0
+                                                ? overdueCount
+                                                : item.name === 'Conversations' && unansweredCount > 0
+                                                    ? unansweredCount
+                                                    : null
+                                    }
                                 />
                             );
                         })}
@@ -364,7 +450,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 }
 
 // Sub-component for individual items to handle toggle state cleanly
-function NavItem({ item, isActive, Icon, isOpen, pathname, t = (s) => s }) {
+function NavItem({ item, isActive, Icon, isOpen, pathname, t = (s) => s, badge = null }) {
     const [expanded, setExpanded] = useState(isActive);
     const hasChildren = item.children && item.children.length > 0;
     const label = t(item.name);
@@ -453,8 +539,13 @@ function NavItem({ item, isActive, Icon, isOpen, pathname, t = (s) => s }) {
                 className={`${isActive ? 'text-accent' : 'text-muted group-hover:text-primary'}`}
             />
             {isOpen && (
-                <span className={`text-[13px] ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                <span className={`text-[13px] flex-1 ${isActive ? 'font-semibold' : 'font-medium'}`}>
                     {label}
+                </span>
+            )}
+            {isOpen && badge != null && (
+                <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-accent-subtle text-accent tabular-nums">
+                    {badge}
                 </span>
             )}
         </Link>

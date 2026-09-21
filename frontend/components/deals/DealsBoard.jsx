@@ -269,9 +269,9 @@ export default function DealsBoard() {
       <div className="bg-surface border-b border-border px-6 py-4">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-primary tracking-tight">{t('Deals Pipeline')}</h1>
-            <p className="text-[12px] text-muted font-medium mt-0.5 opacity-80 uppercase tracking-wider">
-              {selected?.name || board?.pipeline_name || 'Track opportunities across stages'}
+                            <h1 className="page-title">{t('Deals')}</h1>
+            <p className="page-subtitle">
+              {selected?.name || board?.pipeline_name || 'Opportunities by stage'}
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap justify-end">
@@ -285,8 +285,8 @@ export default function DealsBoard() {
                   key={opt.id || 'all'}
                   type="button"
                   onClick={() => setView(opt.id)}
-                  className={`px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-tight ${
-                    view === opt.id ? 'bg-accent text-white' : 'bg-surface text-primary hover:bg-surface-elevated'
+                  className={`px-2.5 py-1.5 text-[13px] font-medium ${
+                    view === opt.id ? 'bg-primary text-surface' : 'bg-surface text-secondary hover:bg-surface-elevated'
                   }`}
                 >
                   {t(opt.label)}

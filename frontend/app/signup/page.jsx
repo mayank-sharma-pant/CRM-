@@ -66,25 +66,18 @@ export default function Signup() {
     };
 
     return (
-        <div className="min-h-screen bg-page flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animate-fade-in-up">
+        <div className="min-h-screen bg-page flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-lg w-full">
 
-                <div className="bg-surface rounded-2xl shadow-xl border border-border p-8 sm:p-10">
+                <div className="bg-surface rounded-xl border border-border p-8 sm:p-9">
 
-                    <div className="mb-8 text-center">
-                        <Link href="/" className="inline-flex mb-6 hover:opacity-80 transition-opacity">
-                            <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-page shadow-lg shadow-accent/20">
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                            </div>
+                    <div className="mb-8">
+                        <Link href="/" className="inline-flex items-center gap-2.5 mb-6 hover:opacity-80 transition-opacity">
+                            <span className="brand-mark">P</span>
+                            <span className="font-display text-[15px] font-semibold tracking-tight text-primary">Perioxia</span>
                         </Link>
-                        <h2 className="text-2xl font-bold text-primary tracking-tight">
-                            Create your account
-                        </h2>
-                        <p className="mt-2 text-sm text-secondary">
-                            Get started with your free trial
-                        </p>
+                        <h2 className="page-title">Create your account</h2>
+                        <p className="page-subtitle">Start a 14-day trial — no card required</p>
                     </div>
 
                     <form className="space-y-5" onSubmit={handleSubmit}>
@@ -190,7 +183,7 @@ export default function Signup() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-3 px-4 bg-accent hover:opacity-90 text-page font-semibold rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-sm transition-all duration-200"
+                                className="btn btn-primary w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? 'Creating account...' : 'Create account'}
                             </button>

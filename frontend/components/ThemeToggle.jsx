@@ -9,11 +9,11 @@ export default function ThemeToggle({ className = "" }) {
 
     return (
         <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={toggleTheme}
-            className={`relative inline-flex items-center justify-center w-10 h-10 rounded-full border border-border bg-surface text-secondary hover:text-accent transition-colors ${className}`}
-            aria-label="Toggle Theme"
+            className={`relative inline-flex items-center justify-center w-8 h-8 rounded-md text-secondary hover:text-primary hover:bg-surface-elevated transition-colors ${className}`}
+            aria-label="Toggle theme"
         >
             <motion.div
                 initial={false}

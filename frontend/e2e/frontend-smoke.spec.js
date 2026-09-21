@@ -68,7 +68,7 @@ test.describe('Frontend smoke (seeded E2E users)', () => {
   test('sales: leads registry loads', async ({ page }) => {
     await login(page, USERS.sales);
     await page.goto('/sales/leads');
-    await expect(page.getByRole('heading', { name: 'Leads Registry' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'Leads' })).toBeVisible({ timeout: 15000 });
   });
 
   test('md: teams overview loads', async ({ page }) => {
@@ -80,6 +80,6 @@ test.describe('Frontend smoke (seeded E2E users)', () => {
   test('manager: team tasks loads', async ({ page }) => {
     await login(page, USERS.manager);
     await page.goto('/manager/tasks');
-    await expect(page.getByRole('heading', { name: 'Team Tasks' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'Team tasks' })).toBeVisible({ timeout: 15000 });
   });
 });

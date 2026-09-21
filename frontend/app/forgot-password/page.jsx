@@ -85,24 +85,21 @@ export default function ForgotPasswordPage() {
     }
 
     return (
-        <div className="min-h-screen bg-page flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animate-fade-in-up">
-            <div className="max-w-md w-full">
-                <div className="bg-surface rounded-2xl shadow-xl border border-border p-8 sm:p-10">
+        <div className="min-h-screen bg-page flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-[400px] w-full">
+                <div className="bg-surface rounded-xl border border-border p-8 sm:p-9">
 
-                    <div className="mb-8 text-center">
-                        <Link href="/" className="inline-flex mb-6 hover:opacity-80 transition-opacity">
-                            <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-page shadow-lg shadow-accent/20">
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                            </div>
+                    <div className="mb-8">
+                        <Link href="/" className="inline-flex items-center gap-2.5 mb-6 hover:opacity-80 transition-opacity">
+                            <span className="brand-mark">P</span>
+                            <span className="font-display text-[15px] font-semibold tracking-tight text-primary">Perioxia</span>
                         </Link>
-                        <h2 className="text-2xl font-bold text-primary tracking-tight">
-                            {step === 'email' ? 'Forgot Password?' : 'Reset Password'}
+                        <h2 className="page-title">
+                            {step === 'email' ? 'Forgot password' : 'Reset password'}
                         </h2>
-                        <p className="mt-2 text-sm text-secondary">
+                        <p className="page-subtitle">
                             {step === 'email'
-                                ? 'Enter your email and we\'ll send you a reset code.'
+                                ? 'Enter your email and we’ll send a reset code.'
                                 : 'Enter the code and your new password.'}
                         </p>
                     </div>

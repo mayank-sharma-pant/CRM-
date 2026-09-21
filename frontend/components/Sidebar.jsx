@@ -38,7 +38,7 @@ import {
     ShoppingBag,
     Sparkles,
     Menu,
-    X,
+    PanelLeftClose,
     Mail,
     Building2,
     Layers,
@@ -79,37 +79,42 @@ const ICON_MAP = {
 
 const ROLE_NAVIGATION = {
     sales: [
+        { category: 'Workspace' },
         { name: 'Dashboard', href: '/sales/dashboard', icon: 'LayoutDashboard' },
+        { name: 'Tasks', href: '/sales/tasks', icon: 'CheckSquare' },
+        { name: 'Follow-ups', href: '/sales/follow-ups', icon: 'Calendar' },
+        { name: 'AI Assistant', href: '/sales/assistant', icon: 'Sparkles' },
+        { category: 'Pipeline' },
         { name: 'Leads', href: '/sales/leads', icon: 'Users' },
         { name: 'Clients', href: '/sales/clients', icon: 'Briefcase' },
         { name: 'Accounts', href: '/sales/accounts', icon: 'Building2' },
         { name: 'Deals', href: '/sales/deals', icon: 'Target' },
+        { category: 'Commerce' },
         { name: 'My Orders', href: '/sales/orders', icon: 'Receipt' },
         { name: 'Stock', href: '/sales/stock', icon: 'Package' },
         { name: 'Products', href: '/sales/products', icon: 'ShoppingBag' },
-        { name: 'Tasks', href: '/sales/tasks', icon: 'CheckSquare' },
-        { name: 'Follow-ups', href: '/sales/follow-ups', icon: 'Calendar' },
+        { category: 'Insights' },
         { name: 'Performance', href: '/sales/performance', icon: 'BarChart' },
         { name: 'Forecast', href: '/reports/forecast', icon: 'TrendingUp' },
-        { name: 'AI Assistant', href: '/sales/assistant', icon: 'Sparkles' },
     ],
     manager: [
-        { category: 'OVERVIEW' },
+        { category: 'Workspace' },
         { name: 'Dashboard', href: '/manager/dashboard', icon: 'LayoutDashboard' },
-
-        { category: 'TEAM' },
         { name: 'Team', href: '/manager/team', icon: 'UsersRound' },
+        { name: 'Tasks', href: '/manager/tasks', icon: 'CheckSquare' },
+        { name: 'AI Assistant', href: '/manager/assistant', icon: 'Sparkles' },
+        { category: 'Pipeline' },
         { name: 'Leads', href: '/manager/leads', icon: 'Users' },
         { name: 'Clients', href: '/manager/clients', icon: 'Briefcase' },
         { name: 'Accounts', href: '/manager/accounts', icon: 'Building2' },
         { name: 'Deals', href: '/manager/deals', icon: 'Target' },
+        { category: 'Commerce' },
         { name: 'Stock', href: '/manager/stock', icon: 'Package' },
         { name: 'Products', href: '/manager/products', icon: 'ShoppingBag' },
-        { name: 'Tasks', href: '/manager/tasks', icon: 'CheckSquare' },
+        { category: 'Insights' },
         { name: 'Reports', href: '/manager/reports', icon: 'PieChart' },
         { name: 'Saved reports', href: '/reports', icon: 'BarChart3' },
         { name: 'Forecast', href: '/reports/forecast', icon: 'TrendingUp' },
-        { name: 'AI Assistant', href: '/manager/assistant', icon: 'Sparkles' },
     ],
     admin: [
         { name: 'Dashboard', href: '/admin/dashboard', icon: 'LayoutDashboard' },
@@ -261,12 +266,11 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             });
         }
 
+        navData.push({ category: 'Outreach' });
         navData.push({ name: 'Campaigns', href: '/campaigns', icon: 'Mail' });
         navData.push({ name: 'Mass email', href: '/mass-email', icon: 'Mail' });
         navData.push({ name: 'Cases', href: '/cases', icon: 'Bug' });
-
-        // Universal links for all roles
-        navData.push({ category: 'SUPPORT' });
+        navData.push({ category: 'Support' });
         navData.push({ name: 'Report Bug', href: '/report-bug', icon: 'Bug' });
 
         setNavigation(navData);
@@ -284,32 +288,29 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
             {/* Sidebar */}
             <div
-                className={`fixed top-0 left-0 z-30 h-full bg-surface border-r border-border transition-all duration-200 ${isOpen ? 'w-64' : 'w-16'}`}
+                className={`fixed top-0 left-0 z-30 h-full bg-surface border-r border-border transition-[width] duration-200 ${isOpen ? 'w-60' : 'w-16'}`}
             >
                 <div className="flex flex-col h-full">
-                    {/* Header */}
-                    <div className="flex items-center justify-between h-[72px] px-4 border-b border-border shrink-0">
+                    <div className={`flex items-center h-14 shrink-0 border-b border-border ${isOpen ? 'px-3 justify-between' : 'px-2 justify-center'}`}>
                         {isOpen && (
                             <Link
                                 href="/"
-                                className="flex items-center gap-2 text-lg font-bold text-primary tracking-tight hover:opacity-80 transition-opacity"
+                                className="flex items-center gap-2.5 min-w-0 text-primary hover:opacity-80 transition-opacity"
                             >
-                                <div className="w-8 h-8 rounded bg-accent flex items-center justify-center text-page">
-                                    <LayoutDashboard size={18} fill="currentColor" className="text-white/20" />
-                                </div>
-                                <span>Perioxia CRM</span>
+                                <span className="brand-mark shrink-0">P</span>
+                                <span className="font-display text-[15px] font-semibold tracking-tight truncate">Perioxia</span>
                             </Link>
                         )}
                         <button
                             onClick={() => setIsOpen(!isOpen)}
-                            className="p-2 rounded-lg hover:bg-surface-elevated text-secondary hover:text-primary transition-colors"
+                            className="p-1.5 rounded-md hover:bg-surface-elevated text-muted hover:text-primary transition-colors"
+                            aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
                         >
-                            {isOpen ? <X size={20} /> : <Menu size={20} />}
+                            {isOpen ? <PanelLeftClose size={16} /> : <Menu size={16} />}
                         </button>
                     </div>
 
-                    {/* Navigation */}
-                    <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-none">
+                    <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
                         {ledgerError && (
                             <div className="mb-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
                                 <p className="text-xs text-red-600 dark:text-red-400 mb-2">{ledgerError}</p>
@@ -328,7 +329,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                 return isOpen && (
                                     <div
                                         key={`cat-${idx}`}
-                                        className="pt-4 pb-1 px-3 text-[10px] font-bold text-muted uppercase tracking-widest opacity-70"
+                                        className="pt-3.5 pb-1 px-2.5 text-[11px] font-medium text-muted"
                                     >
                                         {item.category}
                                     </div>
@@ -353,7 +354,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     </nav>
 
                     {/* Footer */}
-                    <div className="p-4 border-t border-border shrink-0 space-y-1">
+                    <div className="p-2 border-t border-border shrink-0">
                         <LanguageToggle isOpen={isOpen} />
                     </div>
                 </div>
@@ -387,18 +388,14 @@ function NavItem({ item, isActive, Icon, isOpen, pathname, t = (s) => s }) {
             <div className="mb-0.5">
                 <button
                     onClick={handleClick}
-                    className={`w-full relative flex items-center gap-2 px-3 py-1.5 rounded-md transition-all duration-150 group ${isActive && !expanded
-                        ? 'bg-accent/10 text-accent'
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-colors group ${isActive && !expanded
+                        ? 'bg-accent-subtle text-accent'
                         : 'text-secondary hover:bg-surface-elevated hover:text-primary'
                         }`}
                 >
-                    {isActive && !expanded && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-accent rounded-r-full" />
-                    )}
-
                     <Icon
                         size={16}
-                        strokeWidth={isActive ? 2 : 1.5}
+                        strokeWidth={1.75}
                         className={`${isActive ? 'text-accent' : 'text-muted group-hover:text-primary'}`}
                     />
                     {isOpen && (
@@ -419,7 +416,7 @@ function NavItem({ item, isActive, Icon, isOpen, pathname, t = (s) => s }) {
 
                 {/* Submenu (Refinement) */}
                 {isOpen && expanded && (
-                    <div className="mt-0.5 ml-4 pl-3 border-l border-border space-y-0.5">
+                    <div className="mt-0.5 ml-4 pl-2.5 border-l border-border space-y-0.5">
                         {item.children.map(child => {
                             const isChildActive = pathname === child.href;
                             return (
@@ -427,8 +424,8 @@ function NavItem({ item, isActive, Icon, isOpen, pathname, t = (s) => s }) {
                                     key={child.name}
                                     href={child.href}
                                     className={`block text-[13px] py-1.5 px-2 rounded-md transition-colors ${isChildActive
-                                        ? 'text-accent font-medium bg-accent/10'
-                                        : 'text-muted hover:text-primary hover:bg-surface-elevated/50'
+                                        ? 'text-accent font-medium bg-accent-subtle'
+                                        : 'text-muted hover:text-primary hover:bg-surface-elevated'
                                         }`}
                                 >
                                     {child.name}
@@ -444,22 +441,19 @@ function NavItem({ item, isActive, Icon, isOpen, pathname, t = (s) => s }) {
     return (
         <Link
             href={item.href}
-            className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive
-                ? 'bg-accent/10 text-accent'
+            title={!isOpen ? label : undefined}
+            className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-colors group ${isActive
+                ? 'bg-accent-subtle text-accent'
                 : 'text-secondary hover:bg-surface-elevated hover:text-primary'
-                }`}
+                } ${!isOpen ? 'justify-center px-0' : ''}`}
         >
-            {isActive && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-accent rounded-r-full" />
-            )}
-
             <Icon
-                size={20}
-                strokeWidth={isActive ? 2 : 1.5}
+                size={16}
+                strokeWidth={1.75}
                 className={`${isActive ? 'text-accent' : 'text-muted group-hover:text-primary'}`}
             />
             {isOpen && (
-                <span className={`text-sm ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                <span className={`text-[13px] ${isActive ? 'font-semibold' : 'font-medium'}`}>
                     {label}
                 </span>
             )}

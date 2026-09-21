@@ -94,8 +94,8 @@ export default function MDDashboard() {
             {/* TOP BAR: Integrated & Executive */}
             <div className="flex items-center justify-between py-4 border-b border-border">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-primary">Executive Cockpit</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Strategic Performance Matrix</p>
+                    <h1 className="page-title">Director</h1>
+                    <p className="page-subtitle">Company performance</p>
                 </div>
 
                 <div className="flex items-center gap-2.5">
@@ -153,7 +153,7 @@ export default function MDDashboard() {
                     <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/20">
                         <div className="flex items-center gap-2">
                             <Activity size={16} className="text-accent" strokeWidth={2.5} />
-                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Sales Momentum</h3>
+                            <h3 className="text-[13px] font-semibold text-primary">Sales momentum</h3>
                         </div>
                         <LinkText href="/md/sales">View Analytics</LinkText>
                     </div>
@@ -176,7 +176,7 @@ export default function MDDashboard() {
                     <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/20">
                         <div className="flex items-center gap-2">
                             <TrendingUp size={16} className="text-info" strokeWidth={2.5} />
-                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Pipeline Analysis</h3>
+                            <h3 className="text-[13px] font-semibold text-primary">Pipeline</h3>
                         </div>
                         <LinkText href="/md/leads">Open Funnel</LinkText>
                     </div>
@@ -196,7 +196,7 @@ export default function MDDashboard() {
                     <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/20">
                         <div className="flex items-center gap-2">
                             <Users size={16} className="text-success" strokeWidth={2.5} />
-                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Client Retention</h3>
+                            <h3 className="text-[13px] font-semibold text-primary">Client retention</h3>
                         </div>
                         <LinkText href="/md/clients">Growth Matrix</LinkText>
                     </div>
@@ -221,7 +221,7 @@ export default function MDDashboard() {
                     <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/20">
                         <div className="flex items-center gap-2">
                             <Receipt size={16} className="text-error" strokeWidth={2.5} />
-                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Finance Liquidity</h3>
+                            <h3 className="text-[13px] font-semibold text-primary">Liquidity</h3>
                         </div>
                         <LinkText href="/md/invoices">View Ledger</LinkText>
                     </div>
@@ -242,7 +242,7 @@ export default function MDDashboard() {
                     <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/20">
                         <div className="flex items-center gap-2">
                             <TrendingUp size={16} className="text-muted" strokeWidth={2.5} />
-                            <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Trend Watchlist</h3>
+                            <h3 className="text-[13px] font-semibold text-primary">Watchlist</h3>
                         </div>
                         <LinkText href="/md/sales">Analysis</LinkText>
                     </div>
@@ -261,7 +261,7 @@ export default function MDDashboard() {
 
                 <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-accent/20 shadow-sm relative overflow-hidden">
                     <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/30 relative z-10">
-                        <h3 className="text-[14px] font-bold text-primary uppercase tracking-tight">Executive Brief</h3>
+                        <h3 className="text-[13px] font-semibold text-primary">Brief</h3>
                     </div>
                     <div className="p-5 relative z-10">
                         <div className="space-y-2.5">

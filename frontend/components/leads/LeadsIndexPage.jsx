@@ -16,7 +16,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useT } from '../../contexts/LocaleContext';
 import Skeleton, { TableRowSkeleton } from '../shared/Skeleton';
 import {
-  Plus, ChevronRight, Filter, Briefcase, LayoutList, Upload, Undo2
+  Plus, ChevronRight, Filter, Briefcase, Upload, Undo2
 } from 'lucide-react';
 
 const TABS = [
@@ -27,9 +27,9 @@ const TABS = [
 ];
 
 const STATUS_STYLES = {
-  'Active': 'bg-blue-50 text-blue-700 border-blue-200',
-  'Converted': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'Lost': 'bg-gray-50 text-gray-500 border-gray-200'
+  'Active': 'badge-info',
+  'Converted': 'badge-success',
+  'Lost': 'badge-neutral'
 };
 
 export default function Leads() {
@@ -189,8 +189,8 @@ export default function Leads() {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
         <div className="flex flex-col items-center gap-3">
-          <div className="text-[13px] text-error font-bold uppercase tracking-widest">{error}</div>
-          <button onClick={fetchLeads} className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight">{t('Retry')}</button>
+          <div className="text-[13px] text-error">{error}</div>
+          <button onClick={fetchLeads} className="btn btn-primary">{t('Retry')}</button>
         </div>
       </div>
     );
@@ -198,29 +198,19 @@ export default function Leads() {
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-page flex flex-col">
-      <div className="bg-surface border-b border-border px-6 py-4">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-primary tracking-tight">{t('Leads Registry')}</h1>
-            <p className="text-[12px] text-muted font-medium mt-0.5 opacity-80 uppercase tracking-wider">Efficient Lead Tracking and Engagement</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex bg-surface-elevated/50 border border-border rounded-md p-1 shadow-inner h-8">
-              <div 
-                className="p-1 rounded flex items-center justify-center bg-surface shadow-sm text-primary"
-                title="List View"
-              >
-                <LayoutList size={14} strokeWidth={2.5} />
-              </div>
-            </div>
-            
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">{t('Leads')}</h1>
+          <p className="page-subtitle">{t('Track and assign conversations')}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
             {formMeta && (
               <div className="hidden md:flex items-center gap-2">
                 {canEditForm && Array.isArray(formMeta.teams) && formMeta.teams.length > 0 && (
                   <select
                     value={formMeta.default_team_id ?? ''}
                     onChange={onDefaultTeamChange}
-                    className="h-8 text-[11px] font-bold uppercase tracking-tight border border-border rounded-md px-2 bg-surface text-primary"
+                    className="h-8 text-[13px] border border-border rounded-md px-2 bg-surface text-primary"
                     aria-label="Website form default team"
                   >
                     <option value="">No team</option>
@@ -232,14 +222,14 @@ export default function Leads() {
                 <button
                   type="button"
                   onClick={copyFormLink}
-                  className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated"
+                  className="btn btn-secondary h-8"
                 >
                   {copied ? t('Copied') : t('Website form')}
                 </button>
                 <button
                   type="button"
                   onClick={copyWidgetSnippet}
-                  className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated"
+                  className="btn btn-secondary h-8"
                 >
                   {copiedWidget ? t('Copied') : t('Chat widget')}
                 </button>
@@ -247,7 +237,7 @@ export default function Leads() {
             )}
             <Link
               href={`${basePath}/trash`}
-              className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated inline-flex items-center"
+              className="btn btn-secondary h-8"
             >
               {t('Trash')}
             </Link>
@@ -256,54 +246,51 @@ export default function Leads() {
                 type="button"
                 onClick={undo}
                 disabled={undoing}
-                className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated inline-flex items-center gap-1.5 disabled:opacity-50"
+                className="btn btn-secondary h-8 disabled:opacity-50"
               >
-                <Undo2 size={14} strokeWidth={2.5} /> {t('Undo last import')}
+                <Undo2 size={14} /> {t('Undo last import')}
               </button>
             )}
             <button
               type="button"
               onClick={() => setIsImportOpen(true)}
-              className="h-8 px-3 border border-border rounded-md text-[11px] font-bold uppercase tracking-tight text-primary hover:bg-surface-elevated inline-flex items-center gap-1.5"
+              className="btn btn-secondary h-8"
             >
-              <Upload size={14} strokeWidth={2.5} /> {t('Import CSV')}
+              <Upload size={14} /> {t('Import CSV')}
             </button>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-bold uppercase tracking-tight transition-all shadow-sm shadow-accent/10"
+              className="btn btn-primary h-8"
             >
-              <Plus size={14} strokeWidth={2.5} /> {t('Add Lead')}
+              <Plus size={14} strokeWidth={2.25} /> {t('Add Lead')}
             </button>
-          </div>
         </div>
       </div>
 
-      <div className="bg-surface/80 backdrop-blur border-b border-border sticky top-0 z-10">
-        <div className="max-w-[1400px] mx-auto px-6 py-1.5 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            <Filter size={12} strokeWidth={2.5} className="text-muted mr-1.5 flex-shrink-0" />
+      <div className="bg-surface border-b border-border sticky top-0 z-10">
+        <div className="max-w-[72rem] mx-auto px-6 py-2 flex items-center gap-1.5 overflow-x-auto">
+            <Filter size={13} strokeWidth={2} className="text-muted mr-1 shrink-0" />
             {TABS.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-1 text-[11px] font-bold uppercase tracking-tight rounded transition-all whitespace-nowrap ${activeTab === tab.id
-                  ? 'bg-accent text-white shadow-sm'
+                className={`px-2.5 py-1 text-[13px] font-medium rounded-md transition-colors whitespace-nowrap ${activeTab === tab.id
+                  ? 'bg-primary text-surface'
                   : 'text-muted hover:bg-surface-elevated hover:text-primary'
                   }`}
               >
                 {t(tab.label)}
               </button>
             ))}
-          </div>
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-6 py-4 flex-1 w-full">
-        <div className="bg-surface rounded border border-border overflow-hidden shadow-sm">
-          <div className="hidden lg:flex items-center gap-4 px-5 py-2.5 bg-surface-elevated/50 border-b border-border">
-            <div className="w-[30%] text-[10px] font-black text-muted uppercase tracking-widest">{t('Lead Entity')}</div>
-            <div className="w-[20%] text-[10px] font-black text-muted uppercase tracking-widest text-center">{t('Status')}</div>
-            <div className="flex-1 text-[10px] font-black text-muted uppercase tracking-widest">{t('Next Engagement')}</div>
+      <div className="page-body flex-1 w-full">
+        <div className="panel">
+          <div className="hidden lg:flex items-center gap-4 px-4 py-2 border-b border-border">
+            <div className="w-[30%] text-[12px] font-medium text-muted">{t('Lead')}</div>
+            <div className="w-[20%] text-[12px] font-medium text-muted text-center">{t('Status')}</div>
+            <div className="flex-1 text-[12px] font-medium text-muted">{t('Next step')}</div>
             <div className="w-8"></div>
           </div>
           <div className="divide-y divide-border/50">
@@ -317,7 +304,7 @@ export default function Leads() {
                   {t('No leads found in this view.')}
                 </motion.div>
               ) : (
-                filteredLeads.map((lead, idx) => {
+                filteredLeads.map((lead) => {
                   const signal = getEngagementSignal(lead);
                   const isMuted = ['Converted', 'Lost', 'Lost Client'].includes(lead.status);
 
@@ -330,22 +317,22 @@ export default function Leads() {
                       exit={{ opacity: 0, x: 10 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <Link href={`${basePath}/${lead.id}`} className={`flex items-center gap-4 px-5 py-2.5 hover:bg-surface-elevated/30 transition-all group ${isMuted ? 'opacity-50' : ''} ${idx % 2 !== 0 ? 'bg-surface-elevated/10' : ''}`}>
+                      <Link href={`${basePath}/${lead.id}`} className={`flex items-center gap-4 px-4 py-2.5 hover:bg-surface-elevated transition-colors group ${isMuted ? 'opacity-50' : ''}`}>
                         <div className="w-[30%] min-w-[180px]">
                           <div className="flex items-center gap-2">
-                            <p className={`text-[13px] font-bold truncate ${isMuted ? 'text-muted' : 'text-primary'}`}>{lead.name}</p>
+                            <p className={`text-[13px] font-medium truncate ${isMuted ? 'text-muted' : 'text-primary'}`}>{lead.name}</p>
                             {!lead.assigned_to_id && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 shrink-0">Open</span>
+                              <span className="badge badge-warning shrink-0">Open</span>
                             )}
                           </div>
                           {lead.company && (
-                            <p className="text-[11px] text-muted font-bold truncate flex items-center gap-1 opacity-70 uppercase tracking-tight">
-                              <Briefcase size={10} strokeWidth={2.5} /> {lead.company}
+                            <p className="text-[12px] text-muted truncate flex items-center gap-1 mt-0.5">
+                              <Briefcase size={11} strokeWidth={2} /> {lead.company}
                             </p>
                           )}
                         </div>
                         <div className="w-[20%] flex justify-center">
-                          <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border shadow-sm ${STATUS_STYLES[lead.status] || STATUS_STYLES['Active']}`}>
+                          <span className={`badge ${STATUS_STYLES[lead.status] || STATUS_STYLES['Active']}`}>
                             {t(lead.status === 'Converted' ? 'Client' : lead.status)}
                           </span>
                         </div>
@@ -369,12 +356,8 @@ export default function Leads() {
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-7 mt-3 flex items-center justify-between pb-6 w-full">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></div>
-         <span className="text-[10px] font-black text-muted uppercase tracking-widest">Real-time Pipeline Synchronized</span>
-        </div>
-        <span className="text-[10px] font-black text-muted uppercase tracking-widest tabular-nums">{filteredLeads.length} Items Indexed</span>
+      <div className="max-w-[72rem] mx-auto px-6 mt-3 flex items-center justify-between pb-6 w-full">
+        <span className="text-[12px] text-muted tabular-nums">{filteredLeads.length} leads</span>
       </div>
 
       <LeadModal

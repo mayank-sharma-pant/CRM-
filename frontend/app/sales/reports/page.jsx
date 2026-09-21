@@ -5,7 +5,7 @@ import api from '../../../services/api';
 import { motion } from 'framer-motion';
 import {
   Users, Target, TrendingUp, TrendingDown, Activity, DollarSign,
-  CheckCircle, Clock, AlertTriangle, Zap, BarChart3, ArrowUpRight,
+  CheckCircle, Clock, AlertTriangle, Zap, ArrowUpRight,
   ArrowDownRight, Minus, Briefcase, CalendarDays
 } from 'lucide-react';
 
@@ -35,32 +35,26 @@ function useCountUp(end, duration = 1200) {
   return count;
 }
 
-function StatCard({ label, value, icon: Icon, color, bgColor, suffix = '', prefix = '', subtitle, trend }) {
+function StatCard({ label, value, icon: Icon, suffix = '', prefix = '', subtitle, trend }) {
   const animVal = useCountUp(value || 0);
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow group"
-    >
+    <div className="bg-surface border border-border rounded-md p-4">
       <div className="flex items-start justify-between mb-3">
-        <div className={`p-2.5 rounded-lg ${bgColor}`}>
-          <Icon size={18} className={color} strokeWidth={2.5} />
-        </div>
-        {trend !== undefined && trend !== null && (
-          <div className={`flex items-center gap-0.5 text-[11px] font-bold ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-500' : 'text-slate-400'}`}>
+        <p className="text-[12px] font-medium text-muted">{label}</p>
+        {trend !== undefined && trend !== null ? (
+          <div className={`flex items-center gap-0.5 text-[11px] font-medium tabular-nums ${trend > 0 ? 'text-success' : trend < 0 ? 'text-error' : 'text-muted'}`}>
             {trend > 0 ? <ArrowUpRight size={12} /> : trend < 0 ? <ArrowDownRight size={12} /> : <Minus size={12} />}
             {Math.abs(trend)}%
           </div>
-        )}
+        ) : Icon ? (
+          <Icon size={14} className="text-muted" strokeWidth={1.75} />
+        ) : null}
       </div>
-      <div className={`text-2xl font-black tracking-tight text-slate-900 dark:text-white mb-0.5`}>
+      <div className="font-mono text-[22px] font-semibold tracking-tight text-primary tabular-nums">
         {prefix}{typeof value === 'number' && value >= 1000 ? animVal.toLocaleString() : animVal}{suffix}
       </div>
-      <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{label}</p>
-      {subtitle && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{subtitle}</p>}
-    </motion.div>
+      {subtitle && <p className="text-[12px] text-muted mt-1">{subtitle}</p>}
+    </div>
   );
 }
 
@@ -68,29 +62,29 @@ function BreakdownBar({ label, count, total, color }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 w-24 truncate">{label}</span>
-      <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+      <span className="text-[13px] text-secondary w-24 truncate">{label}</span>
+      <div className="flex-1 h-1.5 bg-surface-elevated rounded-full overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
           className={`h-full rounded-full ${color}`}
         />
       </div>
-      <span className="text-xs font-bold text-slate-700 dark:text-slate-200 w-8 text-right">{count}</span>
-      <span className="text-[10px] text-slate-400 w-10 text-right">{pct}%</span>
+      <span className="text-[13px] font-medium text-primary w-8 text-right tabular-nums">{count}</span>
+      <span className="text-[12px] text-muted w-10 text-right tabular-nums">{pct}%</span>
     </div>
   );
 }
 
 const STATUS_COLORS = {
-  Active: 'bg-blue-500', Converted: 'bg-emerald-500', Lost: 'bg-red-400',
-  'Lost Client': 'bg-red-300', New: 'bg-violet-500', Contacted: 'bg-sky-400',
-  Qualified: 'bg-indigo-500', Proposal: 'bg-amber-500',
+  Active: 'bg-info', Converted: 'bg-success', Lost: 'bg-error',
+  'Lost Client': 'bg-error', New: 'bg-accent', Contacted: 'bg-info',
+  Qualified: 'bg-accent', Proposal: 'bg-warning',
 };
 const SOURCE_COLORS = {
-  Website: 'bg-blue-500', Referral: 'bg-emerald-500', 'Cold Call': 'bg-amber-500',
-  LinkedIn: 'bg-indigo-500', Other: 'bg-slate-400', Unknown: 'bg-slate-300',
+  Website: 'bg-info', Referral: 'bg-success', 'Cold Call': 'bg-warning',
+  LinkedIn: 'bg-accent', Other: 'bg-muted', Unknown: 'bg-border-strong',
 };
 
 export default function Reports({ dashboardEndpoint = '/leads/dashboard' }) {
@@ -129,89 +123,69 @@ export default function Reports({ dashboardEndpoint = '/leads/dashboard' }) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-[3px] border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Loading reports...</span>
+          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <span className="text-[13px] text-muted">Loading reports…</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-20">
-      {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
-              <BarChart3 size={20} className="text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">Reports & Analytics</h1>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Performance overview &mdash; {periodLabel}</p>
-            </div>
-          </div>
-          <div className="bg-slate-100 dark:bg-slate-700/50 p-1 rounded-lg flex text-xs font-bold">
+    <div className="min-h-screen bg-page pb-16">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Reports</h1>
+          <p className="page-subtitle">Performance — {periodLabel}</p>
+        </div>
+        <div className="bg-surface-elevated p-0.5 rounded-md flex text-[13px] font-medium border border-border">
             {PERIODS.map((p) => (
               <button
                 key={p.id}
                 onClick={() => setPeriod(p.id)}
-                className={`px-3 py-1.5 rounded-md transition-all ${
+                className={`px-2.5 py-1 rounded-[5px] transition-colors ${
                   period === p.id
-                    ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                    ? 'bg-surface text-primary shadow-sm'
+                    : 'text-muted hover:text-primary'
                 }`}
               >
                 {p.label}
               </button>
             ))}
-          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+      <div className="page-body space-y-8">
 
-        {/* Section 1: Lead Metrics */}
         <section>
-          <div className="flex items-center gap-2 mb-4">
-            <Users size={14} className="text-slate-400" />
-            <h2 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Lead Performance</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <StatCard label="Total Leads" value={m.total_leads || 0} icon={Users} color="text-blue-600" bgColor="bg-blue-50 dark:bg-blue-900/20" />
-            <StatCard label="Active" value={m.active_leads || 0} icon={Zap} color="text-indigo-600" bgColor="bg-indigo-50 dark:bg-indigo-900/20" subtitle="In pipeline" />
-            <StatCard label="Client" value={m.closed_leads || 0} icon={Target} color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-900/20" />
-            <StatCard label="Lost" value={m.lost_leads || 0} icon={TrendingDown} color="text-red-500" bgColor="bg-red-50 dark:bg-red-900/20" />
-            <StatCard label="Stalled" value={m.stalled_leads || 0} icon={Clock} color="text-amber-600" bgColor="bg-amber-50 dark:bg-amber-900/20" subtitle="No activity 14d+" />
-            <StatCard label="Win Rate" value={m.conversion_rate || 0} icon={TrendingUp} color="text-violet-600" bgColor="bg-violet-50 dark:bg-violet-900/20" suffix="%" />
+          <h2 className="dashboard-section-title">Leads</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <StatCard label="Total" value={m.total_leads || 0} icon={Users} />
+            <StatCard label="Active" value={m.active_leads || 0} icon={Zap} subtitle="In pipeline" />
+            <StatCard label="Client" value={m.closed_leads || 0} icon={Target} />
+            <StatCard label="Lost" value={m.lost_leads || 0} icon={TrendingDown} />
+            <StatCard label="Stalled" value={m.stalled_leads || 0} icon={Clock} subtitle="No activity 14d+" />
+            <StatCard label="Win rate" value={m.conversion_rate || 0} icon={TrendingUp} suffix="%" />
           </div>
         </section>
 
-        {/* Section 2: Revenue */}
         <section>
-          <div className="flex items-center gap-2 mb-4">
-            <DollarSign size={14} className="text-slate-400" />
-            <h2 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Revenue</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="Total Revenue" value={Math.round(m.total_revenue || 0)} icon={DollarSign} color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-900/20" prefix="₹" />
-            <StatCard label="Paid" value={Math.round(m.paid_revenue || 0)} icon={CheckCircle} color="text-green-600" bgColor="bg-green-50 dark:bg-green-900/20" prefix="₹" />
-            <StatCard label="Outstanding" value={Math.round(m.outstanding_revenue || 0)} icon={AlertTriangle} color="text-amber-600" bgColor="bg-amber-50 dark:bg-amber-900/20" prefix="₹" />
-            <StatCard label="My Orders" value={m.my_orders || 0} icon={Briefcase} color="text-blue-600" bgColor="bg-blue-50 dark:bg-blue-900/20" subtitle={m.my_revenue ? `₹${Math.round(m.my_revenue).toLocaleString()} value` : null} />
+          <h2 className="dashboard-section-title">Revenue</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard label="Total" value={Math.round(m.total_revenue || 0)} icon={DollarSign} prefix="₹" />
+            <StatCard label="Paid" value={Math.round(m.paid_revenue || 0)} icon={CheckCircle} prefix="₹" />
+            <StatCard label="Outstanding" value={Math.round(m.outstanding_revenue || 0)} icon={AlertTriangle} prefix="₹" />
+            <StatCard label="My orders" value={m.my_orders || 0} icon={Briefcase} subtitle={m.my_revenue ? `₹${Math.round(m.my_revenue).toLocaleString()}` : null} />
           </div>
         </section>
 
-        {/* Section 3: Tasks */}
         <section>
-          <div className="flex items-center gap-2 mb-4">
-            <CheckCircle size={14} className="text-slate-400" />
-            <h2 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Task Metrics</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <StatCard label="Completed" value={tm.completed || 0} icon={CheckCircle} color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-900/20" />
-            <StatCard label="In Progress" value={tm.in_progress || 0} icon={Activity} color="text-blue-600" bgColor="bg-blue-50 dark:bg-blue-900/20" />
-            <StatCard label="Overdue" value={tm.overdue || 0} icon={AlertTriangle} color="text-red-500" bgColor="bg-red-50 dark:bg-red-900/20" />
-            <StatCard label="New Leads This Week" value={act.new_leads_this_week || 0} icon={CalendarDays} color="text-indigo-600" bgColor="bg-indigo-50 dark:bg-indigo-900/20" />
-            <StatCard label="Tasks Done This Week" value={act.tasks_done_this_week || 0} icon={Zap} color="text-violet-600" bgColor="bg-violet-50 dark:bg-violet-900/20" />
+          <h2 className="dashboard-section-title">Tasks</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <StatCard label="Completed" value={tm.completed || 0} icon={CheckCircle} />
+            <StatCard label="In progress" value={tm.in_progress || 0} icon={Activity} />
+            <StatCard label="Overdue" value={tm.overdue || 0} icon={AlertTriangle} />
+            <StatCard label="New leads this week" value={act.new_leads_this_week || 0} icon={CalendarDays} />
+            <StatCard label="Tasks done this week" value={act.tasks_done_this_week || 0} icon={Zap} />
           </div>
         </section>
 
@@ -219,14 +193,14 @@ export default function Reports({ dashboardEndpoint = '/leads/dashboard' }) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pipeline Breakdown */}
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6"
+            transition={{ duration: 0.3 }}
+            className="panel p-5"
           >
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-white">Pipeline Distribution</h3>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{m.total_leads || 0} Total</span>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[13px] font-semibold text-primary">Pipeline</h3>
+              <span className="text-[12px] text-muted tabular-nums">{m.total_leads || 0} total</span>
             </div>
             {statusData.length > 0 ? (
               <div className="space-y-3">
@@ -240,26 +214,25 @@ export default function Reports({ dashboardEndpoint = '/leads/dashboard' }) {
                         label={label}
                         count={parseInt(item.count)}
                         total={m.total_leads || 1}
-                        color={STATUS_COLORS[label] || 'bg-slate-400'}
+                        color={STATUS_COLORS[label] || 'bg-muted'}
                       />
                     );
                   })}
               </div>
             ) : (
-              <p className="text-xs text-slate-400 text-center py-8 italic">No data available</p>
+              <p className="text-[13px] text-muted text-center py-8">No data yet</p>
             )}
           </motion.div>
 
           {/* Source Breakdown */}
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-            className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6"
+            transition={{ duration: 0.3, delay: 0.05 }}
+            className="panel p-5"
           >
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-white">Lead Sources</h3>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">By Origin</span>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[13px] font-semibold text-primary">Sources</h3>
             </div>
             {sourceData.length > 0 ? (
               <div className="space-y-3">
@@ -271,12 +244,12 @@ export default function Reports({ dashboardEndpoint = '/leads/dashboard' }) {
                       label={item.source || 'Unknown'}
                       count={parseInt(item.count)}
                       total={m.total_leads || 1}
-                      color={SOURCE_COLORS[item.source] || 'bg-slate-400'}
+                      color={SOURCE_COLORS[item.source] || 'bg-muted'}
                     />
                   ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-400 text-center py-8 italic">No data available</p>
+              <p className="text-[13px] text-muted text-center py-8">No data yet</p>
             )}
           </motion.div>
         </div>
@@ -284,23 +257,18 @@ export default function Reports({ dashboardEndpoint = '/leads/dashboard' }) {
         {/* Priority Tasks */}
         {stats?.priority_tasks && stats.priority_tasks.length > 0 && (
           <section>
-            <div className="flex items-center gap-2 mb-4">
-              <AlertTriangle size={14} className="text-amber-500" />
-              <h2 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Priority Tasks</h2>
-            </div>
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700">
+            <h2 className="dashboard-section-title">Priority tasks</h2>
+            <div className="panel divide-y divide-border">
               {stats.priority_tasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between px-5 py-3">
+                <div key={task.id} className="flex items-center justify-between px-4 py-3">
                   <div>
-                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{task.title}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{task.dueDate || 'No due date'}</p>
+                    <p className="text-[13px] font-medium text-primary">{task.title}</p>
+                    <p className="text-[12px] text-muted mt-0.5">{task.dueDate || 'No due date'}</p>
                   </div>
-                  <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                    task.statusReason === 'OVERDUE'
-                      ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
-                      : 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400'
+                  <span className={`badge ${
+                    task.statusReason === 'OVERDUE' ? 'badge-error' : 'badge-warning'
                   }`}>
-                    {task.statusReason === 'OVERDUE' ? 'Overdue' : 'Due Today'}
+                    {task.statusReason === 'OVERDUE' ? 'Overdue' : 'Due today'}
                   </span>
                 </div>
               ))}

@@ -18,7 +18,7 @@ import {
   Plus,
 } from 'lucide-react';
 
-const RECEIPT_LINES = [
+const DEAL_LINES = [
   { label: 'Inbound · WhatsApp', detail: 'AC repair, Andheri', amount: '—' },
   { label: 'Follow-up sent', detail: 'Day 1 cadence', amount: '—' },
   { label: 'Quote accepted', detail: 'Parts + labour, GST incl.', amount: '₹8,400' },
@@ -67,28 +67,25 @@ const FEATURES = [
   },
 ];
 
-const STATS = [
-  { value: '3.2×', label: 'Faster quote-to-invoice time' },
-  { value: '18 min', label: 'Median follow-up response' },
-  { value: '99.9%', label: 'GST line accuracy on invoices' },
-  { value: '24/7', label: 'WhatsApp capture, no missed leads' },
+const FACTS = [
+  { value: 'Pipeline', label: 'Leads and deals on one board' },
+  { value: 'WhatsApp', label: 'Templates and inbound on the record' },
+  { value: 'GST', label: 'CGST, SGST, or IGST on the invoice' },
+  { value: 'Hindi', label: 'Toggle on the sales screens' },
 ];
 
-const TESTIMONIALS = [
+const USE_CASES = [
   {
-    quote: 'We used to lose leads in a WhatsApp thread nobody checked twice. Now every inquiry becomes a deal with a follow-up date attached.',
-    name: 'Rakesh Mehta',
-    role: 'Owner, Mehta Air Solutions',
+    title: 'Contractors',
+    body: 'A WhatsApp inquiry becomes a deal with a follow-up date. Quote accepted, GST invoice out the same afternoon.',
   },
   {
-    quote: 'GST invoices used to take our accountant a full afternoon at month end. Now the CGST/SGST split is already on the invoice when it is raised.',
-    name: 'Priya Nair',
-    role: 'Ops lead, Coastline Interiors',
+    title: 'Clinics and shops',
+    body: 'Walk-ins and form fills land on one board. Hindi on the sales screens if the floor team wants it.',
   },
   {
-    quote: 'The quote-to-order-to-invoice chain is the one thing that made us drop spreadsheets for good. Nothing falls between the cracks anymore.',
-    name: 'Arvind Suresh',
-    role: 'Founder, Suresh Electricals',
+    title: 'Agencies',
+    body: 'Mailbox on the record, a shared booking page, and a pipeline that does not live in a founder’s head.',
   },
 ];
 
@@ -130,25 +127,17 @@ export default function Landing() {
       <main>
         <HeroSection />
         <LogoStrip />
-        <StatsBar />
+        <FactsBar />
         <JobLoop />
         <HowItWorks />
         <Features />
-        <Testimonials />
+        <UseCases />
         <Pricing user={user} />
         <FAQ />
         <FinalCTA user={user} />
       </main>
       <Footer />
     </motion.div>
-  );
-}
-
-function BrandMark() {
-  return (
-    <span className="landing-mark" aria-hidden="true">
-      P
-    </span>
   );
 }
 
@@ -168,17 +157,14 @@ function Navbar({ user }) {
       className={`landing-nav fixed top-0 left-0 right-0 z-50 bg-page/90 backdrop-blur-sm border-b border-transparent ${scrolled ? 'is-scrolled border-border' : ''}`}
     >
       <nav className="container-editorial flex items-center justify-between h-16">
-        <Link href="/" className="flex items-center gap-2 text-primary font-semibold text-lg tracking-tight">
-          <BrandMark />
-          <span className="landing-display">Perioxia CRM</span>
+        <Link href="/" className="flex items-center gap-2.5 text-primary">
+          <span className="brand-mark">P</span>
+          <span className="font-display text-[15px] font-semibold tracking-tight">Perioxia</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-8">
-          <Link href="#loop" className="landing-nav-link text-secondary hover:text-primary text-sm font-medium transition-colors">
-            The loop
-          </Link>
-          <Link href="#how-it-works" className="landing-nav-link text-secondary hover:text-primary text-sm font-medium transition-colors">
-            How it works
+          <Link href="#product" className="landing-nav-link text-secondary hover:text-primary text-sm font-medium transition-colors">
+            Product
           </Link>
           <Link href="#features" className="landing-nav-link text-secondary hover:text-primary text-sm font-medium transition-colors">
             Features
@@ -190,27 +176,20 @@ function Navbar({ user }) {
 
         <div className="hidden md:flex items-center gap-3">
           <ThemeToggle />
-          <div className="w-px h-6 bg-border mx-2" />
           {!user ? (
             <>
               <Link
                 href="/login"
-                className="text-sm font-medium text-secondary hover:text-primary transition-colors px-4 py-2"
+                className="text-sm font-medium text-secondary hover:text-primary transition-colors px-3 py-2"
               >
                 Sign in
               </Link>
-              <Link
-                href="/signup"
-                className="landing-cta text-sm font-medium bg-primary text-page px-4 py-2 rounded-md hover:opacity-90 transition-opacity"
-              >
+              <Link href="/signup" className="landing-btn">
                 Start trial
               </Link>
             </>
           ) : (
-            <Link
-              href="/login"
-              className="landing-cta text-sm font-medium bg-primary text-page px-4 py-2 rounded-md hover:opacity-90 transition-opacity"
-            >
+            <Link href="/login" className="landing-btn">
               Dashboard
             </Link>
           )}
@@ -235,12 +214,11 @@ function Navbar({ user }) {
 
       {mobileMenuOpen && (
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           className="md:hidden bg-surface border-b border-border px-6 py-4 space-y-4"
         >
-          <Link href="#loop" className="block text-secondary hover:text-primary text-sm font-medium" onClick={() => setMobileMenuOpen(false)}>The loop</Link>
-          <Link href="#how-it-works" className="block text-secondary hover:text-primary text-sm font-medium" onClick={() => setMobileMenuOpen(false)}>How it works</Link>
+          <Link href="#product" className="block text-secondary hover:text-primary text-sm font-medium" onClick={() => setMobileMenuOpen(false)}>Product</Link>
           <Link href="#features" className="block text-secondary hover:text-primary text-sm font-medium" onClick={() => setMobileMenuOpen(false)}>Features</Link>
           <Link href="#pricing" className="block text-secondary hover:text-primary text-sm font-medium" onClick={() => setMobileMenuOpen(false)}>Pricing</Link>
           <div className="flex items-center justify-between pt-4 border-t border-border">
@@ -251,10 +229,10 @@ function Navbar({ user }) {
             {!user ? (
               <>
                 <Link href="/login" className="block text-sm font-medium text-secondary py-2">Sign in</Link>
-                <Link href="/signup" className="block text-sm font-medium bg-primary text-page px-4 py-2 rounded-md text-center">Start trial</Link>
+                <Link href="/signup" className="landing-btn w-full text-center">Start trial</Link>
               </>
             ) : (
-              <Link href="/login" className="block text-sm font-medium bg-primary text-page px-4 py-2 rounded-md text-center">Dashboard</Link>
+              <Link href="/login" className="landing-btn w-full text-center">Dashboard</Link>
             )}
           </div>
         </motion.div>
@@ -265,39 +243,30 @@ function Navbar({ user }) {
 
 function HeroSection() {
   return (
-    <section className="relative pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden">
+    <section className="relative pt-24 pb-16 md:pt-32 md:pb-24 overflow-hidden">
       <div className="landing-hero-glow" aria-hidden="true" />
       <div className="container-editorial relative">
-        <motion.div variants={VARIANTS.container} initial="hidden" animate="show" className="max-w-4xl">
-          <motion.p variants={VARIANTS.fadeUp} className="caption mb-5 flex items-center gap-2.5">
-            <span className="landing-eyebrow-rule" aria-hidden="true" />
-            For clinics, contractors, agencies, and shops
-          </motion.p>
-          <motion.h1 variants={VARIANTS.fadeUp} className="headline-xl text-primary">
-            From WhatsApp
-            <br />
-            ping to GST paid.
-          </motion.h1>
-        </motion.div>
-
-        <div className="grid lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-12 lg:gap-16 items-center mt-10 lg:mt-14">
+        <div className="grid lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] gap-12 lg:gap-16 items-center">
           <motion.div variants={VARIANTS.container} initial="hidden" animate="show">
+            <motion.p variants={VARIANTS.fadeUp} className="caption mb-5 flex items-center gap-2.5">
+              <span className="landing-eyebrow-rule" aria-hidden="true" />
+              For clinics, contractors, agencies, and shops
+            </motion.p>
+            <motion.h1 variants={VARIANTS.fadeUp} className="headline-xl text-primary mb-6">
+              From WhatsApp
+              <br />
+              ping to GST paid.
+            </motion.h1>
             <motion.p variants={VARIANTS.fadeUp} className="body-lg max-w-xl mb-8 text-secondary">
               Capture the lead, quote it, invoice with GST, and collect on Razorpay —
               without a suite you will never finish setting up.
             </motion.p>
             <motion.div variants={VARIANTS.fadeUp} className="flex flex-col sm:flex-row gap-3">
-              <Link
-                href="/signup"
-                className="landing-cta inline-flex items-center justify-center gap-2 bg-primary text-page px-6 py-3 rounded-md text-sm font-medium transition-transform"
-              >
+              <Link href="/signup" className="landing-btn inline-flex items-center justify-center gap-2">
                 Start 14-day trial
                 <ArrowRight size={16} />
               </Link>
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center gap-2 border border-border text-primary px-6 py-3 rounded-md text-sm font-medium hover:bg-surface-elevated transition-colors"
-              >
+              <Link href="/login" className="landing-btn-ghost inline-flex items-center justify-center">
                 Sign in
               </Link>
             </motion.div>
@@ -305,34 +274,16 @@ function HeroSection() {
               No credit card · Cancel anytime · Hindi on the sales screens
             </motion.p>
           </motion.div>
-          <ReceiptPreview />
+          <DeskPreview />
         </div>
       </div>
     </section>
   );
 }
 
-function HeroStamp() {
+function DeskPreview() {
   const reduceMotion = useReducedMotion();
-
-  return (
-    <motion.span
-      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.85, y: -8 }}
-      animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
-      transition={{ delay: 0.75, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="landing-stamp absolute -right-2 -top-3 sm:-right-4 sm:-top-4"
-      aria-hidden="true"
-    >
-      GST
-      <br />
-      READY
-    </motion.span>
-  );
-}
-
-function ReceiptPreview() {
-  const reduceMotion = useReducedMotion();
-  const [count, setCount] = useState(reduceMotion ? RECEIPT_LINES.length : 1);
+  const [count, setCount] = useState(reduceMotion ? DEAL_LINES.length : 1);
   const [paid, setPaid] = useState(reduceMotion);
 
   useEffect(() => {
@@ -341,9 +292,9 @@ function ReceiptPreview() {
     let holdTimer;
     const id = setInterval(() => {
       step += 1;
-      if (step <= RECEIPT_LINES.length) {
+      if (step <= DEAL_LINES.length) {
         setCount(step);
-      } else if (step === RECEIPT_LINES.length + 1) {
+      } else if (step === DEAL_LINES.length + 1) {
         setPaid(true);
       } else {
         clearInterval(id);
@@ -361,61 +312,65 @@ function ReceiptPreview() {
   }, [reduceMotion]);
 
   const total = 8400 + 680 + 680;
+  const stage = paid ? 'Won' : count >= 3 ? 'Quoted' : 'New';
 
   return (
     <motion.div
       variants={VARIANTS.fadeUp}
       initial="hidden"
       animate="show"
-      whileHover={
-        reduceMotion
-          ? undefined
-          : { y: -4, transition: { type: 'spring', stiffness: 280, damping: 26 } }
-      }
-      className="landing-receipt"
-      aria-label="Illustrative invoice, not a live account"
+      className="landing-desk"
+      aria-label="Illustrative deal record, not a live account"
     >
-      <HeroStamp />
-      <p className="text-center font-semibold tracking-[0.2em] text-sm mb-1">PERIOXIA</p>
-      <p className="text-center text-[0.65rem] text-muted mb-4">GSTIN 27AAAAA0000A1Z5 · INV-0142</p>
-      <div>
-        {RECEIPT_LINES.slice(0, count).map((line) => (
+      <div className="landing-desk-bar">
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="brand-mark !w-5 !h-5 !text-[10px]">P</span>
+          <span className="truncate font-display text-[13px] font-semibold">Mehta Air · INV-0142</span>
+        </span>
+        <span className="landing-desk-stage">{stage}</span>
+      </div>
+      <div className="landing-desk-meta">
+        <p className="text-sm font-medium text-primary">AC repair, Andheri</p>
+        <p className="text-xs text-muted mt-0.5">WhatsApp inbound · GSTIN 27AAAAA0000A1Z5</p>
+      </div>
+      <div className="landing-desk-lines">
+        {DEAL_LINES.slice(0, count).map((line) => (
           <motion.div
             key={line.label}
-            initial={{ opacity: 0, x: -6 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.25 }}
-            className="landing-receipt-row"
+            initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22 }}
+            className="landing-desk-row"
           >
             <span>
               {line.label}
-              {line.detail && <span className="block text-[0.68rem] text-muted">{line.detail}</span>}
+              {line.detail ? <span className="block text-[0.68rem] text-muted">{line.detail}</span> : null}
             </span>
-            <span className="amt tabular-nums">{line.amount}</span>
+            <span className="amt tabular-nums font-mono">{line.amount}</span>
           </motion.div>
         ))}
       </div>
-      {count >= RECEIPT_LINES.length && (
+      {count >= DEAL_LINES.length && (
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="landing-receipt-total tabular-nums"
+          className="landing-desk-total tabular-nums"
         >
           <span>Total due</span>
-          <span>₹{total.toLocaleString('en-IN')}</span>
+          <span className="font-mono">₹{total.toLocaleString('en-IN')}</span>
         </motion.div>
       )}
-      <div className="relative mt-5 h-10 flex items-center justify-center">
-        {paid && (
+      <div className="landing-desk-foot">
+        {paid ? (
           <motion.span
-            initial={{ opacity: 0, scale: 0.9, y: 6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="text-sm font-bold tracking-[0.25em] px-4 py-1.5 rounded-full"
-            style={{ color: 'var(--color-success)', background: 'var(--color-accent-subtle)' }}
+            initial={reduceMotion ? false : { opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="landing-paid"
           >
-            PAID
+            Paid
           </motion.span>
+        ) : (
+          <span className="text-xs text-muted">Waiting on payment</span>
         )}
       </div>
     </motion.div>
@@ -426,40 +381,24 @@ function LogoStrip() {
   const integrations = ['Gmail', 'Outlook', 'Google Calendar', 'WhatsApp', 'Razorpay'];
 
   return (
-    <section className="py-10 border-y border-border bg-surface-elevated">
-      <div className="container-editorial">
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={VIEWPORT}
-          variants={VARIANTS.fadeIn}
-          className="text-center text-sm text-muted mb-5"
-        >
-          Connects to tools you can use today
-        </motion.p>
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={VIEWPORT}
-          variants={VARIANTS.container}
-          className="flex flex-wrap justify-center items-center gap-3 md:gap-4"
-        >
+    <section className="py-8 border-y border-border">
+      <div className="container-editorial flex flex-col md:flex-row md:items-center gap-4 md:gap-10">
+        <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted shrink-0">
+          Connects to
+        </p>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           {integrations.map((name) => (
-            <motion.span
-              key={name}
-              variants={VARIANTS.fadeUp}
-              className="text-sm font-medium text-secondary border border-dashed border-border-strong bg-surface px-3 py-1.5 rounded-full transition-colors hover:border-accent hover:text-primary"
-            >
+            <span key={name} className="text-sm font-medium text-secondary">
               {name}
-            </motion.span>
+            </span>
           ))}
-        </motion.div>
+        </div>
       </div>
     </section>
   );
 }
 
-function StatsBar() {
+function FactsBar() {
   return (
     <section className="section-spacing border-b border-border">
       <div className="container-editorial">
@@ -470,10 +409,10 @@ function StatsBar() {
           variants={VARIANTS.container}
           className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-6"
         >
-          {STATS.map((stat) => (
-            <motion.div key={stat.label} variants={VARIANTS.fadeUp} className="text-center md:text-left">
-              <p className="landing-display text-3xl md:text-4xl font-bold text-primary tabular-nums">{stat.value}</p>
-              <p className="body-sm mt-1.5">{stat.label}</p>
+          {FACTS.map((fact) => (
+            <motion.div key={fact.value} variants={VARIANTS.fadeUp}>
+              <p className="font-display text-2xl md:text-3xl font-semibold text-primary tracking-tight">{fact.value}</p>
+              <p className="body-sm mt-1.5">{fact.label}</p>
             </motion.div>
           ))}
         </motion.div>
@@ -484,26 +423,25 @@ function StatsBar() {
 
 function JobLoop() {
   return (
-    <section id="loop" className="section-spacing-lg">
+    <section id="product" className="section-spacing-lg scroll-mt-24">
       <div className="container-editorial">
         <motion.div initial="hidden" whileInView="show" viewport={VIEWPORT} variants={VARIANTS.container}>
           <motion.p variants={VARIANTS.fadeUp} className="caption mb-4">The job</motion.p>
           <motion.h2 variants={VARIANTS.fadeUp} className="headline-lg mb-4 max-w-2xl">
-            One loop: inquiry → follow-up → quote → paid invoice.
+            Inquiry to paid invoice, in one record.
           </motion.h2>
           <motion.p variants={VARIANTS.fadeUp} className="body-md max-w-2xl mb-12">
             Spreadsheets drop the WhatsApp lead. Big CRMs bury GST. This product is the path a local service job actually takes.
           </motion.p>
-          <div className="relative grid sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-10 pt-2">
-            <div className="landing-stub-thread hidden lg:block" aria-hidden="true" />
+          <motion.div variants={VARIANTS.container} className="relative grid sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
             {LOOP.map((step) => (
               <motion.div key={step.n} variants={VARIANTS.fadeUp} className="landing-stub">
                 <span className="landing-stub-num mb-4">{step.n}</span>
-                <h3 className="landing-display text-xl font-semibold text-primary mb-2">{step.title}</h3>
+                <h3 className="font-display text-lg font-semibold text-primary mb-2">{step.title}</h3>
                 <p className="body-sm">{step.body}</p>
               </motion.div>
             ))}
-          </div>
+          </motion.div>
         </motion.div>
       </div>
     </section>
@@ -512,15 +450,15 @@ function JobLoop() {
 
 function HowItWorks() {
   return (
-    <section id="how-it-works" className="section-spacing-lg bg-surface-elevated overflow-hidden">
+    <section id="how-it-works" className="section-spacing-lg bg-surface-elevated scroll-mt-24">
       <div className="container-editorial">
-        <div className="grid md:grid-cols-2">
+        <div className="grid md:grid-cols-2 gap-px bg-border rounded-xl overflow-hidden border border-border">
           <motion.div
             initial="hidden"
             whileInView="show"
             viewport={VIEWPORT}
             variants={VARIANTS.fadeUp}
-            className="landing-torn-left bg-surface p-8 md:p-12 md:pr-14"
+            className="bg-surface p-8 md:p-12"
           >
             <p className="caption mb-4">Without this</p>
             <h2 className="headline-lg mb-6 text-muted">
@@ -545,7 +483,7 @@ function HowItWorks() {
             whileInView="show"
             viewport={VIEWPORT}
             variants={VARIANTS.fadeUp}
-            className="landing-torn-right bg-surface p-8 md:p-12 md:pl-14 -mt-px md:mt-0 md:-ml-px"
+            className="bg-surface p-8 md:p-12 landing-with"
           >
             <p className="caption mb-4">With Perioxia</p>
             <h2 className="headline-lg mb-6">The record is the work.</h2>
@@ -571,68 +509,43 @@ function HowItWorks() {
 
 function Features() {
   return (
-    <section id="features" className="section-spacing-lg">
+    <section id="features" className="section-spacing-lg scroll-mt-24">
       <div className="container-editorial">
         <motion.div initial="hidden" whileInView="show" viewport={VIEWPORT} variants={VARIANTS.container}>
-          <div className="flex items-baseline justify-between mb-14 flex-wrap gap-3">
-            <div>
-              <motion.p variants={VARIANTS.fadeUp} className="caption mb-4">Shipped</motion.p>
-              <motion.h2 variants={VARIANTS.fadeUp} className="headline-lg max-w-xl">
-                What you get on day one of the trial.
-              </motion.h2>
-            </div>
-            <motion.p variants={VARIANTS.fadeUp} className="font-mono text-xs text-muted">
-              {FEATURES.length} items · no add-ons
-            </motion.p>
-          </div>
-          <div className="border-t border-border">
+          <motion.p variants={VARIANTS.fadeUp} className="caption mb-4">On day one</motion.p>
+          <motion.h2 variants={VARIANTS.fadeUp} className="headline-lg mb-12 max-w-xl">
+            What you get on the trial.
+          </motion.h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {FEATURES.map((feature) => (
-              <motion.div key={feature.title} variants={VARIANTS.fadeUp} className="landing-ledger-row">
-                <div className="grid sm:grid-cols-[2.5rem_minmax(0,1fr)] gap-4 sm:gap-6 py-6 items-start">
-                  <feature.icon size={20} className="landing-ledger-icon text-secondary mt-0.5" strokeWidth={1.6} />
-                  <div className="grid sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] gap-1.5 sm:gap-8">
-                    <h3 className="font-semibold text-primary">{feature.title}</h3>
-                    <p className="body-sm max-w-lg">{feature.description}</p>
-                  </div>
-                </div>
+              <motion.div key={feature.title} variants={VARIANTS.fadeUp} className="landing-feature">
+                <feature.icon size={18} className="text-accent mb-4" strokeWidth={1.7} />
+                <h3 className="font-semibold text-primary mb-2">{feature.title}</h3>
+                <p className="body-sm">{feature.description}</p>
               </motion.div>
             ))}
           </div>
-          <motion.div
-            variants={VARIANTS.fadeUp}
-            className="flex justify-between font-mono text-xs text-muted pt-4 border-t-2 border-primary mt-1"
-          >
-            <span>Total shipped</span>
-            <span>{FEATURES.length} of {FEATURES.length} · included in every plan</span>
-          </motion.div>
         </motion.div>
       </div>
     </section>
   );
 }
 
-function Testimonials() {
+function UseCases() {
   return (
     <section className="section-spacing-lg bg-surface-elevated">
       <div className="container-editorial">
         <motion.div initial="hidden" whileInView="show" viewport={VIEWPORT} variants={VARIANTS.container}>
-          <motion.p variants={VARIANTS.fadeUp} className="caption mb-4">From the trial</motion.p>
-          <motion.h2 variants={VARIANTS.fadeUp} className="headline-lg mb-14 max-w-2xl">
-            Businesses that stopped losing the thread.
+          <motion.p variants={VARIANTS.fadeUp} className="caption mb-4">Who it is for</motion.p>
+          <motion.h2 variants={VARIANTS.fadeUp} className="headline-lg mb-12 max-w-2xl">
+            Built for the job that starts on WhatsApp.
           </motion.h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {TESTIMONIALS.map((t) => (
-              <motion.figure
-                key={t.name}
-                variants={VARIANTS.fadeUp}
-                className="landing-board p-7 flex flex-col"
-              >
-                <blockquote className="body-md text-primary flex-1">“{t.quote}”</blockquote>
-                <figcaption className="mt-6 pt-6 border-t border-border">
-                  <p className="font-semibold text-primary text-sm">{t.name}</p>
-                  <p className="text-sm text-muted">{t.role}</p>
-                </figcaption>
-              </motion.figure>
+          <div className="grid md:grid-cols-3 gap-4">
+            {USE_CASES.map((item) => (
+              <motion.article key={item.title} variants={VARIANTS.fadeUp} className="landing-feature">
+                <h3 className="font-display text-lg font-semibold text-primary mb-2">{item.title}</h3>
+                <p className="body-sm">{item.body}</p>
+              </motion.article>
             ))}
           </div>
         </motion.div>
@@ -652,7 +565,7 @@ function Pricing({ user }) {
   ];
 
   return (
-    <section id="pricing" className="section-spacing-lg">
+    <section id="pricing" className="section-spacing-lg scroll-mt-24">
       <div className="container-editorial">
         <motion.div initial="hidden" whileInView="show" viewport={VIEWPORT} variants={VARIANTS.container} className="max-w-3xl mx-auto text-center mb-12">
           <motion.p variants={VARIANTS.fadeUp} className="caption mb-4">Pricing</motion.p>
@@ -660,7 +573,7 @@ function Pricing({ user }) {
             One plan. Everything included.
           </motion.h2>
           <motion.p variants={VARIANTS.fadeUp} className="body-md max-w-xl mx-auto">
-            No feature gates, no per-seat surprises during the trial. Start free, decide on a plan once you have run a real job through it.
+            No feature gates during the trial. Start free, decide on a plan once you have run a real job through it.
           </motion.p>
         </motion.div>
 
@@ -669,14 +582,14 @@ function Pricing({ user }) {
           whileInView="show"
           viewport={VIEWPORT}
           variants={VARIANTS.fadeUp}
-          className="landing-board max-w-lg mx-auto p-8 md:p-10"
+          className="landing-feature max-w-lg mx-auto p-8 md:p-10"
         >
           <div className="flex items-baseline justify-between mb-1">
-            <h3 className="landing-display text-xl font-semibold text-primary">Trial</h3>
+            <h3 className="font-display text-xl font-semibold text-primary">Trial</h3>
             <span className="caption">14 days</span>
           </div>
           <p className="flex items-baseline gap-1 mb-6">
-            <span className="landing-display text-4xl font-bold text-primary">₹0</span>
+            <span className="font-display text-4xl font-bold text-primary">₹0</span>
             <span className="text-sm text-muted">to start</span>
           </p>
           <ul className="space-y-3 mb-8">
@@ -689,7 +602,7 @@ function Pricing({ user }) {
           </ul>
           <Link
             href={user ? '/login' : '/signup'}
-            className="landing-cta inline-flex items-center justify-center gap-2 w-full bg-primary text-page px-6 py-3 rounded-md text-sm font-medium transition-transform"
+            className="landing-btn inline-flex items-center justify-center gap-2 w-full"
           >
             {user ? 'Open dashboard' : 'Start 14-day trial'}
             <ArrowRight size={16} />
@@ -726,7 +639,7 @@ function FAQ() {
                     <span className="font-semibold text-primary">{item.q}</span>
                     <motion.span
                       animate={{ rotate: isOpen ? 45 : 0 }}
-                      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                       className="shrink-0 text-secondary"
                     >
                       <Plus size={18} />
@@ -738,7 +651,7 @@ function FAQ() {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                         className="overflow-hidden"
                       >
                         <p className="body-sm pb-5 max-w-xl">{item.a}</p>
@@ -764,38 +677,24 @@ function FinalCTA({ user }) {
           whileInView="show"
           viewport={VIEWPORT}
           variants={VARIANTS.container}
-          className="relative overflow-hidden rounded-2xl border border-border bg-primary text-page px-8 py-16 md:px-16 md:py-20 text-center"
+          className="landing-close px-8 py-16 md:px-16 md:py-20 text-center"
         >
-          <div className="landing-sunburst" aria-hidden="true" />
-          <motion.span
-            variants={VARIANTS.fadeUp}
-            className="relative inline-grid place-items-center w-16 h-16 rounded-full border-2 mb-6 font-mono text-[0.6rem] font-semibold tracking-wide"
-            style={{ borderColor: 'var(--color-page)', color: 'var(--color-page)' }}
-            aria-hidden="true"
-          >
-            TRIAL
-            <br />
-            APPROVED
-          </motion.span>
-          <motion.h2 variants={VARIANTS.fadeUp} className="relative headline-lg mb-4 !text-page">
+          <motion.h2 variants={VARIANTS.fadeUp} className="relative headline-lg mb-4">
             Run the next job on a real pipeline.
           </motion.h2>
-          <motion.p variants={VARIANTS.fadeUp} className="relative body-lg mb-8 max-w-lg mx-auto !text-page opacity-80">
+          <motion.p variants={VARIANTS.fadeUp} className="relative body-lg mb-8 max-w-lg mx-auto opacity-85">
             Fourteen days. Leads, quotes, GST invoices, WhatsApp, and Razorpay — if you connect them.
           </motion.p>
           <motion.div variants={VARIANTS.fadeUp} className="relative flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               href={user ? '/login' : '/signup'}
-              className="landing-cta inline-flex items-center justify-center gap-2 bg-page text-primary px-8 py-3.5 rounded-md font-medium hover:opacity-90 transition-opacity"
+              className="landing-btn-invert inline-flex items-center justify-center gap-2"
             >
               {user ? 'Open dashboard' : 'Start free trial'}
               <ArrowRight size={18} />
             </Link>
             {!user && (
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center gap-2 border border-page/30 text-page px-8 py-3.5 rounded-md font-medium hover:bg-page/10 transition-colors"
-              >
+              <Link href="/login" className="landing-btn-on-accent inline-flex items-center justify-center">
                 Sign in
               </Link>
             )}
@@ -810,30 +709,24 @@ function Footer() {
   return (
     <footer className="border-t border-border py-16">
       <div className="container-editorial">
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={VIEWPORT}
-          variants={VARIANTS.fadeUp}
-          className="flex flex-col md:flex-row md:items-start md:justify-between gap-8 mb-12"
-        >
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8 mb-12">
           <div className="max-w-xs">
-            <Link href="/" className="flex items-center gap-2 text-primary font-semibold text-lg tracking-tight mb-4">
-              <BrandMark />
-              <span className="landing-display">Perioxia CRM</span>
+            <Link href="/" className="flex items-center gap-2.5 text-primary mb-4">
+              <span className="brand-mark">P</span>
+              <span className="font-display text-[15px] font-semibold tracking-tight">Perioxia</span>
             </Link>
             <p className="text-sm text-muted">
               CRM for local service businesses: leads, quotes, GST invoices, and payment.
             </p>
           </div>
           <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            <Link href="#loop" className="text-muted hover:text-primary transition-colors">The loop</Link>
+            <Link href="#product" className="text-muted hover:text-primary transition-colors">Product</Link>
             <Link href="#features" className="text-muted hover:text-primary transition-colors">Features</Link>
             <Link href="/privacy" className="text-muted hover:text-primary transition-colors">Privacy</Link>
             <Link href="/login" className="text-muted hover:text-primary transition-colors">Sign in</Link>
             <Link href="/signup" className="text-muted hover:text-primary transition-colors">Start trial</Link>
           </nav>
-        </motion.div>
+        </div>
         <div className="pt-8 border-t border-border">
           <p className="text-sm text-muted">© 2026 Perioxia CRM. All rights reserved.</p>
         </div>

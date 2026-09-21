@@ -55,79 +55,73 @@ export default function ClientsPage() {
     }
 
     return (
-        <div className="bg-slate-50 dark:bg-slate-900 min-h-full">
-            <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 py-6">
-                <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
-                    <div>
-                    <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
-                        Clients
-                    </h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {isManager ? 'Team managed accounts' : 'Converted leads and ongoing accounts'}
+        <div className="bg-page min-h-full">
+            <div className="page-header">
+                <div>
+                    <h1 className="page-title">Clients</h1>
+                    <p className="page-subtitle">
+                        {isManager ? 'Team accounts' : 'Converted leads and ongoing work'}
                     </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {canUndo && (
-                            <button
-                                type="button"
-                                onClick={undo}
-                                disabled={undoing}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border border-slate-300 dark:border-slate-600"
-                            >
-                                <Undo2 size={12} /> Undo last import
-                            </button>
-                        )}
+                </div>
+                <div className="flex items-center gap-2">
+                    {canUndo && (
                         <button
                             type="button"
-                            onClick={() => setImportOpen(true)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-blue-600 text-white"
+                            onClick={undo}
+                            disabled={undoing}
+                            className="btn btn-secondary disabled:opacity-50"
                         >
-                            <Upload size={12} /> Import CSV
+                            <Undo2 size={14} /> Undo last import
                         </button>
-                    </div>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => setImportOpen(true)}
+                        className="btn btn-primary"
+                    >
+                        <Upload size={14} /> Import CSV
+                    </button>
                 </div>
             </div>
 
-            <div className="max-w-5xl mx-auto px-8 py-8">
+            <div className="page-body">
                 {clients.length === 0 ? (
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-12 text-center">
-                        <p className="text-slate-500 dark:text-slate-400">No clients found</p>
+                    <div className="panel p-12 text-center">
+                        <p className="text-[13px] text-muted">No clients yet</p>
                     </div>
                 ) : (
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden divide-y divide-slate-100 dark:divide-slate-700/50">
+                    <div className="panel divide-y divide-border">
                         {clients.map((client) => (
                             <Link
                                 key={client.id}
                                 href={`${basePath}/${client.id}`}
-                                className="group block hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors duration-150"
+                                className="group block hover:bg-surface-elevated transition-colors"
                             >
-                                <div className="px-6 py-5 flex items-center justify-between">
+                                <div className="px-4 py-3.5 flex items-center justify-between">
                                     <div className="flex-1 min-w-0 pr-8">
-                                        <div className="flex items-center gap-3 mb-1.5">
-                                            <span className="text-[15px] font-semibold text-slate-900 dark:text-white truncate">
+                                        <div className="flex items-center gap-2.5 mb-1">
+                                            <span className="text-[14px] font-medium text-primary truncate">
                                                 {client.name}
                                             </span>
-                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 uppercase tracking-wide">
-                                                Active
-                                            </span>
+                                            <span className="badge badge-success">Active</span>
                                         </div>
 
-                                        <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 gap-2">
+                                        <div className="flex items-center text-[13px] text-muted gap-2">
                                             {(client.account_name || client.company) && (
                                                 <>
-                                                    <span className="flex items-center gap-1.5 truncate text-slate-600 dark:text-slate-300">
-                                                        <Briefcase size={12} className="opacity-70" />
+                                                    <span className="flex items-center gap-1.5 truncate text-secondary">
+                                                        <Briefcase size={12} />
                                                         {client.account_name || client.company}
                                                     </span>
-                                                    <span className="text-slate-300 dark:text-slate-600">&bull;</span>
+                                                    <span className="text-border-strong">&bull;</span>
                                                 </>
                                             )}
                                             <span className="truncate">{client.email}</span>
                                             {client.assigned_to_name && (
                                                 <>
-                                                    <span className="text-slate-300 dark:text-slate-600">&bull;</span>
-                                                    <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium truncate">
-                                                        Owner: {client.assigned_to_name}
+                                                    <span className="text-border-strong">&bull;</span>
+                                                    <span className="flex items-center gap-1 text-secondary truncate">
+                                                        {client.assigned_to_name}
                                                     </span>
                                                 </>
                                             )}
@@ -137,12 +131,12 @@ export default function ClientsPage() {
                                     <div className="flex items-center gap-6">
                                         {client.created_at && (
                                             <div className="hidden md:block text-right">
-                                                <div className="text-[10px] text-slate-400">
+                                                <div className="text-[12px] text-muted">
                                                     Since {client.created_at}
                                                 </div>
                                             </div>
                                         )}
-                                        <div className="text-slate-300 dark:text-slate-600 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors pl-2">
+                                        <div className="text-muted group-hover:text-accent transition-colors pl-2">
                                             <ChevronRight size={18} />
                                         </div>
                                     </div>
@@ -153,8 +147,8 @@ export default function ClientsPage() {
                 )}
 
                 <div className="mt-6 text-center">
-                    <p className="text-xs text-slate-400 dark:text-slate-500">
-                        Displaying {clients.length} client{clients.length !== 1 ? 's' : ''}
+                    <p className="text-[13px] text-muted">
+                        {clients.length} client{clients.length !== 1 ? 's' : ''}
                     </p>
                 </div>
             </div>

@@ -102,17 +102,14 @@ export default function ManagerTasksPage() {
 
     return (
         <div className="min-h-screen bg-page">
-            <div className="bg-surface border-b border-border px-6 py-4 mb-6">
-                <div className="max-w-5xl mx-auto flex items-center justify-between">
-                    <div>
-                        <h1 className="text-xl font-bold text-primary tracking-tight">Team Tasks</h1>
-                        <p className="text-[13px] text-muted font-medium mt-0.5 opacity-80">Priority management and execution flow</p>
-                    </div>
-                    <button onClick={() => setShowCreate(true)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[13px] font-bold transition-all shadow-sm">
-                        <Plus size={14} strokeWidth={3} /> Add Task
-                    </button>
+            <div className="page-header">
+                <div>
+                    <h1 className="page-title">Team tasks</h1>
+                    <p className="page-subtitle">Work assigned across the team</p>
                 </div>
+                <button onClick={() => setShowCreate(true)} className="btn btn-primary">
+                    <Plus size={14} /> Add task
+                </button>
             </div>
 
             {showCreate && (

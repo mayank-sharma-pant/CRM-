@@ -31,7 +31,7 @@ export default function Layout({ children }) {
     return (
         <div className="min-h-screen bg-page flex text-primary">
             <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-            <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+            <div className={`flex-1 flex flex-col min-w-0 transition-[margin] duration-200 ${sidebarOpen ? 'ml-60' : 'ml-16'}`}>
                 {user?.is_sandbox && (
                     <div className="bg-amber-500 text-amber-950 text-center text-sm font-medium py-1.5 px-4">
                         Sandbox — changes do not affect production.

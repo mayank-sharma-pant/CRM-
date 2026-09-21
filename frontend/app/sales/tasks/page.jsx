@@ -137,7 +137,7 @@ export default function TasksPage() {
     if (loading || !mounted) {
         return (
             <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
-                <div className="text-[13px] text-muted font-bold uppercase tracking-widest animate-pulse">Syncing Task Grid...</div>
+                <div className="text-[13px] text-muted animate-pulse">Loading tasks…</div>
             </div>
         );
     }
@@ -146,19 +146,17 @@ export default function TasksPage() {
         <div className="min-h-[calc(100vh-56px)] bg-page pb-12">
 
             {/* Header: Precise & Integrated */}
-            <div className="bg-surface border-b border-border px-6 py-4">
-                <div className="max-w-[1000px] mx-auto flex items-center justify-between">
-                    <div>
-                        <h1 className="text-xl font-bold text-primary tracking-tight">Task Control Plane</h1>
-                        <p className="text-[12px] text-muted font-medium mt-0.5 opacity-80 uppercase tracking-wider">Execution & Priority Matrix</p>
-                    </div>
-                    <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-bold uppercase tracking-tight transition-all shadow-sm shadow-accent/10"
-                    >
-                        <Plus size={14} strokeWidth={2.5} /> New Task
-                    </button>
+            <div className="page-header">
+                <div>
+                    <h1 className="page-title">Tasks</h1>
+                    <p className="page-subtitle">Due today, overdue, and upcoming</p>
                 </div>
+                <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="btn btn-primary"
+                >
+                    <Plus size={14} strokeWidth={2.25} /> New task
+                </button>
             </div>
 
             {/* Main Content */}
@@ -170,12 +168,9 @@ export default function TasksPage() {
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className={`px-4 py-2 text-[11px] font-bold uppercase tracking-tight transition-all rounded-t-md border-b-2 ${activeTab === tab
-                                ? tab === 'Overdue' ? 'text-error border-error bg-error/5' :
-                                    tab === 'Today' ? 'text-success border-success bg-success/5' :
-                                    tab === 'Completed' ? 'text-slate-500 border-slate-500 bg-slate-500/5 dark:text-slate-400 dark:border-slate-500' :
-                                        'text-accent border-accent bg-accent/5'
-                                : 'text-muted border-transparent hover:text-primary hover:bg-surface-elevated'
+                            className={`px-3 py-2 text-[13px] font-medium transition-colors border-b-2 ${activeTab === tab
+                                ? 'text-primary border-primary'
+                                : 'text-muted border-transparent hover:text-primary'
                                 }`}
                         >
                             {tab}

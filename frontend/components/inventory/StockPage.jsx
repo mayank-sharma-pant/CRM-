@@ -122,43 +122,33 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
     }
 
     return (
-        <div className="mx-auto max-w-[1440px] px-6 space-y-8 pb-12 bg-page min-h-screen">
-            <div className="flex items-center justify-between py-6 border-b border-border bg-gradient-to-r from-surface-elevated/10 to-transparent rounded-b-xl px-4 -mx-4">
+        <div className="bg-page min-h-screen">
+            <div className="page-header">
                 <div>
-                    <h1 className="text-3xl font-extrabold tracking-tight text-primary bg-clip-text text-transparent bg-gradient-to-br from-primary to-primary/60">
-                        Stock Inventory
-                    </h1>
-                    <p className="text-[11px] text-muted font-black uppercase tracking-[0.2em] mt-1 opacity-70 flex items-center gap-2">
-                        <span className="w-8 h-[1px] bg-accent/30" /> Live visibility for {roleLabel}
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-                    <span className="text-[10px] font-bold text-success uppercase tracking-widest">System Online</span>
+                    <h1 className="page-title">Stock</h1>
+                    <p className="page-subtitle">Inventory for {roleLabel.toLowerCase()}</p>
                 </div>
             </div>
 
-            <div className="flex items-center gap-4 bg-surface/40 backdrop-blur-sm p-4 rounded-xl border border-border/60 shadow-sm transition-all hover:shadow-md hover:border-border">
+            <div className="page-body space-y-5">
+            <div className="flex items-center gap-3">
                 <div className="relative flex-1">
-                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted/60" />
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
                     <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search by name / SKU / category..."
-                        className="w-full pl-11 pr-4 py-2.5 bg-white border border-border/40 rounded-lg text-sm text-black placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                        placeholder="Search by name, SKU, or category"
+                        className="input pl-9"
                     />
                 </div>
-                <div className="px-4 py-2 bg-surface-elevated/40 rounded-lg border border-border/30 text-[10px] font-black uppercase tracking-widest text-muted whitespace-nowrap">
-                    {filtered.length} items total
-                </div>
+                <span className="text-[13px] text-muted tabular-nums whitespace-nowrap">
+                    {filtered.length} items
+                </span>
             </div>
 
             {canManage && (
-                <div className="bg-surface/60 backdrop-blur-md rounded-xl border border-border/80 p-6 shadow-sm transition-all hover:shadow-lg">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Plus size={16} className="text-accent" />
-                        <h2 className="text-sm font-black uppercase tracking-widest text-primary">Add New Inventory</h2>
-                    </div>
+                <div className="panel p-5">
+                    <h2 className="text-[13px] font-semibold text-primary mb-4">Add item</h2>
                     <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 items-end">
                         <div className="space-y-1.5 md:col-span-2">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Item Name</label>
@@ -215,9 +205,9 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
                         </div>
                         <button
                             onClick={handleCreate}
-                            className="w-full py-2.5 bg-accent text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-accent/20 hover:bg-accent/90 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                            className="btn btn-primary w-full"
                         >
-                            <Plus size={14} strokeWidth={3} /> ADD ITEM
+                            <Plus size={14} /> Add
                         </button>
                     </div>
                 </div>
@@ -228,13 +218,13 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
                     <table className="w-full text-left">
                         <thead>
                             <tr className="border-b border-border bg-surface-elevated/40">
-                                <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Item Details</th>
-                                <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">SKU / ID</th>
-                                <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Category</th>
-                                <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Unit Price</th>
-                                <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Available</th>
-                                <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Status</th>
-                                {canManage && <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em] text-right">Actions</th>}
+                                <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Item</th>
+                                <th className="py-2.5 px-4 text-[12px] font-medium text-muted">SKU</th>
+                                <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Category</th>
+                                <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Unit price</th>
+                                <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Available</th>
+                                <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Status</th>
+                                {canManage && <th className="py-2.5 px-4 text-[12px] font-medium text-muted text-right">Actions</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border/30">
@@ -271,12 +261,12 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
                                     </td>
                                     <td className="py-4 px-6">
                                         {item.is_low_stock ? (
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest bg-warning/10 text-warning border-warning/20 shadow-sm shadow-warning/5 animate-pulse">
-                                                <AlertTriangle size={10} /> CRITICAL
+                                            <span className="badge badge-warning">
+                                                <AlertTriangle size={10} /> Low
                                             </span>
                                         ) : (
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest bg-success/10 text-success border-success/20 shadow-sm shadow-success/5">
-                                                <div className="h-1.5 w-1.5 rounded-full bg-success" /> OPTIMAL
+                                            <span className="badge badge-success">
+                                                In stock
                                             </span>
                                         )}
                                     </td>
@@ -313,12 +303,13 @@ export default function StockPage({ canManage = false, roleLabel = 'Team' }) {
                     </table>
                 </div>
                 {filtered.length === 0 && (
-                    <div className="py-24 text-center">
-                        <Package size={48} className="mx-auto text-muted/20 mb-4" />
-                        <h3 className="text-sm font-bold text-muted uppercase tracking-widest">Workspace Empty</h3>
-                        <p className="text-xs text-muted/60 mt-1">No stock items match your current filters.</p>
+                    <div className="py-16 text-center">
+                        <Package size={28} className="mx-auto text-muted mb-3" />
+                        <h3 className="text-sm font-medium text-primary">No stock items</h3>
+                        <p className="text-[13px] text-muted mt-1">Nothing matches this search.</p>
                     </div>
                 )}
+            </div>
             </div>
         </div>
     );

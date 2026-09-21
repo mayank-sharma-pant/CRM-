@@ -50,12 +50,12 @@ test.describe('Local dev stack (external servers)', () => {
       await expect(page.getByText(/unable to load|please retry/i)).toHaveCount(0);
     } else if (path.startsWith('/sales/')) {
       await page.goto('/sales/leads');
-      await expect(page.getByRole('heading', { name: 'Leads Registry' })).toBeVisible({ timeout: 20000 });
+      await expect(page.getByRole('heading', { name: 'Leads' })).toBeVisible({ timeout: 20000 });
       await page.goto('/sales/tasks');
-      await expect(page.getByRole('heading', { name: 'Task Control Plane' })).toBeVisible({ timeout: 20000 });
+      await expect(page.getByRole('heading', { name: 'Tasks' })).toBeVisible({ timeout: 20000 });
     } else if (path.startsWith('/manager/')) {
       await page.goto('/manager/tasks');
-      await expect(page.getByRole('heading', { name: 'Team Tasks' })).toBeVisible({ timeout: 20000 });
+      await expect(page.getByRole('heading', { name: 'Team tasks' })).toBeVisible({ timeout: 20000 });
     } else if (path.startsWith('/purchase/')) {
       await page.goto('/purchase/stock');
       await expect(page.getByText(/unable to load|please retry/i)).toHaveCount(0);

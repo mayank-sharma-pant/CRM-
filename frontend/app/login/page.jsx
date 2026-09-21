@@ -180,25 +180,21 @@ function LoginInner() {
     };
 
     return (
-        <div className="min-h-screen bg-page flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animate-fade-in-up">
-            <div className="max-w-md w-full">
+        <div className="min-h-screen bg-page flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-[400px] w-full">
 
-                {/* Centered Premium Card */}
-                <div className="bg-surface rounded-2xl shadow-xl border border-border p-8 sm:p-10">
+                <div className="bg-surface rounded-xl border border-border p-8 sm:p-9">
 
-                    <div className="mb-8 text-center">
-                        <Link href="/" className="inline-flex mb-6 hover:opacity-80 transition-opacity">
-                            <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-page shadow-lg shadow-accent/20">
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                            </div>
+                    <div className="mb-8">
+                        <Link href="/" className="inline-flex items-center gap-2.5 mb-6 hover:opacity-80 transition-opacity">
+                            <span className="brand-mark">P</span>
+                            <span className="font-display text-[15px] font-semibold tracking-tight text-primary">Perioxia</span>
                         </Link>
-                        <h2 className="text-2xl font-bold text-primary tracking-tight">
-                            {stage === '2fa' ? 'Two-factor verification' : 'Welcome back'}
+                        <h2 className="page-title">
+                            {stage === '2fa' ? 'Two-factor verification' : 'Sign in'}
                         </h2>
-                        <p className="mt-2 text-sm text-secondary">
-                            {stage === '2fa' ? 'Enter the code from your authenticator app' : 'Sign in to access your dashboard'}
+                        <p className="page-subtitle">
+                            {stage === '2fa' ? 'Enter the code from your authenticator app' : 'Use your work email to continue'}
                         </p>
                     </div>
 
@@ -237,7 +233,7 @@ function LoginInner() {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="w-full py-3 px-4 bg-accent hover:opacity-90 text-page font-semibold rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-sm transition-all duration-200"
+                                    className="btn btn-primary w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {loading ? 'Verifying...' : 'Verify'}
                                 </button>
@@ -279,55 +275,7 @@ function LoginInner() {
                         </div>
                     )}
 
-                    <div className="mb-8 space-y-3">
-                            {oauthProviders.google && (
-                                <button
-                                    type="button"
-                                    onClick={() => startOAuth('google')}
-                                    className="w-full py-2.5 px-4 border border-border rounded-lg text-sm font-semibold text-primary bg-surface hover:bg-surface-elevated transition-colors"
-                                >
-                                    Continue with Google
-                                </button>
-                            )}
-                            {oauthProviders.microsoft && (
-                                <button
-                                    type="button"
-                                    onClick={() => startOAuth('microsoft')}
-                                    className="w-full py-2.5 px-4 border border-border rounded-lg text-sm font-semibold text-primary bg-surface hover:bg-surface-elevated transition-colors"
-                                >
-                                    Continue with Microsoft
-                                </button>
-                            )}
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={samlCode}
-                                    onChange={(e) => setSamlCode(e.target.value.toUpperCase())}
-                                    maxLength={8}
-                                    placeholder="Company code"
-                                    aria-label="Company code for SSO"
-                                    className="flex-1 px-3 py-2.5 border border-border rounded-lg text-sm text-primary bg-surface"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={startSaml}
-                                    className="px-3 py-2.5 border border-border rounded-lg text-sm font-semibold text-primary bg-surface hover:bg-surface-elevated whitespace-nowrap"
-                                >
-                                    Company SSO
-                                </button>
-                            </div>
-                            <div className="relative py-1">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-border" />
-                                </div>
-                                <div className="relative flex justify-center text-xs">
-                                    <span className="bg-surface px-2 text-muted">or</span>
-                                </div>
-                            </div>
-                    </div>
-
-                    {/* Method Toggle */}
-                    <div className="flex p-1 bg-surface-elevated rounded-lg mb-8 border border-border">
+                    <div className="flex p-1 bg-surface-elevated rounded-lg mb-6 border border-border">
                         <button
                             onClick={() => { setLoginMethod('password'); setError(''); setOtpSent(false); }}
                             className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${loginMethod === 'password'
@@ -445,7 +393,7 @@ function LoginInner() {
                             <button
                                 type="submit"
                                 disabled={loading || (loginMethod === 'otp' && !otpSent)}
-                                className="w-full py-3 px-4 bg-accent hover:opacity-90 text-page font-semibold rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-sm transition-all duration-200"
+                                className="btn btn-primary w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? 'Processing...' : (loginMethod === 'otp' ? 'Verify & Sign in' : 'Sign in')}
                             </button>
@@ -456,6 +404,53 @@ function LoginInner() {
                         <Link href="/forgot-password" className="text-xs font-medium text-muted hover:text-accent transition-colors">
                             Forgot your password?
                         </Link>
+                    </div>
+
+                    <div className="mt-8 space-y-3">
+                        <div className="relative py-1">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-border" />
+                            </div>
+                            <div className="relative flex justify-center text-xs">
+                                <span className="bg-surface px-2 text-muted">or</span>
+                            </div>
+                        </div>
+                        {oauthProviders.google && (
+                            <button
+                                type="button"
+                                onClick={() => startOAuth('google')}
+                                className="w-full py-2.5 px-4 border border-border rounded-lg text-sm font-medium text-primary bg-surface hover:bg-surface-elevated transition-colors"
+                            >
+                                Continue with Google
+                            </button>
+                        )}
+                        {oauthProviders.microsoft && (
+                            <button
+                                type="button"
+                                onClick={() => startOAuth('microsoft')}
+                                className="w-full py-2.5 px-4 border border-border rounded-lg text-sm font-medium text-primary bg-surface hover:bg-surface-elevated transition-colors"
+                            >
+                                Continue with Microsoft
+                            </button>
+                        )}
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={samlCode}
+                                onChange={(e) => setSamlCode(e.target.value.toUpperCase())}
+                                maxLength={8}
+                                placeholder="Company code"
+                                aria-label="Company code for SSO"
+                                className="flex-1 px-3 py-2.5 border border-border rounded-lg text-sm text-primary bg-surface"
+                            />
+                            <button
+                                type="button"
+                                onClick={startSaml}
+                                className="px-3 py-2.5 border border-border rounded-lg text-sm font-medium text-secondary bg-surface hover:bg-surface-elevated whitespace-nowrap"
+                            >
+                                Company SSO
+                            </button>
+                        </div>
                     </div>
 
                     <div className="mt-6 text-center text-sm">

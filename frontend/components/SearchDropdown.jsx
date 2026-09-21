@@ -12,9 +12,9 @@ const TYPE_ICONS = {
 };
 
 const TYPE_COLORS = {
-    lead: 'bg-blue-500/10 text-blue-600',
-    client: 'bg-emerald-500/10 text-emerald-600',
-    invoice: 'bg-amber-500/10 text-amber-600',
+    lead: 'bg-accent-subtle text-accent',
+    client: 'bg-surface-elevated text-success',
+    invoice: 'bg-surface-elevated text-warning',
 };
 
 export default function SearchDropdown() {

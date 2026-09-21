@@ -75,17 +75,17 @@ export default function SalesOrdersPage() {
             {/* Header */}
             <div className="flex items-center justify-between py-4 border-b border-border">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-primary">{t('My Sourced Orders')}</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Track Transactions You Generated</p>
+                    <h1 className="page-title">{t('Orders')}</h1>
+                    <p className="page-subtitle">Orders you generated</p>
                 </div>
                 <div className="flex items-center gap-2.5">
                     <div className="flex flex-col items-end mr-4">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted">Total Value Sourced</span>
-                        <span className="text-[16px] font-black text-emerald-400 leading-none">₹{totalRevenueSourced.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        <span className="text-[12px] text-muted">Total value</span>
+                        <span className="font-mono text-[16px] font-semibold text-primary leading-none tabular-nums">₹{totalRevenueSourced.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                     <button
                         onClick={() => setShowCreateModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-black uppercase tracking-tight transition-all shadow-sm shadow-accent/10"
+                        className="btn btn-primary"
                     >
                         <Plus size={16} strokeWidth={2.5} />
                         {t('Create Order')}

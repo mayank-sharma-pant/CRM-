@@ -118,7 +118,7 @@ export default function TeamListPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-page">
-                <div className="text-sm font-medium text-muted animate-pulse">Syncing team intelligence nodes...</div>
+                <div className="text-sm text-muted animate-pulse">Loading team…</div>
             </div>
         );
     }
@@ -129,11 +129,8 @@ export default function TeamListPage() {
             <div className="bg-surface border-b border-border px-6 py-6">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-primary tracking-tight flex items-center gap-2">
-                            <Users className="text-accent" size={24} />
-                            Team Command
-                        </h1>
-                        <p className="text-muted text-sm mt-1">Unified operational control and personnel management</p>
+                        <h1 className="page-title">Team</h1>
+                        <p className="page-subtitle">People and workload</p>
                     </div>
 
                     {/* Tab Switcher */}

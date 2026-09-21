@@ -78,8 +78,8 @@ export default function PurchaseDashboard() {
             {/* Header: Precise & Integrated */}
             <div className="flex items-center justify-between py-4 border-b border-border">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-primary">Purchase Cockpit</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Inventory & Procurement Matrix</p>
+                    <h1 className="page-title">Purchase</h1>
+                    <p className="page-subtitle">Approvals, stock, and invoices</p>
                 </div>
                 <div className="flex items-center gap-2.5">
                     <button className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-md text-secondary text-[12px] font-bold uppercase tracking-tight hover:bg-surface-elevated shadow-sm transition-all">

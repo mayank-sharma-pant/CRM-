@@ -69,24 +69,22 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div className="mx-auto max-w-[1360px] space-y-4 pb-8 font-sans text-slate-900 dark:text-slate-100">
+        <div className="mx-auto max-w-[1360px] space-y-4 pb-8">
 
-            {/* Header */}
             <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Dashboard</h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">System administration overview</p>
+                <h1 className="page-title">Admin</h1>
+                <p className="page-subtitle">Users, teams, and approvals</p>
             </div>
 
-            {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 {data.stats.map((stat) => (
                     <div
                         key={stat.id}
                         onClick={() => router.push(stat.route)}
-                        className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
+                        className="bg-surface rounded-md border border-border p-3 cursor-pointer hover:border-border-strong transition-colors"
                     >
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">{stat.label}</div>
-                        <div className="text-2xl font-bold text-slate-900 dark:text-white">{stat.value}</div>
+                        <div className="text-[12px] font-medium text-muted mb-1">{stat.label}</div>
+                        <div className="font-mono text-[22px] font-semibold text-primary tabular-nums">{stat.value}</div>
                     </div>
                 ))}
             </div>

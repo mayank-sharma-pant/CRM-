@@ -120,11 +120,11 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
         return (
             <div className="mx-auto max-w-[1440px] px-6 py-6 bg-page min-h-screen flex items-center justify-center">
                 <div className="flex flex-col items-center gap-3 text-center">
-                    <p className="text-sm font-bold text-error uppercase tracking-widest">{typeof error === 'string' ? error : 'Failed to load'}</p>
+                    <p className="text-sm text-error">{typeof error === 'string' ? error : 'Failed to load'}</p>
                     <button
                         type="button"
                         onClick={() => fetchItems(true)}
-                        className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-bold hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent/40"
+                        className="btn btn-primary"
                     >
                         Retry
                     </button>
@@ -136,44 +136,38 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
     const isEmptyCatalog = items.length === 0;
 
     return (
-        <div className="mx-auto max-w-[1440px] px-6 space-y-8 pb-12 bg-page min-h-screen">
-            <div className="flex items-center justify-between py-6 border-b border-border bg-gradient-to-r from-surface-elevated/10 to-transparent rounded-b-xl px-4 -mx-4">
+        <div className="bg-page min-h-screen">
+            <div className="page-header">
                 <div>
-                    <h1 className="text-3xl font-extrabold tracking-tight text-primary bg-clip-text text-transparent bg-gradient-to-br from-primary to-primary/60">
-                        Products
-                    </h1>
-                    <p className="text-[11px] text-muted font-black uppercase tracking-[0.2em] mt-1 opacity-70 flex items-center gap-2">
-                        <span className="w-8 h-[1px] bg-accent/30" /> Price book for {roleLabel}
-                    </p>
+                    <h1 className="page-title">Products</h1>
+                    <p className="page-subtitle">Price book for {roleLabel.toLowerCase()}</p>
                 </div>
             </div>
 
-            <div className="flex items-center gap-4 bg-surface/40 backdrop-blur-sm p-4 rounded-xl border border-border/60 shadow-sm">
+            <div className="page-body space-y-5">
+            <div className="flex items-center gap-3">
                 <div className="relative flex-1">
-                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted/60" aria-hidden="true" />
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
                     <label htmlFor="products-search" className="sr-only">Search products</label>
                     <input
                         id="products-search"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search by name / SKU / HSN..."
-                        className="w-full pl-11 pr-4 py-2.5 bg-white border border-border/40 rounded-lg text-sm text-black placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                        placeholder="Search by name, SKU, or HSN"
+                        className="input pl-9"
                     />
                 </div>
-                <div className="px-4 py-2 bg-surface-elevated/40 rounded-lg border border-border/30 text-[10px] font-black uppercase tracking-widest text-muted whitespace-nowrap">
+                <span className="text-[13px] text-muted tabular-nums whitespace-nowrap">
                     {filtered.length} items
-                </div>
+                </span>
             </div>
 
             {canManage && (
-                <div className="bg-surface/60 backdrop-blur-md rounded-xl border border-border/80 p-6 shadow-sm">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Plus size={16} className="text-accent" aria-hidden="true" />
-                        <h2 className="text-sm font-black uppercase tracking-widest text-primary">Add Product</h2>
-                    </div>
+                <div className="panel p-5">
+                    <h2 className="text-[13px] font-semibold text-primary mb-4">Add product</h2>
                     <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 items-end">
                         <div className="space-y-1.5 md:col-span-2">
-                            <label htmlFor="product-name" className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Name</label>
+                            <label htmlFor="product-name" className="text-[12px] font-medium text-muted ml-0.5">Name</label>
                             <input
                                 id="product-name"
                                 className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
@@ -256,9 +250,9 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
                         <button
                             type="button"
                             onClick={handleCreate}
-                            className="w-full py-2.5 bg-accent text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-accent/20 hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all"
+                            className="btn btn-primary w-full"
                         >
-                            <Plus size={14} strokeWidth={3} aria-hidden="true" /> ADD
+                            <Plus size={14} aria-hidden="true" /> Add
                         </button>
                     </div>
                 </div>
@@ -267,9 +261,9 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
             <div className="bg-surface/40 backdrop-blur-sm rounded-xl border border-border/60 overflow-hidden shadow-sm">
                 {isEmptyCatalog ? (
                     <div className="py-24 text-center">
-                        <ShoppingBag size={48} className="mx-auto text-muted/20 mb-4" aria-hidden="true" />
-                        <h3 className="text-sm font-bold text-muted uppercase tracking-widest">No products</h3>
-                        <p className="text-xs text-muted/60 mt-1">
+                        <ShoppingBag size={28} className="mx-auto text-muted mb-3" aria-hidden="true" />
+                        <h3 className="text-sm font-medium text-primary">No products</h3>
+                        <p className="text-[13px] text-muted mt-1">
                             {canManage
                                 ? 'Add your first catalog item above.'
                                 : 'Ask an admin to add catalog items.'}
@@ -281,13 +275,13 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
                             <table className="w-full text-left">
                                 <thead>
                                     <tr className="border-b border-border bg-surface-elevated/40">
-                                        <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Product</th>
-                                        <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">SKU</th>
-                                        <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Unit</th>
-                                        <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Price</th>
-                                        <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Tax %</th>
-                                        <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">HSN</th>
-                                        <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em]">Status</th>
+                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Product</th>
+                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">SKU</th>
+                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Unit</th>
+                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Price</th>
+                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Tax %</th>
+                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">HSN</th>
+                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Status</th>
                                         {canManage && (
                                             <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em] text-right">Actions</th>
                                         )}
@@ -319,13 +313,9 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
                                             <td className="py-4 px-6 text-xs text-muted">{item.hsn || '—'}</td>
                                             <td className="py-4 px-6">
                                                 {item.is_active ? (
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest bg-success/10 text-success border-success/20">
-                                                        Active
-                                                    </span>
+                                                    <span className="badge badge-success">Active</span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest bg-muted/10 text-muted border-border">
-                                                        Inactive
-                                                    </span>
+                                                    <span className="badge badge-neutral">Inactive</span>
                                                 )}
                                             </td>
                                             {canManage && (
@@ -366,6 +356,7 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
                         )}
                     </>
                 )}
+            </div>
             </div>
         </div>
     );

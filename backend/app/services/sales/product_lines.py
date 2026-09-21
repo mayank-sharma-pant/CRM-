@@ -77,11 +77,15 @@ def resolve_sale_lines(
         qty = int(_attr(item, "quantity") or 0)
         price = Decimal(str(unit_price or 0))
         amount = Decimal(qty) * price
+        # Only physical goods deduct inventory. Services/subscriptions never do.
         legacy_stock = _attr(item, "stock_item_id")
-        if product is not None and product.stock_item_id is not None:
+        kind = (getattr(product, "kind", None) or "goods") if product is not None else "goods"
+        if product is not None and kind == "goods" and product.stock_item_id is not None:
             deduct = product.stock_item_id
-        else:
+        elif product is None:
             deduct = legacy_stock
+        else:
+            deduct = None
         resolved.append(ResolvedSaleLine(
             description=description,
             quantity=qty,

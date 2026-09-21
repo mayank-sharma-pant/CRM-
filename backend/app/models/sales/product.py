@@ -4,6 +4,10 @@ from sqlalchemy.orm import relationship
 
 from app.database import Base
 
+# Catalog kinds — only "goods" may link to stock and deduct inventory.
+PRODUCT_KINDS = ("goods", "service", "subscription")
+BILLING_INTERVALS = ("one_time", "monthly", "yearly")
+
 
 class Product(Base):
     __tablename__ = "products"
@@ -15,6 +19,8 @@ class Product(Base):
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     sku = Column(String(100), nullable=True, index=True)
+    kind = Column(String(32), nullable=False, default="goods", index=True)
+    billing_interval = Column(String(20), nullable=True)  # subscription: monthly|yearly|one_time
     unit = Column(String(32), nullable=False, default="unit")
     unit_price = Column(Numeric(12, 2), nullable=False, default=0)
     tax_rate = Column(Numeric(5, 2), nullable=False)

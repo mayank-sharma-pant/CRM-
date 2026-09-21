@@ -124,6 +124,8 @@ MISSING_COLUMNS = [
     ("quotes", "approval_status", "VARCHAR(20)"),
     ("quotes", "approved_by_id", "INTEGER"),
     ("quotes", "approved_at", "TIMESTAMP"),
+    ("products", "kind", "VARCHAR(32) DEFAULT 'goods'"),
+    ("products", "billing_interval", "VARCHAR(20)"),
 ]
 
 

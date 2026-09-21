@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.core.user import User
 from app.models.finance.invoice import InvoiceItem
 from app.models.ops.stock_item import StockItem
-from app.models.sales.product import Product
+from app.models.sales.product import BILLING_INTERVALS, PRODUCT_KINDS, Product
 from app.models.sales.quote import QuoteItem
 from app.utils.dependencies import apply_company_scope, get_current_user, is_platform_admin
 
@@ -16,10 +16,18 @@ router = APIRouter()
 
 PRODUCT_WRITE_ROLES = {"purchase", "md", "admin"}
 
+DEFAULT_UNITS = {
+    "goods": "unit",
+    "service": "job",
+    "subscription": "seat",
+}
+
 
 class ProductCreate(BaseModel):
     name: str
     sku: Optional[str] = None
+    kind: Optional[str] = "goods"
+    billing_interval: Optional[str] = None
     unit: Optional[str] = None
     unit_price: float
     tax_rate: float
@@ -31,11 +39,14 @@ class ProductCreate(BaseModel):
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     sku: Optional[str] = None
+    kind: Optional[str] = None
+    billing_interval: Optional[str] = None
     unit: Optional[str] = None
     unit_price: Optional[float] = None
     tax_rate: Optional[float] = None
     hsn: Optional[str] = None
     stock_item_id: Optional[int] = None
+    clear_stock_item: Optional[bool] = None
     is_active: Optional[bool] = None
 
 
@@ -44,6 +55,30 @@ def _blank_sku(value: Optional[str]) -> Optional[str]:
         return None
     stripped = value.strip()
     return stripped or None
+
+
+def _normalize_kind(kind: Optional[str]) -> str:
+    value = (kind or "goods").strip().lower()
+    if value not in PRODUCT_KINDS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"kind must be one of: {', '.join(PRODUCT_KINDS)}",
+        )
+    return value
+
+
+def _normalize_billing_interval(kind: str, billing_interval: Optional[str]) -> Optional[str]:
+    if kind != "subscription":
+        return None
+    if billing_interval is None or not str(billing_interval).strip():
+        return "monthly"
+    value = str(billing_interval).strip().lower()
+    if value not in BILLING_INTERVALS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"billing_interval must be one of: {', '.join(BILLING_INTERVALS)}",
+        )
+    return value
 
 
 def _require_company(user: User) -> None:
@@ -61,6 +96,8 @@ def _serialize(product: Product, stock_quantity=None) -> dict:
         "id": product.id,
         "name": product.name,
         "sku": product.sku,
+        "kind": getattr(product, "kind", None) or "goods",
+        "billing_interval": getattr(product, "billing_interval", None),
         "unit": product.unit,
         "unit_price": float(product.unit_price or 0),
         "tax_rate": float(product.tax_rate),
@@ -92,6 +129,20 @@ def _validate_stock(db: Session, user: User, stock_item_id: Optional[int]) -> No
     )
     if stock is None:
         raise HTTPException(status_code=400, detail="stock_item_id not found in your company")
+
+
+def _resolve_stock_item_id(
+    db: Session,
+    user: User,
+    *,
+    kind: str,
+    stock_item_id: Optional[int],
+) -> Optional[int]:
+    """Stock links are only valid for goods."""
+    if kind != "goods":
+        return None
+    _validate_stock(db, user, stock_item_id)
+    return stock_item_id
 
 
 def _validate_tax_rate(tax_rate: float) -> None:
@@ -136,6 +187,7 @@ def _stock_quantity_for(db: Session, user: User, product: Product):
 @router.get("")
 def list_products(
     q: Optional[str] = Query(None),
+    kind: Optional[str] = Query(None),
     active_only: bool = Query(True),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
@@ -146,6 +198,8 @@ def list_products(
     query = apply_company_scope(db.query(Product), Product, current_user)
     if active_only:
         query = query.filter(Product.is_active.is_(True))
+    if kind:
+        query = query.filter(Product.kind == _normalize_kind(kind))
     if q:
         pattern = f"%{q}%"
         query = query.filter((Product.name.ilike(pattern)) | (Product.sku.ilike(pattern)))
@@ -188,22 +242,28 @@ def create_product(
     if not name:
         raise HTTPException(status_code=400, detail="Name is required")
 
+    kind = _normalize_kind(body.kind)
+    billing_interval = _normalize_billing_interval(kind, body.billing_interval)
     _validate_unit_price(body.unit_price)
     _validate_tax_rate(body.tax_rate)
     sku = _blank_sku(body.sku)
     _assert_sku_unique(db, current_user, sku)
-    _validate_stock(db, current_user, body.stock_item_id)
+    stock_item_id = _resolve_stock_item_id(
+        db, current_user, kind=kind, stock_item_id=body.stock_item_id
+    )
 
-    unit = (body.unit or "unit").strip() or "unit"
+    unit = (body.unit or DEFAULT_UNITS.get(kind, "unit")).strip() or DEFAULT_UNITS.get(kind, "unit")
     product = Product(
         company_id=current_user.company_id,
         name=name,
         sku=sku,
+        kind=kind,
+        billing_interval=billing_interval,
         unit=unit,
         unit_price=round(body.unit_price, 2),
         tax_rate=round(body.tax_rate, 2),
         hsn=(body.hsn or "").strip() or None,
-        stock_item_id=body.stock_item_id,
+        stock_item_id=stock_item_id,
         is_active=True if body.is_active is None else bool(body.is_active),
         created_by_id=current_user.id,
         updated_by_id=current_user.id,
@@ -236,6 +296,17 @@ def update_product(
         _assert_sku_unique(db, current_user, sku, exclude_id=product.id)
         product.sku = sku
 
+    kind = getattr(product, "kind", None) or "goods"
+    if body.kind is not None:
+        kind = _normalize_kind(body.kind)
+        product.kind = kind
+
+    if body.billing_interval is not None or body.kind is not None:
+        product.billing_interval = _normalize_billing_interval(
+            kind,
+            body.billing_interval if body.billing_interval is not None else product.billing_interval,
+        )
+
     if body.unit is not None:
         unit = body.unit.strip()
         if not unit:
@@ -253,9 +324,18 @@ def update_product(
     if body.hsn is not None:
         product.hsn = body.hsn.strip() or None
 
-    if body.stock_item_id is not None:
-        _validate_stock(db, current_user, body.stock_item_id)
-        product.stock_item_id = body.stock_item_id
+    if body.clear_stock_item:
+        product.stock_item_id = None
+    elif body.stock_item_id is not None:
+        product.stock_item_id = _resolve_stock_item_id(
+            db, current_user, kind=kind, stock_item_id=body.stock_item_id
+        )
+
+    # Non-goods never keep a stock link
+    if kind != "goods":
+        product.stock_item_id = None
+        if kind != "subscription":
+            product.billing_interval = None
 
     if body.is_active is not None:
         product.is_active = bool(body.is_active)

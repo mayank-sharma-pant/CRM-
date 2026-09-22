@@ -41,6 +41,17 @@ class Quote(Base):
     share_token_hash = Column(String(64), nullable=True, unique=True, index=True)
     share_created_at = Column(DateTime, nullable=True)
 
+    plan_id = Column(Integer, ForeignKey("quote_plans.id"), nullable=True, index=True)
+    plan_name = Column(String(200), nullable=True)
+    project = Column(String(255), nullable=True)
+    website = Column(String(500), nullable=True)
+    validity_days = Column(Integer, nullable=True)
+    currency = Column(String(10), nullable=True, default="INR")
+    billing_interval = Column(String(20), nullable=True)
+    executive_summary = Column(Text, nullable=True)
+    scope_text = Column(Text, nullable=True)
+    fee_inclusive = Column(Integer, nullable=True, default=1)
+
     items = relationship("QuoteItem", back_populates="quote", cascade="all, delete-orphan")
 
 

@@ -28,6 +28,17 @@ export default function AdminSettingsPage() {
     const [companyName, setCompanyName] = useState('');
     const [companyAddress, setCompanyAddress] = useState('');
     const [companyGST, setCompanyGST] = useState('');
+    const [pan, setPan] = useState('');
+    const [cin, setCin] = useState('');
+    const [stateName, setStateName] = useState('');
+    const [stateCode, setStateCode] = useState('');
+    const [contactPhone, setContactPhone] = useState('');
+    const [contactEmail, setContactEmail] = useState('');
+    const [bankAccountName, setBankAccountName] = useState('');
+    const [bankName, setBankName] = useState('');
+    const [bankAccountNumber, setBankAccountNumber] = useState('');
+    const [bankIfsc, setBankIfsc] = useState('');
+    const [quoteValidityDays, setQuoteValidityDays] = useState('5');
 
     // Pipeline Settings
     const [leadStages, setLeadStages] = useState([]);
@@ -55,6 +66,17 @@ export default function AdminSettingsPage() {
             setCompanyName(data.company_name || '');
             setCompanyAddress(data.address || '');
             setCompanyGST(data.gst_number || '');
+            setPan(data.pan || '');
+            setCin(data.cin || '');
+            setStateName(data.state || '');
+            setStateCode(data.state_code || '');
+            setContactPhone(data.contact_phone || '');
+            setContactEmail(data.contact_email || '');
+            setBankAccountName(data.bank_account_name || '');
+            setBankName(data.bank_name || '');
+            setBankAccountNumber(data.bank_account_number || '');
+            setBankIfsc(data.bank_ifsc || '');
+            setQuoteValidityDays(String(data.quote_validity_days ?? 5));
             setInvoicePrefix(data.invoice_prefix || '');
             setTaxRate(String(data.tax_rate || ''));
 
@@ -103,6 +125,18 @@ export default function AdminSettingsPage() {
             await api.put('/admin/settings', {
                 company_name: companyName,
                 address: companyAddress,
+                gst_number: companyGST,
+                pan,
+                cin,
+                state: stateName,
+                state_code: stateCode,
+                contact_phone: contactPhone,
+                contact_email: contactEmail,
+                bank_account_name: bankAccountName,
+                bank_name: bankName,
+                bank_account_number: bankAccountNumber,
+                bank_ifsc: bankIfsc,
+                quote_validity_days: parseInt(quoteValidityDays, 10) || 5,
                 invoice_prefix: invoicePrefix,
                 tax_rate: parseFloat(taxRate) || 0,
                 task_reminders_enabled: remindersEnabled,
@@ -215,6 +249,116 @@ export default function AdminSettingsPage() {
                                 onChange={(e) => setCompanyGST(e.target.value)}
                                 className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
                             />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">PAN</label>
+                                <input
+                                    type="text"
+                                    value={pan}
+                                    onChange={(e) => setPan(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">CIN</label>
+                                <input
+                                    type="text"
+                                    value={cin}
+                                    onChange={(e) => setCin(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">State</label>
+                                <input
+                                    type="text"
+                                    value={stateName}
+                                    onChange={(e) => setStateName(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">State code</label>
+                                <input
+                                    type="text"
+                                    value={stateCode}
+                                    onChange={(e) => setStateCode(e.target.value)}
+                                    maxLength={2}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Contact phone</label>
+                                <input
+                                    type="text"
+                                    value={contactPhone}
+                                    onChange={(e) => setContactPhone(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Contact email</label>
+                                <input
+                                    type="email"
+                                    value={contactEmail}
+                                    onChange={(e) => setContactEmail(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+                            <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Bank details (for quotations)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="md:col-span-2">
+                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">A/c holder name</label>
+                                    <input
+                                        type="text"
+                                        value={bankAccountName}
+                                        onChange={(e) => setBankAccountName(e.target.value)}
+                                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Bank name</label>
+                                    <input
+                                        type="text"
+                                        value={bankName}
+                                        onChange={(e) => setBankName(e.target.value)}
+                                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">A/c number</label>
+                                    <input
+                                        type="text"
+                                        value={bankAccountNumber}
+                                        onChange={(e) => setBankAccountNumber(e.target.value)}
+                                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">IFSC</label>
+                                    <input
+                                        type="text"
+                                        value={bankIfsc}
+                                        onChange={(e) => setBankIfsc(e.target.value)}
+                                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Default quote validity (days)</label>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={quoteValidityDays}
+                                        onChange={(e) => setQuoteValidityDays(e.target.value)}
+                                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div>

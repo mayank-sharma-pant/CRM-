@@ -13,6 +13,17 @@ class CompanySettings(Base):
     address = Column(Text, nullable=True)
     gst_number = Column(String(50), nullable=True)
     logo_url = Column(String(500), nullable=True)
+    pan = Column(String(20), nullable=True)
+    cin = Column(String(30), nullable=True)
+    state = Column(String(100), nullable=True)
+    state_code = Column(String(2), nullable=True)
+    contact_phone = Column(String(50), nullable=True)
+    contact_email = Column(String(255), nullable=True)
+    bank_account_name = Column(String(255), nullable=True)
+    bank_name = Column(String(255), nullable=True)
+    bank_account_number = Column(String(50), nullable=True)
+    bank_ifsc = Column(String(20), nullable=True)
+    quote_validity_days = Column(Integer, default=5)
     
     # Invoice settings
     invoice_prefix = Column(String(20), default="INV")

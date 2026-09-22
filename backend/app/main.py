@@ -19,6 +19,7 @@ from app.routers.sales.calls import router as calls_router
 from app.routers.sales.reports import router as reports_router
 from app.routers.sales.dashboards import router as dashboards_router
 from app.routers.sales.quotes import router as quotes_router
+from app.routers.sales.quote_plans import router as quote_plans_router
 from app.routers.sales.sales_orders import router as sales_orders_router
 from app.routers.sales.products import router as products_router
 from app.routers.sales.price_books import router as price_books_router
@@ -166,6 +167,7 @@ app.include_router(calls_router, prefix="/api/calls", tags=["Calls"])
 app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
 app.include_router(dashboards_router, prefix="/api/dashboards", tags=["Dashboards"])
 app.include_router(quotes_router, prefix="/api/quotes", tags=["Quotes"])
+app.include_router(quote_plans_router, prefix="/api/quote-plans", tags=["Quote Plans"])
 app.include_router(sales_orders_router, prefix="/api/sales-orders", tags=["Sales Orders"])
 app.include_router(products_router, prefix="/api/products", tags=["Products"])
 app.include_router(price_books_router, prefix="/api/price-books", tags=["Price Books"])

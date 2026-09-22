@@ -207,6 +207,14 @@ export default function ClientDetailPage() {
                                 <Receipt size={14} /> Create Order
                             </button>
                         )}
+                        {pathname?.startsWith('/sales') && (
+                            <Link
+                                href={`/sales/quotes/new?client_id=${client.id}`}
+                                className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm"
+                            >
+                                <FileText size={14} /> Quotation
+                            </Link>
+                        )}
                         {/* PERMISSION CHECK: Create Task */}
                         {client.permissions?.canCreateTask && (
                             <button onClick={handleCreateTask} className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">

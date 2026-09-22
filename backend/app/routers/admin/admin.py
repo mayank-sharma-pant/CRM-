@@ -914,6 +914,17 @@ def get_settings(
         "lost_reasons": lost_reasons,
         "task_reminders_enabled": bool(settings.task_reminders_enabled),
         "followup_alerts_enabled": bool(settings.followup_alerts_enabled),
+        "pan": settings.pan,
+        "cin": settings.cin,
+        "state": settings.state,
+        "state_code": settings.state_code,
+        "contact_phone": settings.contact_phone,
+        "contact_email": settings.contact_email,
+        "bank_account_name": settings.bank_account_name,
+        "bank_name": settings.bank_name,
+        "bank_account_number": settings.bank_account_number,
+        "bank_ifsc": settings.bank_ifsc,
+        "quote_validity_days": settings.quote_validity_days if settings.quote_validity_days is not None else 5,
     }
 
 
@@ -964,6 +975,30 @@ def update_settings(
         settings.task_reminders_enabled = 1 if body.task_reminders_enabled else 0
     if body.followup_alerts_enabled is not None:
         settings.followup_alerts_enabled = 1 if body.followup_alerts_enabled else 0
+    if body.pan is not None:
+        settings.pan = body.pan.strip() or None
+    if body.cin is not None:
+        settings.cin = body.cin.strip() or None
+    if body.state is not None:
+        settings.state = body.state.strip() or None
+    if body.state_code is not None:
+        settings.state_code = (body.state_code.strip() or None)
+    if body.contact_phone is not None:
+        settings.contact_phone = body.contact_phone.strip() or None
+    if body.contact_email is not None:
+        settings.contact_email = body.contact_email.strip() or None
+    if body.bank_account_name is not None:
+        settings.bank_account_name = body.bank_account_name.strip() or None
+    if body.bank_name is not None:
+        settings.bank_name = body.bank_name.strip() or None
+    if body.bank_account_number is not None:
+        settings.bank_account_number = body.bank_account_number.strip() or None
+    if body.bank_ifsc is not None:
+        settings.bank_ifsc = body.bank_ifsc.strip() or None
+    if body.quote_validity_days is not None:
+        if body.quote_validity_days < 1:
+            raise HTTPException(status_code=400, detail="quote_validity_days must be >= 1")
+        settings.quote_validity_days = body.quote_validity_days
     
     after_state = {
         "company_name": settings.company_name,

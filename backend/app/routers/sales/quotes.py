@@ -1,5 +1,5 @@
 import uuid
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -14,12 +14,14 @@ from app.models.finance.invoice import Invoice
 from app.models.sales.client import Client
 from app.models.sales.deal import Deal
 from app.models.sales.quote import Quote, QuoteItem
+from app.models.sales.quote_plan import QuotePlan
 from app.services.finance.gst import compute_gst
 from app.services.portal.share_links import apply_share, revoke_share
 from app.services.sales.price_books import validate_price_book_id
 from app.services.sales.product_lines import resolve_sale_lines
 from app.services.sales.quote_lifecycle import accept_quote as accept_quote_record
 from app.services.sales.quote_lifecycle import reject_quote as reject_quote_record
+from app.services.sales.quote_pdf import build_quote_pdf
 from app.services.sales.approvals import (
     ApprovalRequired,
     approve_quote,
@@ -48,11 +50,33 @@ class QuoteCreate(BaseModel):
     title: Optional[str] = None
     notes: Optional[str] = None
     price_book_id: Optional[int] = None
-    items: List[QuoteItemIn]
+    items: Optional[List[QuoteItemIn]] = None
+    plan_id: Optional[int] = None
+    plan_name: Optional[str] = None
+    project: Optional[str] = None
+    website: Optional[str] = None
+    validity_days: Optional[int] = None
+    currency: Optional[str] = "INR"
+    billing_interval: Optional[str] = None
+    executive_summary: Optional[str] = None
+    scope_text: Optional[str] = None
+    fee: Optional[Decimal] = None
+    fee_inclusive: Optional[bool] = True
 
 
 def _money(value) -> str:
     return str(Decimal(value or 0).quantize(Decimal("0.01")))
+
+
+def _quantize(value) -> Decimal:
+    return Decimal(str(value or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _exclusive_from_inclusive(total_inclusive: Decimal, rate_percent) -> Decimal:
+    rate = Decimal(str(rate_percent or 0))
+    if rate <= 0:
+        return _quantize(total_inclusive)
+    return _quantize(Decimal(str(total_inclusive)) / (Decimal("1") + rate / Decimal("100")))
 
 
 def _serialize(quote: Quote, payment_url=None) -> dict:
@@ -80,6 +104,17 @@ def _serialize(quote: Quote, payment_url=None) -> dict:
         "payment_url": payment_url,
         "share_active": bool(quote.share_token_hash),
         "share_created_at": quote.share_created_at.isoformat() if quote.share_created_at else None,
+        "plan_id": quote.plan_id,
+        "plan_name": quote.plan_name,
+        "project": quote.project,
+        "website": quote.website,
+        "validity_days": quote.validity_days,
+        "currency": quote.currency,
+        "billing_interval": quote.billing_interval,
+        "executive_summary": quote.executive_summary,
+        "scope_text": quote.scope_text,
+        "fee_inclusive": bool(quote.fee_inclusive) if quote.fee_inclusive is not None else True,
+        "created_at": quote.created_at.isoformat() if quote.created_at else None,
         "items": [
             {
                 "description": it.description,
@@ -115,8 +150,6 @@ def _get_quote(db: Session, current_user: User, quote_id: int) -> Quote:
 def create_quote(payload: QuoteCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
-    if not payload.items:
-        raise HTTPException(status_code=400, detail="At least one line item is required")
 
     client = apply_company_scope(db.query(Client), Client, current_user).filter(Client.id == payload.client_id).first()
     if client is None:
@@ -127,14 +160,6 @@ def create_quote(payload: QuoteCreate, db: Session = Depends(get_db), current_us
         if deal is None:
             raise HTTPException(status_code=400, detail="deal_id not found in your company")
 
-    for item in payload.items:
-        if item.quantity <= 0:
-            raise HTTPException(status_code=400, detail="quantity must be > 0")
-        if item.unit_price is not None and item.unit_price < 0:
-            raise HTTPException(status_code=400, detail="unit_price must be >= 0")
-        if item.product_id is None and item.unit_price is None:
-            raise HTTPException(status_code=400, detail="unit_price is required when product_id is not set")
-
     settings = (
         db.query(CompanySettings)
         .filter(CompanySettings.company_id == current_user.company_id)
@@ -144,24 +169,83 @@ def create_quote(payload: QuoteCreate, db: Session = Depends(get_db), current_us
     if settings:
         company_tax_rate = getattr(settings, "tax_rate", 18.0) or 18.0
 
-    try:
-        validate_price_book_id(db, current_user.company_id, payload.price_book_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-    try:
-        lines = resolve_sale_lines(
-            db,
-            company_id=current_user.company_id,
-            items=payload.items,
-            company_tax_rate=company_tax_rate,
-            price_book_id=payload.price_book_id,
+    plan = None
+    if payload.plan_id is not None:
+        plan = (
+            apply_company_scope(db.query(QuotePlan), QuotePlan, current_user)
+            .filter(QuotePlan.id == payload.plan_id)
+            .first()
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        if plan is None:
+            raise HTTPException(status_code=400, detail="plan_id not found in your company")
 
-    subtotal = sum((line.line_amount for line in lines), Decimal("0"))
-    header_tax = sum(line.tax for line in lines)
+    plan_driven = plan is not None or payload.fee is not None or payload.plan_name
+    items = list(payload.items or [])
+    plan_lines = None
+
+    if plan_driven and not items:
+        fee_input = payload.fee if payload.fee is not None else (plan.default_fee if plan else None)
+        if fee_input is None:
+            raise HTTPException(status_code=400, detail="fee is required when creating from a plan")
+        if fee_input < 0:
+            raise HTTPException(status_code=400, detail="fee must be >= 0")
+        fee_inclusive = (
+            bool(payload.fee_inclusive)
+            if payload.fee_inclusive is not None
+            else (bool(plan.fee_inclusive) if plan else True)
+        )
+        fee_amount = _quantize(fee_input)
+        if fee_inclusive:
+            exclusive = _exclusive_from_inclusive(fee_amount, company_tax_rate)
+            tax_amt = _quantize(fee_amount - exclusive)
+        else:
+            exclusive = fee_amount
+            tax_amt = _quantize(Decimal(str(exclusive)) * Decimal(str(company_tax_rate)) / Decimal("100"))
+        plan_name_line = (payload.plan_name or (plan.name if plan else None) or payload.title or "Plan").strip()
+        from types import SimpleNamespace
+        plan_lines = [SimpleNamespace(
+            description=plan_name_line,
+            quantity=1,
+            unit_price=exclusive,
+            line_amount=exclusive,
+            product_id=None,
+            hsn=None,
+            tax_rate=Decimal(str(company_tax_rate)),
+            tax=tax_amt,
+            list_unit_price=exclusive,
+        )]
+    elif not items:
+        raise HTTPException(status_code=400, detail="At least one line item is required")
+
+    if plan_lines is None:
+        for item in items:
+            if item.quantity <= 0:
+                raise HTTPException(status_code=400, detail="quantity must be > 0")
+            if item.unit_price is not None and item.unit_price < 0:
+                raise HTTPException(status_code=400, detail="unit_price must be >= 0")
+            if item.product_id is None and item.unit_price is None:
+                raise HTTPException(status_code=400, detail="unit_price is required when product_id is not set")
+
+        try:
+            validate_price_book_id(db, current_user.company_id, payload.price_book_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        try:
+            lines = resolve_sale_lines(
+                db,
+                company_id=current_user.company_id,
+                items=items,
+                company_tax_rate=company_tax_rate,
+                price_book_id=payload.price_book_id,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+    else:
+        lines = plan_lines
+
+    subtotal = sum((Decimal(str(line.line_amount)) for line in lines), Decimal("0"))
+    header_tax = sum((Decimal(str(line.tax)) for line in lines), Decimal("0"))
     try:
         gst = compute_gst(
             subtotal=subtotal,
@@ -173,10 +257,31 @@ def create_quote(payload: QuoteCreate, db: Session = Depends(get_db), current_us
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
+    plan_name = (payload.plan_name or (plan.name if plan else None) or payload.title or None)
+    billing_interval = (
+        payload.billing_interval
+        or (plan.billing_interval if plan else None)
+        or "monthly"
+    )
+    if billing_interval not in ("monthly", "one_time"):
+        raise HTTPException(status_code=400, detail="billing_interval must be monthly or one_time")
+    fee_inclusive_flag = (
+        bool(payload.fee_inclusive)
+        if payload.fee_inclusive is not None
+        else (bool(plan.fee_inclusive) if plan else True)
+    )
+    validity = payload.validity_days
+    if validity is None and settings and getattr(settings, "quote_validity_days", None):
+        validity = settings.quote_validity_days
+    if validity is None:
+        validity = 5
+    if validity < 1:
+        raise HTTPException(status_code=400, detail="validity_days must be >= 1")
+
     quote = Quote(
         company_id=current_user.company_id,
         quote_number=f"QUO-{uuid.uuid4().hex[:8].upper()}",
-        title=payload.title,
+        title=payload.title or plan_name,
         deal_id=payload.deal_id,
         client_id=payload.client_id,
         status=QuoteStatus.DRAFT,
@@ -192,6 +297,16 @@ def create_quote(payload: QuoteCreate, db: Session = Depends(get_db), current_us
         buyer_gstin=gst.buyer_gstin,
         place_of_supply=gst.place_of_supply,
         tax_mode=gst.tax_mode,
+        plan_id=plan.id if plan else None,
+        plan_name=plan_name,
+        project=(payload.project or "").strip() or None,
+        website=(payload.website or "").strip() or None,
+        validity_days=validity,
+        currency=(payload.currency or "INR").strip() or "INR",
+        billing_interval=billing_interval,
+        executive_summary=(payload.executive_summary or "").strip() or None,
+        scope_text=(payload.scope_text or (plan.scope_text if plan else None) or "").strip() or None,
+        fee_inclusive=1 if fee_inclusive_flag else 0,
     )
     db.add(quote)
     db.flush()
@@ -223,12 +338,15 @@ def create_quote(payload: QuoteCreate, db: Session = Depends(get_db), current_us
 @router.get("")
 def list_quotes(
     deal_id: Optional[int] = Query(None),
+    client_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     query = apply_company_scope(db.query(Quote), Quote, current_user)
     if deal_id is not None:
         query = query.filter(Quote.deal_id == deal_id)
+    if client_id is not None:
+        query = query.filter(Quote.client_id == client_id)
     quotes = query.order_by(Quote.created_at.desc()).all()
     return {"items": [_serialize(q, payment_url=_payment_url(db, q)) for q in quotes], "total": len(quotes)}
 
@@ -237,6 +355,22 @@ def list_quotes(
 def get_quote(quote_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     quote = _get_quote(db, current_user, quote_id)
     return _serialize(quote, payment_url=_payment_url(db, quote))
+
+
+@router.get("/{quote_id:int}/pdf")
+def download_quote_pdf(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    quote = _get_quote(db, current_user, quote_id)
+    pdf = build_quote_pdf(db, quote)
+    safe_name = (quote.quote_number or f"quote-{quote.id}").replace('"', "")
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.pdf"'},
+    )
 
 
 @router.post("/{quote_id:int}/share")

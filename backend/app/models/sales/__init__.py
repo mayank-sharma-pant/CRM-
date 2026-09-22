@@ -11,6 +11,7 @@ from .pipeline import Pipeline, PipelineStage
 from .deal import Deal
 from .lead_form import LeadForm
 from .quote import Quote, QuoteItem
+from .quote_plan import QuotePlan
 from .sales_order import SalesOrder, SalesOrderItem
 from .import_batch import ImportBatch, ImportBatchItem
 from .product import Product

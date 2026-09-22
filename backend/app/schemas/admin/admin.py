@@ -250,6 +250,17 @@ class CompanySettingsResponse(BaseModel):
     lost_reasons: List[str]
     task_reminders_enabled: bool
     followup_alerts_enabled: bool
+    pan: Optional[str] = None
+    cin: Optional[str] = None
+    state: Optional[str] = None
+    state_code: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_email: Optional[str] = None
+    bank_account_name: Optional[str] = None
+    bank_name: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_ifsc: Optional[str] = None
+    quote_validity_days: Optional[int] = 5
 
 
 class CompanySettingsUpdate(BaseModel):
@@ -263,3 +274,14 @@ class CompanySettingsUpdate(BaseModel):
     lost_reasons: Optional[List[str]] = None
     task_reminders_enabled: Optional[bool] = None
     followup_alerts_enabled: Optional[bool] = None
+    pan: Optional[str] = None
+    cin: Optional[str] = None
+    state: Optional[str] = None
+    state_code: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_email: Optional[str] = None
+    bank_account_name: Optional[str] = None
+    bank_name: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_ifsc: Optional[str] = None
+    quote_validity_days: Optional[int] = None

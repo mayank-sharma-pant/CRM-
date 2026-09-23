@@ -169,8 +169,8 @@ def _check_company_status(user: User, db: Session) -> None:
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
-def signup(request: Request, response: Response, user_data: UserCreate, db: Session = Depends(get_db)):
-    """Register a new user and create a company on an active trial."""
+def signup(request: Request, user_data: UserCreate, db: Session = Depends(get_db)):
+    """Register a company and its admin. The company stays pending until a platform admin approves it."""
     # Rate limit by email to prevent abuse
     auth_limiter.check(request, f"signup:{user_data.email.lower()}", **_RATE_LIMITS["signup"])
     existing_user = db.query(User).filter(sa_func.lower(User.email) == user_data.email.lower()).first()
@@ -188,13 +188,17 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
     try:
         company_name = (user_data.company_name or "").strip() or f"{user_data.full_name}'s Company"
         from app.utils.helpers import generate_company_code
+        from app.services.billing.seed import seed_plans
+        from app.models.billing import Plan, Subscription
         company_code = generate_company_code(db)
+        if db.query(Plan).filter(Plan.name == "Starter").first() is None:
+            seed_plans(db)
 
         trial_ends_at = datetime.now(timezone.utc) + timedelta(days=settings.TRIAL_DAYS)
         new_company = Company(
             name=company_name,
             company_code=company_code,
-            status="trial",
+            status="pending",
             trial_ends_at=trial_ends_at,
         )
         db.add(new_company)
@@ -207,13 +211,12 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
             role=role,
             company_id=new_company.id,
             phone=user_data.phone,
-            status="active",
+            status="pending",
             employee_num=1,  # First user in a new company
         )
 
         db.add(db_user)
 
-        from app.models.billing import Plan, Subscription
         starter = db.query(Plan).filter(Plan.name == "Starter").first()
         if starter:
             db.add(Subscription(
@@ -246,9 +249,9 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
         notify_platform_admins(
             db,
             title=f"New Company: {new_company.name}",
-            message=f"Signup by {db_user.full_name} ({db_user.email}). Status: Trial.",
+            message=f"Signup by {db_user.full_name} ({db_user.email}). Waiting for approval.",
             type="info",
-            link="/platform/companies",
+            link="/platform/requests",
             category="admin",
         )
         db.commit()
@@ -258,12 +261,7 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
         # The platform notification step is part of the signup workflow; fail with a sanitized error.
         raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
 
-    access_token = crm_access_token(db_user)
-    _set_auth_cookie(response, access_token)
-
     return {
-        "access_token": access_token,
-        "token_type": "bearer",
         "user": {
             "id": db_user.id,
             "email": db_user.email,
@@ -271,7 +269,7 @@ def signup(request: Request, response: Response, user_data: UserCreate, db: Sess
             "role": db_user.role,
             "company_id": db_user.company_id
         },
-        "message": "Trial started."
+        "message": "Pending approval."
     }
 
 

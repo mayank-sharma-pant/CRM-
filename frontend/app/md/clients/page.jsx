@@ -54,13 +54,11 @@ export default function MDClientsPage() {
     if (!data) return <div className="p-12 text-center text-error">Failed to load client data.</div>;
 
     return (
-        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
-
-            {/* Header: Client Intelligence Hub */}
-            <div className="flex items-center justify-between py-4 border-b border-border">
+        <div className="min-h-[calc(100vh-56px)] bg-page pb-8">
+            <div className="page-header">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-primary">Client Matrix</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Portfolio Health & Growth Analytics</p>
+                    <h1 className="page-title">Clients</h1>
+                    <p className="page-subtitle">Portfolio health and growth</p>
                 </div>
                 <div className="flex items-center gap-2.5">
                     <button className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-md text-secondary text-[12px] font-bold uppercase tracking-tight hover:bg-surface-elevated shadow-sm transition-all">
@@ -73,6 +71,8 @@ export default function MDClientsPage() {
                     </button>
                 </div>
             </div>
+
+            <div className="page-body space-y-5">
 
             {/* SECTION 1: KPI STRIP */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -181,6 +181,7 @@ export default function MDClientsPage() {
             </div>
 
         </div>
+            </div>
     );
 }
 

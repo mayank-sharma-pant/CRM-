@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Activity, Filter } from 'lucide-react';
+import { Activity } from 'lucide-react';
 
 const PLATFORM_API = '/api/platform';
 
@@ -18,7 +18,7 @@ export default function SystemLogsPage() {
         try {
             const token = localStorage.getItem('platform_token');
             const response = await fetch(`${PLATFORM_API}/logs?days=${days}&limit=100`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token}` },
             });
 
             if (response.ok) {
@@ -33,24 +33,25 @@ export default function SystemLogsPage() {
     };
 
     const getActionColor = (action) => {
-        if (action.includes('approved')) return 'text-green-700 bg-green-50';
-        if (action.includes('rejected') || action.includes('suspended')) return 'text-red-700 bg-red-50';
-        if (action.includes('created')) return 'text-blue-700 bg-blue-50';
-        return 'text-slate-700 bg-slate-50';
+        if (action.includes('approved')) return 'text-success bg-emerald-50';
+        if (action.includes('rejected') || action.includes('suspended')) return 'text-error bg-red-50';
+        if (action.includes('created')) return 'text-accent bg-accent-subtle';
+        return 'text-secondary bg-surface-elevated';
     };
 
     return (
-        <div className="p-8">
-            {/* Header */}
-            <div className="mb-8 flex items-center justify-between">
+        <div className="p-5 sm:p-6 lg:p-8 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">System Logs</h1>
-                    <p className="text-slate-600 mt-1">Platform admin activity audit trail</p>
+                    <h1 className="font-display text-[1.75rem] font-semibold text-primary tracking-tight">
+                        System logs
+                    </h1>
+                    <p className="text-[15px] text-muted mt-1">Platform admin activity audit trail</p>
                 </div>
                 <select
                     value={days}
                     onChange={(e) => setDays(Number(e.target.value))}
-                    className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="px-3 py-2 bg-surface border border-border rounded-lg text-[14px] text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 self-start"
                 >
                     <option value={7}>Last 7 days</option>
                     <option value={14}>Last 14 days</option>
@@ -59,50 +60,56 @@ export default function SystemLogsPage() {
                 </select>
             </div>
 
-            {/* Logs Table */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-surface rounded-xl border border-border overflow-hidden">
                 {loading ? (
-                    <div className="flex items-center justify-center py-12">
-                        <div className="w-8 h-8 border-4 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+                    <div className="flex items-center justify-center py-16">
+                        <div className="w-7 h-7 border-2 border-border border-t-accent rounded-full animate-spin" />
                     </div>
                 ) : logs.length === 0 ? (
-                    <div className="text-center py-12">
-                        <Activity className="mx-auto text-slate-300 mb-4" size={48} />
-                        <p className="text-slate-500 font-medium">No logs found</p>
+                    <div className="text-center py-16 px-6">
+                        <div className="w-12 h-12 rounded-full bg-surface-elevated flex items-center justify-center mx-auto mb-3">
+                            <Activity className="text-muted" size={22} strokeWidth={1.5} />
+                        </div>
+                        <p className="text-[14px] font-medium text-primary">No logs found</p>
+                        <p className="text-[14px] text-muted mt-1">Try a wider date range</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full whitespace-nowrap">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Timestamp
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Action
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Performed By
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        IP Address
-                                    </th>
+                            <thead>
+                                <tr className="border-b border-border bg-surface-elevated/60">
+                                    {['Timestamp', 'Action', 'Performed by', 'IP address'].map((h) => (
+                                        <th
+                                            key={h}
+                                            className="px-4 py-2.5 text-left text-xs font-semibold text-muted uppercase tracking-wide"
+                                        >
+                                            {h}
+                                        </th>
+                                    ))}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-border-subtle">
                                 {logs.map((log) => (
-                                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 text-sm text-slate-600">
+                                    <tr key={log.id} className="hover:bg-surface-elevated/50 transition-colors">
+                                        <td className="px-4 py-3 text-[14px] text-secondary">
                                             {new Date(log.timestamp).toLocaleString()}
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${getActionColor(log.action)}`}>
+                                        <td className="px-4 py-3">
+                                            <span
+                                                className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getActionColor(
+                                                    log.action
+                                                )}`}
+                                            >
                                                 {log.action}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-600">{log.performed_by}</td>
-                                        <td className="px-6 py-4 text-slate-600 font-mono text-xs">
-                                            {log.ip_address || <span className="text-slate-400 italic">N/A</span>}
+                                        <td className="px-4 py-3 text-[14px] text-secondary">
+                                            {log.performed_by}
+                                        </td>
+                                        <td className="px-4 py-3 text-[14px] text-secondary font-mono">
+                                            {log.ip_address || (
+                                                <span className="text-muted italic font-sans">N/A</span>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

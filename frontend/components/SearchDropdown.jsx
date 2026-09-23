@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, User, Briefcase, FileText, ArrowRight } from 'lucide-react';
 import api from '../services/api';
+import { useT } from '../contexts/LocaleContext';
 
 const TYPE_ICONS = {
     lead: User,
@@ -25,6 +26,7 @@ export default function SearchDropdown() {
     const inputRef = useRef(null);
     const dropdownRef = useRef(null);
     const router = useRouter();
+    const t = useT();
     const debounceRef = useRef(null);
 
     useEffect(() => {
@@ -76,7 +78,7 @@ export default function SearchDropdown() {
                 <input
                     ref={inputRef}
                     type="text"
-                    placeholder="Search leads, clients, invoices..."
+                    placeholder={t('Search leads, clients, invoices...')}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => results.length > 0 && setOpen(true)}

@@ -7,6 +7,14 @@ import RejectCompanyModal from '../../../../components/platform/RejectCompanyMod
 
 const PLATFORM_API = '/api/platform';
 
+const STATUS_STYLES = {
+    active: 'bg-emerald-50 text-success border-emerald-100',
+    pending: 'bg-amber-50 text-warning border-amber-100',
+    suspended: 'bg-red-50 text-error border-red-100',
+    rejected: 'bg-surface-elevated text-secondary border-border',
+    trial: 'bg-emerald-50 text-success border-emerald-100',
+};
+
 export default function CompanyDetailPage() {
     const params = useParams();
     const router = useRouter();
@@ -25,12 +33,11 @@ export default function CompanyDetailPage() {
         try {
             const token = localStorage.getItem('platform_token');
             const response = await fetch(`${PLATFORM_API}/companies/${params.id}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token}` },
             });
 
             if (response.ok) {
-                const data = await response.json();
-                setCompany(data);
+                setCompany(await response.json());
             }
         } catch (error) {
             console.error('Failed to fetch company:', error);
@@ -109,8 +116,8 @@ export default function CompanyDetailPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen">
-                <div className="w-8 h-8 border-4 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="w-7 h-7 border-2 border-border border-t-accent rounded-full animate-spin" />
             </div>
         );
     }
@@ -118,128 +125,118 @@ export default function CompanyDetailPage() {
     if (!company) {
         return (
             <div className="p-8">
-                <p className="text-slate-600">Company not found</p>
+                <p className="text-secondary">Company not found</p>
             </div>
         );
     }
 
-    const getStatusColor = (status) => {
-        const colors = {
-            active: 'bg-green-50 text-green-700 border-green-200',
-            pending: 'bg-amber-50 text-amber-700 border-amber-200',
-            suspended: 'bg-red-50 text-red-700 border-red-200',
-            rejected: 'bg-slate-100 text-slate-700 border-slate-200'
-        };
-        return colors[status] || colors.active;
-    };
+    const planLabel =
+        company.plan_id === 1 ? 'Starter' : company.plan_id === 2 ? 'Growth' : 'Enterprise';
+
+    const kpis = [
+        { label: 'Users', value: company.statistics?.users || 0, icon: Users, tone: 'text-accent bg-accent-subtle' },
+        { label: 'Leads', value: company.statistics?.leads || 0, icon: TrendingUp, tone: 'text-success bg-emerald-50' },
+        { label: 'Clients', value: company.statistics?.clients || 0, icon: Building2, tone: 'text-info bg-sky-50' },
+        { label: 'Tasks', value: company.statistics?.tasks || 0, icon: FileText, tone: 'text-warning bg-amber-50' },
+    ];
 
     return (
-        <div className="p-8">
+        <div className="p-5 sm:p-6 lg:p-8 space-y-5">
             <RejectCompanyModal
                 open={rejectOpen}
                 title={`Reject "${company?.name || 'company'}"`}
                 onClose={() => setRejectOpen(false)}
                 onConfirm={handleRejectConfirm}
             />
-            {/* Header */}
+
             <button
+                type="button"
                 onClick={() => router.back()}
-                className="flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6 transition-colors"
+                className="inline-flex items-center gap-1.5 text-[14px] text-secondary hover:text-primary transition-colors"
             >
-                <ArrowLeft size={20} />
-                Back to Companies
+                <ArrowLeft size={16} />
+                Back to companies
             </button>
 
-            <div className="mb-8 flex items-start justify-between">
+            <div className="flex items-start justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">{company.name}</h1>
+                    <h1 className="font-display text-[1.75rem] font-semibold text-primary tracking-tight">
+                        {company.name}
+                    </h1>
                 </div>
-                <span className={`inline-flex px-3 py-1.5 border text-sm font-semibold rounded-lg ${getStatusColor(company.status)}`}>
+                <span
+                    className={`inline-flex px-2.5 py-1 border text-[14px] font-semibold rounded-full capitalize ${
+                        STATUS_STYLES[company.status] || STATUS_STYLES.active
+                    }`}
+                >
                     {company.status}
                 </span>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <Users className="text-blue-600" size={24} />
-                        <span className="text-sm font-medium text-slate-600">Users</span>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {kpis.map((kpi) => (
+                    <div key={kpi.label} className="bg-surface rounded-xl border border-border p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[14px] font-medium text-secondary">{kpi.label}</span>
+                            <div className={`p-1.5 rounded-lg ${kpi.tone}`}>
+                                <kpi.icon size={16} strokeWidth={1.75} />
+                            </div>
+                        </div>
+                        <p className="text-2xl font-semibold text-primary tabular-nums">
+                            {kpi.value.toLocaleString()}
+                        </p>
                     </div>
-                    <p className="text-3xl font-bold text-slate-900">{company.statistics?.users || 0}</p>
-                </div>
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <TrendingUp className="text-green-600" size={24} />
-                        <span className="text-sm font-medium text-slate-600">Leads</span>
-                    </div>
-                    <p className="text-3xl font-bold text-slate-900">{company.statistics?.leads || 0}</p>
-                </div>
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <Building2 className="text-purple-600" size={24} />
-                        <span className="text-sm font-medium text-slate-600">Clients</span>
-                    </div>
-                    <p className="text-3xl font-bold text-slate-900">{company.statistics?.clients || 0}</p>
-                </div>
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <FileText className="text-amber-600" size={24} />
-                        <span className="text-sm font-medium text-slate-600">Tasks</span>
-                    </div>
-                    <p className="text-3xl font-bold text-slate-900">{company.statistics?.tasks || 0}</p>
-                </div>
+                ))}
             </div>
 
-            {/* Company Info & Actions */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                    <h2 className="text-lg font-bold text-slate-900 mb-4">Company Information</h2>
-                    <div className="space-y-3">
-                        <div>
-                            <p className="text-sm text-slate-600">Plan</p>
-                            <p className="font-semibold text-slate-900">
-                                {company.plan_id === 1 ? 'Starter' : company.plan_id === 2 ? 'Growth' : 'Enterprise'}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Created</p>
-                            <p className="font-semibold text-slate-900">
-                                {new Date(company.created_at).toLocaleDateString()}
-                            </p>
-                        </div>
-                        {company.approved_at && (
-                            <div>
-                                <p className="text-sm text-slate-600">Approved</p>
-                                <p className="font-semibold text-slate-900">
-                                    {new Date(company.approved_at).toLocaleDateString()}
-                                </p>
-                            </div>
-                        )}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <div className="bg-surface rounded-xl border border-border p-5">
+                    <h2 className="text-[15px] font-semibold text-primary mb-4">Company information</h2>
+                    <div className="space-y-0">
+                        {[
+                            { label: 'Plan', value: planLabel },
+                            { label: 'Created', value: new Date(company.created_at).toLocaleDateString() },
+                            company.approved_at
+                                ? {
+                                      label: 'Approved',
+                                      value: new Date(company.approved_at).toLocaleDateString(),
+                                  }
+                                : null,
+                        ]
+                            .filter(Boolean)
+                            .map((row) => (
+                                <div
+                                    key={row.label}
+                                    className="flex items-center justify-between py-2.5 border-b border-border-subtle last:border-0"
+                                >
+                                    <span className="text-[14px] text-secondary">{row.label}</span>
+                                    <span className="text-[14px] font-semibold text-primary">{row.value}</span>
+                                </div>
+                            ))}
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                    <h2 className="text-lg font-bold text-slate-900 mb-4">Actions</h2>
-                    <div className="space-y-3">
+                <div className="bg-surface rounded-xl border border-border p-5">
+                    <h2 className="text-[15px] font-semibold text-primary mb-4">Actions</h2>
+                    <div className="space-y-2">
                         {company.status === 'pending' && (
                             <>
                                 <button
                                     type="button"
                                     disabled={actionBusy}
                                     onClick={handleApprove}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-success text-white text-[14px] font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                                 >
-                                    <CheckCircle2 size={20} />
+                                    <CheckCircle2 size={16} />
                                     Approve company
                                 </button>
                                 <button
                                     type="button"
                                     disabled={actionBusy}
                                     onClick={() => setRejectOpen(true)}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-red-200 text-red-700 hover:bg-red-50 font-medium rounded-lg transition-colors disabled:opacity-50"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-red-200 text-error text-[14px] font-medium rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
                                 >
-                                    <XCircle size={20} />
+                                    <XCircle size={16} />
                                     Reject
                                 </button>
                             </>
@@ -249,10 +246,10 @@ export default function CompanyDetailPage() {
                                 type="button"
                                 disabled={actionBusy}
                                 onClick={() => handleStatusChange('suspended')}
-                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-error text-white text-[14px] font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                             >
-                                <Ban size={20} />
-                                Suspend Company
+                                <Ban size={16} />
+                                Suspend company
                             </button>
                         )}
                         {company.status === 'suspended' && (
@@ -260,9 +257,9 @@ export default function CompanyDetailPage() {
                                 type="button"
                                 disabled={actionBusy}
                                 onClick={() => handleStatusChange('active')}
-                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-success text-white text-[14px] font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                             >
-                                <CheckCircle2 size={20} />
+                                <CheckCircle2 size={16} />
                                 Set active
                             </button>
                         )}
@@ -272,7 +269,7 @@ export default function CompanyDetailPage() {
                                     type="button"
                                     disabled={actionBusy}
                                     onClick={() => handleStatusChange('pending')}
-                                    className="w-full px-4 py-2.5 border-2 border-slate-300 text-slate-800 hover:bg-slate-50 font-medium rounded-lg transition-colors disabled:opacity-50"
+                                    className="w-full px-4 py-2.5 border border-border text-primary text-[14px] font-medium rounded-lg hover:bg-surface-elevated transition-colors disabled:opacity-50"
                                 >
                                     Reopen as pending
                                 </button>
@@ -280,12 +277,15 @@ export default function CompanyDetailPage() {
                                     type="button"
                                     disabled={actionBusy}
                                     onClick={() => handleStatusChange('active')}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-success text-white text-[14px] font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                                 >
-                                    <CheckCircle2 size={20} />
+                                    <CheckCircle2 size={16} />
                                     Activate anyway
                                 </button>
                             </>
+                        )}
+                        {!['pending', 'active', 'suspended', 'rejected'].includes(company.status) && (
+                            <p className="text-[14px] text-muted">No actions available for this status.</p>
                         )}
                     </div>
                 </div>

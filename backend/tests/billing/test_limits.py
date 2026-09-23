@@ -20,6 +20,13 @@ def _company_on_plan(db, max_users):
     return company
 
 
+def test_missing_plans_are_seeded_instead_of_crashing(db):
+    company = create_company(db, name="No Plan Co", company_code="NPC", status="active")
+    assert db.query(Plan).count() == 0
+    assert_can_add_user(db, company.id)
+    assert db.query(Plan).filter(Plan.name == "Starter").one().max_users == 10
+
+
 def test_seat_usage_counts_users_and_pending_invites(db):
     company = _company_on_plan(db, max_users=5)
     create_active_user(db, email="u1@seat.com", role="admin", company_id=company.id)

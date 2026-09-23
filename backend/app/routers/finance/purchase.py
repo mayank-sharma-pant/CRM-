@@ -348,7 +348,7 @@ def create_invoice(
         raise HTTPException(status_code=403, detail="Platform Admin cannot create invoices")
     if not body.items:
         raise HTTPException(status_code=400, detail="At least one line item is required")
-    if body.tax < 0:
+    if body.tax is not None and body.tax < 0:
         raise HTTPException(status_code=400, detail="tax must be >= 0")
     if body.discount < 0:
         raise HTTPException(status_code=400, detail="discount must be >= 0")

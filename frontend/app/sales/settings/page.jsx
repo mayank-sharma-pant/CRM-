@@ -7,17 +7,13 @@ import {
   Mail,
   Phone,
   Camera,
-  Moon,
-  Sun,
   Calendar
 } from 'lucide-react';
-import { useTheme } from '../../../contexts/ThemeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import Link from 'next/link';
 import NotificationPreferencesPanel from '../../../components/shared/NotificationPreferencesPanel';
 
 export default function SettingsPage() {
-  const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
 
   // Profile data from authenticated user context (read-only display)
@@ -44,8 +40,8 @@ export default function SettingsPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-8 space-y-8">
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300">
-          Profile and security controls on this page are currently read-only. Notification preferences and theme settings are active.
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+          Profile and security controls on this page are currently read-only. Notification preferences are active.
         </div>
 
         {/* --- SECTION 1: PROFILE INFORMATION --- */}
@@ -242,32 +238,9 @@ export default function SettingsPage() {
           </div>
 
           <div className="p-6 divide-y divide-slate-100 dark:divide-slate-700/50">
-
-            {/* Theme Toggle */}
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-start gap-3">
-                <div className="mt-1 p-1.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300">
-                  {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">Interface Theme</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Select your preferred appearance</p>
-                </div>
-              </div>
-              <button
-                onClick={toggleTheme}
-                className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 dark:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`}
-                />
-              </button>
-            </div>
-
-            <div className="pt-4 mt-2">
+            <div className="pt-2">
               <NotificationPreferencesPanel />
             </div>
-
           </div>
         </div>
 

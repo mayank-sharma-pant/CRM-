@@ -17,10 +17,13 @@ from datetime import datetime, timedelta, timezone
 from app.database import SessionLocal
 from app.models.core.user import User
 from app.models.core.company import Company
+from app.models.core.team import Team
+from app.models.core.team_membership import TeamMembership
 from app.utils.security import get_password_hash
 from app.utils.helpers import generate_company_code
 
 PASSWORD = "ManualTest#2026"
+TEAM_NAME = "QA Alpha"
 
 ROLE_USERS = [
     ("admin", "qa-admin@manualtest.local", "QA Admin"),
@@ -30,8 +33,53 @@ ROLE_USERS = [
     ("purchase", "qa-purchase@manualtest.local", "QA Purchase"),
 ]
 
+# Roles that need a primary team for pipeline writes (leads/clients/tasks).
+TEAM_MEMBER_ROLES = ("manager", "sales", "md", "purchase", "admin")
+
 PLATFORM_ADMIN_EMAIL = "qa-platform-admin@manualtest.local"
 PLATFORM_ADMIN_NAME = "QA Platform Admin"
+
+
+def _ensure_qa_team(db, company: Company, users_by_role: dict) -> Team:
+    """Ensure Manual QA Co has a team with manager/sales/etc. memberships."""
+    team = (
+        db.query(Team)
+        .filter(Team.company_id == company.id, Team.name == TEAM_NAME)
+        .first()
+    )
+    if not team:
+        team = Team(company_id=company.id, name=TEAM_NAME)
+        db.add(team)
+        db.flush()
+        print(f"Created team: {team.name} (id={team.id})")
+    else:
+        print(f"Using existing team: {team.name} (id={team.id})")
+
+    manager = users_by_role.get("manager")
+    for role in TEAM_MEMBER_ROLES:
+        user = users_by_role.get(role)
+        if not user:
+            continue
+        membership = (
+            db.query(TeamMembership)
+            .filter(TeamMembership.team_id == team.id, TeamMembership.user_id == user.id)
+            .first()
+        )
+        if not membership:
+            db.add(
+                TeamMembership(
+                    company_id=company.id,
+                    team_id=team.id,
+                    user_id=user.id,
+                )
+            )
+        # Primary team so writes work without X-Team-Id
+        if user.team_id != team.id:
+            user.team_id = team.id
+        if role == "sales" and manager and user.manager_id != manager.id:
+            user.manager_id = manager.id
+
+    return team
 
 
 def main():
@@ -53,11 +101,13 @@ def main():
 
         hashed = get_password_hash(PASSWORD)
         created, skipped = [], []
+        users_by_role = {}
 
         for i, (role, email, full_name) in enumerate(ROLE_USERS, start=1):
             existing = db.query(User).filter(User.email == email).first()
             if existing:
                 skipped.append(email)
+                users_by_role[role] = existing
                 continue
             user = User(
                 email=email,
@@ -70,6 +120,8 @@ def main():
                 employee_num=i,
             )
             db.add(user)
+            db.flush()
+            users_by_role[role] = user
             created.append((role, email))
 
         existing_pa = db.query(User).filter(User.email == PLATFORM_ADMIN_EMAIL).first()
@@ -88,6 +140,8 @@ def main():
         else:
             skipped.append(PLATFORM_ADMIN_EMAIL)
 
+        db.flush()
+        _ensure_qa_team(db, company, users_by_role)
         db.commit()
 
         print(f"\nCreated {len(created)} user(s):")
@@ -96,6 +150,7 @@ def main():
         if skipped:
             print(f"\nSkipped (already existed): {', '.join(skipped)}")
         print(f"\nPassword for all seeded accounts: {PASSWORD}")
+        print(f"Team for pipeline roles: {TEAM_NAME}")
     except Exception as exc:
         db.rollback()
         print(f"ERROR: {exc}")

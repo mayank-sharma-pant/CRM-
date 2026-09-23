@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
+import { useT } from '../../contexts/LocaleContext';
 import {
     X,
     Trash2,
@@ -12,6 +13,7 @@ import {
 const EMPTY_ITEM = { description: '', quantity: 1, unit_price: 0, stock_item_id: null, hsn: '', product_id: null, tax_rate: null };
 
 export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId, clientName, endpoint = '/invoices' }) {
+    const t = useT();
     const [clients, setClients] = useState([]);
     const [selectedClientId, setSelectedClientId] = useState(clientId || '');
     const [items, setItems] = useState([{ ...EMPTY_ITEM }]);
@@ -129,10 +131,13 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
             const item = items[idx];
             if (!item.stock_item_id) continue;
             const stock = stockById[item.stock_item_id];
-            if (!stock) return `Selected stock item on row ${idx + 1} is not available.`;
+            if (!stock) return t('Selected stock item on row {n} is not available.').replace('{n}', String(idx + 1));
             const requested = (Number(item.quantity) || 0) + getReservedQty(item.stock_item_id, idx);
             if (requested > Number(stock.quantity || 0)) {
-                return `Insufficient stock for "${stock.name}". Available: ${stock.quantity}, requested total: ${requested}.`;
+                return t('Insufficient stock for "{name}". Available: {available}, requested total: {requested}.')
+                    .replace('{name}', stock.name)
+                    .replace('{available}', String(stock.quantity))
+                    .replace('{requested}', String(requested));
             }
         }
         return null;
@@ -193,8 +198,8 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
 
     const handleSubmit = async () => {
         const targetClientId = clientId || selectedClientId;
-        if (!targetClientId) { alert('Please select a client'); return; }
-        if (items.some(i => !i.description.trim())) { alert('All items need a description'); return; }
+        if (!targetClientId) { alert(t('Please select a client')); return; }
+        if (items.some(i => !i.description.trim())) { alert(t('All items need a description')); return; }
 
         const stockError = validateStockLimits();
         if (stockError) { alert(stockError); return; }
@@ -217,7 +222,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                 due_days: dueDays,
                 notes: notes || null
             });
-            alert('Order created successfully!');
+            alert(t('Order created successfully!'));
             setItems([{ ...EMPTY_ITEM }]);
             setNotes('');
             setTax(0);
@@ -226,7 +231,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
             onCreated();
         } catch (err) {
             const detail = err.response?.data?.detail;
-            alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Failed to create order');
+            alert(typeof detail === 'object' ? JSON.stringify(detail) : detail || t('Failed to create order'));
         } finally {
             setSubmitting(false);
         }
@@ -242,8 +247,8 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                             <Receipt size={22} />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Create Draft Record</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Initiate a new entry</p>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t('Create Draft Record')}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{t('Initiate a new entry')}</p>
                         </div>
                     </div>
                     <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
@@ -254,13 +259,13 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     {!clientId && (
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Client Selection</label>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t('Client Selection')}</label>
                             <select
                                 value={selectedClientId}
                                 onChange={(e) => setSelectedClientId(e.target.value)}
                                 className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
                             >
-                                <option value="">Select a client...</option>
+                                <option value="">{t('Select a client...')}</option>
                                 {clients.map(c => (
                                     <option key={c.id} value={c.id}>{c.name}</option>
                                 ))}
@@ -270,23 +275,23 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
 
                     {clientId && (
                         <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg px-4 py-3 border border-slate-100 dark:border-slate-700/50">
-                            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Order For</span>
-                            <span className="text-sm font-semibold text-slate-900 dark:text-white">{clientName || 'Selected Client'}</span>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{t('Order For')}</span>
+                            <span className="text-sm font-semibold text-slate-900 dark:text-white">{clientName || t('Selected Client')}</span>
                         </div>
                     )}
 
                     {priceBooks.length > 0 && (
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Price book</label>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t('Price book')}</label>
                             <select
                                 value={priceBookId}
                                 onChange={(e) => setPriceBookId(e.target.value)}
                                 className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
                             >
-                                <option value="">List price only</option>
+                                <option value="">{t('List price only')}</option>
                                 {priceBooks.map((b) => (
                                     <option key={b.id} value={b.id}>
-                                        {b.name}{b.is_default ? ' (default)' : ''}
+                                        {b.name}{b.is_default ? ` ${t('(default)')}` : ''}
                                     </option>
                                 ))}
                             </select>
@@ -295,9 +300,9 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
 
                     <div>
                         <div className="flex items-center justify-between mb-2 ml-1">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Order Items</label>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('Order Items')}</label>
                             <button type="button" onClick={addItem} className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold">
-                                <Plus size={12} /> Add Row
+                                <Plus size={12} /> {t('Add Row')}
                             </button>
                         </div>
 
@@ -305,34 +310,34 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                             {items.map((item, idx) => (
                                 <div key={idx} className="grid grid-cols-12 gap-2 items-start group border border-slate-100 dark:border-slate-800 rounded-lg p-2.5">
                                     <div className="col-span-12 md:col-span-3">
-                                        <label className="sr-only" htmlFor={`order-product-${idx}`}>Product</label>
+                                        <label className="sr-only" htmlFor={`order-product-${idx}`}>{t('Product')}</label>
                                         <select
                                             id={`order-product-${idx}`}
                                             value={item.product_id || ''}
                                             onChange={(e) => updateItem(idx, 'product_id', e.target.value)}
                                             className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
                                         >
-                                            <option value="">No catalog product</option>
+                                            <option value="">{t('No catalog product')}</option>
                                             {products.map(product => (
                                                 <option key={product.id} value={product.id}>
-                                                    {product.name}{product.sku ? ` (${product.sku})` : ''} — {product.tax_rate}%
+                                                    {product.name}{product.sku ? ` (${product.sku})` : ''} · {(product.kind || 'goods')} — {product.tax_rate}%
                                                 </option>
                                             ))}
                                         </select>
                                         <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5">
-                                            Catalog product (fills price / HSN / tax)
+                                            {t('Catalog product (fills price / HSN / tax)')}
                                         </p>
                                     </div>
 
                                     <div className="col-span-12 md:col-span-3">
-                                        <label className="sr-only" htmlFor={`order-stock-${idx}`}>Stock</label>
+                                        <label className="sr-only" htmlFor={`order-stock-${idx}`}>{t('Stock')}</label>
                                         <select
                                             id={`order-stock-${idx}`}
                                             value={item.stock_item_id || ''}
                                             onChange={(e) => updateItem(idx, 'stock_item_id', e.target.value)}
                                             className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
                                         >
-                                            <option value="">Custom item (manual)</option>
+                                            <option value="">{t('Custom item (manual)')}</option>
                                             {inventory.map(stock => (
                                                 <option key={stock.id} value={stock.id}>
                                                     {stock.name} {stock.sku ? `(${stock.sku})` : ''} - {stock.quantity} {stock.unit}
@@ -340,48 +345,48 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                                             ))}
                                         </select>
                                         <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5">
-                                            {inventoryLoading ? 'Loading stock...' : 'Select stock to auto-fill name and price'}
+                                            {inventoryLoading ? t('Loading stock...') : t('Select stock to auto-fill name and price')}
                                         </p>
                                     </div>
 
                                     <div className="col-span-12 md:col-span-2">
-                                        <label className="sr-only" htmlFor={`order-desc-${idx}`}>Description</label>
+                                        <label className="sr-only" htmlFor={`order-desc-${idx}`}>{t('Description')}</label>
                                         <input
                                             id={`order-desc-${idx}`}
                                             type="text"
                                             value={item.description}
                                             onChange={(e) => updateItem(idx, 'description', e.target.value)}
-                                            placeholder="Item detail..."
+                                            placeholder={t('Item detail...')}
                                             className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none"
                                         />
                                         {item.stock_item_id && stockById[item.stock_item_id] && (
                                             <p className="text-[10px] mt-1.5 font-semibold text-slate-500 dark:text-slate-400">
-                                                Available: {stockById[item.stock_item_id].quantity} {stockById[item.stock_item_id].unit}
+                                                {t('Available')}: {stockById[item.stock_item_id].quantity} {stockById[item.stock_item_id].unit}
                                             </p>
                                         )}
                                     </div>
 
                                     <div className="col-span-4 md:col-span-1">
-                                        <label className="sr-only" htmlFor={`order-qty-${idx}`}>Quantity</label>
+                                        <label className="sr-only" htmlFor={`order-qty-${idx}`}>{t('Quantity')}</label>
                                         <input
                                             id={`order-qty-${idx}`}
                                             type="number"
                                             value={item.quantity}
                                             onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
-                                            placeholder="Qty"
+                                            placeholder={t('Qty')}
                                             className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-center"
                                             min={1}
                                         />
                                     </div>
 
                                     <div className="col-span-6 md:col-span-1">
-                                        <label className="sr-only" htmlFor={`order-price-${idx}`}>Price</label>
+                                        <label className="sr-only" htmlFor={`order-price-${idx}`}>{t('Price')}</label>
                                         <input
                                             id={`order-price-${idx}`}
                                             type="number"
                                             value={item.unit_price}
                                             onChange={(e) => updateItem(idx, 'unit_price', e.target.value)}
-                                            placeholder="Price"
+                                            placeholder={t('Price')}
                                             className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-right"
                                             min={0}
                                             step={0.01}
@@ -396,14 +401,14 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                                             value={item.hsn || ''}
                                             onChange={(e) => updateItem(idx, 'hsn', e.target.value)}
                                             placeholder="HSN"
-                                            aria-label="HSN or SAC code"
+                                            aria-label={t('HSN or SAC code')}
                                             className="w-full px-2 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
                                         />
                                     </div>
 
                                     <div className="col-span-2 md:col-span-1 flex justify-end">
                                         {items.length > 1 && (
-                                            <button type="button" onClick={() => removeItem(idx)} className="p-2 text-slate-300 hover:text-red-500 transition-colors" aria-label="Remove row">
+                                            <button type="button" onClick={() => removeItem(idx)} className="p-2 text-slate-300 hover:text-red-500 transition-colors" aria-label={t('Remove row')}>
                                                 <Trash2 size={16} />
                                             </button>
                                         )}
@@ -415,7 +420,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label htmlFor="order-tax" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Tax Offset (₹)</label>
+                            <label htmlFor="order-tax" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t('Tax Offset (₹)')}</label>
                             <input
                                 id="order-tax"
                                 type="number"
@@ -430,11 +435,11 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                                 step={0.01}
                             />
                             {!taxTouched && (
-                                <p className="text-[10px] text-slate-500 mt-1 ml-1">Auto from line rates (edit to override)</p>
+                                <p className="text-[10px] text-slate-500 mt-1 ml-1">{t('Auto from line rates (edit to override)')}</p>
                             )}
                         </div>
                         <div>
-                            <label htmlFor="order-discount" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Discount (₹)</label>
+                            <label htmlFor="order-discount" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t('Discount (₹)')}</label>
                             <input
                                 id="order-discount"
                                 type="number"
@@ -449,32 +454,32 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                     </div>
 
                     <div>
-                        <label htmlFor="order-notes" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Order Memo</label>
+                        <label htmlFor="order-notes" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t('Order Memo')}</label>
                         <textarea
                             id="order-notes"
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                             rows={2}
                             className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none"
-                            placeholder="Specify order details or special requests..."
+                            placeholder={t('Specify order details or special requests...')}
                         />
                     </div>
 
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-2.5">
                         <div className="flex justify-between text-xs text-slate-400 font-medium">
-                            <span>Subtotal</span>
+                            <span>{t('Subtotal')}</span>
                             <span className="text-slate-300 font-mono">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between text-xs text-slate-400 font-medium">
-                            <span>Admin/Tax (+)</span>
+                            <span>{t('Admin/Tax (+)')}</span>
                             <span className="text-emerald-500 font-mono">+₹{displayedTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between text-xs text-slate-400 font-medium">
-                            <span>Incentive/Disc (-)</span>
+                            <span>{t('Incentive/Disc (-)')}</span>
                             <span className="text-red-400 font-mono">-₹{discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between font-bold text-white pt-2.5 border-t border-slate-800">
-                            <span className="text-sm uppercase tracking-wider">Final Order Value</span>
+                            <span className="text-sm uppercase tracking-wider">{t('Final Order Value')}</span>
                             <span className="text-lg font-mono">₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         </div>
                     </div>
@@ -486,7 +491,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                         onClick={onClose}
                         className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm"
                     >
-                        Keep Browsing
+                        {t('Keep Browsing')}
                     </button>
                     <button
                         type="button"
@@ -494,7 +499,7 @@ export default function CreateOrderModal({ isOpen, onClose, onCreated, clientId,
                         disabled={submitting}
                         className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                        {submitting ? 'Submitting...' : 'Save Draft'}
+                        {submitting ? t('Submitting...') : t('Save Draft')}
                     </button>
                 </div>
             </div>

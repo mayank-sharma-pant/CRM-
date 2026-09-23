@@ -121,35 +121,30 @@ export default function FollowUps() {
       variants={VARIANTS.page}
       initial="hidden"
       animate="show"
-      className="min-h-screen bg-page pb-20 font-sans"
+      className="min-h-[calc(100vh-56px)] bg-page pb-8"
     >
-
-      {/* Dense Header */}
-      <motion.div variants={VARIANTS.header} className="border-b border-subtle bg-card sticky top-0 z-10 shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <h1 className="text-lg font-bold text-primary flex items-center gap-2 tracking-tight">
-            <Clock size={18} className="text-indigo-600 dark:text-indigo-400" />
-            Execution Mode
-          </h1>
-
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-            {['all', 'today', 'overdue'].map(f => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1 rounded-md text-xs font-bold capitalize transition-all
-                      ${filter === f
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
+      <motion.div variants={VARIANTS.header} className="page-header">
+        <div>
+          <h1 className="page-title">Follow-ups</h1>
+          <p className="page-subtitle">Due, overdue, and upcoming</p>
+        </div>
+        <div className="flex items-center gap-1 p-1 rounded-lg border border-border bg-surface" role="group" aria-label="Filter follow-ups">
+          {['all', 'today', 'overdue'].map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 text-[12px] font-medium rounded-md capitalize transition-colors ${
+                filter === f ? 'bg-accent/15 text-accent' : 'text-muted hover:text-primary'
+              }`}
+            >
+              {f}
+            </button>
+          ))}
         </div>
       </motion.div>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+      <div className="page-body space-y-4">
         {!hasFollowUps ? (
           <EmptyState />
         ) : (
@@ -299,12 +294,12 @@ function FollowUpCard({ item, type, onStatusChange }) {
           )}
         </div>
 
-        <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
-          <span className="flex items-center gap-1 hover:text-indigo-500 transition-colors cursor-pointer">
+        <div className="flex items-center gap-3 mt-1 text-xs text-muted font-medium">
+          <span className="flex items-center gap-1 hover:text-accent transition-colors cursor-pointer">
             {item.lead_name}
           </span>
           <span>•</span>
-          <span className={`flex items-center gap-1 ${isOverdue ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}`}>
+          <span className={`flex items-center gap-1 ${isOverdue ? 'text-error font-semibold' : ''}`}>
             {isTodayDate ? 'Today' : (date ? format(date, 'MMM d') : (item.scheduled_date || '—'))}
             {item.scheduled_time && ` @ ${item.scheduled_time}`}
           </span>
@@ -314,7 +309,7 @@ function FollowUpCard({ item, type, onStatusChange }) {
       {/* 3. Hover Actions */}
       <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
         <Link href={`/sales/leads/${item.lead_id}`}>
-          <div className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md text-slate-400 hover:text-indigo-600 transition-colors">
+          <div className="p-2 hover:bg-surface-elevated rounded-md text-muted hover:text-accent transition-colors">
             <ChevronRight size={16} />
           </div>
         </Link>
@@ -326,12 +321,12 @@ function FollowUpCard({ item, type, onStatusChange }) {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
-        <CheckCircle2 size={20} className="text-emerald-500" />
+    <div className="panel flex flex-col items-center justify-center py-16 text-center">
+      <div className="w-10 h-10 bg-success/10 rounded-full flex items-center justify-center mb-3">
+        <CheckCircle2 size={18} className="text-success" />
       </div>
-      <h3 className="text-sm font-bold text-slate-900 dark:text-white">All Clear</h3>
-      <p className="text-xs text-slate-500 dark:text-slate-400 max-w-[200px] mt-1">No tasks require attention in this view.</p>
+      <h3 className="text-sm font-medium text-primary">All clear</h3>
+      <p className="text-[13px] text-muted max-w-[220px] mt-1">No follow-ups need attention in this view.</p>
     </div>
   );
 }

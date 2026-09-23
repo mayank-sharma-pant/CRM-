@@ -136,36 +136,35 @@ export default function MDEmployeeLookupPage() {
     };
 
     return (
-        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
-
-            {/* Header: Forensic Identity Verification */}
-            <div className="flex items-center justify-between py-4 border-b border-border">
+        <div className="min-h-[calc(100vh-56px)] bg-page pb-8">
+            <div className="page-header">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-primary">Identity Performance Audit</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Forensic Snapshot & Risk Isolation</p>
+                    <h1 className="page-title">Employee lookup</h1>
+                    <p className="page-subtitle">Find and review employee performance</p>
                 </div>
                 <div className="flex items-center gap-2.5">
-                    <div className="flex bg-surface-elevated p-1 rounded-md border border-border">
+                    <div className="flex items-center gap-1 p-1 rounded-lg border border-border bg-surface" role="group">
                         <button
+                            type="button"
                             onClick={() => setMode('escalation')}
-                            className={`px-3 py-1.5 rounded-[4px] text-[11px] font-black uppercase tracking-tight transition-all ${mode === 'escalation' ? 'bg-surface text-primary shadow-sm' : 'text-muted hover:text-secondary'
-                                }`}
+                            className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-colors ${mode === 'escalation' ? 'bg-accent/15 text-accent' : 'text-muted hover:text-primary'}`}
                         >
                             Escalation
                         </button>
                         <button
+                            type="button"
                             onClick={() => setMode('incentive')}
-                            className={`px-3 py-1.5 rounded-[4px] text-[11px] font-black uppercase tracking-tight transition-all ${mode === 'incentive' ? 'bg-surface text-primary shadow-sm' : 'text-muted hover:text-secondary'
-                                }`}
+                            className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-colors ${mode === 'incentive' ? 'bg-accent/15 text-accent' : 'text-muted hover:text-primary'}`}
                         >
-                            Incentive Review
+                            Incentive
                         </button>
                     </div>
                 </div>
             </div>
 
+            <div className="page-body space-y-5">
             {/* Search Control Strip */}
-            <div className="bg-surface rounded-md border border-border p-4 shadow-sm">
+            <div className="panel p-4">
                 <div className="flex gap-3">
                     <div className="flex-1 relative">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" strokeWidth={2.5} />
@@ -174,22 +173,23 @@ export default function MDEmployeeLookupPage() {
                             value={employeeId}
                             onChange={(e) => { setEmployeeId(e.target.value); setError(''); }}
                             onKeyPress={(e) => e.key === 'Enter' && handleLookup()}
-                            placeholder="INPUT EMPLOYEE IDENTIFIER (E.G. EMP001)..."
-                            className="w-full pl-9 pr-4 py-2 bg-surface-elevated border border-border rounded-md text-[11px] font-bold uppercase tracking-widest placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all"
+                            placeholder="Employee ID (e.g. EMP001)"
+                            className="input pl-9"
                         />
                     </div>
                     <button
+                        type="button"
                         onClick={handleLookup}
                         disabled={loading}
-                        className="px-6 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight shadow-sm shadow-accent/10 disabled:opacity-50 transition-all"
+                        className="btn btn-primary"
                     >
-                        {loading ? 'VALIDATING...' : 'AUDIT IDENTITY'}
+                        {loading ? 'Looking up…' : 'Look up'}
                     </button>
                 </div>
                 {error && (
                     <div className="mt-3 flex items-center gap-2 text-error">
-                        <AlertTriangle size={14} strokeWidth={2.5} />
-                        <span className="text-[11px] font-black uppercase tracking-tight">{error}</span>
+                        <AlertTriangle size={14} />
+                        <span className="text-[12px]">{error}</span>
                     </div>
                 )}
             </div>
@@ -447,7 +447,8 @@ export default function MDEmployeeLookupPage() {
                     </div>
                 </div>
             )}
-        </div>
+            </div>
+            </div>
     );
 }
 

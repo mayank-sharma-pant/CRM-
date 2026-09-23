@@ -69,11 +69,11 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div className="mx-auto max-w-[1360px] space-y-4 pb-8">
+        <div className="mx-auto max-w-[1360px] space-y-4 pb-8 px-4 sm:px-6 text-primary">
 
             <div>
-                <h1 className="page-title">Admin</h1>
-                <p className="page-subtitle">Users, teams, and approvals</p>
+                <h1 className="text-2xl font-semibold tracking-tight text-primary">Admin</h1>
+                <p className="text-sm text-muted mt-0.5">Users, teams, and approvals</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -81,7 +81,7 @@ export default function AdminDashboard() {
                     <div
                         key={stat.id}
                         onClick={() => router.push(stat.route)}
-                        className="bg-surface rounded-md border border-border p-3 cursor-pointer hover:border-border-strong transition-colors"
+                        className="bg-surface rounded-lg border border-border p-3 cursor-pointer hover:border-border-strong transition-colors"
                     >
                         <div className="text-[12px] font-medium text-muted mb-1">{stat.label}</div>
                         <div className="font-mono text-[22px] font-semibold text-primary tabular-nums">{stat.value}</div>
@@ -93,51 +93,59 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
                 {/* Action Required */}
-                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-700/50">
-                        <AlertCircle size={16} className="text-amber-600" />
-                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Action Required</h3>
+                <div className="bg-surface rounded-lg border border-border">
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+                        <AlertCircle size={16} className="text-warning" />
+                        <h3 className="text-sm font-semibold text-primary">Action Required</h3>
                     </div>
-                    <div className="divide-y divide-slate-50 dark:divide-slate-700/50">
-                        {data.actionRequired.map((item) => (
+                    <div className="divide-y divide-border">
+                        {data.actionRequired.length === 0 ? (
+                            <div className="px-4 py-10 text-center">
+                                <p className="text-sm text-muted">Nothing waiting right now</p>
+                            </div>
+                        ) : data.actionRequired.map((item) => (
                             <div
                                 key={item.id}
                                 onClick={() => router.push(item.link)}
-                                className="group flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer transition-colors"
+                                className="group flex items-center justify-between px-4 py-2.5 hover:bg-surface-elevated cursor-pointer transition-colors"
                             >
                                 <div className="flex items-center gap-2">
-                                    <div className={`w-1.5 h-1.5 rounded-full ${item.type === 'invite' ? 'bg-blue-500' : item.type === 'reassign' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
-                                    <span className="text-sm text-slate-700 dark:text-slate-300">{item.title}</span>
+                                    <div className={`w-1.5 h-1.5 rounded-full ${item.type === 'invite' ? 'bg-info' : item.type === 'reassign' ? 'bg-warning' : 'bg-error'}`}></div>
+                                    <span className="text-sm text-secondary">{item.title}</span>
                                 </div>
-                                <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-600 transition-colors" />
+                                <ChevronRight size={14} className="text-muted group-hover:text-primary transition-colors" />
                             </div>
                         ))}
                     </div>
                 </div>
 
                 {/* Recent Activity */}
-                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700/50">
+                <div className="bg-surface rounded-lg border border-border">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                         <div className="flex items-center gap-2">
-                            <Clock size={16} className="text-slate-500" />
-                            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Recent Activity</h3>
+                            <Clock size={16} className="text-muted" />
+                            <h3 className="text-sm font-semibold text-primary">Recent Activity</h3>
                         </div>
                         <button
                             onClick={() => router.push('/admin/audit')}
-                            className="text-xs font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                            className="text-xs font-medium text-muted hover:text-primary"
                         >
                             View All
                         </button>
                     </div>
-                    <div className="divide-y divide-slate-50 dark:divide-slate-700/50 max-h-[280px] overflow-y-auto">
-                        {data.recentActivity.map((item) => (
+                    <div className="divide-y divide-border max-h-[280px] overflow-y-auto">
+                        {data.recentActivity.length === 0 ? (
+                            <div className="px-4 py-10 text-center">
+                                <p className="text-sm text-muted">No recent activity</p>
+                            </div>
+                        ) : data.recentActivity.map((item) => (
                             <div key={item.id} className="px-4 py-2">
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs text-slate-700 dark:text-slate-300 truncate">
-                                            <span className="font-medium">{item.action}</span>: {item.entity}
+                                        <p className="text-xs text-secondary truncate">
+                                            <span className="font-medium text-primary">{item.action}</span>: {item.entity}
                                         </p>
-                                        <p className="text-[10px] text-slate-400 mt-0.5">{item.time}</p>
+                                        <p className="text-[10px] text-muted mt-0.5">{item.time}</p>
                                     </div>
                                 </div>
                             </div>

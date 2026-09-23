@@ -8,13 +8,25 @@ from app.models.billing import Plan, Subscription
 _UPGRADE_PATH = "/settings/billing"
 
 
+def _starter_plan(db: Session) -> Plan:
+    plan = db.query(Plan).filter(Plan.name == "Starter").first()
+    if plan is not None:
+        return plan
+    from app.services.billing.seed import seed_plans
+    seed_plans(db)
+    plan = db.query(Plan).filter(Plan.name == "Starter").first()
+    if plan is None:
+        raise HTTPException(status_code=500, detail="Billing plans are not configured")
+    return plan
+
+
 def resolve_plan(db: Session, company_id: int) -> Plan:
     sub = db.query(Subscription).filter(Subscription.company_id == company_id).first()
     if sub:
         plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
         if plan:
             return plan
-    return db.query(Plan).filter(Plan.name == "Starter").one()
+    return _starter_plan(db)
 
 
 def current_seat_usage(db: Session, company_id: int) -> int:

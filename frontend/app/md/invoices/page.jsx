@@ -82,13 +82,11 @@ export default function MDInvoicesPage() {
     };
 
     return (
-        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
-
-            {/* Header: Executive Fiscal Ledger */}
-            <div className="flex items-center justify-between py-4 border-b border-border">
+        <div className="min-h-[calc(100vh-56px)] bg-page pb-8">
+            <div className="page-header">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-primary">Invoicing Matrix</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Managing Director Settlement Overview</p>
+                    <h1 className="page-title">Invoices</h1>
+                    <p className="page-subtitle">Settlement overview</p>
                 </div>
                 <div className="flex items-center gap-2.5">
                     {statusCounts.Overdue > 0 && (
@@ -104,6 +102,8 @@ export default function MDInvoicesPage() {
                     </button>
                 </div>
             </div>
+
+            <div className="page-body space-y-5">
 
             {/* Section A: KPI Matrix (Condensed) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -247,6 +247,7 @@ export default function MDInvoicesPage() {
                 )}
             </div>
         </div>
+            </div>
     );
 }
 

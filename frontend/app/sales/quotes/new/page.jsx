@@ -3,9 +3,9 @@
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import QuotationWizard from '../../../components/quotes/QuotationWizard';
-import { useNotification } from '../../../contexts/NotificationContext';
-import api from '../../../services/api';
+import QuotationWizard from '../../../../components/quotes/QuotationWizard';
+import { useNotification } from '../../../../contexts/NotificationContext';
+import api from '../../../../services/api';
 
 function NewQuoteInner() {
   const router = useRouter();

@@ -176,6 +176,9 @@ def list_companies(
     query = db.query(Company)
     if status:
         query = query.filter(Company.status == status)
+    else:
+        # Unapproved signups live on Pending signups, shared by every platform admin.
+        query = query.filter(Company.status != "pending")
     companies = query.order_by(Company.created_at.desc()).all()
 
     # Pre-fetch user counts in a single query

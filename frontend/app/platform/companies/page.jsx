@@ -1,10 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Building2, Search, Filter, Users, Eye } from 'lucide-react';
+import { Building2, Search, Users, Eye } from 'lucide-react';
 import Link from 'next/link';
 
 const PLATFORM_API = '/api/platform';
+
+const STATUS_STYLES = {
+    active: 'bg-emerald-50 text-success border-emerald-100',
+    pending: 'bg-amber-50 text-warning border-amber-100',
+    suspended: 'bg-red-50 text-error border-red-100',
+    rejected: 'bg-surface-elevated text-secondary border-border',
+    trial: 'bg-emerald-50 text-success border-emerald-100',
+};
 
 export default function CompaniesListPage() {
     const [companies, setCompanies] = useState([]);
@@ -23,7 +31,7 @@ export default function CompaniesListPage() {
             if (statusFilter) params.append('status', statusFilter);
 
             const response = await fetch(`${PLATFORM_API}/companies?${params}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token}` },
             });
 
             if (response.ok) {
@@ -37,46 +45,37 @@ export default function CompaniesListPage() {
         }
     };
 
-    const getStatusBadge = (status) => {
-        const styles = {
-            active: 'bg-green-50 text-green-700 border-green-200',
-            pending: 'bg-amber-50 text-amber-700 border-amber-200',
-            suspended: 'bg-red-50 text-red-700 border-red-200',
-            rejected: 'bg-slate-50 text-slate-700 border-slate-200'
-        };
-        return styles[status] || styles.active;
-    };
+    const planLabel = (planId) =>
+        planId === 1 ? 'Starter' : planId === 2 ? 'Growth' : 'Enterprise';
 
-    const filteredCompanies = companies.filter(c =>
+    const filteredCompanies = companies.filter((c) =>
         c.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
-        <div className="p-8">
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-slate-900">Companies</h1>
-                <p className="text-slate-600 mt-1">Manage all companies using the platform</p>
+        <div className="p-5 sm:p-6 lg:p-8 space-y-5">
+            <div>
+                <h1 className="font-display text-[1.75rem] font-semibold text-primary tracking-tight">Companies</h1>
+                <p className="text-[15px] text-muted mt-1">Manage all companies using the platform</p>
             </div>
 
-            {/* Filters */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6 flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
                     <input
                         type="text"
                         placeholder="Search companies..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-11 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-[14px] text-primary placeholder:text-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
                     />
                 </div>
                 <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="px-3 py-2 bg-surface border border-border rounded-lg text-[14px] text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
                 >
-                    <option value="">All Status</option>
+                    <option value="">All status</option>
                     <option value="active">Active</option>
                     <option value="pending">Pending</option>
                     <option value="suspended">Suspended</option>
@@ -84,71 +83,72 @@ export default function CompaniesListPage() {
                 </select>
             </div>
 
-            {/* Companies Table */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-surface rounded-xl border border-border overflow-hidden">
                 {loading ? (
-                    <div className="flex items-center justify-center py-12">
-                        <div className="w-8 h-8 border-4 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+                    <div className="flex items-center justify-center py-16">
+                        <div className="w-7 h-7 border-2 border-border border-t-accent rounded-full animate-spin" />
                     </div>
                 ) : filteredCompanies.length === 0 ? (
-                    <div className="text-center py-12">
-                        <Building2 className="mx-auto text-slate-300 mb-4" size={48} />
-                        <p className="text-slate-500 font-medium">No companies found</p>
+                    <div className="text-center py-16 px-6">
+                        <div className="w-12 h-12 rounded-full bg-surface-elevated flex items-center justify-center mx-auto mb-3">
+                            <Building2 className="text-muted" size={22} strokeWidth={1.5} />
+                        </div>
+                        <p className="text-[14px] font-medium text-primary">No companies found</p>
+                        <p className="text-[14px] text-muted mt-1">Try a different search or filter</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full whitespace-nowrap">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Company
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Status
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Plan
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Users
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Created
-                                    </th>
-                                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Actions
-                                    </th>
+                            <thead>
+                                <tr className="border-b border-border bg-surface-elevated/60">
+                                    {['Company', 'Status', 'Plan', 'Users', 'Created', ''].map((h) => (
+                                        <th
+                                            key={h || 'actions'}
+                                            className="px-4 py-2.5 text-left text-xs font-semibold text-muted uppercase tracking-wide"
+                                        >
+                                            {h}
+                                        </th>
+                                    ))}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-border-subtle">
                                 {filteredCompanies.map((company) => (
-                                    <tr key={company.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <p className="font-semibold text-slate-900">{company.name}</p>
+                                    <tr key={company.id} className="hover:bg-surface-elevated/50 transition-colors">
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-full bg-accent-subtle text-accent flex items-center justify-center text-[14px] font-semibold font-display shrink-0">
+                                                    {(company.name || '?').charAt(0).toUpperCase()}
+                                                </div>
+                                                <p className="text-[14px] font-semibold text-primary">{company.name}</p>
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex px-2.5 py-1 border text-xs font-semibold rounded-full ${getStatusBadge(company.status)}`}>
+                                        <td className="px-4 py-3">
+                                            <span
+                                                className={`inline-flex px-2 py-0.5 border text-xs font-semibold rounded-full capitalize ${
+                                                    STATUS_STYLES[company.status] || STATUS_STYLES.active
+                                                }`}
+                                            >
                                                 {company.status}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-600">
-                                            {company.plan_id === 1 ? 'Starter' : company.plan_id === 2 ? 'Growth' : 'Enterprise'}
+                                        <td className="px-4 py-3 text-[14px] text-secondary">
+                                            {planLabel(company.plan_id)}
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2 text-slate-600">
-                                                <Users size={16} />
-                                                <span>{company.user_count}</span>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-1.5 text-[14px] text-secondary">
+                                                <Users size={14} className="text-muted" />
+                                                <span className="tabular-nums">{company.user_count}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-600 text-sm">
+                                        <td className="px-4 py-3 text-[14px] text-secondary">
                                             {new Date(company.created_at).toLocaleDateString()}
                                         </td>
-                                        <td className="px-6 py-4 text-right">
+                                        <td className="px-4 py-3 text-right">
                                             <Link
                                                 href={`/platform/companies/${company.id}`}
-                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-primary text-inverse text-[14px] font-medium rounded-md hover:opacity-90 transition-opacity"
                                             >
-                                                <Eye size={16} />
+                                                <Eye size={14} />
                                                 View
                                             </Link>
                                         </td>

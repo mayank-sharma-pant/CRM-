@@ -272,7 +272,7 @@ export default function AdminUsersPage() {
                                     </td>
                                     <td className="px-4 py-2.5">
                                         <select
-                                            value={user.status.toLowerCase()}
+                                            value={(user.status || '').toLowerCase()}
                                             onChange={(e) => handleUpdateUser(user.rawId, { status: e.target.value })}
                                             className="bg-transparent border-none text-[10px] font-medium focus:ring-0 p-0 cursor-pointer"
                                         >
@@ -284,12 +284,27 @@ export default function AdminUsersPage() {
                                     <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 text-xs">{user.joinedAt}</td>
                                     <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 text-xs">{user.lastActive || '-'}</td>
                                     <td className="px-4 py-2.5 text-right">
-                                        <button
-                                            onClick={() => handleUpdateUser(user.rawId, { status: user.status === 'active' ? 'disabled' : 'active' })}
-                                            className={`text-[10px] px-2 py-1 rounded border min-w-[60px] ${user.status === 'active' ? 'text-red-500 border-red-100' : 'text-emerald-500 border-emerald-100'}`}
-                                        >
-                                            {user.status === 'active' ? 'Disable' : 'Enable'}
-                                        </button>
+                                        {(() => {
+                                            const status = (user.status || '').toLowerCase();
+                                            const isActive = status === 'active';
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        handleUpdateUser(user.rawId, {
+                                                            status: isActive ? 'disabled' : 'active',
+                                                        })
+                                                    }
+                                                    className={`text-[10px] px-2 py-1 rounded border min-w-[60px] ${
+                                                        isActive
+                                                            ? 'text-red-500 border-red-500/30'
+                                                            : 'text-emerald-500 border-emerald-500/30'
+                                                    }`}
+                                                >
+                                                    {isActive ? 'Disable' : 'Enable'}
+                                                </button>
+                                            );
+                                        })()}
                                     </td>
                                 </tr>
                             ))}

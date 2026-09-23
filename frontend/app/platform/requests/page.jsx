@@ -20,7 +20,7 @@ export default function CompanyRequestsPage() {
         try {
             const token = localStorage.getItem('platform_token');
             const response = await fetch(`${PLATFORM_API}/companies/pending`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token}` },
             });
 
             if (response.ok) {
@@ -45,7 +45,7 @@ export default function CompanyRequestsPage() {
             const token = localStorage.getItem('platform_token');
             const response = await fetch(`${PLATFORM_API}/companies/${companyId}/approve`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token}` },
             });
 
             if (response.ok) {
@@ -55,7 +55,7 @@ export default function CompanyRequestsPage() {
                 const data = await response.json().catch(() => ({}));
                 alert(`Failed to approve: ${data.detail || response.statusText}`);
             }
-        } catch (error) {
+        } catch {
             alert('Network error: Failed to approve company');
         }
     };
@@ -82,80 +82,84 @@ export default function CompanyRequestsPage() {
         }
     };
 
+    const planLabel = (planId) =>
+        planId === 1 ? 'Starter' : planId === 2 ? 'Growth' : 'Enterprise';
+
     return (
-        <div className="p-8">
+        <div className="p-5 sm:p-6 lg:p-8 space-y-5">
             <RejectCompanyModal
                 open={!!rejectTarget}
                 title={rejectTarget ? `Reject "${rejectTarget.name}"` : 'Reject'}
                 onClose={() => setRejectTarget(null)}
                 onConfirm={confirmReject}
             />
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-slate-900">Pending signups</h1>
-                <p className="text-slate-600 mt-1">Review and approve new company signups</p>
+
+            <div>
+                <h1 className="font-display text-[1.75rem] font-semibold text-primary tracking-tight">
+                    Pending signups
+                </h1>
+                <p className="text-[15px] text-muted mt-1">Review and approve new company signups</p>
             </div>
 
-            {/* Requests Table */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-surface rounded-xl border border-border overflow-hidden">
                 {loading ? (
-                    <div className="flex items-center justify-center py-12">
-                        <div className="w-8 h-8 border-4 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+                    <div className="flex items-center justify-center py-16">
+                        <div className="w-7 h-7 border-2 border-border border-t-accent rounded-full animate-spin" />
                     </div>
                 ) : requests.length === 0 ? (
-                    <div className="text-center py-12">
-                        <Clock className="mx-auto text-slate-300 mb-4" size={48} />
-                        <p className="text-slate-500 font-medium">No pending requests</p>
-                        <p className="text-slate-400 text-sm mt-1">All caught up!</p>
+                    <div className="text-center py-16 px-6">
+                        <div className="w-12 h-12 rounded-full bg-surface-elevated flex items-center justify-center mx-auto mb-3">
+                            <Clock className="text-muted" size={22} strokeWidth={1.5} />
+                        </div>
+                        <p className="text-[14px] font-medium text-primary">No pending requests</p>
+                        <p className="text-[14px] text-muted mt-1">All caught up</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full whitespace-nowrap">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Company
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Requested
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Plan
-                                    </th>
-                                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Actions
-                                    </th>
-                                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                        Details
-                                    </th>
+                            <thead>
+                                <tr className="border-b border-border bg-surface-elevated/60">
+                                    {['Company', 'Requested', 'Plan', 'Actions', ''].map((h, i) => (
+                                        <th
+                                            key={`${h}-${i}`}
+                                            className={`px-4 py-2.5 text-xs font-semibold text-muted uppercase tracking-wide ${
+                                                i >= 3 ? 'text-right' : 'text-left'
+                                            }`}
+                                        >
+                                            {h}
+                                        </th>
+                                    ))}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-border-subtle">
                                 {requests.map((request) => (
-                                    <tr key={request.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-blue-50 rounded-lg">
-                                                    <Building2 className="text-blue-600" size={20} />
+                                    <tr key={request.id} className="hover:bg-surface-elevated/50 transition-colors">
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-8 h-8 rounded-lg bg-accent-subtle text-accent flex items-center justify-center shrink-0">
+                                                    <Building2 size={16} strokeWidth={1.75} />
                                                 </div>
-                                                <span className="font-semibold text-slate-900">{request.name}</span>
+                                                <span className="text-[14px] font-semibold text-primary">
+                                                    {request.name}
+                                                </span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-600 text-sm">
+                                        <td className="px-4 py-3 text-[14px] text-secondary">
                                             {new Date(request.requested_at).toLocaleDateString()}
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className="inline-flex px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full">
-                                                {request.plan_id === 1 ? 'Starter' : request.plan_id === 2 ? 'Growth' : 'Enterprise'}
+                                        <td className="px-4 py-3">
+                                            <span className="inline-flex px-2 py-0.5 bg-accent-subtle text-accent text-xs font-semibold rounded-full">
+                                                {planLabel(request.plan_id)}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
+                                        <td className="px-4 py-3 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button
+                                                    type="button"
                                                     onClick={() => handleApprove(request.id, request.name)}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-success text-white text-[14px] font-medium rounded-md hover:opacity-90 transition-opacity"
                                                 >
-                                                    <CheckCircle size={16} />
+                                                    <CheckCircle size={14} />
                                                     Approve
                                                 </button>
                                                 <button
@@ -166,17 +170,17 @@ export default function CompanyRequestsPage() {
                                                             name: request.name,
                                                         })
                                                     }
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-error text-white text-[14px] font-medium rounded-md hover:opacity-90 transition-opacity"
                                                 >
-                                                    <XCircle size={16} />
+                                                    <XCircle size={14} />
                                                     Reject
                                                 </button>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
+                                        <td className="px-4 py-3 text-right">
                                             <Link
                                                 href={`/platform/companies/${request.id}`}
-                                                className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                                                className="text-[14px] font-medium text-accent hover:text-primary"
                                             >
                                                 Open
                                             </Link>

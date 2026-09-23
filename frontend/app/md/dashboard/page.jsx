@@ -12,7 +12,6 @@ import {
     AlertTriangle,
     RefreshCw,
     Calendar,
-    Bell,
     UserSearch,
     TrendingDown
 } from 'lucide-react';
@@ -74,63 +73,55 @@ export default function MDDashboard() {
     if (loading) return <DashboardSkeleton />;
     if (error) {
         return (
-            <div className="p-12 flex flex-col items-center justify-center gap-4 text-center">
-                <AlertTriangle size={24} className="text-error" />
-                <p className="text-error font-bold uppercase tracking-widest text-[12px]">{error}</p>
-                <button
-                    onClick={fetchDashboard}
-                    className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-md text-[11px] font-black uppercase tracking-tight"
-                >
-                    Retry
-                </button>
+            <div className="flex items-center justify-center h-[calc(100vh-56px)] bg-page">
+                <div className="flex flex-col items-center gap-3 text-center">
+                    <AlertTriangle size={22} className="text-error" />
+                    <p className="text-[13px] text-error">{error}</p>
+                    <button type="button" onClick={fetchDashboard} className="btn btn-primary">
+                        Retry
+                    </button>
+                </div>
             </div>
         );
     }
     if (!data) return null;
 
     return (
-        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page">
-
-            {/* TOP BAR: Integrated & Executive */}
-            <div className="flex items-center justify-between py-4 border-b border-border">
+        <div className="min-h-[calc(100vh-56px)] bg-page pb-8">
+            <div className="page-header">
                 <div>
                     <h1 className="page-title">Director</h1>
                     <p className="page-subtitle">Company performance</p>
                 </div>
 
-                <div className="flex items-center gap-2.5">
-                    {/* Employee Lookup Button */}
+                <div className="flex items-center gap-2">
                     <button
+                        type="button"
                         onClick={() => router.push('/md/employee-lookup')}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-md text-secondary text-[12px] font-bold uppercase tracking-tight hover:bg-surface-elevated shadow-sm transition-all"
+                        className="btn btn-secondary"
                     >
-                        <UserSearch size={14} className="text-muted" strokeWidth={2.5} />
-                        <span className="hidden sm:inline">Lookup</span>
+                        <UserSearch size={14} />
+                        Lookup
                     </button>
-
-                    <button className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-md text-secondary text-[12px] font-bold uppercase tracking-tight hover:bg-surface-elevated shadow-sm transition-all">
-                        <Calendar size={14} className="text-muted" strokeWidth={2.5} />
-                        <span>L30D</span>
-                    </button>
-
-                    <div className="h-6 w-px bg-border mx-1"></div>
-
-                    <button className="p-2 text-muted hover:text-primary transition-colors">
-                        <Bell size={18} strokeWidth={2.5} />
+                    <button type="button" className="btn btn-secondary">
+                        <Calendar size={14} />
+                        L30D
                     </button>
                     <button
+                        type="button"
                         onClick={() => window.location.reload()}
-                        className="p-2 text-muted hover:text-accent transition-colors"
+                        className="p-2 rounded-md text-muted hover:text-primary hover:bg-surface-elevated transition-colors"
+                        aria-label="Refresh"
                     >
-                        <RefreshCw size={18} strokeWidth={2.5} />
+                        <RefreshCw size={16} />
                     </button>
                 </div>
             </div>
 
+            <div className="page-body space-y-5">
             <OnboardingChecklist />
 
-            {/* KPI STRIP: High Density Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {data.kpis.map((kpi) => (
                     <KPICard
                         key={kpi.id}
@@ -145,17 +136,15 @@ export default function MDDashboard() {
                 ))}
             </div>
 
-            {/* MAIN CONTENT GRID */}
-            <div className="grid grid-cols-12 gap-5">
+            <div className="grid grid-cols-12 gap-4">
 
-                {/* ROW 1: SALES MOMENTUM (8) + PIPELINE OVERVIEW (4) */}
-                <div className="col-span-12 lg:col-span-8 bg-surface rounded-md border border-border shadow-sm">
-                    <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/20">
+                <div className="col-span-12 lg:col-span-8 panel">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                         <div className="flex items-center gap-2">
-                            <Activity size={16} className="text-accent" strokeWidth={2.5} />
-                            <h3 className="text-[13px] font-semibold text-primary">Sales momentum</h3>
+                            <Activity size={15} className="text-accent" />
+                            <h3 className="text-[13px] font-medium text-secondary">Sales momentum</h3>
                         </div>
-                        <LinkText href="/md/sales">View Analytics</LinkText>
+                        <LinkText href="/md/sales">View analytics</LinkText>
                     </div>
                     <div className="p-5 flex gap-6">
                         <div className="flex-1 min-w-0 h-[220px]">
@@ -172,13 +161,13 @@ export default function MDDashboard() {
                     </div>
                 </div>
 
-                <div className="col-span-12 lg:col-span-4 bg-surface rounded-md border border-border shadow-sm flex flex-col">
-                    <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/20">
+                <div className="col-span-12 lg:col-span-4 panel flex flex-col">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                         <div className="flex items-center gap-2">
-                            <TrendingUp size={16} className="text-info" strokeWidth={2.5} />
-                            <h3 className="text-[13px] font-semibold text-primary">Pipeline</h3>
+                            <TrendingUp size={15} className="text-accent" />
+                            <h3 className="text-[13px] font-medium text-secondary">Pipeline</h3>
                         </div>
-                        <LinkText href="/md/leads">Open Funnel</LinkText>
+                        <LinkText href="/md/leads">Open funnel</LinkText>
                     </div>
                     <div className="p-5 flex-1 flex flex-col">
                         <div className="h-[120px] w-full mb-4">
@@ -192,13 +181,13 @@ export default function MDDashboard() {
                 </div>
 
                 {/* ROW 2: CLIENT HEALTH (6) + INVOICE HEALTH (6) */}
-                <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-border shadow-sm">
-                    <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/20">
+                <div className="col-span-12 lg:col-span-6 panel">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                         <div className="flex items-center gap-2">
-                            <Users size={16} className="text-success" strokeWidth={2.5} />
-                            <h3 className="text-[13px] font-semibold text-primary">Client retention</h3>
+                            <Users size={15} className="text-success" />
+                            <h3 className="text-[13px] font-medium text-secondary">Client retention</h3>
                         </div>
-                        <LinkText href="/md/clients">Growth Matrix</LinkText>
+                        <LinkText href="/md/clients">Clients</LinkText>
                     </div>
                     <div className="p-5 flex gap-6">
                         <div className="flex-1 min-w-0 h-[140px]">
@@ -217,13 +206,13 @@ export default function MDDashboard() {
                     </div>
                 </div>
 
-                <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-border shadow-sm">
-                    <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/20">
+                <div className="col-span-12 lg:col-span-6 panel">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                         <div className="flex items-center gap-2">
-                            <Receipt size={16} className="text-error" strokeWidth={2.5} />
-                            <h3 className="text-[13px] font-semibold text-primary">Liquidity</h3>
+                            <Receipt size={15} className="text-error" />
+                            <h3 className="text-[13px] font-medium text-secondary">Liquidity</h3>
                         </div>
-                        <LinkText href="/md/invoices">View Ledger</LinkText>
+                        <LinkText href="/md/invoices">Invoices</LinkText>
                     </div>
                     <div className="p-5 flex gap-4">
                         <div className="w-[120px] h-[120px]">
@@ -238,13 +227,13 @@ export default function MDDashboard() {
                 </div>
 
                 {/* ROW 3: TREND WATCHLIST (6) + EXECUTIVE BRIEF (6) */}
-                <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-border shadow-sm">
-                    <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/20">
+                <div className="col-span-12 lg:col-span-6 panel">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                         <div className="flex items-center gap-2">
-                            <TrendingUp size={16} className="text-muted" strokeWidth={2.5} />
-                            <h3 className="text-[13px] font-semibold text-primary">Watchlist</h3>
+                            <TrendingUp size={15} className="text-muted" />
+                            <h3 className="text-[13px] font-medium text-secondary">Watchlist</h3>
                         </div>
-                        <LinkText href="/md/sales">Analysis</LinkText>
+                        <LinkText href="/md/sales">Sales</LinkText>
                     </div>
                     <div className="divide-y divide-border/50">
                         {data.trendWatchlist.map((trend, i) => (
@@ -259,9 +248,9 @@ export default function MDDashboard() {
                     </div>
                 </div>
 
-                <div className="col-span-12 lg:col-span-6 bg-surface rounded-md border border-accent/20 shadow-sm relative overflow-hidden">
-                    <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-surface-elevated/30 relative z-10">
-                        <h3 className="text-[13px] font-semibold text-primary">Brief</h3>
+                <div className="col-span-12 lg:col-span-6 panel relative overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                        <h3 className="text-[13px] font-medium text-secondary">Brief</h3>
                     </div>
                     <div className="p-5 relative z-10">
                         <div className="space-y-2.5">
@@ -279,11 +268,12 @@ export default function MDDashboard() {
                 </div>
 
             </div>
-        </div>
+            </div>
+            </div>
     );
 }
 
-// --- SUBCOMPONENTS FOR DENSITY ---
+// --- SUBCOMPONENTS ---
 
 // --- SUBCOMPONENTS ---
 

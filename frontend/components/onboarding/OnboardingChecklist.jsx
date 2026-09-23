@@ -60,11 +60,11 @@ export default function OnboardingChecklist() {
   };
 
   return (
-    <div className="bg-surface border border-border rounded-lg p-5 shadow-sm">
+    <div className="bg-surface border border-border rounded-lg p-5">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <h2 className="text-sm font-bold text-primary">Get to your first deal</h2>
-          <p className="text-xs text-muted mt-0.5">
+          <h2 className="text-sm font-semibold text-primary">Get to your first deal</h2>
+          <p className="text-[13px] text-muted mt-0.5">
             A short setup so this CRM is not empty. Skip any time.
           </p>
         </div>

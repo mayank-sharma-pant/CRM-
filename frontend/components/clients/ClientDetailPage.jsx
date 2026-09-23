@@ -44,6 +44,7 @@ export default function ClientDetailPage() {
     const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
     const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
     const [client, setClient] = useState(null);
+    const [loading, setLoading] = useState(true);
     const { user } = useAuth();
     const canPrivacy = user?.role === 'admin' || user?.role === 'md';
 

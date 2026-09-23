@@ -114,13 +114,11 @@ export default function MDMonitoringPage() {
         data.summary.trendDirection === 'improving' ? 'Improving' : 'Worsening';
 
     return (
-        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
-
-            {/* Header: Executive Risk Command */}
-            <div className="flex items-center justify-between py-4 border-b border-border">
+        <div className="min-h-[calc(100vh-56px)] bg-page pb-8">
+            <div className="page-header">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-primary">System Monitoring</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Executive Risk Signals & Trend Matrix</p>
+                    <h1 className="page-title">Monitoring</h1>
+                    <p className="page-subtitle">Risk signals and alerts</p>
                 </div>
                 <div className="flex items-center gap-2.5">
                     <button className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-md text-secondary text-[12px] font-bold uppercase tracking-tight hover:bg-surface-elevated shadow-sm transition-all">
@@ -129,6 +127,8 @@ export default function MDMonitoringPage() {
                     </button>
                 </div>
             </div>
+
+            <div className="page-body space-y-5">
 
             {/* SECTION 1: EXECUTIVE SUMMARY (8 + 4 split) */}
             <div className="grid grid-cols-12 gap-5">
@@ -328,6 +328,7 @@ export default function MDMonitoringPage() {
                 />
             )}
         </div>
+            </div>
     );
 }
 
@@ -452,8 +453,6 @@ function AlertDrawer({ alert, onClose, riskTrend, router }) {
         </div>
     );
 }
-
-// --- SKELETON ---
 
 function MonitoringSkeleton() {
     return (

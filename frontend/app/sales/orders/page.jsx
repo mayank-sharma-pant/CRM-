@@ -76,11 +76,11 @@ export default function SalesOrdersPage() {
             <div className="flex items-center justify-between py-4 border-b border-border">
                 <div>
                     <h1 className="page-title">{t('Orders')}</h1>
-                    <p className="page-subtitle">Orders you generated</p>
+                    <p className="page-subtitle">{t('Orders you generated')}</p>
                 </div>
                 <div className="flex items-center gap-2.5">
                     <div className="flex flex-col items-end mr-4">
-                        <span className="text-[12px] text-muted">Total value</span>
+                        <span className="text-[12px] text-muted">{t('Total value')}</span>
                         <span className="font-mono text-[16px] font-semibold text-primary leading-none tabular-nums">₹{totalRevenueSourced.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                     <button
@@ -95,10 +95,10 @@ export default function SalesOrdersPage() {
 
             {/* Section A: KPI Matrix */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <KPIMini label="Total Sourced" value={statusCounts.All} sub="Orders Generated" />
-                <KPIMini label="Settled / Paid" value={statusCounts.Paid} sub="Revenue Realized" color="text-success" />
-                <KPIMini label="Pending Approval" value={statusCounts.Sent} sub="Awaiting Purchase" color="text-warning" />
-                <KPIMini label="Drafts" value={statusCounts.Draft} sub="Unsubmitted" color="text-muted" />
+                <KPIMini label={t('Total Sourced')} value={statusCounts.All} sub={t('Orders Generated')} />
+                <KPIMini label={t('Settled / Paid')} value={statusCounts.Paid} sub={t('Revenue Realized')} color="text-success" />
+                <KPIMini label={t('Pending Approval')} value={statusCounts.Sent} sub={t('Awaiting Purchase')} color="text-warning" />
+                <KPIMini label={t('Drafts')} value={statusCounts.Draft} sub={t('Unsubmitted')} color="text-muted" />
             </div>
 
             {/* Section B: Filter & Control Strip */}

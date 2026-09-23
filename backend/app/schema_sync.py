@@ -117,7 +117,7 @@ MISSING_COLUMNS = [
     ("company_settings", "report_schedule_enabled", "INTEGER DEFAULT 0"),
     ("company_settings", "report_schedule_frequency", "VARCHAR(20)"),
     ("company_settings", "report_schedule_saved_report_id", "INTEGER"),
-    ("company_settings", "report_schedule_last_sent_at", "DATETIME"),
+    ("company_settings", "report_schedule_last_sent_at", "TIMESTAMP"),
     ("deals", "approval_status", "VARCHAR(20)"),
     ("deals", "approved_by_id", "INTEGER"),
     ("deals", "approved_at", "TIMESTAMP"),
@@ -188,5 +188,4 @@ def apply_schema(bind) -> int:
     Base.metadata.create_all(bind=bind)
     add_missing_columns(bind)
     from app.tenancy import enable_rls
-    engine = bind.engine if hasattr(bind, "engine") else bind
-    return enable_rls(engine)
+    return enable_rls(bind)

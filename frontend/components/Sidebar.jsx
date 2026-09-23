@@ -386,7 +386,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                         <button
                             onClick={() => setIsOpen(!isOpen)}
                             className="p-1.5 rounded-md hover:bg-surface-elevated text-muted hover:text-primary transition-colors"
-                            aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+                            aria-label={isOpen ? t('Collapse sidebar') : t('Expand sidebar')}
                         >
                             {isOpen ? <PanelLeftClose size={16} /> : <Menu size={16} />}
                         </button>
@@ -413,7 +413,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                         key={`cat-${idx}`}
                                         className="pt-3.5 pb-1 px-2.5 text-[11px] font-medium text-muted"
                                     >
-                                        {item.category}
+                                        {t(item.category)}
                                     </div>
                                 );
                             }

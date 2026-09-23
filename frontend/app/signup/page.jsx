@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import AuthShell from '../../components/AuthShell';
 
 export default function Signup() {
     const [formData, setFormData] = useState({
@@ -66,143 +67,122 @@ export default function Signup() {
     };
 
     return (
-        <div className="min-h-screen bg-page flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-lg w-full">
+        <AuthShell eyebrow="14-day trial · no card">
+            <div className="auth-card">
+                <Link href="/" className="auth-card-brand hover:opacity-80 transition-opacity lg:hidden">
+                    <span className="brand-mark">P</span>
+                    <span className="font-display text-[15px] font-semibold tracking-tight text-primary">
+                        Perioxia
+                    </span>
+                </Link>
 
-                <div className="bg-surface rounded-xl border border-border p-8 sm:p-9">
+                <h2 className="auth-card-title">Open your desk</h2>
+                <p className="auth-card-sub">Start a 14-day trial — no card required</p>
 
-                    <div className="mb-8">
-                        <Link href="/" className="inline-flex items-center gap-2.5 mb-6 hover:opacity-80 transition-opacity">
-                            <span className="brand-mark">P</span>
-                            <span className="font-display text-[15px] font-semibold tracking-tight text-primary">Perioxia</span>
-                        </Link>
-                        <h2 className="page-title">Create your account</h2>
-                        <p className="page-subtitle">Start a 14-day trial — no card required</p>
+                <form className="space-y-4" onSubmit={handleSubmit}>
+                    {error && (
+                        <div className="bg-error/10 border border-error/20 text-error px-3.5 py-2.5 rounded-lg text-sm animate-fade-in">
+                            {error}
+                        </div>
+                    )}
+
+                    <div>
+                        <label htmlFor="fullName" className="auth-label">
+                            Full name
+                        </label>
+                        <input
+                            id="fullName"
+                            name="fullName"
+                            type="text"
+                            required
+                            className="auth-input"
+                            placeholder="Priya Shah"
+                            value={formData.fullName}
+                            onChange={handleChange}
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="email" className="auth-label">
+                            Work email
+                        </label>
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            autoComplete="email"
+                            required
+                            className="auth-input"
+                            placeholder="name@company.com"
+                            value={formData.email}
+                            onChange={handleChange}
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="password" className="auth-label">
+                            Password
+                        </label>
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            autoComplete="new-password"
+                            required
+                            minLength={8}
+                            className="auth-input"
+                            placeholder="At least 8 characters"
+                            value={formData.password}
+                            onChange={handleChange}
+                        />
                     </div>
 
-                    <form className="space-y-5" onSubmit={handleSubmit}>
-                        {error && (
-                            <div className="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
-                                <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                {error}
-                            </div>
-                        )}
+                    <div className="border-t border-border my-1" />
 
-                        <div className="space-y-4">
-                            {/* Personal Info Group */}
-                            <div className="grid grid-cols-1 gap-4">
-                                <div>
-                                    <label htmlFor="fullName" className="block text-sm font-semibold text-secondary mb-1.5">
-                                        Full Name
-                                    </label>
-                                    <input
-                                        id="fullName"
-                                        name="fullName"
-                                        type="text"
-                                        required
-                                        className="w-full px-4 py-2.5 bg-surface border border-border rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all"
-                                        placeholder="John Doe"
-                                        value={formData.fullName}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <div>
-                                    <label htmlFor="email" className="block text-sm font-semibold text-secondary mb-1.5">
-                                        Email address
-                                    </label>
-                                    <input
-                                        id="email"
-                                        name="email"
-                                        type="email"
-                                        autoComplete="email"
-                                        required
-                                        className="w-full px-4 py-2.5 bg-surface border border-border rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all"
-                                        placeholder="name@company.com"
-                                        value={formData.email}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <div>
-                                    <label htmlFor="password" className="block text-sm font-semibold text-secondary mb-1.5">
-                                        Password
-                                    </label>
-                                    <input
-                                        id="password"
-                                        name="password"
-                                        type="password"
-                                        autoComplete="new-password"
-                                        required
-                                        minLength={8}
-                                        className="w-full px-4 py-2.5 bg-surface border border-border rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all"
-                                        placeholder="Min. 8 characters"
-                                        value={formData.password}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="border-t border-border my-4"></div>
-
-                            {/* Business Info Group */}
-                            <div className="grid grid-cols-1 gap-4">
-                                <div>
-                                    <label htmlFor="businessName" className="block text-sm font-semibold text-secondary mb-1.5">
-                                        Business Name
-                                    </label>
-                                    <input
-                                        id="businessName"
-                                        name="businessName"
-                                        type="text"
-                                        required
-                                        className="w-full px-4 py-2.5 bg-surface border border-border rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all"
-                                        placeholder="Acme Corp"
-                                        value={formData.businessName}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <div>
-                                    <label htmlFor="phone" className="block text-sm font-semibold text-secondary mb-1.5">
-                                        Phone <span className="text-muted font-normal">(Optional)</span>
-                                    </label>
-                                    <input
-                                        id="phone"
-                                        name="phone"
-                                        type="tel"
-                                        className="w-full px-4 py-2.5 bg-surface border border-border rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all"
-                                        placeholder="+1 (555) 000-0000"
-                                        value={formData.phone}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="pt-2">
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="btn btn-primary w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {loading ? 'Creating account...' : 'Create account'}
-                            </button>
-                        </div>
-                    </form>
-
-                    <div className="mt-8 text-center text-sm">
-                        <span className="text-secondary">Already have an account? </span>
-                        <Link href="/login" className="font-semibold text-accent hover:text-accent-hover hover:underline transition-colors">
-                            Sign in
-                        </Link>
+                    <div>
+                        <label htmlFor="businessName" className="auth-label">
+                            Business name
+                        </label>
+                        <input
+                            id="businessName"
+                            name="businessName"
+                            type="text"
+                            required
+                            className="auth-input"
+                            placeholder="Shah Interiors"
+                            value={formData.businessName}
+                            onChange={handleChange}
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="phone" className="auth-label">
+                            Phone <span className="text-muted font-normal">(optional)</span>
+                        </label>
+                        <input
+                            id="phone"
+                            name="phone"
+                            type="tel"
+                            className="auth-input"
+                            placeholder="+91 98765 43210"
+                            value={formData.phone}
+                            onChange={handleChange}
+                        />
                     </div>
 
+                    <button type="submit" disabled={loading} className="auth-submit mt-1">
+                        {loading ? 'Creating account…' : 'Create account'}
+                    </button>
+                </form>
+
+                <div className="mt-6 text-center text-sm">
+                    <span className="text-secondary">Already have an account? </span>
+                    <Link
+                        href="/login"
+                        className="font-semibold text-accent hover:text-accent-hover transition-colors"
+                    >
+                        Sign in
+                    </Link>
                 </div>
-                {/* Footer Polish */}
-                <p className="text-center text-xs text-muted mt-8">
-                    &copy; 2026 Perioxia CRM.
-                </p>
             </div>
-        </div>
+            <p className="auth-footer-note">&copy; 2026 Perioxia CRM</p>
+        </AuthShell>
     );
 }

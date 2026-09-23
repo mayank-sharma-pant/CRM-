@@ -79,13 +79,11 @@ export default function MDRevenuePage() {
     const varianceRows = (data.summaryTable || []).slice(0, 8);
 
     return (
-        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
-
-            {/* Header: Executive Analytics Cockpit */}
-            <div className="flex items-center justify-between py-4 border-b border-border">
+        <div className="min-h-[calc(100vh-56px)] bg-page pb-8">
+            <div className="page-header">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-primary">Revenue Matrix</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">Fiscal Trends & Risk Signals</p>
+                    <h1 className="page-title">Revenue</h1>
+                    <p className="page-subtitle">Trends and risk signals</p>
                 </div>
                 <div className="flex items-center gap-2.5">
                     {/* Compare Toggle */}
@@ -109,6 +107,8 @@ export default function MDRevenuePage() {
                     </button>
                 </div>
             </div>
+
+            <div className="page-body space-y-5">
 
             {/* Section A: KPI Strip (High Density) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -314,7 +314,8 @@ export default function MDRevenuePage() {
                 </div>
             )}
 
-        </div>
+            </div>
+            </div>
     );
 }
 

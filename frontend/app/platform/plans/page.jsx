@@ -17,7 +17,7 @@ export default function PlansPage() {
         try {
             const token = localStorage.getItem('platform_token');
             const response = await fetch(`${PLATFORM_API}/plans`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token}` },
             });
 
             if (response.ok) {
@@ -32,52 +32,62 @@ export default function PlansPage() {
     };
 
     return (
-        <div className="p-8">
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-slate-900">Subscription Plans</h1>
-                <p className="text-slate-600 mt-1">Catalog from the API (read-only)</p>
+        <div className="p-5 sm:p-6 lg:p-8 space-y-5">
+            <div>
+                <h1 className="font-display text-[1.75rem] font-semibold text-primary tracking-tight">
+                    Subscription plans
+                </h1>
+                <p className="text-[15px] text-muted mt-1">Catalog from the API (read-only)</p>
             </div>
 
-            {/* Plans Grid */}
             {loading ? (
-                <div className="flex items-center justify-center py-12">
-                    <div className="w-8 h-8 border-4 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+                <div className="flex items-center justify-center py-16">
+                    <div className="w-7 h-7 border-2 border-border border-t-accent rounded-full animate-spin" />
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {plans.map((plan) => (
-                        <div key={plan.id} className="bg-white rounded-xl border-2 border-slate-200 p-6 hover:border-blue-400 transition-all">
+                        <div
+                            key={plan.id}
+                            className="bg-surface rounded-xl border border-border p-5 hover:border-border-strong transition-colors"
+                        >
                             <div className="flex items-start justify-between mb-4">
-                                <div className="p-3 bg-blue-50 rounded-lg">
-                                    <CreditCard className="text-blue-600" size={24} />
+                                <div className="p-2 rounded-lg bg-accent-subtle text-accent">
+                                    <CreditCard size={18} strokeWidth={1.75} />
                                 </div>
                                 {plan.is_active && (
-                                    <span className="px-2.5 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-success text-xs font-semibold rounded-full">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-success" />
                                         Active
                                     </span>
                                 )}
                             </div>
-                            <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>
-                            <p className="text-4xl font-bold text-blue-600 mb-6">
-                                ${plan.price_monthly}
-                                <span className="text-lg text-slate-600 font-normal">/mo</span>
+                            <h3 className="text-lg font-semibold text-primary mb-1">{plan.name}</h3>
+                            <p className="mb-5">
+                                <span className="text-3xl font-semibold text-accent tabular-nums tracking-tight">
+                                    ${plan.price_monthly}
+                                </span>
+                                <span className="text-[14px] text-muted font-normal">/mo</span>
                             </p>
-                            <div className="space-y-2 mb-6">
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-slate-600">Max Users</span>
-                                    <span className="font-semibold text-slate-900">{plan.max_users}</span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-slate-600">Max Teams</span>
-                                    <span className="font-semibold text-slate-900">{plan.max_teams}</span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-slate-600">Storage</span>
-                                    <span className="font-semibold text-slate-900">
-                                        {plan.max_storage_gb ? `${plan.max_storage_gb} GB` : 'Unlimited'}
-                                    </span>
-                                </div>
+                            <div className="space-y-0 border-t border-border-subtle pt-3">
+                                {[
+                                    { label: 'Max users', value: plan.max_users },
+                                    { label: 'Max teams', value: plan.max_teams },
+                                    {
+                                        label: 'Storage',
+                                        value: plan.max_storage_gb ? `${plan.max_storage_gb} GB` : 'Unlimited',
+                                    },
+                                ].map((row) => (
+                                    <div
+                                        key={row.label}
+                                        className="flex items-center justify-between py-2 border-b border-border-subtle last:border-0"
+                                    >
+                                        <span className="text-[14px] text-secondary">{row.label}</span>
+                                        <span className="text-[14px] font-semibold text-primary tabular-nums">
+                                            {row.value}
+                                        </span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     ))}

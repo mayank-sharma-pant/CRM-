@@ -45,26 +45,20 @@ export default function MDPointsPage() {
     );
 
     return (
-        <div className="mx-auto max-w-[1440px] px-6 space-y-6 pb-12 bg-page min-h-screen">
-            <div className="flex items-center justify-between py-4 border-b border-border">
+        <div className="min-h-[calc(100vh-56px)] bg-page pb-8">
+            <div className="page-header">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-primary">Incentive Engine</h1>
-                    <p className="text-[13px] text-muted font-bold uppercase tracking-widest mt-0.5 opacity-80">
-                        Auto-calculated employee performance points
-                    </p>
+                    <h1 className="page-title">Points</h1>
+                    <p className="page-subtitle">Employee performance scores</p>
                 </div>
-                <div className="flex items-center gap-2.5">
-                    <button
-                        onClick={fetchPerformance}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-md text-[12px] font-black uppercase tracking-tight transition-all shadow-sm shadow-accent/10"
-                    >
-                        <Zap size={14} strokeWidth={2.5} />
-                        Refresh Scores
-                    </button>
-                </div>
+                <button type="button" onClick={fetchPerformance} className="btn btn-primary">
+                    <Zap size={14} />
+                    Refresh
+                </button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="page-body space-y-5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <KPIMini
                     label="Aggregate Points"
                     value={summary ? summary.totalPoints.toLocaleString() : '0'}
@@ -191,6 +185,7 @@ export default function MDPointsPage() {
                 )}
             </div>
         </div>
+            </div>
     );
 }
 

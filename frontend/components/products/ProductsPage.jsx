@@ -2,11 +2,31 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
-import { ShoppingBag, Plus, Search, Trash2, Ban } from 'lucide-react';
+import { ShoppingBag, Plus, Search, Trash2, Ban, Package, Wrench, Repeat } from 'lucide-react';
+
+const KINDS = [
+    { value: 'goods', label: 'Goods', hint: 'Physical / inventory', Icon: Package },
+    { value: 'service', label: 'Service', hint: 'One-off work', Icon: Wrench },
+    { value: 'subscription', label: 'Subscription', hint: 'Recurring plan', Icon: Repeat },
+];
+
+const BILLING_INTERVALS = [
+    { value: 'monthly', label: 'Monthly' },
+    { value: 'yearly', label: 'Yearly' },
+    { value: 'one_time', label: 'One-time' },
+];
+
+const DEFAULT_UNITS = {
+    goods: 'unit',
+    service: 'job',
+    subscription: 'seat',
+};
 
 const EMPTY_FORM = {
     name: '',
     sku: '',
+    kind: 'goods',
+    billing_interval: 'monthly',
     unit: 'unit',
     unit_price: 0,
     tax_rate: 18,
@@ -14,12 +34,17 @@ const EMPTY_FORM = {
     stock_item_id: '',
 };
 
+function kindMeta(kind) {
+    return KINDS.find((k) => k.value === kind) || KINDS[0];
+}
+
 export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) {
     const [items, setItems] = useState([]);
     const [stockItems, setStockItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [search, setSearch] = useState('');
+    const [kindFilter, setKindFilter] = useState('all');
     const [newItem, setNewItem] = useState({ ...EMPTY_FORM });
 
     const fetchItems = useCallback(async (showLoader = true) => {
@@ -48,315 +73,426 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
     }, [canManage]);
 
     useEffect(() => {
-        fetchItems(true);
+        fetchItems();
     }, [fetchItems]);
 
-    const filtered = useMemo(() => {
-        const q = search.trim().toLowerCase();
-        if (!q) return items;
-        return items.filter((it) =>
-            [it.name, it.sku, it.hsn, it.unit].some((v) => (v || '').toLowerCase().includes(q))
-        );
-    }, [items, search]);
+    const setKind = (kind) => {
+        setNewItem((prev) => ({
+            ...prev,
+            kind,
+            unit: DEFAULT_UNITS[kind] || 'unit',
+            stock_item_id: kind === 'goods' ? prev.stock_item_id : '',
+            billing_interval: kind === 'subscription' ? (prev.billing_interval || 'monthly') : 'monthly',
+        }));
+    };
 
     const handleCreate = async () => {
-        if (!newItem.name.trim()) {
-            alert('Product name is required');
-            return;
-        }
+        if (!newItem.name.trim()) return;
         try {
-            const stockId = newItem.stock_item_id ? parseInt(newItem.stock_item_id, 10) : null;
-            await api.post('/products', {
+            const payload = {
                 name: newItem.name.trim(),
                 sku: newItem.sku.trim() || null,
-                unit: newItem.unit.trim() || 'unit',
-                unit_price: Number(newItem.unit_price || 0),
-                tax_rate: Number(newItem.tax_rate || 0),
+                kind: newItem.kind,
+                unit: newItem.unit.trim() || DEFAULT_UNITS[newItem.kind] || 'unit',
+                unit_price: Number(newItem.unit_price) || 0,
+                tax_rate: Number(newItem.tax_rate) || 0,
                 hsn: newItem.hsn.trim() || null,
-                stock_item_id: Number.isFinite(stockId) ? stockId : null,
-            });
+            };
+            if (newItem.kind === 'subscription') {
+                payload.billing_interval = newItem.billing_interval || 'monthly';
+            }
+            if (newItem.kind === 'goods' && newItem.stock_item_id) {
+                payload.stock_item_id = Number(newItem.stock_item_id);
+            }
+            await api.post('/products', payload);
             setNewItem({ ...EMPTY_FORM });
             fetchItems(false);
         } catch (err) {
-            const detail = err.response?.data?.detail;
-            alert(typeof detail === 'string' ? detail : 'Failed to create product');
+            setError(err.response?.data?.detail || 'Failed to create product.');
         }
     };
 
     const deactivateItem = async (id, name) => {
-        const confirmed = window.confirm(`Deactivate "${name}"? It will be hidden from pickers.`);
-        if (!confirmed) return;
+        if (!window.confirm(`Deactivate “${name}”? It will stay on past quotes/invoices.`)) return;
         try {
             await api.patch(`/products/${id}`, { is_active: false });
             fetchItems(false);
         } catch (err) {
-            const detail = err.response?.data?.detail;
-            alert(typeof detail === 'string' ? detail : 'Failed to deactivate product');
+            setError(err.response?.data?.detail || 'Failed to deactivate.');
         }
     };
 
     const deleteItem = async (id, name) => {
-        const confirmed = window.confirm(`Permanently delete "${name}"? This cannot be undone.`);
-        if (!confirmed) return;
+        if (!window.confirm(`Delete “${name}”? This fails if it is used on a quote or invoice.`)) return;
         try {
             await api.delete(`/products/${id}`);
             fetchItems(false);
         } catch (err) {
-            const detail = err.response?.data?.detail;
-            alert(typeof detail === 'string' ? detail : 'Failed to delete product');
+            setError(err.response?.data?.detail || 'Failed to delete.');
         }
     };
 
+    const filtered = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return items.filter((item) => {
+            const kind = item.kind || 'goods';
+            if (kindFilter !== 'all' && kind !== kindFilter) return false;
+            if (!q) return true;
+            return (
+                (item.name || '').toLowerCase().includes(q) ||
+                (item.sku || '').toLowerCase().includes(q) ||
+                (item.hsn || '').toLowerCase().includes(q) ||
+                kind.includes(q)
+            );
+        });
+    }, [items, search, kindFilter]);
+
+    const isEmptyCatalog = !loading && items.length === 0;
+
     if (loading) {
         return (
-            <div className="mx-auto max-w-[1440px] px-6 py-6 bg-page min-h-screen">
-                <div className="h-10 w-64 bg-surface border border-border rounded mb-6 animate-pulse" />
-                <div className="h-80 bg-surface border border-border rounded animate-pulse" />
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="mx-auto max-w-[1440px] px-6 py-6 bg-page min-h-screen flex items-center justify-center">
-                <div className="flex flex-col items-center gap-3 text-center">
-                    <p className="text-sm text-error">{typeof error === 'string' ? error : 'Failed to load'}</p>
-                    <button
-                        type="button"
-                        onClick={() => fetchItems(true)}
-                        className="btn btn-primary"
-                    >
-                        Retry
-                    </button>
+            <div className="min-h-[calc(100vh-56px)] bg-page">
+                <div className="page-header">
+                    <div className="space-y-2 animate-pulse">
+                        <div className="h-6 w-40 bg-surface-elevated rounded" />
+                        <div className="h-4 w-64 bg-surface-elevated rounded" />
+                    </div>
                 </div>
             </div>
         );
     }
 
-    const isEmptyCatalog = items.length === 0;
-
     return (
-        <div className="bg-page min-h-screen">
+        <div className="min-h-[calc(100vh-56px)] bg-page pb-8">
             <div className="page-header">
                 <div>
+                    <p className="text-[11px] font-medium text-muted uppercase tracking-[0.12em] mb-1">
+                        {roleLabel} · Catalog
+                    </p>
                     <h1 className="page-title">Products</h1>
-                    <p className="page-subtitle">Price book for {roleLabel.toLowerCase()}</p>
+                    <p className="page-subtitle">
+                        Goods, services, and subscriptions. Stock links only apply to goods.
+                    </p>
                 </div>
             </div>
 
             <div className="page-body space-y-5">
-            <div className="flex items-center gap-3">
-                <div className="relative flex-1">
-                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
-                    <label htmlFor="products-search" className="sr-only">Search products</label>
-                    <input
-                        id="products-search"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search by name, SKU, or HSN"
-                        className="input pl-9"
-                    />
-                </div>
-                <span className="text-[13px] text-muted tabular-nums whitespace-nowrap">
-                    {filtered.length} items
-                </span>
-            </div>
+                {error && (
+                    <div className="rounded-lg border border-error/30 bg-error/5 px-4 py-3 text-sm text-error" role="alert">
+                        {error}
+                    </div>
+                )}
 
-            {canManage && (
-                <div className="panel p-5">
-                    <h2 className="text-[13px] font-semibold text-primary mb-4">Add product</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 items-end">
-                        <div className="space-y-1.5 md:col-span-2">
-                            <label htmlFor="product-name" className="text-[12px] font-medium text-muted ml-0.5">Name</label>
-                            <input
-                                id="product-name"
-                                className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
-                                placeholder="Name"
-                                value={newItem.name}
-                                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label htmlFor="product-sku" className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">SKU</label>
-                            <input
-                                id="product-sku"
-                                className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
-                                placeholder="SKU"
-                                value={newItem.sku}
-                                onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label htmlFor="product-unit" className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Unit</label>
-                            <input
-                                id="product-unit"
-                                className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
-                                placeholder="unit"
-                                value={newItem.unit}
-                                onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label htmlFor="product-price" className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Price</label>
-                            <input
-                                id="product-price"
-                                type="number"
-                                min={0}
-                                step={0.01}
-                                className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
-                                value={newItem.unit_price}
-                                onChange={(e) => setNewItem({ ...newItem, unit_price: e.target.value })}
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label htmlFor="product-tax" className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Tax %</label>
-                            <input
-                                id="product-tax"
-                                type="number"
-                                min={0}
-                                max={100}
-                                step={0.01}
-                                className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
-                                value={newItem.tax_rate}
-                                onChange={(e) => setNewItem({ ...newItem, tax_rate: e.target.value })}
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label htmlFor="product-hsn" className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">HSN</label>
-                            <input
-                                id="product-hsn"
-                                className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
-                                placeholder="HSN"
-                                value={newItem.hsn}
-                                onChange={(e) => setNewItem({ ...newItem, hsn: e.target.value })}
-                            />
-                        </div>
-                        <div className="space-y-1.5 lg:col-span-2">
-                            <label htmlFor="product-stock" className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Stock link</label>
-                            <select
-                                id="product-stock"
-                                className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
-                                value={newItem.stock_item_id}
-                                onChange={(e) => setNewItem({ ...newItem, stock_item_id: e.target.value })}
-                            >
-                                <option value="">None</option>
-                                {stockItems.map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                        {s.name}{s.sku ? ` (${s.sku})` : ''} — {s.quantity} {s.unit || 'pcs'}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                    <div className="relative flex-1 max-w-md">
+                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
+                        <label htmlFor="products-search" className="sr-only">Search products</label>
+                        <input
+                            id="products-search"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search by name, SKU, HSN, or type"
+                            className="input pl-9"
+                        />
+                    </div>
+                    <div className="flex items-center gap-1 p-1 rounded-lg border border-border bg-surface" role="group" aria-label="Filter by type">
                         <button
                             type="button"
-                            onClick={handleCreate}
-                            className="btn btn-primary w-full"
+                            onClick={() => setKindFilter('all')}
+                            className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-colors ${
+                                kindFilter === 'all' ? 'bg-accent/15 text-accent' : 'text-muted hover:text-primary'
+                            }`}
                         >
-                            <Plus size={14} aria-hidden="true" /> Add
+                            All
                         </button>
+                        {KINDS.map((k) => (
+                            <button
+                                key={k.value}
+                                type="button"
+                                onClick={() => setKindFilter(k.value)}
+                                className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-colors ${
+                                    kindFilter === k.value ? 'bg-accent/15 text-accent' : 'text-muted hover:text-primary'
+                                }`}
+                            >
+                                {k.label}
+                            </button>
+                        ))}
                     </div>
+                    <span className="text-[13px] text-muted tabular-nums whitespace-nowrap">
+                        {filtered.length} items
+                    </span>
                 </div>
-            )}
 
-            <div className="bg-surface/40 backdrop-blur-sm rounded-xl border border-border/60 overflow-hidden shadow-sm">
-                {isEmptyCatalog ? (
-                    <div className="py-24 text-center">
-                        <ShoppingBag size={28} className="mx-auto text-muted mb-3" aria-hidden="true" />
-                        <h3 className="text-sm font-medium text-primary">No products</h3>
-                        <p className="text-[13px] text-muted mt-1">
-                            {canManage
-                                ? 'Add your first catalog item above.'
-                                : 'Ask an admin to add catalog items.'}
-                        </p>
+                {canManage && (
+                    <div className="panel p-5 space-y-4">
+                        <h2 className="text-[13px] font-semibold text-primary">Add catalog item</h2>
+
+                        <div className="flex flex-wrap gap-2" role="group" aria-label="Product type">
+                            {KINDS.map(({ value, label, hint, Icon }) => {
+                                const selected = newItem.kind === value;
+                                return (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setKind(value)}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors ${
+                                            selected
+                                                ? 'border-accent/50 bg-accent/10 text-primary'
+                                                : 'border-border bg-surface-elevated text-muted hover:border-border hover:text-primary'
+                                        }`}
+                                    >
+                                        <Icon size={14} aria-hidden="true" />
+                                        <span>
+                                            <span className="block text-[13px] font-medium">{label}</span>
+                                            <span className="block text-[11px] opacity-70">{hint}</span>
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 items-end">
+                            <div className="space-y-1.5 md:col-span-2">
+                                <label htmlFor="product-name" className="text-[12px] font-medium text-muted ml-0.5">Name</label>
+                                <input
+                                    id="product-name"
+                                    className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                                    placeholder="Name"
+                                    value={newItem.name}
+                                    onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label htmlFor="product-sku" className="text-[12px] font-medium text-muted ml-0.5">SKU</label>
+                                <input
+                                    id="product-sku"
+                                    className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                                    placeholder="SKU"
+                                    value={newItem.sku}
+                                    onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label htmlFor="product-unit" className="text-[12px] font-medium text-muted ml-0.5">Unit</label>
+                                <input
+                                    id="product-unit"
+                                    className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                                    placeholder={DEFAULT_UNITS[newItem.kind] || 'unit'}
+                                    value={newItem.unit}
+                                    onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label htmlFor="product-price" className="text-[12px] font-medium text-muted ml-0.5">
+                                    {newItem.kind === 'subscription' ? 'Price / period' : 'Price'}
+                                </label>
+                                <input
+                                    id="product-price"
+                                    type="number"
+                                    min={0}
+                                    step={0.01}
+                                    className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                                    value={newItem.unit_price}
+                                    onChange={(e) => setNewItem({ ...newItem, unit_price: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label htmlFor="product-tax" className="text-[12px] font-medium text-muted ml-0.5">Tax %</label>
+                                <input
+                                    id="product-tax"
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    step={0.01}
+                                    className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                                    value={newItem.tax_rate}
+                                    onChange={(e) => setNewItem({ ...newItem, tax_rate: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label htmlFor="product-hsn" className="text-[12px] font-medium text-muted ml-0.5">
+                                    {newItem.kind === 'goods' ? 'HSN' : 'HSN / SAC'}
+                                </label>
+                                <input
+                                    id="product-hsn"
+                                    className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                                    placeholder={newItem.kind === 'goods' ? 'HSN' : 'SAC'}
+                                    value={newItem.hsn}
+                                    onChange={(e) => setNewItem({ ...newItem, hsn: e.target.value })}
+                                />
+                            </div>
+
+                            {newItem.kind === 'subscription' && (
+                                <div className="space-y-1.5">
+                                    <label htmlFor="product-billing" className="text-[12px] font-medium text-muted ml-0.5">Billing</label>
+                                    <select
+                                        id="product-billing"
+                                        className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                                        value={newItem.billing_interval}
+                                        onChange={(e) => setNewItem({ ...newItem, billing_interval: e.target.value })}
+                                    >
+                                        {BILLING_INTERVALS.map((b) => (
+                                            <option key={b.value} value={b.value}>{b.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {newItem.kind === 'goods' && (
+                                <div className="space-y-1.5 lg:col-span-2">
+                                    <label htmlFor="product-stock" className="text-[12px] font-medium text-muted ml-0.5">
+                                        Stock link (optional)
+                                    </label>
+                                    <select
+                                        id="product-stock"
+                                        className="w-full px-4 py-2.5 bg-surface-elevated border border-border/60 rounded-lg text-sm text-primary focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all font-medium"
+                                        value={newItem.stock_item_id}
+                                        onChange={(e) => setNewItem({ ...newItem, stock_item_id: e.target.value })}
+                                    >
+                                        <option value="">None — no inventory deduction</option>
+                                        {stockItems.map((s) => (
+                                            <option key={s.id} value={s.id}>
+                                                {s.name}{s.sku ? ` (${s.sku})` : ''} — {s.quantity} {s.unit || 'pcs'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={handleCreate}
+                                className="btn btn-primary w-full"
+                            >
+                                <Plus size={14} aria-hidden="true" /> Add
+                            </button>
+                        </div>
                     </div>
-                ) : (
-                    <>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="border-b border-border bg-surface-elevated/40">
-                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Product</th>
-                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">SKU</th>
-                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Unit</th>
-                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Price</th>
-                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Tax %</th>
-                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">HSN</th>
-                                        <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Status</th>
-                                        {canManage && (
-                                            <th className="py-4 px-6 text-[10px] font-black text-muted uppercase tracking-[0.2em] text-right">Actions</th>
-                                        )}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/30">
-                                    {filtered.map((item) => (
-                                        <tr key={item.id} className="group hover:bg-surface-elevated/40 transition-colors">
-                                            <td className="py-4 px-6">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                                                        <ShoppingBag size={16} aria-hidden="true" />
-                                                    </div>
-                                                    <span className="text-sm font-bold text-primary">{item.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-4 px-6">
-                                                <span className="text-xs font-mono text-muted/80 bg-surface-elevated/40 px-2 py-1 rounded border border-border/30">
-                                                    {item.sku || '—'}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 px-6 text-sm text-secondary">{item.unit || 'unit'}</td>
-                                            <td className="py-4 px-6">
-                                                <span className="text-sm font-bold text-primary tabular-nums">
-                                                    ₹{Number(item.unit_price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 px-6 text-sm font-bold tabular-nums text-primary">{Number(item.tax_rate || 0)}%</td>
-                                            <td className="py-4 px-6 text-xs text-muted">{item.hsn || '—'}</td>
-                                            <td className="py-4 px-6">
-                                                {item.is_active ? (
-                                                    <span className="badge badge-success">Active</span>
-                                                ) : (
-                                                    <span className="badge badge-neutral">Inactive</span>
-                                                )}
-                                            </td>
+                )}
+
+                <div className="bg-surface/40 backdrop-blur-sm rounded-xl border border-border/60 overflow-hidden shadow-sm">
+                    {isEmptyCatalog ? (
+                        <div className="py-24 text-center">
+                            <ShoppingBag size={28} className="mx-auto text-muted mb-3" aria-hidden="true" />
+                            <h3 className="text-sm font-medium text-primary">No catalog items</h3>
+                            <p className="text-[13px] text-muted mt-1">
+                                {canManage
+                                    ? 'Add goods, a service, or a subscription above.'
+                                    : 'Ask an admin to add catalog items.'}
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="border-b border-border bg-surface-elevated/40">
+                                            <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Item</th>
+                                            <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Type</th>
+                                            <th className="py-2.5 px-4 text-[12px] font-medium text-muted">SKU</th>
+                                            <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Unit</th>
+                                            <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Price</th>
+                                            <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Tax %</th>
+                                            <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Status</th>
                                             {canManage && (
-                                                <td className="py-4 px-6 text-right">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        {item.is_active && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => deactivateItem(item.id, item.name)}
-                                                                title="Deactivate"
-                                                                className="w-8 h-8 flex items-center justify-center rounded-lg border border-border bg-surface-elevated hover:bg-warning/10 hover:border-warning/30 hover:text-warning focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all"
-                                                            >
-                                                                <Ban size={14} aria-hidden="true" />
-                                                                <span className="sr-only">Deactivate {item.name}</span>
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => deleteItem(item.id, item.name)}
-                                                            title="Delete"
-                                                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-border bg-surface-elevated hover:bg-error/10 hover:border-error/30 hover:text-error focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all"
-                                                        >
-                                                            <Trash2 size={14} aria-hidden="true" />
-                                                            <span className="sr-only">Delete {item.name}</span>
-                                                        </button>
-                                                    </div>
-                                                </td>
+                                                <th className="py-2.5 px-4 text-[12px] font-medium text-muted text-right">Actions</th>
                                             )}
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        {filtered.length === 0 && (
-                            <div className="py-16 text-center">
-                                <p className="text-xs text-muted/60">No products match your current filters.</p>
+                                    </thead>
+                                    <tbody className="divide-y divide-border/30">
+                                        {filtered.map((item) => {
+                                            const meta = kindMeta(item.kind || 'goods');
+                                            const Icon = meta.Icon;
+                                            const interval =
+                                                item.kind === 'subscription' && item.billing_interval
+                                                    ? BILLING_INTERVALS.find((b) => b.value === item.billing_interval)?.label
+                                                    : null;
+                                            return (
+                                                <tr key={item.id} className="group hover:bg-surface-elevated/40 transition-colors">
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
+                                                                <Icon size={16} aria-hidden="true" />
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-sm font-semibold text-primary block">{item.name}</span>
+                                                                {item.stock_item_id != null && (
+                                                                    <span className="text-[11px] text-muted">
+                                                                        Linked stock
+                                                                        {item.stock_quantity != null ? ` · qty ${item.stock_quantity}` : ''}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <span className="badge badge-neutral">
+                                                            {meta.label}
+                                                            {interval ? ` · ${interval}` : ''}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <span className="text-xs font-mono text-muted bg-surface-elevated/40 px-2 py-1 rounded border border-border/30">
+                                                            {item.sku || '—'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-sm text-secondary">{item.unit || 'unit'}</td>
+                                                    <td className="py-3 px-4">
+                                                        <span className="text-sm font-semibold text-primary tabular-nums">
+                                                            ₹{Number(item.unit_price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            {interval ? (
+                                                                <span className="text-[11px] font-normal text-muted"> / {interval.toLowerCase()}</span>
+                                                            ) : null}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-sm tabular-nums text-primary">{Number(item.tax_rate || 0)}%</td>
+                                                    <td className="py-3 px-4">
+                                                        {item.is_active ? (
+                                                            <span className="badge badge-success">Active</span>
+                                                        ) : (
+                                                            <span className="badge badge-neutral">Inactive</span>
+                                                        )}
+                                                    </td>
+                                                    {canManage && (
+                                                        <td className="py-3 px-4 text-right">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                {item.is_active && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => deactivateItem(item.id, item.name)}
+                                                                        title="Deactivate"
+                                                                        className="w-8 h-8 flex items-center justify-center rounded-lg border border-border bg-surface-elevated hover:bg-warning/10 hover:border-warning/30 hover:text-warning focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all"
+                                                                    >
+                                                                        <Ban size={14} aria-hidden="true" />
+                                                                        <span className="sr-only">Deactivate {item.name}</span>
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => deleteItem(item.id, item.name)}
+                                                                    title="Delete"
+                                                                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-border bg-surface-elevated hover:bg-error/10 hover:border-error/30 hover:text-error focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all"
+                                                                >
+                                                                    <Trash2 size={14} aria-hidden="true" />
+                                                                    <span className="sr-only">Delete {item.name}</span>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </div>
-                        )}
-                    </>
-                )}
-            </div>
+                            {filtered.length === 0 && (
+                                <div className="py-16 text-center">
+                                    <p className="text-xs text-muted">No products match your current filters.</p>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );

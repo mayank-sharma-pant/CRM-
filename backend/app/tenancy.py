@@ -155,17 +155,28 @@ def _rls_after_begin(session, transaction, connection) -> None:
 
 
 def enable_rls(bind) -> int:
-    """Create/replace tenant policies. No-op on SQLite. Returns table count."""
+    """Create/replace tenant policies. No-op on SQLite. Returns table count.
+
+    When `bind` is an open connection (Alembic), run on that connection.
+    Opening a second transaction deadlocks behind the caller's ALTER locks.
+    """
     if not is_postgres_bind(bind):
         return 0
     inspector = inspect(bind)
     existing = set(inspector.get_table_names())
-    applied = 0
-    with bind.begin() as conn:
+
+    def apply(conn) -> int:
+        applied = 0
         for name in tenant_table_names():
             if name not in existing:
                 continue
             for stmt in policy_statements(name):
                 conn.execute(text(stmt))
             applied += 1
-    return applied
+        return applied
+
+    # Engine has .connect(); a Connection does not.
+    if hasattr(bind, "connect"):
+        with bind.begin() as conn:
+            return apply(conn)
+    return apply(bind)

@@ -14,6 +14,13 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    if (config.headers && typeof config.headers.delete === 'function') {
+      config.headers.delete('Content-Type');
+    } else if (config.headers) {
+      delete config.headers['Content-Type'];
+    }
+  }
   if (typeof window !== 'undefined') {
     const teamId = window.localStorage.getItem(ACTIVE_TEAM_KEY);
     if (teamId) {

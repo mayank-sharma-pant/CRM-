@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { X, Loader2, Upload } from 'lucide-react';
 import api from '../../services/api';
+import { previewLeadsLocally, toLegacyLeadCsv } from '../../lib/leadCsv.cjs';
 
 const NONE = '__none__';
 
@@ -51,6 +52,7 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [committing, setCommitting] = useState(false);
+  const [legacy, setLegacy] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -61,21 +63,63 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
       setError(null);
       setLoading(false);
       setCommitting(false);
+      setLegacy(false);
     }
   }, [isOpen]);
 
   if (!isOpen || !config) return null;
 
+  const cleanedMapping = (payload) => {
+    const cleaned = {};
+    Object.entries(payload || {}).forEach(([k, v]) => {
+      if (v && v !== NONE) cleaned[k] = v;
+    });
+    return cleaned;
+  };
+
+  const postForm = async (path, fd) => {
+    const headers = {};
+    if (typeof window !== 'undefined') {
+      const teamId = window.localStorage.getItem('crm.activeTeamId');
+      if (teamId) headers['X-Team-Id'] = teamId;
+    }
+    const res = await fetch(`/api${path}`, {
+      method: 'POST',
+      body: fd,
+      credentials: 'include',
+      headers,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      let message = 'Request failed';
+      if (typeof data.detail === 'string') {
+        message = data.detail === 'Not Found'
+          ? 'Import is not available on the server. Redeploy the app or contact support.'
+          : data.detail;
+      }
+      const err = new Error(message);
+      err.response = { status: res.status, data };
+      throw err;
+    }
+    return { data };
+  };
+
   const postImport = (path, mappingOverride) => {
     const fd = new FormData();
     fd.append('file', file);
-    const payload = mappingOverride || mapping;
-    const cleaned = {};
-    Object.entries(payload).forEach(([k, v]) => {
-      if (v && v !== NONE) cleaned[k] = v;
-    });
-    fd.append('mapping', JSON.stringify(cleaned));
-    return api.post(path, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    fd.append('mapping', JSON.stringify(cleanedMapping(mappingOverride || mapping)));
+    return postForm(path, fd);
+  };
+
+  const applyLocalPreview = async (nextFile, nextMapping) => {
+    const text = await nextFile.text();
+    const local = previewLeadsLocally(text, nextMapping);
+    setLegacy(true);
+    setHeaders(local.headers);
+    setMapping(nextMapping || local.suggested_mapping || {});
+    setPreview(local);
+    setError(local.error);
+    return local;
   };
 
   const handleFile = async (e) => {
@@ -84,18 +128,26 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
     setFile(next);
     setError(null);
     setPreview(null);
+    setLegacy(false);
     setLoading(true);
     try {
+      if (entity === 'leads') {
+        try {
+          await applyLocalPreview(next);
+        } catch {
+          setError('Could not read this CSV file. Try exporting from Google Sheets as CSV (comma-separated).');
+        }
+        return;
+      }
       const fd = new FormData();
       fd.append('file', next);
-      const res = await api.post(`/import/${entity}/preview`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const res = await postForm(`/import/${entity}/preview`, fd);
       setHeaders(res.data.headers || []);
       setMapping(res.data.suggested_mapping || {});
       setPreview(res.data);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Could not read CSV.');
+      const detail = err.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : 'Could not read CSV.');
     } finally {
       setLoading(false);
     }
@@ -107,10 +159,15 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await postImport(`/import/${entity}/preview`, nextMapping);
-      setPreview(res.data);
+      if (entity === 'leads' || legacy) {
+        await applyLocalPreview(file, nextMapping);
+      } else {
+        const res = await postImport(`/import/${entity}/preview`, nextMapping);
+        setPreview(res.data);
+      }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Could not preview CSV.');
+      const detail = err.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : 'Could not preview CSV.');
     } finally {
       setLoading(false);
     }
@@ -120,11 +177,19 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
     setCommitting(true);
     setError(null);
     try {
-      await postImport(`/import/${entity}/commit`);
+      if (entity === 'leads') {
+        const csv = toLegacyLeadCsv(await file.text(), mapping);
+        const fd = new FormData();
+        fd.append('file', new Blob([csv], { type: 'text/csv' }), 'leads-import.csv');
+        await postForm('/import/leads', fd);
+      } else {
+        await postImport(`/import/${entity}/commit`);
+      }
       onRefresh?.();
       onClose();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Import failed.');
+      const detail = err.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : 'Import failed.');
     } finally {
       setCommitting(false);
     }

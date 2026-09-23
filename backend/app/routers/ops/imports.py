@@ -9,8 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 import csv
 import io
+import json
 import logging
 from typing import Optional
+
+from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.utils.dependencies import get_current_user, get_active_team_id
@@ -43,11 +46,15 @@ async def _csv_bytes(file: UploadFile) -> bytes:
 
 
 def _team_for_import(current_user: User, active_team_id: int | None) -> int | None:
-    if current_user.role in ("sales", "manager"):
-        if active_team_id is None:
-            raise HTTPException(status_code=400, detail="Active team required for CSV import.")
-        return active_team_id
+    if current_user.role == "manager" and active_team_id is None:
+        raise HTTPException(status_code=400, detail="Active team required for CSV import.")
     return active_team_id
+
+
+class LeadCsvText(BaseModel):
+    csv: str = Field(min_length=1)
+    mapping: Optional[dict] = None
+    commit: bool = False
 
 
 def _commit_response(preview: dict, created_count: int) -> dict:
@@ -166,6 +173,73 @@ async def commit_leads_import(
     except Exception:
         db.rollback()
         logger.exception("CSV import commit failed for user_id=%s", current_user.id)
+        raise HTTPException(status_code=500, detail="Failed to process CSV file.")
+
+
+@router.post("/leads/text")
+def import_leads_text(
+    body: LeadCsvText,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    active_team_id: int | None = Depends(get_active_team_id),
+):
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
+    contents = body.csv.encode("utf-8")
+    if len(contents) > MAX_CSV_BYTES:
+        raise HTTPException(status_code=413, detail="CSV file too large. Maximum size is 2 MB.")
+    mapping_raw = json.dumps(body.mapping) if body.mapping else None
+    try:
+        preview = preview_leads(db, current_user.company_id, contents, mapping_raw)
+        if not body.commit:
+            return preview
+        team_id = _team_for_import(current_user, active_team_id)
+        assigned_to_id = current_user.id if current_user.role == "sales" else None
+        created = []
+        for values in new_leads_from_preview(preview):
+            created.append(
+                Lead(
+                    company_id=current_user.company_id,
+                    name=values["name"],
+                    email=normalize_email(values["email"] or None),
+                    phone=normalize_phone(values["phone"] or None),
+                    company=values["company"] or None,
+                    source=values["source"] or "CSV Import",
+                    service_type=values["service_type"] or None,
+                    status="New",
+                    assigned_to_id=assigned_to_id,
+                    team_id=team_id,
+                )
+            )
+        if created:
+            db.add_all(created)
+            db.flush()
+            record_batch(
+                db,
+                company_id=current_user.company_id,
+                entity_type="lead",
+                entity_ids=[lead.id for lead in created],
+                created_by_id=current_user.id,
+            )
+            db.commit()
+            for lead in created:
+                db.refresh(lead)
+                log_activity(
+                    db, user=current_user, action="created", entity_type="lead",
+                    entity_id=lead.id, entity_name=lead.name,
+                )
+            db.commit()
+        return _commit_response(preview, len(created))
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid CSV encoding. Please upload a UTF-8 encoded file.")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        logger.exception("CSV text import failed for user_id=%s", current_user.id)
         raise HTTPException(status_code=500, detail="Failed to process CSV file.")
 
 
@@ -387,7 +461,7 @@ async def import_leads(
             raise HTTPException(status_code=400, detail="CSV must contain at least a 'name' column.")
             
         leads_to_create = []
-        if current_user.role in ("sales", "manager"):
+        if current_user.role == "manager":
             if active_team_id is None:
                 raise HTTPException(status_code=400, detail="Active team required for CSV import.")
             team_id = active_team_id

@@ -46,6 +46,51 @@ def _user_role_str(user: User) -> str:
     return str(getattr(r, "value", r))
 
 
+def _sales_member_team_ids(db: Session, current_user: User) -> list[int]:
+    return [
+        tm.team_id
+        for tm in apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+        .filter(TeamMembership.user_id == current_user.id)
+        .all()
+    ]
+
+
+def _sales_can_access_lead(
+    lead: Lead,
+    current_user: User,
+    active_team_id: Optional[int],
+    db: Session,
+) -> bool:
+    """Match list_leads row scope for sales so pool links open the detail page."""
+    if lead.assigned_to_id == current_user.id:
+        return True
+    if lead.assigned_to_id is not None:
+        return False
+    if active_team_id is not None:
+        if lead.team_id is None:
+            return True
+        return lead.team_id == active_team_id
+    member_team_ids = _sales_member_team_ids(db, current_user)
+    if member_team_ids:
+        return lead.team_id in member_team_ids or lead.team_id is None
+    return lead.team_id is None
+
+
+def _sales_can_claim_lead(
+    lead: Lead,
+    current_user: User,
+    active_team_id: Optional[int],
+    db: Session,
+) -> None:
+    if active_team_id is not None:
+        if lead.team_id is not None and lead.team_id != active_team_id:
+            raise HTTPException(status_code=403, detail="Lead does not belong to your active team")
+        return
+    member_team_ids = _sales_member_team_ids(db, current_user)
+    if lead.team_id is not None and member_team_ids and lead.team_id not in member_team_ids:
+        raise HTTPException(status_code=403, detail="Lead does not belong to your team")
+
+
 def _lead_status_value(lead: Lead) -> str:
     s = lead.status
     return s.value if hasattr(s, "value") else str(s)
@@ -357,27 +402,29 @@ def list_leads(
     if _user_role_str(current_user) == "sales":
         if active_team_id is not None:
             query = query.filter(
-                Lead.team_id == active_team_id,
-                or_(Lead.assigned_to_id == current_user.id, Lead.assigned_to_id.is_(None)),
+                or_(
+                    Lead.assigned_to_id == current_user.id,
+                    Lead.assigned_to_id.is_(None)
+                    & ((Lead.team_id == active_team_id) | Lead.team_id.is_(None)),
+                )
             )
         else:
-            # Fallback: if the client didn't send X-Team-Id and user has no primary team,
-            # still allow "open to anyone" leads from any team the user belongs to.
-            member_team_ids = [
-                tm.team_id
-                for tm in apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
-                .filter(TeamMembership.user_id == current_user.id)
-                .all()
-            ]
+            member_team_ids = _sales_member_team_ids(db, current_user)
             if member_team_ids:
                 query = query.filter(
                     or_(
                         Lead.assigned_to_id == current_user.id,
-                        (Lead.assigned_to_id.is_(None) & Lead.team_id.in_(member_team_ids)),
+                        Lead.assigned_to_id.is_(None)
+                        & (Lead.team_id.in_(member_team_ids) | Lead.team_id.is_(None)),
                     )
                 )
             else:
-                query = query.filter(Lead.assigned_to_id == current_user.id)
+                query = query.filter(
+                    or_(
+                        Lead.assigned_to_id == current_user.id,
+                        Lead.assigned_to_id.is_(None) & Lead.team_id.is_(None),
+                    )
+                )
     elif _user_role_str(current_user) == "manager":
         if active_team_id is None:
             query = query.filter(False)
@@ -589,10 +636,8 @@ def get_lead(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
         
-    # Apply role-based scoping
     if _user_role_str(current_user) == "sales":
-        own_or_open = (lead.assigned_to_id == current_user.id) or (lead.assigned_to_id is None and lead.team_id == active_team_id)
-        if not own_or_open:
+        if not _sales_can_access_lead(lead, current_user, active_team_id, db):
             raise HTTPException(status_code=403, detail="You do not have access to this lead")
     if _user_role_str(current_user) == "manager":
         if active_team_id is None or lead.team_id != active_team_id:
@@ -1113,10 +1158,11 @@ def claim_lead(
         raise HTTPException(status_code=404, detail="Lead not found")
 
     if lead.assigned_to_id is not None:
+        if lead.assigned_to_id == current_user.id:
+            return {"message": "Lead already assigned to you", "lead_id": lead.id}
         raise HTTPException(status_code=400, detail="This lead is already assigned")
 
-    if active_team_id is not None and lead.team_id != active_team_id:
-        raise HTTPException(status_code=403, detail="Lead does not belong to your active team")
+    _sales_can_claim_lead(lead, current_user, active_team_id, db)
 
     lead.assigned_to_id = current_user.id
     log_activity(db, user=current_user, action='claimed', entity_type='lead',

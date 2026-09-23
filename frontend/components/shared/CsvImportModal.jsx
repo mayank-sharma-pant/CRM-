@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { X, Loader2, Upload } from 'lucide-react';
-import api from '../../services/api';
-import { previewLeadsLocally, toLegacyLeadCsv } from '../../lib/leadCsv.cjs';
+import api, { getActiveTeamId, setActiveTeamId } from '../../services/api';
+import { previewLeadsLocally, suggestNotesExtra, toLegacyLeadCsv } from '../../lib/leadCsv.cjs';
 
 const NONE = '__none__';
 
@@ -11,12 +11,16 @@ const ENTITY_CONFIG = {
   leads: {
     title: 'Import leads from CSV',
     fields: [
-      { key: 'name', label: 'Name' },
-      { key: 'email', label: 'Email' },
-      { key: 'phone', label: 'Phone' },
-      { key: 'company', label: 'Company' },
-      { key: 'source', label: 'Source' },
-      { key: 'service_type', label: 'Service type' },
+      { key: 'name', label: 'Name (required)' },
+      { key: 'email', label: 'Email (optional)' },
+      { key: 'phone', label: 'Phone (optional)' },
+      { key: 'company', label: 'Company (optional)' },
+      { key: 'source', label: 'Source (optional)' },
+      { key: 'service_type', label: 'Service type (optional)' },
+      { key: 'website', label: 'Website (optional)' },
+      { key: 'industry', label: 'Industry (optional)' },
+      { key: 'linkedin_url', label: 'LinkedIn (optional)' },
+      { key: 'notes', label: 'Notes (optional)' },
     ],
   },
   clients: {
@@ -72,17 +76,37 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
   const cleanedMapping = (payload) => {
     const cleaned = {};
     Object.entries(payload || {}).forEach(([k, v]) => {
+      if (k === 'notes_extra' && Array.isArray(v)) {
+        cleaned.notes_extra = v.filter(Boolean);
+        return;
+      }
       if (v && v !== NONE) cleaned[k] = v;
     });
     return cleaned;
   };
 
+  const extraNoteColumns = entity === 'leads' ? suggestNotesExtra(headers, mapping) : [];
+
+  const ensureActiveTeamId = async () => {
+    let teamId = getActiveTeamId();
+    if (teamId) return teamId;
+    try {
+      const res = await api.get('/teams/mine');
+      const fromServer = res.data?.active_team_id ?? res.data?.teams?.[0]?.id;
+      if (fromServer != null && fromServer !== '') {
+        setActiveTeamId(fromServer);
+        return String(fromServer);
+      }
+    } catch {
+      // import may still succeed if backend resolves team from company
+    }
+    return getActiveTeamId();
+  };
+
   const postForm = async (path, fd) => {
     const headers = {};
-    if (typeof window !== 'undefined') {
-      const teamId = window.localStorage.getItem('crm.activeTeamId');
-      if (teamId) headers['X-Team-Id'] = teamId;
-    }
+    const teamId = await ensureActiveTeamId();
+    if (teamId) headers['X-Team-Id'] = teamId;
     const res = await fetch(`/api${path}`, {
       method: 'POST',
       body: fd,
@@ -228,7 +252,14 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
                     <select
                       value={mapping[field.key] || NONE}
                       onChange={(e) => {
-                        const next = { ...mapping, [field.key]: e.target.value };
+                        const next = {
+                          ...mapping,
+                          [field.key]: e.target.value,
+                          notes_extra: suggestNotesExtra(headers, {
+                            ...mapping,
+                            [field.key]: e.target.value,
+                          }).filter((col) => (mapping.notes_extra || []).includes(col)),
+                        };
                         remap(next);
                       }}
                       className="mt-1 w-full text-sm rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 py-1"
@@ -241,6 +272,30 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
                   </label>
                 ))}
               </div>
+              {entity === 'leads' && extraNoteColumns.length > 0 && (
+                <div className="rounded border border-slate-200 dark:border-slate-600 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase">
+                    Extra CSV columns → append to notes (optional)
+                  </p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 max-h-36 overflow-y-auto">
+                    {extraNoteColumns.map((col) => (
+                      <label key={col} className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200">
+                        <input
+                          type="checkbox"
+                          checked={(mapping.notes_extra || []).includes(col)}
+                          onChange={(e) => {
+                            const current = new Set(mapping.notes_extra || []);
+                            if (e.target.checked) current.add(col);
+                            else current.delete(col);
+                            remap({ ...mapping, notes_extra: [...current] });
+                          }}
+                        />
+                        {col}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
               <p className="text-sm text-slate-600 dark:text-slate-300">
                 {counts.new} new · {counts.duplicate} duplicate · {counts.invalid} invalid
               </p>

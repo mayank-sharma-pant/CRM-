@@ -16,8 +16,10 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, get_active_team_id
+from app.utils.dependencies import get_current_user, get_active_team_id, apply_company_scope
 from app.models.core.user import User
+from app.models.core.team_membership import TeamMembership
+from app.models.core.team import Team
 from app.models.sales.client import Client
 from app.models.sales.deal import Deal
 from app.models.sales.lead import Lead
@@ -45,10 +47,42 @@ async def _csv_bytes(file: UploadFile) -> bytes:
     return contents
 
 
-def _team_for_import(current_user: User, active_team_id: int | None) -> int | None:
-    if current_user.role == "manager" and active_team_id is None:
-        raise HTTPException(status_code=400, detail="Active team required for CSV import.")
-    return active_team_id
+def _ensure_company_team(db: Session, current_user: User) -> int:
+    team = (
+        apply_company_scope(db.query(Team), Team, current_user)
+        .order_by(Team.id.asc())
+        .first()
+    )
+    if team:
+        return team.id
+    if current_user.company_id is None:
+        raise HTTPException(status_code=400, detail="Company context required to import leads.")
+    team = Team(company_id=current_user.company_id, name="Default")
+    db.add(team)
+    db.flush()
+    return team.id
+
+
+def _resolve_import_team_id(db: Session, current_user: User, active_team_id: int | None) -> int:
+    team_id = active_team_id
+    if team_id is None and current_user.team_id is not None:
+        team_id = current_user.team_id
+    if team_id is None:
+        membership = (
+            apply_company_scope(db.query(TeamMembership), TeamMembership, current_user)
+            .filter(TeamMembership.user_id == current_user.id)
+            .order_by(TeamMembership.id.desc())
+            .first()
+        )
+        if membership:
+            team_id = membership.team_id
+    if team_id is None:
+        team_id = _ensure_company_team(db, current_user)
+    return team_id
+
+
+def _team_for_import(db: Session, current_user: User, active_team_id: int | None) -> int:
+    return _resolve_import_team_id(db, current_user, active_team_id)
 
 
 class LeadCsvText(BaseModel):
@@ -127,8 +161,8 @@ async def commit_leads_import(
     try:
         contents = await _csv_bytes(file)
         preview = preview_leads(db, current_user.company_id, contents, mapping)
-        team_id = _team_for_import(current_user, active_team_id)
-        assigned_to_id = current_user.id if current_user.role == "sales" else None
+        team_id = _team_for_import(db, current_user, active_team_id)
+        assigned_to_id = None
         created = []
         for values in new_leads_from_preview(preview):
             lead = Lead(
@@ -139,6 +173,10 @@ async def commit_leads_import(
                 company=values["company"] or None,
                 source=values["source"] or "CSV Import",
                 service_type=values["service_type"] or None,
+                website=values.get("website") or None,
+                industry=values.get("industry") or None,
+                linkedin_url=values.get("linkedin_url") or None,
+                notes=values.get("notes") or None,
                 status="New",
                 assigned_to_id=assigned_to_id,
                 team_id=team_id,
@@ -193,8 +231,8 @@ def import_leads_text(
         preview = preview_leads(db, current_user.company_id, contents, mapping_raw)
         if not body.commit:
             return preview
-        team_id = _team_for_import(current_user, active_team_id)
-        assigned_to_id = current_user.id if current_user.role == "sales" else None
+        team_id = _team_for_import(db, current_user, active_team_id)
+        assigned_to_id = None
         created = []
         for values in new_leads_from_preview(preview):
             created.append(
@@ -206,6 +244,10 @@ def import_leads_text(
                     company=values["company"] or None,
                     source=values["source"] or "CSV Import",
                     service_type=values["service_type"] or None,
+                    website=values.get("website") or None,
+                    industry=values.get("industry") or None,
+                    linkedin_url=values.get("linkedin_url") or None,
+                    notes=values.get("notes") or None,
                     status="New",
                     assigned_to_id=assigned_to_id,
                     team_id=team_id,
@@ -279,8 +321,8 @@ async def commit_clients_import(
     try:
         contents = await _csv_bytes(file)
         preview = preview_clients(db, current_user.company_id, contents, mapping)
-        team_id = _team_for_import(current_user, active_team_id)
-        assigned_to_id = current_user.id if current_user.role == "sales" else None
+        team_id = _team_for_import(db, current_user, active_team_id)
+        assigned_to_id = None
         created = []
         for values in new_clients_from_preview(preview):
             row = Client(
@@ -375,8 +417,8 @@ async def commit_deals_import(
         )
         if first_stage is None:
             raise HTTPException(status_code=400, detail="Default pipeline has no stages")
-        team_id = _team_for_import(current_user, active_team_id)
-        assigned_to_id = current_user.id if current_user.role == "sales" else None
+        team_id = _team_for_import(db, current_user, active_team_id)
+        assigned_to_id = None
         created = []
         for values in new_deals_from_preview(preview):
             close_raw = values.get("expected_close") or ""
@@ -461,13 +503,8 @@ async def import_leads(
             raise HTTPException(status_code=400, detail="CSV must contain at least a 'name' column.")
             
         leads_to_create = []
-        if current_user.role == "manager":
-            if active_team_id is None:
-                raise HTTPException(status_code=400, detail="Active team required for CSV import.")
-            team_id = active_team_id
-        else:
-            team_id = active_team_id
-        assigned_to_id = current_user.id if current_user.role == "sales" else None
+        team_id = _team_for_import(db, current_user, active_team_id)
+        assigned_to_id = None
         
         row_count: int = 0
         import_limited = False
@@ -480,14 +517,21 @@ async def import_leads(
             if not name_val or not str(name_val).strip():
                 continue
                 
+            phone_raw = str(row.get('phone', '')).strip()
+            if phone_raw.lower().startswith('p:'):
+                phone_raw = phone_raw[2:].strip()
             lead = Lead(
                 company_id=current_user.company_id,
                 name=str(name_val).strip(),
                 email=normalize_email(str(row.get('email', '')).strip() or None),
-                phone=normalize_phone(str(row.get('phone', '')).strip() or None),
+                phone=normalize_phone(phone_raw or None),
                 company=str(row.get('company', '')).strip() or None,
                 source=str(row.get('source', '')).strip() or 'CSV Import',
                 service_type=str(row.get('service_type', '')).strip() or None,
+                website=str(row.get('website', '')).strip() or None,
+                industry=str(row.get('industry', '')).strip() or None,
+                linkedin_url=str(row.get('linkedin_url', '')).strip() or None,
+                notes=str(row.get('notes', '')).strip() or None,
                 status="New",
                 assigned_to_id=assigned_to_id,
                 team_id=team_id

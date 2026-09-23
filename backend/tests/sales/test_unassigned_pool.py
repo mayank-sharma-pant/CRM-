@@ -104,6 +104,26 @@ def test_sales_team_members_with_team_id_forbidden(client, db):
     assert resp.status_code == 403
 
 
+def test_sales_can_open_unassigned_pool_lead_without_active_team_header(client, db):
+    _, team, _, sales, _, open_lead = _seed(db, "UG")
+    login_user(client, sales.email)
+    resp = client.get(f"/api/leads/{open_lead.id}")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["id"] == open_lead.id
+
+
+def test_claim_idempotent_when_already_assigned_to_self(client, db):
+    _, team, _, sales, _, open_lead = _seed(db, "UC")
+    login_user(client, sales.email)
+    headers = {"X-Team-Id": str(team.id)}
+    first = client.post(f"/api/leads/{open_lead.id}/claim", headers=headers)
+    assert first.status_code == 200, first.text
+    second = client.post(f"/api/leads/{open_lead.id}/claim", headers=headers)
+    assert second.status_code == 200, second.text
+    pool = client.get("/api/leads", params={"unassigned": "true"}, headers=headers)
+    assert open_lead.id not in [row["id"] for row in pool.json()["items"]]
+
+
 def test_manager_assigns_unassigned_team_lead(client, db):
     _, team, manager, sales, _, _ = _seed(db, "UA")
     open_lead = Lead(

@@ -55,17 +55,24 @@ export default function LeadDetailPage() {
   const canPrivacy = user?.role === 'admin' || user?.role === 'md';
   const [callError, setCallError] = useState(null);
   const [activityTick, setActivityTick] = useState(0);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     fetchLeadData();
   }, [id]);
 
   const fetchLeadData = async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const res = await api.get(`/leads/${id}`);
       const data = res.data;
-      const defsRes = await api.get('/custom-fields', { params: { entity_type: 'lead' } });
-      setFieldDefs(defsRes.data.items || []);
+      try {
+        const defsRes = await api.get('/custom-fields', { params: { entity_type: 'lead' } });
+        setFieldDefs(defsRes.data.items || []);
+      } catch {
+        setFieldDefs([]);
+      }
       setCustomDraft(data.custom_fields || {});
 
       // Determine role from path (same as before)
@@ -87,6 +94,9 @@ export default function LeadDetailPage() {
       setActivityTick((n) => n + 1);
     } catch (err) {
       console.error("Failed to fetch lead", err);
+      const detail = err.response?.data?.detail;
+      setLoadError(typeof detail === 'string' ? detail : 'Could not load this lead.');
+      setLead(null);
     } finally {
       setLoading(false);
     }
@@ -194,7 +204,28 @@ export default function LeadDetailPage() {
     setIsTaskModalOpen(true);
   };
 
-  if (!lead) return <div className="p-6">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center gap-2 text-slate-500">
+        <Loader2 size={18} className="animate-spin" /> Loading…
+      </div>
+    );
+  }
+  if (loadError) {
+    return (
+      <div className="p-6 max-w-lg space-y-3">
+        <p className="text-red-600 text-sm">{loadError}</p>
+        <button
+          type="button"
+          onClick={() => router.push(leadsHomePath(pathname))}
+          className="text-sm text-blue-600 hover:underline"
+        >
+          Back to leads
+        </button>
+      </div>
+    );
+  }
+  if (!lead) return null;
 
   const clientsBase = clientsHomePath(pathname);
   const statusStr = typeof lead.status === 'string' ? lead.status : lead.status?.value ?? String(lead.status);

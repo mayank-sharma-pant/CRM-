@@ -1,6 +1,17 @@
 const NONE = '__none__';
 
-const LEAD_FIELDS = ['name', 'email', 'phone', 'company', 'source', 'service_type'];
+const LEAD_FIELDS = [
+  'name',
+  'email',
+  'phone',
+  'company',
+  'source',
+  'service_type',
+  'website',
+  'industry',
+  'linkedin_url',
+  'notes',
+];
 
 const LEAD_ALIASES = {
   name: [
@@ -17,9 +28,15 @@ const LEAD_ALIASES = {
   email: ['email', 'e-mail', 'email address', 'e mail', 'mail'],
   phone: ['phone', 'mobile', 'telephone', 'cell', 'phone number', 'mobile number'],
   company: ['company', 'company name', 'organisation', 'organization', 'account'],
-  source: ['source'],
-  service_type: ['service type', 'service'],
+  source: ['source', 'platform', 'campaign name', 'ad name', 'form name', 'lead source'],
+  service_type: ['service type', 'service', 'lead status', 'status'],
+  website: ['website', 'url', 'web', 'site'],
+  industry: ['industry', 'sector', 'vertical'],
+  linkedin_url: ['linkedin', 'linkedin url', 'linkedin profile', 'linkedin_url'],
+  notes: ['notes', 'note', 'comments', 'comment', 'lead work', 'description', 'remarks'],
 };
+
+const SOURCE_HEADER_PRIORITY = ['platform', 'campaign_name', 'campaign name', 'source', 'ad_name', 'ad name'];
 
 const FIRST_NAME_ALIASES = new Set(['first name', 'firstname', 'given name']);
 const LAST_NAME_ALIASES = new Set(['last name', 'lastname', 'surname', 'family name']);
@@ -105,10 +122,42 @@ function findHeader(headers, aliases) {
   return headers.find((header) => aliases.has(normHeader(header))) || null;
 }
 
+function headerForPreferred(headers, preferred, used) {
+  for (const alias of preferred) {
+    const header = headers.find(
+      (h) => !used.has(h) && normHeader(h) === normHeader(alias),
+    );
+    if (header) return header;
+  }
+  return null;
+}
+
+function usedMappedColumns(mapping) {
+  const used = new Set();
+  Object.entries(mapping || {}).forEach(([key, value]) => {
+    if (key === 'notes_extra' || !value || value === NONE) return;
+    used.add(value);
+  });
+  return used;
+}
+
+function suggestNotesExtra(headers, mapping) {
+  const used = usedMappedColumns(mapping);
+  return headers.filter((h) => h && !used.has(h));
+}
+
 function suggestLeadMapping(headers) {
   const mapping = {};
   const used = new Set();
   LEAD_FIELDS.forEach((field) => {
+    if (field === 'source') {
+      const header = headerForPreferred(headers, SOURCE_HEADER_PRIORITY, used);
+      if (header) {
+        mapping.source = header;
+        used.add(header);
+      }
+      return;
+    }
     const header = headerFor(headers, new Set(LEAD_ALIASES[field]), used);
     if (header) {
       mapping[field] = header;
@@ -119,12 +168,21 @@ function suggestLeadMapping(headers) {
     const first = headerFor(headers, FIRST_NAME_ALIASES, used);
     if (first) mapping.name = first;
   }
+  mapping.notes_extra = suggestNotesExtra(headers, mapping);
   return mapping;
 }
 
-function mappedCell(raw, header) {
+function normalizePhoneImport(value) {
+  let text = String(value ?? '').trim();
+  if (text.toLowerCase().startsWith('p:')) text = text.slice(2).trim();
+  return text;
+}
+
+function mappedCell(raw, header, field) {
   if (!header) return '';
-  return String(raw[header] ?? '').trim();
+  const text = String(raw[header] ?? '').trim();
+  if (field === 'phone') return normalizePhoneImport(text);
+  return text;
 }
 
 function composedName(raw, headers) {
@@ -137,7 +195,7 @@ function composedName(raw, headers) {
 }
 
 function leadName(raw, mapping, headers) {
-  const selected = mappedCell(raw, mapping.name);
+  const selected = mappedCell(raw, mapping.name, 'name');
   if (selected && mapping.name && !FIRST_NAME_ALIASES.has(normHeader(mapping.name))) {
     return selected;
   }
@@ -147,9 +205,32 @@ function leadName(raw, mapping, headers) {
 function cleanMapping(payload) {
   const cleaned = {};
   Object.entries(payload || {}).forEach(([key, value]) => {
+    if (key === 'notes_extra' && Array.isArray(value)) {
+      cleaned.notes_extra = value.filter(Boolean);
+      return;
+    }
     if (value && value !== NONE && !Array.isArray(value)) cleaned[key] = value;
   });
   return cleaned;
+}
+
+function buildNotes(raw, mapping) {
+  const base = mappedCell(raw, mapping.notes, 'notes');
+  const extras = (mapping.notes_extra || [])
+    .map((col) => {
+      const val = mappedCell(raw, col, 'notes');
+      return val ? `${col}: ${val}` : '';
+    })
+    .filter(Boolean);
+  if (!extras.length) return base;
+  return [base, ...extras].filter(Boolean).join('\n');
+}
+
+function isInvalidLeadName(name) {
+  const text = String(name || '').trim().toLowerCase();
+  if (!text) return true;
+  if (text.includes('<test lead')) return true;
+  return false;
 }
 
 function previewLeadsLocally(text, mappingOverride) {
@@ -159,12 +240,14 @@ function previewLeadsLocally(text, mappingOverride) {
   const rows = records.map((raw, index) => {
     const values = {};
     LEAD_FIELDS.forEach((field) => {
-      values[field] = mappedCell(raw, mapping[field]);
+      values[field] = mappedCell(raw, mapping[field], field);
     });
     values.name = leadName(raw, mapping, headers);
+    values.notes = buildNotes(raw, mapping);
+    const validName = values.name && !isInvalidLeadName(values.name);
     return {
       index: index + 1,
-      status: values.name ? 'new' : 'invalid',
+      status: validName ? 'new' : 'invalid',
       values,
     };
   });
@@ -194,9 +277,12 @@ function toLegacyLeadCsv(text, mapping) {
   const cleaned = { ...suggestLeadMapping(headers), ...cleanMapping(mapping) };
   const lines = [LEAD_FIELDS.join(',')];
   records.forEach((raw) => {
+    const name = leadName(raw, cleaned, headers);
+    if (!name || isInvalidLeadName(name)) return;
     const cells = LEAD_FIELDS.map((field) => {
-      if (field === 'name') return csvEscape(leadName(raw, cleaned, headers));
-      return csvEscape(mappedCell(raw, cleaned[field]));
+      if (field === 'name') return csvEscape(name);
+      if (field === 'notes') return csvEscape(buildNotes(raw, cleaned));
+      return csvEscape(mappedCell(raw, cleaned[field], field));
     });
     if (cells[0]) lines.push(cells.join(','));
   });
@@ -206,6 +292,7 @@ function toLegacyLeadCsv(text, mapping) {
 module.exports = {
   parseCsv,
   suggestLeadMapping,
+  suggestNotesExtra,
   previewLeadsLocally,
   toLegacyLeadCsv,
 };

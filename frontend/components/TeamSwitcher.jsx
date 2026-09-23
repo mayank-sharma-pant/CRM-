@@ -34,7 +34,14 @@ export default function TeamSwitcher({ className = '' }) {
     };
   }, []);
 
-  if (loading || teams.length === 0) return null;
+  if (loading) return null;
+  if (teams.length === 0) {
+    return (
+      <span className={`text-[11px] text-muted font-medium ${className}`} title="Ask an admin to add you to a team">
+        No team
+      </span>
+    );
+  }
 
   return (
     <div className={className}>

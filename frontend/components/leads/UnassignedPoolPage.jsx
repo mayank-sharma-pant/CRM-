@@ -56,8 +56,11 @@ export default function UnassignedPoolPage() {
     try {
       const res = await api.get('/leads', { params: { unassigned: true, limit: 100 } });
       const data = res.data || {};
-      setItems(Array.isArray(data.items) ? data.items : []);
-      setTotal(typeof data.total === 'number' ? data.total : (data.items || []).length);
+      const rows = (Array.isArray(data.items) ? data.items : []).filter(
+        (lead) => lead.assigned_to_id == null || lead.assigned_to_id === undefined,
+      );
+      setItems(rows);
+      setTotal(rows.length);
     } catch (err) {
       setError(apiDetail(err, t('Could not load the pool.')));
       setItems([]);
@@ -100,7 +103,11 @@ export default function UnassignedPoolPage() {
       await load({ silent: true });
     } catch (err) {
       setNoticeKind('error');
-      setNotice(apiDetail(err, t('Could not claim lead.')));
+      const detail = apiDetail(err, t('Could not claim lead.'));
+      setNotice(detail);
+      if (/already assigned/i.test(detail)) {
+        await load({ silent: true });
+      }
     } finally {
       setBusyId(null);
     }

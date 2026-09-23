@@ -12,7 +12,10 @@ test('maps a sheet export and keeps quoted commas', () => {
   assert.equal(preview.rows[0].values.name, 'Sharma, A');
 
   const csv = toLegacyLeadCsv(text, preview.mapping);
-  assert.match(csv.split('\n')[0], /^name,email,phone,company,source,service_type$/);
+  assert.match(
+    csv.split('\n')[0],
+    /^name,email,phone,company,source,service_type,website,industry,linkedin_url,notes$/,
+  );
   assert.match(csv, /"Sharma, A",a@a.com,,Visiblo/);
 });
 

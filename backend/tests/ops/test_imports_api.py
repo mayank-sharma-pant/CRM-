@@ -24,7 +24,11 @@ def test_import_leads_missing_name_column_returns_400(client, db):
 
 
 def test_import_leads_internal_error_returns_sanitized_500(client, db, monkeypatch):
+    from app.models.core.team import Team
+
     company = create_company(db, name="Import Internal Co", company_code="IMI")
+    db.add(Team(company_id=company.id, name="Default"))
+    db.commit()
     admin = create_active_user(
         db,
         email="admin@imi.com",

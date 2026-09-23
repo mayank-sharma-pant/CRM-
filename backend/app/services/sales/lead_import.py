@@ -8,15 +8,30 @@ from sqlalchemy.orm import Session
 from app.models.sales.lead import Lead
 from app.utils.helpers import normalize_email, normalize_phone
 
-LEAD_FIELDS = ("name", "email", "phone", "company", "source", "service_type")
+LEAD_FIELDS = (
+    "name",
+    "email",
+    "phone",
+    "company",
+    "source",
+    "service_type",
+    "website",
+    "industry",
+    "linkedin_url",
+    "notes",
+)
 
 _ALIASES = {
     "name": {"name", "full name", "full_name", "lead name", "contact"},
     "email": {"email", "e-mail", "email address", "e_mail"},
-    "phone": {"phone", "mobile", "telephone", "cell", "phone number"},
-    "company": {"company", "organisation", "organization", "account"},
-    "source": {"source"},
-    "service_type": {"service_type", "service type", "service"},
+    "phone": {"phone", "mobile", "telephone", "cell", "phone number", "phone_number"},
+    "company": {"company", "company name", "company_name", "organisation", "organization", "account"},
+    "source": {"source", "platform", "campaign name", "campaign_name", "ad name", "ad_name"},
+    "service_type": {"service_type", "service type", "service", "lead status", "lead_status"},
+    "website": {"website", "url", "web"},
+    "industry": {"industry", "sector", "vertical"},
+    "linkedin_url": {"linkedin", "linkedin url", "linkedin profile", "linkedin_url"},
+    "notes": {"notes", "note", "lead work", "lead_work", "comments", "description"},
 }
 
 
@@ -54,6 +69,9 @@ def parse_mapping(raw: Optional[str]) -> Optional[dict]:
         if col is None or str(col).strip() == "" or str(col) == "__none__":
             continue
         out[field] = str(col)
+    extra = data.get("notes_extra")
+    if isinstance(extra, list):
+        out["notes_extra"] = [str(col) for col in extra if str(col).strip()]
     return out
 
 
@@ -76,7 +94,17 @@ def _cell(row: dict, header: Optional[str]) -> str:
 
 
 def _values(row: dict, mapping: dict) -> dict:
-    return {field: _cell(row, mapping.get(field)) for field in LEAD_FIELDS}
+    values = {field: _cell(row, mapping.get(field)) for field in LEAD_FIELDS}
+    extras = []
+    for col in mapping.get("notes_extra") or []:
+        val = _cell(row, col)
+        if val:
+            extras.append(f"{col}: {val}")
+    if extras:
+        joined = "\n".join(extras)
+        base = values.get("notes") or ""
+        values["notes"] = f"{base}\n{joined}".strip() if base else joined
+    return values
 
 
 def _load_existing(db: Session, company_id: int) -> tuple[dict, dict]:

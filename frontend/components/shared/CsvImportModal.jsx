@@ -88,8 +88,6 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
   const extraNoteColumns = entity === 'leads' ? suggestNotesExtra(headers, mapping) : [];
 
   const ensureActiveTeamId = async () => {
-    let teamId = getActiveTeamId();
-    if (teamId) return teamId;
     try {
       const res = await api.get('/teams/mine');
       const fromServer = res.data?.active_team_id ?? res.data?.teams?.[0]?.id;
@@ -100,7 +98,8 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
     } catch {
       // import may still succeed if backend resolves team from company
     }
-    return getActiveTeamId();
+    const cached = getActiveTeamId();
+    return cached ? String(cached) : null;
   };
 
   const postForm = async (path, fd) => {

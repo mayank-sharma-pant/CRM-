@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, apply_company_scope, is_platform_admin
+from app.utils.dependencies import get_current_user, is_platform_admin
 from app.models.core.user import User
-from app.models.core.team import Team
-from app.models.core.team_membership import TeamMembership
+from app.services.team_bootstrap import ensure_user_teams
 
 
 router = APIRouter()
@@ -23,13 +22,7 @@ def list_my_teams(
     if is_platform_admin(current_user) or current_user.company_id is None:
         return {"teams": []}
 
-    teams = (
-        apply_company_scope(db.query(Team), Team, current_user)
-        .join(TeamMembership, TeamMembership.team_id == Team.id)
-        .filter(TeamMembership.user_id == current_user.id)
-        .order_by(Team.name.asc())
-        .all()
-    )
+    teams = ensure_user_teams(db, current_user)
 
     return {
         "teams": [{"id": t.id, "name": t.name} for t in teams],

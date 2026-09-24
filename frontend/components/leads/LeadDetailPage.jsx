@@ -53,52 +53,48 @@ export default function LeadDetailPage() {
   const [savingFields, setSavingFields] = useState(false);
   const { user } = useAuth();
   const canPrivacy = user?.role === 'admin' || user?.role === 'md';
-  const [callError, setCallError] = useState(null);
   const [activityTick, setActivityTick] = useState(0);
   const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
-    fetchLeadData();
+    fetchLeadData({ silent: false });
   }, [id]);
 
-  const fetchLeadData = async () => {
-    setLoading(true);
-    setLoadError(null);
+  const applyLeadPayload = (data) => {
+    const isManager = pathname.startsWith('/manager');
+    const salesCreated = data.created_by_role === 'sales';
+    const isConvertedStatus = ['Converted'].includes(data.status);
+    const canReassign = isManager && !salesCreated && !isConvertedStatus;
+    data.permissions = {
+      canEdit: !['Converted', 'Lost', 'Lost Client'].includes(data.status),
+      canConvert: !['Converted', 'Lost', 'Lost Client'].includes(data.status),
+      canAddTask: true,
+      canAddNote: true,
+      canReassign
+    };
+    setLead(data);
+    setCustomDraft(data.custom_fields || {});
+    setActivityTick((n) => n + 1);
+  };
+
+  const fetchLeadData = async ({ silent = true } = {}) => {
+    if (!silent) {
+      setLoading(true);
+      setLoadError(null);
+    }
     try {
       const res = await api.get(`/leads/${id}`);
-      const data = res.data;
-      try {
-        const defsRes = await api.get('/custom-fields', { params: { entity_type: 'lead' } });
-        setFieldDefs(defsRes.data.items || []);
-      } catch {
-        setFieldDefs([]);
-      }
-      setCustomDraft(data.custom_fields || {});
-
-      // Determine role from path (same as before)
-      const isManager = pathname.startsWith('/manager');
-
-      const salesCreated = data.created_by_role === 'sales';
-      const isConvertedStatus = ['Converted'].includes(data.status);
-      const canReassign = isManager && !salesCreated && !isConvertedStatus;
-
-      data.permissions = {
-        canEdit: !['Converted', 'Lost', 'Lost Client'].includes(data.status),
-        canConvert: !['Converted', 'Lost', 'Lost Client'].includes(data.status),
-        canAddTask: true,
-        canAddNote: true,
-        canReassign
-      };
-
-      setLead(data);
-      setActivityTick((n) => n + 1);
+      applyLeadPayload(res.data);
+      api.get('/custom-fields', { params: { entity_type: 'lead' } })
+        .then((defsRes) => setFieldDefs(defsRes.data.items || []))
+        .catch(() => setFieldDefs([]));
     } catch (err) {
       console.error("Failed to fetch lead", err);
       const detail = err.response?.data?.detail;
       setLoadError(typeof detail === 'string' ? detail : 'Could not load this lead.');
       setLead(null);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -187,10 +183,11 @@ export default function LeadDetailPage() {
   const handleEnrichLead = async () => {
     try {
       setEnriching(true);
-      await api.post(`/leads/${id}/enrich`);
-      fetchLeadData();
+      const res = await api.post(`/leads/${id}/enrich`);
+      setLead((prev) => (prev ? { ...prev, ...res.data } : prev));
+      await fetchLeadData({ silent: true });
     } catch (err) {
-      alert(err.response?.data?.detail || 'Could not enrich lead');
+      alert(err.response?.data?.detail || 'Could not fill company details from the domain');
     } finally {
       setEnriching(false);
     }
@@ -252,13 +249,14 @@ export default function LeadDetailPage() {
                 <h1 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">
                   {lead.name}
                 </h1>
+                <span className="text-sm font-semibold text-slate-400 tabular-nums">#{lead.id}</span>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 uppercase tracking-wide border border-slate-200 dark:border-slate-600">
                   Lead
                 </span>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 uppercase tracking-wide border border-blue-100 dark:border-blue-800/50">
                   {lead.status === 'Converted' ? 'Client' : lead.status}
                 </span>
-                <ScoreBadge entity="leads" id={id} />
+                <ScoreBadge entity="leads" id={id} score={lead.score} />
               </div>
               <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-1">
@@ -271,10 +269,24 @@ export default function LeadDetailPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button type="button" onClick={handleEnrichLead} disabled={enriching}
-              className="px-3 py-2 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg disabled:opacity-50">
-              {enriching ? 'Enriching…' : 'Enrich'}
-            </button>
+            {lead.enriched_at ? (
+              <span
+                className="px-3 py-2 text-xs font-medium text-slate-500 dark:text-slate-400"
+                title="Blank company, website, industry and LinkedIn were filled from the email or website domain"
+              >
+                Enriched
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleEnrichLead}
+                disabled={enriching}
+                title="Fill blank company, website, industry and LinkedIn from the work email or website domain"
+                className="px-3 py-2 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg disabled:opacity-50"
+              >
+                {enriching ? 'Filling…' : 'Fill from domain'}
+              </button>
+            )}
             {canPrivacy && (
               <>
                 <button type="button" onClick={handleExportLead}
@@ -382,6 +394,10 @@ export default function LeadDetailPage() {
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-4">Lead Overview</h2>
             <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500">Lead ID</span>
+                <span className="font-semibold text-slate-900 dark:text-white tabular-nums">#{lead.id}</span>
+              </div>
               <div className="flex items-center gap-3 text-sm">
                 <Mail size={14} className="text-slate-400 w-4" />
                 <span className="text-blue-600 hover:underline cursor-pointer truncate">{lead.email}</span>
@@ -389,24 +405,7 @@ export default function LeadDetailPage() {
               <div className="flex items-center gap-3 text-sm">
                 <Phone size={14} className="text-slate-400 w-4" />
                 <span className="text-slate-700 dark:text-slate-300">{lead.phone}</span>
-                {lead.phone && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        await api.post('/telephony/click-to-call', { lead_id: Number(id) });
-                        setCallError(null);
-                      } catch (err) {
-                        setCallError(err.response?.data?.detail || 'Could not place call');
-                      }
-                    }}
-                    className="text-xs font-semibold text-emerald-700 hover:underline"
-                  >
-                    Call
-                  </button>
-                )}
               </div>
-              {callError && <p className="text-xs text-red-600">{callError}</p>}
               <div className="flex items-center gap-3 text-sm">
                 <Briefcase size={14} className="text-slate-400 w-4" />
                 <span className="text-slate-700 dark:text-slate-300">{lead.source}</span>
@@ -544,6 +543,10 @@ export default function LeadDetailPage() {
             {isDetailsOpen && (
               <div className="px-5 pb-5 pt-0 border-t border-slate-100 dark:border-slate-700/50 animate-in slide-in-from-top-1">
                 <div className="space-y-3 pt-3">
+                  <div>
+                    <span className="block text-[10px] text-slate-400 uppercase">Lead ID</span>
+                    <span className="text-sm text-slate-700 dark:text-slate-300">#{lead.id}</span>
+                  </div>
                   <div>
                     <span className="block text-[10px] text-slate-400 uppercase">Lead Source</span>
                     <span className="text-sm text-slate-700 dark:text-slate-300">{lead.source || 'Direct'}</span>

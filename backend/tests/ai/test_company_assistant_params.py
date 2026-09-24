@@ -48,7 +48,7 @@ def test_get_company_assistant_params_for_sales(client, db):
 
 
 def test_sales_cannot_override_ai_params(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_no_actions)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_no_actions)
     company = create_company(db, name="No Override Co", company_code="NOC")
     sales = create_active_user(
         db,
@@ -80,7 +80,7 @@ def test_manager_can_override_ai_params(client, db, monkeypatch):
         captured["max_actions"] = ai_params.max_actions
         return {"say": "Using custom params", "actions": []}
 
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_capture)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_capture)
     ai_router.settings.GEMINI_API_KEY = ai_router.settings.GEMINI_API_KEY or "test-key"
     company = create_company(db, name="Override Co", company_code="OVR")
     manager = create_active_user(
@@ -115,7 +115,7 @@ def test_manager_can_override_ai_params(client, db, monkeypatch):
 
 
 def test_ai_params_max_actions_cannot_exceed_server_limit(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_no_actions)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_no_actions)
     company = create_company(db, name="Cap Co", company_code="CAP")
     manager = create_active_user(
         db,

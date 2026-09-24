@@ -23,7 +23,7 @@ async def _plan_snapshot(_prompt, _params=None):
 
 
 def test_ai_mutation_writes_audit_log(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_create_team)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_create_team)
     company = create_company(db, name="Audit Co", company_code="AUD")
     manager = create_active_user(db, email="manager@aud.co", role="manager", company_id=company.id, full_name="Aud Manager")
 
@@ -41,7 +41,7 @@ def test_ai_mutation_writes_audit_log(client, db, monkeypatch):
 
 
 def test_ai_readonly_action_is_not_audited(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_snapshot)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_snapshot)
     company = create_company(db, name="RO Co", company_code="ROC")
     manager = create_active_user(db, email="manager@roc.co", role="manager", company_id=company.id, full_name="RO Manager")
 
@@ -53,7 +53,7 @@ def test_ai_readonly_action_is_not_audited(client, db, monkeypatch):
 
 
 def test_role_denied_action_is_not_audited(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_create_team)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_create_team)
     company = create_company(db, name="Deny Co", company_code="DNC")
     sales = create_active_user(db, email="sales@dnc.co", role="sales", company_id=company.id, full_name="Deny Sales")
 

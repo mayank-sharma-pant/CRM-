@@ -30,7 +30,7 @@ def test_failed_action_returns_error_result_not_500_or_400(client, db, monkeypat
     async def plan(_p, _q=None):
         return {"say": "x", "actions": [{"action": "create_team", "params": {"name": "Alpha Team"}}]}
 
-    monkeypatch.setattr(ai_router, "_gemini_plan", plan)
+    monkeypatch.setattr(ai_router, "_ai_plan", plan)
     login_user(client, manager.email)
     r = client.post("/api/ai/company-assistant", json={"message": "make alpha"})
     assert r.status_code == 200, r.text
@@ -63,7 +63,7 @@ def test_partial_write_is_rolled_back_on_failure(client, db, monkeypatch):
             ],
         }
 
-    monkeypatch.setattr(ai_router, "_gemini_plan", plan)
+    monkeypatch.setattr(ai_router, "_ai_plan", plan)
     login_user(client, manager.email)
     r = client.post("/api/ai/company-assistant", json={"message": "make ghost"})
     assert r.status_code == 200, r.text
@@ -85,7 +85,7 @@ def test_one_failure_does_not_block_other_actions(client, db, monkeypatch):
             ],
         }
 
-    monkeypatch.setattr(ai_router, "_gemini_plan", plan)
+    monkeypatch.setattr(ai_router, "_ai_plan", plan)
     login_user(client, manager.email)
     r = client.post("/api/ai/company-assistant", json={"message": "make two"})
     assert r.status_code == 200, r.text

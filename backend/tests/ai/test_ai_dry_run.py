@@ -26,7 +26,7 @@ def test_dry_run_does_not_create_team(client, db, monkeypatch):
     manager = create_active_user(
         db, email="m@dry.co", role="manager", company_id=company.id, full_name="Mgr"
     )
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_create)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_create)
     login_user(client, manager.email)
     r = client.post("/api/ai/company-assistant", json={"message": "make team", "dry_run": True})
     assert r.status_code == 200, r.text
@@ -47,7 +47,7 @@ def test_dry_run_still_runs_readonly(client, db, monkeypatch):
     )
     db.add(Team(company_id=company.id, name="Existing"))
     db.commit()
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_mixed)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_mixed)
     login_user(client, manager.email)
     r = client.post("/api/ai/company-assistant", json={"message": "preview", "dry_run": True})
     assert r.status_code == 200, r.text

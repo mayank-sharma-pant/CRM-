@@ -12,7 +12,7 @@ async def _plan_no_actions(_prompt: str, _params=None) -> dict:
 
 
 def test_ai_assistant_is_available_to_all_company_roles(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_no_actions)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_no_actions)
     company = create_company(db, name="AI Co", company_code="AIC")
 
     users = [
@@ -46,7 +46,7 @@ async def _plan_create_team(prompt: str, _params=None) -> dict:
 
 
 def test_sales_cannot_mutate_but_manager_md_admin_can_create_team(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_create_team)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_create_team)
     company = create_company(db, name="Mutate Co", company_code="MTC")
     sales = create_active_user(db, email="sales@mt.co", role="sales", company_id=company.id, full_name="Sales User")
     manager = create_active_user(db, email="manager@mt.co", role="manager", company_id=company.id, full_name="Manager User")
@@ -113,7 +113,7 @@ async def _plan_create_ledger_entry_typo(_prompt: str, _params=None) -> dict:
 
 
 def test_manager_can_create_financial_ledger_entry_via_ai(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_create_ledger_entry)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_create_ledger_entry)
     company = create_company(db, name="Ledger Co", company_code="LGC")
     manager = create_active_user(db, email="manager@lg.co", role="manager", company_id=company.id, full_name="Ledger Manager")
 
@@ -135,7 +135,7 @@ def test_manager_can_create_financial_ledger_entry_via_ai(client, db, monkeypatc
 
 
 def test_manager_can_create_ledger_entry_even_with_small_slug_typos(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_create_ledger_entry_typo)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_create_ledger_entry_typo)
     company = create_company(db, name="Ledger Typo Co", company_code="LTC")
     manager = create_active_user(db, email="manager@ltc.co", role="manager", company_id=company.id, full_name="Ledger Typo Manager")
 
@@ -160,7 +160,7 @@ async def _plan_md_create_top_team(_prompt: str, _params=None) -> dict:
 
 
 def test_md_create_top_performing_team_adds_manager_not_md(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_md_create_top_team)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_md_create_top_team)
     company = create_company(db, name="Top Team Co", company_code="TTC")
     # Seed an MD, a manager (who can be added to teams), and a couple sales users.
     md = create_active_user(db, email="md@ttc.co", role="md", company_id=company.id, full_name="Top MD")
@@ -187,7 +187,7 @@ async def _plan_bad_actions_shape(_prompt: str, _params=None) -> dict:
 
 
 def test_ai_malformed_actions_shape_does_not_crash(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_bad_actions_shape)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_bad_actions_shape)
     company = create_company(db, name="Shape Co", company_code="SHC")
     manager = create_active_user(db, email="manager@shape.co", role="manager", company_id=company.id, full_name="Shape Manager")
 
@@ -205,7 +205,7 @@ async def _plan_bad_action_item(_prompt: str, _params=None) -> dict:
 
 
 def test_ai_malformed_action_item_or_params_returns_structured_errors(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_bad_action_item)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_bad_action_item)
     company = create_company(db, name="Item Co", company_code="ITC")
     manager = create_active_user(db, email="manager@item.co", role="manager", company_id=company.id, full_name="Item Manager")
 
@@ -238,7 +238,7 @@ def test_sales_cannot_execute_create_task_action(client, db, monkeypatch):
         plan = await _plan_create_task(_prompt, _params)
         return plan
 
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_with_assignee)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_with_assignee)
     company = create_company(db, name="AI Task Co", company_code="ATC")
     sales = create_active_user(db, email="sales@atc.co", role="sales", company_id=company.id, full_name="Task Sales")
     assignee = create_active_user(db, email="assignee@atc.co", role="sales", company_id=company.id, full_name="Task Assignee")
@@ -249,7 +249,7 @@ def test_sales_cannot_execute_create_task_action(client, db, monkeypatch):
         plan["actions"][0]["params"]["assignee_id"] = assignee.id
         return plan
 
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_patched)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_patched)
 
     login_user(client, sales.email)
     r = client.post("/api/ai/company-assistant", json={"message": "Assign task to the sales rep"})
@@ -273,7 +273,7 @@ def test_manager_can_create_task_via_ai(client, db, monkeypatch):
         plan["actions"][0]["params"]["assignee_id"] = assignee.id
         return plan
 
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_patched)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_patched)
 
     login_user(client, manager.email)
     r = client.post("/api/ai/company-assistant", json={"message": "Create a task for the assignee"})

@@ -16,7 +16,7 @@ def test_list_and_install(client, db):
     listed = client.get("/api/marketplace/apps")
     assert listed.status_code == 200, listed.text
     body = listed.json()
-    assert body["total"] == 9
+    assert body["total"] == 8
     slugs = {a["slug"] for a in body["apps"]}
     assert "scoring" in slugs
     assert all(a["status"] == "not_installed" for a in body["apps"])

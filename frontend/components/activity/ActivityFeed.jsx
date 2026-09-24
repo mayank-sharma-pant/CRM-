@@ -32,7 +32,10 @@ export default function ActivityFeed({ entityType, entityId, reloadKey }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!entityType || !entityId) return;
+    if (!entityType || !entityId) {
+      setLoading(false);
+      return undefined;
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -62,16 +65,16 @@ export default function ActivityFeed({ entityType, entityId, reloadKey }) {
         <History size={16} className="text-slate-400" />
         Activity
       </h2>
-      {loading && (
+      {loading && items.length === 0 && (
         <p className="text-xs text-slate-400 flex items-center gap-2">
           <Loader2 size={12} className="animate-spin" /> Loading activity…
         </p>
       )}
-      {!loading && error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-600">{error}</p>}
       {!loading && !error && items.length === 0 && (
         <p className="text-xs text-slate-400 text-center py-4 italic">No activity yet.</p>
       )}
-      {!loading && !error && items.length > 0 && (
+      {!error && items.length > 0 && (
         <div className="relative space-y-8 pl-3 border-l-2 border-slate-100 dark:border-slate-700 ml-2">
           {items.map((item) => (
             <div key={item.id} className="relative pl-6">

@@ -61,7 +61,6 @@ export default function PrivacyPolicyPage() {
         <ul className="list-disc space-y-1 pl-6">
           <li>Razorpay — payments.</li>
           <li>Gupshup — WhatsApp messaging.</li>
-          <li>Exotel — click-to-call.</li>
           <li>Google and Microsoft — optional mailbox and calendar connections you authorise.</li>
         </ul>
       </section>

@@ -23,7 +23,7 @@ def _plan_delete_foreign(team_id):
 
 
 def test_ai_list_teams_omits_foreign_company(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_list_teams)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_list_teams)
     a = create_company(db, name="A", company_code="AIA")
     b = create_company(db, name="B", company_code="AIB")
     db.add(Team(company_id=a.id, name="Secret Alpha"))
@@ -37,7 +37,7 @@ def test_ai_list_teams_omits_foreign_company(client, db, monkeypatch):
 
 
 def test_ai_snapshot_omits_foreign_leads(client, db, monkeypatch):
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_snapshot)
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_snapshot)
     a = create_company(db, name="A", company_code="AIC")
     b = create_company(db, name="B", company_code="AID")
     db.add(Lead(company_id=a.id, name="OnlyAtA", email="only@a.com", status="Active"))
@@ -63,7 +63,7 @@ def test_ai_delete_foreign_team_is_error_not_leak(client, db, monkeypatch):
     db.add(team)
     db.commit()
     db.refresh(team)
-    monkeypatch.setattr(ai_router, "_gemini_plan", _plan_delete_foreign(team.id))
+    monkeypatch.setattr(ai_router, "_ai_plan", _plan_delete_foreign(team.id))
     create_active_user(db, email="admin@aie.com", role="admin", company_id=a.id)
     create_active_user(db, email="admin@aif.com", role="admin", company_id=b.id)
     login_user(client, "admin@aif.com")

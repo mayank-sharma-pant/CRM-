@@ -3,5 +3,5 @@
 import ProductsPage from '../../../components/products/ProductsPage';
 
 export default function SalesProductsPage() {
-    return <ProductsPage roleLabel="Sales Team" />;
+    return <ProductsPage roleLabel="Sales Team" manageKinds={['service', 'subscription']} />;
 }

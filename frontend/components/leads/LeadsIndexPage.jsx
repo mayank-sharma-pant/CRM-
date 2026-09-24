@@ -19,11 +19,10 @@ import {
   Plus, ChevronRight, Filter, Briefcase, Upload, Undo2
 } from 'lucide-react';
 
-const TABS = [
+const ASSIGNMENT_TABS = [
+  { id: 'claimed', label: 'Claimed' },
+  { id: 'open', label: 'Open' },
   { id: 'all', label: 'All Leads' },
-  { id: 'Active', label: 'Active' },
-  { id: 'Converted', label: 'Client' },
-  { id: 'Lost', label: 'Lost' }
 ];
 
 const STATUS_STYLES = {
@@ -33,7 +32,7 @@ const STATUS_STYLES = {
 };
 
 export default function Leads() {
-  const [activeTab, setActiveTab] = useState('Active');
+  const [activeTab, setActiveTab] = useState('claimed');
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -60,7 +59,7 @@ export default function Leads() {
 
   useEffect(() => {
     fetchLeads();
-  }, [activeTab]);
+  }, [activeTab, user?.id, user?.role]);
 
   useEffect(() => {
     api.get('/lead-forms')
@@ -80,8 +79,15 @@ export default function Leads() {
       // Normalize statuses immediately
       data = data.map(l => ({ ...l, status: normalizeLeadStatus(l.status) }));
 
-      if (activeTab !== 'all') {
-        data = data.filter(l => l.status === activeTab);
+      const ownerId = user?.id == null ? null : Number(user.id);
+      if (activeTab === 'claimed') {
+        if (user?.role === 'sales') {
+          data = data.filter((l) => l.assigned_to_id != null && Number(l.assigned_to_id) === ownerId);
+        } else {
+          data = data.filter((l) => l.assigned_to_id != null);
+        }
+      } else if (activeTab === 'open') {
+        data = data.filter((l) => l.assigned_to_id == null);
       }
 
       setLeads(data);
@@ -276,7 +282,7 @@ export default function Leads() {
       <div className="bg-surface border-b border-border sticky top-0 z-10">
         <div className="max-w-[72rem] mx-auto px-6 py-2 flex items-center gap-1.5 overflow-x-auto">
             <Filter size={13} strokeWidth={2} className="text-muted mr-1 shrink-0" />
-            {TABS.map(tab => (
+            {ASSIGNMENT_TABS.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}

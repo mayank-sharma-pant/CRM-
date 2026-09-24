@@ -34,18 +34,31 @@ const EMPTY_FORM = {
     stock_item_id: '',
 };
 
+const ALL_KIND_VALUES = KINDS.map((k) => k.value);
+
 function kindMeta(kind) {
     return KINDS.find((k) => k.value === kind) || KINDS[0];
 }
 
-export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) {
+function emptyForm(kind) {
+    const next = kind || 'goods';
+    return { ...EMPTY_FORM, kind: next, unit: DEFAULT_UNITS[next] || 'unit' };
+}
+
+export default function ProductsPage({ canManage = false, roleLabel = 'Team', manageKinds }) {
+    const writableKinds = manageKinds ?? (canManage ? ALL_KIND_VALUES : []);
+    const canWrite = writableKinds.length > 0;
+    const defaultKind = writableKinds.includes('goods') ? 'goods' : (writableKinds[0] || 'goods');
+    const addKinds = KINDS.filter((k) => writableKinds.includes(k.value));
+    const canLinkStock = writableKinds.includes('goods');
+
     const [items, setItems] = useState([]);
     const [stockItems, setStockItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [search, setSearch] = useState('');
     const [kindFilter, setKindFilter] = useState('all');
-    const [newItem, setNewItem] = useState({ ...EMPTY_FORM });
+    const [newItem, setNewItem] = useState(() => emptyForm(defaultKind));
 
     const fetchItems = useCallback(async (showLoader = true) => {
         try {
@@ -55,7 +68,7 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
             setError(null);
             const [productsRes, inventoryRes] = await Promise.all([
                 api.get('/products', { params: { active_only: false, limit: 500 } }),
-                canManage
+                canLinkStock
                     ? api.get('/inventory', { params: { limit: 500 } })
                     : Promise.resolve({ data: { items: [] } }),
             ]);
@@ -70,7 +83,7 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
                 setLoading(false);
             }
         }
-    }, [canManage]);
+    }, [canLinkStock]);
 
     useEffect(() => {
         fetchItems();
@@ -105,7 +118,7 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
                 payload.stock_item_id = Number(newItem.stock_item_id);
             }
             await api.post('/products', payload);
-            setNewItem({ ...EMPTY_FORM });
+            setNewItem(emptyForm(defaultKind));
             fetchItems(false);
         } catch (err) {
             setError(err.response?.data?.detail || 'Failed to create product.');
@@ -149,19 +162,6 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
 
     const isEmptyCatalog = !loading && items.length === 0;
 
-    if (loading) {
-        return (
-            <div className="min-h-[calc(100vh-56px)] bg-page">
-                <div className="page-header">
-                    <div className="space-y-2 animate-pulse">
-                        <div className="h-6 w-40 bg-surface-elevated rounded" />
-                        <div className="h-4 w-64 bg-surface-elevated rounded" />
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="min-h-[calc(100vh-56px)] bg-page pb-8">
             <div className="page-header">
@@ -171,7 +171,9 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
                     </p>
                     <h1 className="page-title">Products</h1>
                     <p className="page-subtitle">
-                        Goods, services, and subscriptions. Stock links only apply to goods.
+                        {writableKinds.includes('goods')
+                            ? 'Goods, services, and subscriptions. Stock links only apply to goods.'
+                            : 'Services and subscriptions you sell. Physical inventory is on Stock.'}
                     </p>
                 </div>
             </div>
@@ -223,12 +225,12 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
                     </span>
                 </div>
 
-                {canManage && (
+                {canWrite && (
                     <div className="panel p-5 space-y-4">
                         <h2 className="text-[13px] font-semibold text-primary">Add catalog item</h2>
 
                         <div className="flex flex-wrap gap-2" role="group" aria-label="Product type">
-                            {KINDS.map(({ value, label, hint, Icon }) => {
+                            {addKinds.map(({ value, label, hint, Icon }) => {
                                 const selected = newItem.kind === value;
                                 return (
                                     <button
@@ -371,13 +373,17 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
                 )}
 
                 <div className="bg-surface/40 backdrop-blur-sm rounded-xl border border-border/60 overflow-hidden shadow-sm">
-                    {isEmptyCatalog ? (
+                    {loading ? (
+                        <div className="py-16 text-center text-[13px] text-muted">Loading catalog…</div>
+                    ) : isEmptyCatalog ? (
                         <div className="py-24 text-center">
                             <ShoppingBag size={28} className="mx-auto text-muted mb-3" aria-hidden="true" />
                             <h3 className="text-sm font-medium text-primary">No catalog items</h3>
                             <p className="text-[13px] text-muted mt-1">
-                                {canManage
-                                    ? 'Add goods, a service, or a subscription above.'
+                                {canWrite
+                                    ? (writableKinds.includes('goods')
+                                        ? 'Add goods, a service, or a subscription above.'
+                                        : 'Add a service or subscription above. Physical stock stays on Stock.')
                                     : 'Ask an admin to add catalog items.'}
                             </p>
                         </div>
@@ -394,7 +400,7 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
                                             <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Price</th>
                                             <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Tax %</th>
                                             <th className="py-2.5 px-4 text-[12px] font-medium text-muted">Status</th>
-                                            {canManage && (
+                                            {canWrite && (
                                                 <th className="py-2.5 px-4 text-[12px] font-medium text-muted text-right">Actions</th>
                                             )}
                                         </tr>
@@ -453,8 +459,9 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
                                                             <span className="badge badge-neutral">Inactive</span>
                                                         )}
                                                     </td>
-                                                    {canManage && (
+                                                    {canWrite && (
                                                         <td className="py-3 px-4 text-right">
+                                                            {writableKinds.includes(item.kind || 'goods') ? (
                                                             <div className="flex items-center justify-end gap-2">
                                                                 {item.is_active && (
                                                                     <button
@@ -477,6 +484,7 @@ export default function ProductsPage({ canManage = false, roleLabel = 'Team' }) 
                                                                     <span className="sr-only">Delete {item.name}</span>
                                                                 </button>
                                                             </div>
+                                                            ) : null}
                                                         </td>
                                                     )}
                                                 </tr>

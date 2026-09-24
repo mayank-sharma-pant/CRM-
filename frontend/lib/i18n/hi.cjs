@@ -90,6 +90,8 @@ const hi = {
   Assign: "असाइन",
   "Pool is clear": "पूल खाली है",
   "All Leads": "सभी लीड",
+  "Claimed": "क्लेम की",
+  "Open": "खुली",
   Active: "सक्रिय",
   Converted: "परिवर्तित",
   Trash: "कचरा",

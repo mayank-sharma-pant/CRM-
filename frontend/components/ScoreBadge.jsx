@@ -13,16 +13,18 @@ const OP_LABELS = {
  * Live scoring badge for a lead or deal detail page.
  * entity: 'leads' | 'deals'
  */
-export default function ScoreBadge({ entity, id }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+export default function ScoreBadge({ entity, id, score: seedScore }) {
+  const [data, setData] = useState(
+    seedScore != null ? { score: seedScore, breakdown: [] } : null
+  );
+  const [loading, setLoading] = useState(seedScore == null);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
     if (!id) return undefined;
-    setLoading(true);
+    if (seedScore == null) setLoading(true);
     setError(false);
     api
       .get(`/${entity}/${id}/score`)
@@ -32,14 +34,14 @@ export default function ScoreBadge({ entity, id }) {
     return () => { active = false; };
   }, [entity, id]);
 
-  if (loading) {
+  if (loading && data == null) {
     return <span className="text-xs text-slate-400">Score…</span>;
   }
-  if (error || !data) return null;
+  if ((error || !data) && seedScore == null) return null;
 
-  const matched = (data.breakdown || []).filter((b) => b.matched);
-  const score = data.score ?? 0;
-  const hasRules = (data.breakdown || []).length > 0;
+  const matched = (data?.breakdown || []).filter((b) => b.matched);
+  const score = data?.score ?? seedScore ?? 0;
+  const hasRules = (data?.breakdown || []).length > 0;
 
   return (
     <div className="inline-flex flex-col items-start">

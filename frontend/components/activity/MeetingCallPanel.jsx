@@ -34,7 +34,6 @@ export default function MeetingCallPanel({ parentType, parentId, onChanged, hide
   const [outcome, setOutcome] = useState('');
   const [callNotes, setCallNotes] = useState('');
   const [calendar, setCalendar] = useState(null);
-  const [telephony, setTelephony] = useState(null);
 
   const load = async () => {
     if (!parentId) return;
@@ -65,7 +64,6 @@ export default function MeetingCallPanel({ parentType, parentId, onChanged, hide
   useEffect(() => {
     load();
     api.get('/calendar').then((res) => setCalendar(res.data)).catch(() => setCalendar(null));
-    api.get('/telephony/connection').then((res) => setTelephony(res.data)).catch(() => setTelephony(null));
   }, [parentType, parentId, hideHistory]);
 
   const refresh = async () => {
@@ -96,20 +94,6 @@ export default function MeetingCallPanel({ parentType, parentId, onChanged, hide
     } catch (err) {
       const detail = err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Could not schedule meeting');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleClickToCall = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      await api.post('/telephony/click-to-call', { [parentKey]: Number(parentId) });
-      await refresh();
-    } catch (err) {
-      const detail = err.response?.data?.detail;
-      setError(typeof detail === 'string' ? detail : 'Could not place call');
     } finally {
       setSaving(false);
     }
@@ -159,17 +143,6 @@ export default function MeetingCallPanel({ parentType, parentId, onChanged, hide
 
       <form onSubmit={handleCall} className="space-y-2">
         <p className="text-[10px] font-bold text-slate-400 uppercase">Log call</p>
-        {telephony?.configured && (
-          <button
-            type="button"
-            onClick={handleClickToCall}
-            disabled={saving || !parentId}
-            className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg disabled:opacity-50"
-          >
-            <Phone size={12} />
-            {saving ? 'Calling…' : 'Click to call'}
-          </button>
-        )}
         <label className="block">
           <span className="sr-only">Direction</span>
           <select

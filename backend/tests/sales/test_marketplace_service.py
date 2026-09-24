@@ -13,7 +13,7 @@ from tests.helpers.factories import create_company
 def test_list_apps_starts_not_installed(db):
     company = create_company(db, name="Co", company_code="MP1")
     apps = list_apps(db, company.id)
-    assert len(apps) == 9
+    assert len(apps) == 8
     assert all(a["status"] == "not_installed" for a in apps)
 
 

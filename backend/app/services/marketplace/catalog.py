@@ -41,12 +41,6 @@ CATALOG = {
         "summary": "Templates, inbound messages, and reminder sequences.",
         "settings_href": "/settings/whatsapp",
     },
-    "telephony": {
-        "slug": "telephony",
-        "name": "Click-to-call",
-        "summary": "Exotel: dial the agent then the customer from a lead or deal.",
-        "settings_href": "/settings/telephony",
-    },
     "webhooks": {
         "slug": "webhooks",
         "name": "Outbound webhooks",

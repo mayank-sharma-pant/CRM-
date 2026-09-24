@@ -47,12 +47,12 @@ def test_public_paths_bypass():
 
 
 def test_enable_rls_noop_on_sqlite():
-    from app.database import engine
     from app.tenancy import enable_rls, is_postgres_bind
-
-    assert is_postgres_bind(engine) is False or engine.dialect.name != "postgresql"
-    # Unit tests use SQLite; production enable_rls is a no-op here.
     from tests.conftest import engine as test_engine
+
+    # The app engine may be Postgres when DATABASE_URL is set. Pytest uses SQLite.
+    assert test_engine.dialect.name == "sqlite"
+    assert is_postgres_bind(test_engine) is False
     assert enable_rls(test_engine) == 0
     reset_tenant()
     assert current_company_id() is None

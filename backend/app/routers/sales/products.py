@@ -15,6 +15,8 @@ from app.utils.dependencies import apply_company_scope, get_current_user, is_pla
 router = APIRouter()
 
 PRODUCT_WRITE_ROLES = {"purchase", "md", "admin"}
+SALES_CATALOG_ROLES = {"sales", "manager"}
+SALES_CATALOG_KINDS = {"service", "subscription"}
 
 DEFAULT_UNITS = {
     "goods": "unit",
@@ -86,9 +88,23 @@ def _require_company(user: User) -> None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
 
 
-def _assert_writable(user: User) -> None:
-    if user.role not in PRODUCT_WRITE_ROLES:
-        raise HTTPException(status_code=403, detail="Only purchase/MD/admin can modify products")
+def _role_str(user: User) -> str:
+    return user.role.value if hasattr(user.role, "value") else str(user.role)
+
+
+def _assert_writable(user: User, *, kind: Optional[str] = None, existing: Optional[Product] = None) -> None:
+    role = _role_str(user)
+    if role in PRODUCT_WRITE_ROLES:
+        return
+    if role in SALES_CATALOG_ROLES:
+        existing_kind = (getattr(existing, "kind", None) or "goods") if existing is not None else None
+        target = kind or existing_kind or "goods"
+        if existing_kind is not None and existing_kind not in SALES_CATALOG_KINDS:
+            raise HTTPException(status_code=403, detail="Sales can only modify services and subscriptions")
+        if target not in SALES_CATALOG_KINDS:
+            raise HTTPException(status_code=403, detail="Sales can only add services and subscriptions")
+        return
+    raise HTTPException(status_code=403, detail="Only purchase/MD/admin can modify products")
 
 
 def _serialize(product: Product, stock_quantity=None) -> dict:
@@ -236,13 +252,13 @@ def create_product(
     current_user: User = Depends(get_current_user),
 ):
     _require_company(current_user)
-    _assert_writable(current_user)
 
     name = body.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Name is required")
 
     kind = _normalize_kind(body.kind)
+    _assert_writable(current_user, kind=kind)
     billing_interval = _normalize_billing_interval(kind, body.billing_interval)
     _validate_unit_price(body.unit_price)
     _validate_tax_rate(body.tax_rate)
@@ -282,8 +298,9 @@ def update_product(
     current_user: User = Depends(get_current_user),
 ):
     _require_company(current_user)
-    _assert_writable(current_user)
     product = _get_product(db, current_user, product_id)
+    next_kind = _normalize_kind(body.kind) if body.kind is not None else (getattr(product, "kind", None) or "goods")
+    _assert_writable(current_user, kind=next_kind, existing=product)
 
     if body.name is not None:
         name = body.name.strip()
@@ -353,8 +370,8 @@ def delete_product(
     current_user: User = Depends(get_current_user),
 ):
     _require_company(current_user)
-    _assert_writable(current_user)
     product = _get_product(db, current_user, product_id)
+    _assert_writable(current_user, existing=product)
 
     quoted = db.query(QuoteItem).filter(QuoteItem.product_id == product.id).first()
     invoiced = db.query(InvoiceItem).filter(InvoiceItem.product_id == product.id).first()

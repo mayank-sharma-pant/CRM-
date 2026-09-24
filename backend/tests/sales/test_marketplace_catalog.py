@@ -4,7 +4,7 @@ from app.services.marketplace.catalog import CATALOG, get_app
 def test_catalog_has_locked_slugs():
     assert set(CATALOG) == {
         "scoring", "predictions", "accounting", "custom_modules",
-        "email", "calendar", "whatsapp", "telephony", "webhooks",
+        "email", "calendar", "whatsapp", "webhooks",
     }
 
 

@@ -25,6 +25,7 @@ class ApiEndpoints {
   static const String leadsDashboard = '/api/leads/dashboard';
   static String leadStatus(int id) => '/api/leads/$id/status';
   static String leadConvert(int id) => '/api/leads/$id/convert';
+  static String leadClaim(int id) => '/api/leads/$id/claim';
   static String leadNotes(int id) => '/api/leads/$id/notes';
 
   // Tasks

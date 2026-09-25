@@ -13,6 +13,7 @@ import 'package:perioxia_crm/shared/widgets/loading_indicator.dart';
 import 'package:perioxia_crm/shared/widgets/error_banner.dart';
 import 'package:perioxia_crm/shared/widgets/status_badge.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:url_launcher/url_launcher.dart';
 
 final _leadFullProvider =
     FutureProvider.autoDispose.family<Map<String, dynamic>, int>((ref, id) async {
@@ -81,9 +82,18 @@ class LeadDetailScreen extends ConsumerWidget {
           final phone = data['phone'] as String?;
           final source = data['source'] as String?;
           final serviceType = data['service_type'] as String?;
-          final assignee = data['assignee'] as Map<String, dynamic>?;
+          final assigneeRaw = data['assignee'];
+          final String? assigneeLabel = assigneeRaw is String
+              ? assigneeRaw
+              : assigneeRaw is Map
+                  ? assigneeRaw['full_name']?.toString()
+                  : null;
           final value = (data['value'] as num?)?.toDouble();
           final convertedClientId = data['converted_client_id'] as int?;
+          final assignedToId = data['assigned_to_id'] as int?;
+          final phoneDigits =
+              phone?.replaceAll(RegExp(r'\D'), '') ?? '';
+          final hasPhone = phoneDigits.isNotEmpty;
           final tasks = List<Map<String, dynamic>>.from(data['tasks'] ?? []);
           final notes = List<Map<String, dynamic>>.from(data['notes_list'] ?? data['notes'] ?? []);
           final createdAt = data['created_at'] != null
@@ -180,6 +190,31 @@ class LeadDetailScreen extends ConsumerWidget {
                       ),
                   ],
                 ),
+                if (assignedToId == null || hasPhone) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      if (assignedToId == null)
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () => _claimLead(ref),
+                            icon: const Icon(Icons.person_add_alt_1, size: 18),
+                            label: const Text('Claim'),
+                          ),
+                        ),
+                      if (assignedToId == null && hasPhone)
+                        const SizedBox(width: 10),
+                      if (hasPhone)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _openWhatsApp(phoneDigits),
+                            icon: const Icon(Icons.chat_outlined, size: 18),
+                            label: const Text('WhatsApp'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
                 if (ref.watch(authProvider).user?.isManager == true) ...[
                   const SizedBox(height: 12),
                   SizedBox(
@@ -208,11 +243,11 @@ class LeadDetailScreen extends ConsumerWidget {
                   _InfoRow(icon: Icons.category_outlined, label: 'Service', value: serviceType),
                 if (value != null)
                   _InfoRow(icon: Icons.attach_money, label: 'Value', value: '₹${value.toStringAsFixed(0)}'),
-                if (assignee != null)
+                if (assigneeLabel != null && assigneeLabel.isNotEmpty)
                   _InfoRow(
                       icon: Icons.person_outline,
                       label: 'Assigned',
-                      value: assignee['full_name']?.toString() ?? '—'),
+                      value: assigneeLabel),
                 if (createdAt != null)
                   _InfoRow(
                       icon: Icons.calendar_today,
@@ -277,6 +312,22 @@ class LeadDetailScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  Future<void> _claimLead(WidgetRef ref) async {
+    final api = ref.read(apiClientProvider);
+    try {
+      await api.post(ApiEndpoints.leadClaim(leadId));
+      ref.invalidate(_leadFullProvider(leadId));
+      ref.invalidate(_leadTimelineProvider(leadId));
+    } catch (_) {}
+  }
+
+  Future<void> _openWhatsApp(String digits) async {
+    final uri = Uri.parse('https://wa.me/$digits');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _updateStatus(WidgetRef ref, String newStatus) async {

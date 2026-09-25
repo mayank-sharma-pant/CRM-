@@ -235,6 +235,16 @@ const hi = {
   "New template": "नया टेम्पलेट",
   Subject: "विषय",
   Body: "संदेश",
+
+  // --- Onboarding checklist ---
+  "Get to your first claimed lead and WhatsApp reply":
+    "पहली दावा की गई लीड और व्हाट्सऐप जवाब तक पहुँचें",
+  "A short setup so nothing sits unread. Skip any time.":
+    "छोटी सेटअप ताकि कुछ भी अपठित न रहे। कभी भी छोड़ें।",
+  "Invite a teammate": "टीम में किसी को आमंत्रित करें",
+  "Connect WhatsApp": "व्हाट्सऐप जोड़ें",
+  Dismiss: "छोड़ें",
+  "Could not load sample data.": "नमूना डेटा लोड नहीं हो सका।",
 };
 
 module.exports = hi;

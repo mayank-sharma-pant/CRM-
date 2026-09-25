@@ -1,7 +1,12 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
+from app.models.core.company_settings import CompanySettings
+from app.models.core.invite import Invite, InviteStatus
 from app.models.sales.deal import Deal
 from app.models.sales.lead import Lead
+from app.models.sales.meeting import Meeting
 from app.models.sales.lead_form import LeadForm
 from app.models.sales.mailbox import MailboxConnection
 from app.utils.rate_limit import auth_limiter
@@ -35,6 +40,8 @@ def test_empty_status_all_pending(client, db):
     assert by_key["connect_email"] is False
     assert by_key["create_form"] is False
     assert by_key["send_quote"] is False
+    assert by_key["invite_teammate"] is False
+    assert by_key["connect_whatsapp"] is False
 
 
 def test_sample_data_is_idempotent_and_assigned(client, db):
@@ -43,11 +50,22 @@ def test_sample_data_is_idempotent_and_assigned(client, db):
     assert first.status_code == 200, first.text
     assert first.json()["leads_created"] == 3
     assert first.json()["deals_created"] == 1
+    assert db.query(Meeting).filter(Meeting.company_id == company.id).count() == 1
     again = client.post("/api/onboarding/sample-data")
     assert again.json()["leads_created"] == 0
     assert db.query(Lead).filter(Lead.company_id == company.id).count() == 3
     assert db.query(Deal).filter(Deal.company_id == company.id).count() == 1
-    assert all(row.assigned_to_id == admin.id for row in db.query(Lead).filter(Lead.company_id == company.id))
+    assert db.query(Meeting).filter(Meeting.company_id == company.id).count() == 1
+    sample_leads = (
+        db.query(Lead)
+        .filter(Lead.company_id == company.id, Lead.source == "Sample", Lead.deleted_at.is_(None))
+        .all()
+    )
+    assert len(sample_leads) == 3
+    assert sum(1 for row in sample_leads if row.assigned_to_id is None) >= 1
+    assert sum(1 for row in sample_leads if row.assigned_to_id == admin.id) == 2
+    walk_in = next(row for row in sample_leads if row.name == "Sample — Walk-in kitchen")
+    assert walk_in.assigned_to_id is None
     status = client.get("/api/onboarding/status").json()
     assert {s["key"]: s["done"] for s in status["steps"]}["sample_data"] is True
 
@@ -90,6 +108,67 @@ def test_mailbox_form_quote_and_dismiss(client, db):
     body = client.get("/api/onboarding/status").json()
     assert body["dismissed"] is True
     assert body["complete"] is True
+
+
+def test_connect_whatsapp_step_when_configured(client, db):
+    company, _ = _admin(client, db, "ONW")
+    row = db.query(CompanySettings).filter(CompanySettings.company_id == company.id).first()
+    if row is None:
+        row = CompanySettings(company_id=company.id, company_name="On W")
+        db.add(row)
+    row.whatsapp_api_key = "gupshup-secret"
+    row.whatsapp_source = "917834811114"
+    db.commit()
+    by_key = {s["key"]: s["done"] for s in client.get("/api/onboarding/status").json()["steps"]}
+    assert by_key["connect_whatsapp"] is True
+
+
+def test_invite_teammate_step_with_pending_invite(client, db):
+    company, _ = _admin(client, db, "ONI")
+    db.add(
+        Invite(
+            company_id=company.id,
+            email="teammate@oni.com",
+            full_name="Teammate",
+            role="sales",
+            token="invite-tok-oni",
+            hashed_password="x",
+            status=InviteStatus.PENDING,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        )
+    )
+    db.commit()
+    by_key = {s["key"]: s["done"] for s in client.get("/api/onboarding/status").json()["steps"]}
+    assert by_key["invite_teammate"] is True
+
+
+def test_invite_teammate_step_with_two_active_users(client, db):
+    company, _ = _admin(client, db, "ONT")
+    create_active_user(db, email="sales@ont.com", role="sales", company_id=company.id)
+    by_key = {s["key"]: s["done"] for s in client.get("/api/onboarding/status").json()["steps"]}
+    assert by_key["invite_teammate"] is True
+
+
+def test_complete_when_smb_steps_done_without_legacy_steps(client, db):
+    company, admin = _admin(client, db, "ONM")
+    client.post("/api/onboarding/sample-data")
+    db.add(Lead(company_id=company.id, name="CSV row", source="CSV Import"))
+    create_active_user(db, email="mate@onm.com", role="sales", company_id=company.id)
+    row = db.query(CompanySettings).filter(CompanySettings.company_id == company.id).first()
+    if row is None:
+        row = CompanySettings(company_id=company.id, company_name="On M")
+        db.add(row)
+    row.whatsapp_api_key = "key"
+    row.whatsapp_source = "919999999999"
+    db.commit()
+    login_user(client, admin.email)
+    body = client.get("/api/onboarding/status").json()
+    by_key = {s["key"]: s["done"] for s in body["steps"]}
+    assert by_key["connect_email"] is False
+    assert by_key["create_form"] is False
+    assert by_key["send_quote"] is False
+    assert body["complete"] is True
+    assert body["dismissed"] is False
 
 
 def test_sample_does_not_leak_to_other_company(client, db):

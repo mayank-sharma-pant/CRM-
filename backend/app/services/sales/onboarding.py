@@ -1,11 +1,15 @@
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy.orm import Session
 
 from app.models.core.company_settings import CompanySettings
-from app.models.core.enums import DealStageType, LeadStatus
+from app.models.core.enums import DealStageType, LeadStatus, MeetingStatus
+from app.models.core.invite import Invite, InviteStatus
 from app.models.core.user import User
 from app.models.sales.deal import Deal
 from app.models.sales.lead import Lead
 from app.models.sales.lead_form import LeadForm
+from app.models.sales.meeting import Meeting
 from app.models.sales.mailbox import MailboxConnection
 from app.models.sales.pipeline import PipelineStage
 from app.models.sales.quote import Quote
@@ -22,10 +26,14 @@ _SAMPLE_LEADS = (
 STEPS = (
     ("sample_data", "Add sample leads (or import your own)"),
     ("import_csv", "Import leads from CSV"),
+    ("invite_teammate", "Invite a teammate"),
+    ("connect_whatsapp", "Connect WhatsApp"),
     ("connect_email", "Connect Gmail or Outlook"),
     ("create_form", "Create a website lead form"),
     ("send_quote", "Create a quote on a deal"),
 )
+
+_SMB_STEP_KEYS = ("sample_data", "import_csv", "invite_teammate", "connect_whatsapp")
 
 
 def _settings(db: Session, company_id: int) -> CompanySettings:
@@ -60,14 +68,32 @@ def onboarding_status(db: Session, user: User) -> dict:
     )
     has_form = db.query(LeadForm).filter(LeadForm.company_id == company_id).first() is not None
     has_quote = db.query(Quote).filter(Quote.company_id == company_id).first() is not None
+    active_users = (
+        db.query(User)
+        .filter(User.company_id == company_id, User.is_active.is_(True))
+        .count()
+    )
+    pending_invite = (
+        db.query(Invite)
+        .filter(Invite.company_id == company_id, Invite.status == InviteStatus.PENDING)
+        .first()
+        is not None
+    )
+    invite_teammate_done = active_users >= 2 or pending_invite
+    wa_key = getattr(settings, "whatsapp_api_key", None)
+    wa_source = getattr(settings, "whatsapp_source", None)
+    connect_whatsapp_done = bool(wa_key and wa_source)
     steps = [
         _step("sample_data", has_leads),
         _step("import_csv", has_import),
+        _step("invite_teammate", invite_teammate_done),
+        _step("connect_whatsapp", connect_whatsapp_done),
         _step("connect_email", mailbox is not None),
         _step("create_form", has_form),
         _step("send_quote", has_quote),
     ]
-    all_done = all(s["done"] for s in steps)
+    smb_done = all(next(s["done"] for s in steps if s["key"] == key) for key in _SMB_STEP_KEYS)
+    all_done = smb_done
     return {
         "dismissed": dismissed,
         "complete": dismissed or all_done,
@@ -96,7 +122,7 @@ def seed_sample_data(db: Session, user: User) -> dict:
         .first()
     )
     created_leads = []
-    for name, phone, email, company in _SAMPLE_LEADS:
+    for index, (name, phone, email, company) in enumerate(_SAMPLE_LEADS):
         lead = Lead(
             company_id=company_id,
             name=name,
@@ -105,12 +131,22 @@ def seed_sample_data(db: Session, user: User) -> dict:
             company=company,
             source=SAMPLE_SOURCE,
             status=LeadStatus.NEW,
-            assigned_to_id=user.id,
+            assigned_to_id=None if index == len(_SAMPLE_LEADS) - 1 else user.id,
             created_by_id=user.id,
         )
         db.add(lead)
         created_leads.append(lead)
     db.flush()
+    db.add(
+        Meeting(
+            company_id=company_id,
+            subject="Site visit — kitchen measure",
+            starts_at=datetime.now(timezone.utc) + timedelta(days=3),
+            status=MeetingStatus.SCHEDULED,
+            lead_id=created_leads[0].id,
+            created_by_id=user.id,
+        )
+    )
     deals_created = 0
     if stage is not None and created_leads:
         db.add(

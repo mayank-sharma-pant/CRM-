@@ -11,6 +11,7 @@ from app.models.core.user import User
 from app.models.sales.deal import Deal
 from app.models.sales.follow_up import FollowUp
 from app.models.sales.task import Task
+from app.services.sales.daily_digest import run_daily_digests
 from app.services.sales.whatsapp import send_cadence_whatsapp
 from app.utils.email_service import send_email
 from app.utils.notify import send_notification
@@ -165,5 +166,13 @@ def run_due_reminders(db: Session, now: datetime | None = None) -> dict:
             whatsapp_count += 1
         item.reminded_at = now
 
+    digest_count = run_daily_digests(db, now=now)
+
     db.commit()
-    return {"tasks": task_count, "follow_ups": follow_count, "deals_due": deal_count, "whatsapp": whatsapp_count}
+    return {
+        "tasks": task_count,
+        "follow_ups": follow_count,
+        "deals_due": deal_count,
+        "whatsapp": whatsapp_count,
+        "digests": digest_count,
+    }

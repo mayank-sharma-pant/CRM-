@@ -26,6 +26,16 @@ class ApiEndpoints {
   static String leadStatus(int id) => '/api/leads/$id/status';
   static String leadConvert(int id) => '/api/leads/$id/convert';
   static String leadClaim(int id) => '/api/leads/$id/claim';
+
+  // Meetings (row-scoped on the server)
+  static const String meetings = '/api/meetings';
+  static const String meetingsSummary = '/api/meetings/summary';
+  static String meetingById(int id) => '/api/meetings/$id';
+
+  // WhatsApp threads
+  static const String whatsappThreads = '/api/whatsapp/threads';
+  static const String whatsappMessages = '/api/whatsapp/messages';
+  static const String whatsappSessionSend = '/api/whatsapp/session-send';
   static String leadNotes(int id) => '/api/leads/$id/notes';
 
   // Tasks

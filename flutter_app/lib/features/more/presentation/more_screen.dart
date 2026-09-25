@@ -231,6 +231,16 @@ class MoreScreen extends ConsumerWidget {
             _SectionLabel(label: 'Executive'),
             const SizedBox(height: 6),
             _MenuItem(
+              icon: Icons.event_outlined,
+              label: 'Appointments',
+              onTap: () => context.push('/appointments'),
+            ),
+            _MenuItem(
+              icon: Icons.chat_outlined,
+              label: 'Conversations',
+              onTap: () => context.push('/conversations'),
+            ),
+            _MenuItem(
               icon: Icons.payments_outlined,
               label: 'Revenue',
               onTap: () => context.push('/revenue'),
@@ -290,6 +300,16 @@ class MoreScreen extends ConsumerWidget {
             _SectionLabel(label: 'Manager'),
             const SizedBox(height: 6),
             _MenuItem(
+              icon: Icons.event_outlined,
+              label: 'Appointments',
+              onTap: () => context.push('/appointments'),
+            ),
+            _MenuItem(
+              icon: Icons.chat_outlined,
+              label: 'Conversations',
+              onTap: () => context.push('/conversations'),
+            ),
+            _MenuItem(
               icon: Icons.groups_2_outlined,
               label: 'Team overview',
               onTap: () => context.push('/team'),
@@ -323,6 +343,16 @@ class MoreScreen extends ConsumerWidget {
           ] else ...[
             _SectionLabel(label: 'Sales'),
             const SizedBox(height: 6),
+            _MenuItem(
+              icon: Icons.event_outlined,
+              label: 'Appointments',
+              onTap: () => context.push('/appointments'),
+            ),
+            _MenuItem(
+              icon: Icons.chat_outlined,
+              label: 'Conversations',
+              onTap: () => context.push('/conversations'),
+            ),
             _MenuItem(
               icon: Icons.calendar_today_outlined,
               label: 'Follow-ups',

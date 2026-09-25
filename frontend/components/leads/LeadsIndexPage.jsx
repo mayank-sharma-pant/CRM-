@@ -67,6 +67,28 @@ export default function Leads() {
       .catch(() => setFormMeta(null));
   }, []);
 
+  useEffect(() => {
+    const role = user?.role;
+    if (role !== 'admin' && role !== 'md') return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const status = await api.get('/import/sheets');
+        if (!status.data?.url) return;
+        const last = status.data?.last_synced_at;
+        const stale = !last || (Date.now() - new Date(last).getTime()) > 2 * 60 * 1000;
+        if (!stale) return;
+        const synced = await api.post('/import/sheets/sync');
+        if (!cancelled && (synced.data?.created || 0) > 0) fetchLeads();
+      } catch {
+        // A private sheet or a missing link does not block the leads list.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.role]);
+
   const fetchLeads = async () => {
     setLoading(true);
     setError(null);

@@ -6,6 +6,8 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.sales.lead import Lead
+from app.services.sales.import_batch import record_batch
+from app.utils.audit import log_activity
 from app.utils.helpers import normalize_email, normalize_phone
 
 LEAD_FIELDS = (
@@ -76,7 +78,7 @@ def parse_mapping(raw: Optional[str]) -> Optional[dict]:
 
 
 def _read_csv(contents: bytes) -> tuple[list[str], list[dict]]:
-    text = contents.decode("utf-8")
+    text = contents.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
     headers = [str(h) for h in (reader.fieldnames or [])]
     rows = []
@@ -196,3 +198,49 @@ def preview_import(db: Session, company_id: int, contents: bytes, mapping_raw: O
 
 def new_leads_from_preview(preview: dict) -> list[dict]:
     return [row["values"] for row in preview["rows"] if row["status"] == "new"]
+
+
+def insert_new_leads(db: Session, *, user, team_id: int, preview: dict, default_source: str) -> list[Lead]:
+    """Insert rows classified as new. Existing email or phone matches stay untouched."""
+    created: list[Lead] = []
+    for values in new_leads_from_preview(preview):
+        created.append(
+            Lead(
+                company_id=user.company_id,
+                name=values["name"],
+                email=normalize_email(values["email"] or None),
+                phone=normalize_phone(values["phone"] or None),
+                company=values["company"] or None,
+                source=values["source"] or default_source,
+                service_type=values["service_type"] or None,
+                website=values.get("website") or None,
+                industry=values.get("industry") or None,
+                linkedin_url=values.get("linkedin_url") or None,
+                notes=values.get("notes") or None,
+                status="New",
+                assigned_to_id=None,
+                created_by_id=user.id,
+                team_id=team_id,
+            )
+        )
+    if not created:
+        return []
+    db.add_all(created)
+    db.flush()
+    record_batch(
+        db,
+        company_id=user.company_id,
+        entity_type="lead",
+        entity_ids=[lead.id for lead in created],
+        created_by_id=user.id,
+    )
+    for lead in created:
+        log_activity(
+            db,
+            user=user,
+            action="created",
+            entity_type="lead",
+            entity_id=lead.id,
+            entity_name=lead.name,
+        )
+    return created

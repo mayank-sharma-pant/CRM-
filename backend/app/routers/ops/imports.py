@@ -7,8 +7,6 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
-import csv
-import io
 import json
 import logging
 from typing import Optional
@@ -16,16 +14,22 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.database import get_db
-from app.utils.dependencies import get_current_user, get_active_team_id, apply_company_scope
+from app.utils.dependencies import (
+    apply_company_scope,
+    get_active_team_id,
+    get_current_user,
+    require_admin_or_md,
+)
 from app.models.core.user import User
 from app.models.core.team_membership import TeamMembership
 from app.models.core.team import Team
 from app.models.sales.client import Client
 from app.models.sales.deal import Deal
-from app.models.sales.lead import Lead
+from app.models.core.company_settings import CompanySettings
 from app.utils.audit import log_activity
 from app.utils.helpers import normalize_email, normalize_phone
-from app.services.sales.lead_import import new_leads_from_preview, preview_import as preview_leads
+from app.services.sales.lead_import import insert_new_leads, preview_import as preview_leads
+from app.services.sales.lead_sheet import save_sheet_url, serialize_sheet, sync_sheet
 from app.services.sales.client_import import new_clients_from_preview, preview_import as preview_clients
 from app.services.sales.deal_import import new_deals_from_preview, preview_import as preview_deals
 from app.services.sales.import_batch import last_batch, record_batch, serialize_batch, undo_last_batch
@@ -35,7 +39,6 @@ from app.models.sales.pipeline import PipelineStage
 router = APIRouter()
 logger = logging.getLogger("app")
 MAX_CSV_BYTES = 2 * 1024 * 1024  # 2 MB hard cap per upload
-MAX_IMPORT_ROWS = 500
 
 
 async def _csv_bytes(file: UploadFile) -> bytes:
@@ -89,6 +92,10 @@ class LeadCsvText(BaseModel):
     csv: str = Field(min_length=1)
     mapping: Optional[dict] = None
     commit: bool = False
+
+
+class LeadSheetWrite(BaseModel):
+    url: str = ""
 
 
 def _commit_response(preview: dict, created_count: int) -> dict:
@@ -162,43 +169,14 @@ async def commit_leads_import(
         contents = await _csv_bytes(file)
         preview = preview_leads(db, current_user.company_id, contents, mapping)
         team_id = _team_for_import(db, current_user, active_team_id)
-        assigned_to_id = None
-        created = []
-        for values in new_leads_from_preview(preview):
-            lead = Lead(
-                company_id=current_user.company_id,
-                name=values["name"],
-                email=normalize_email(values["email"] or None),
-                phone=normalize_phone(values["phone"] or None),
-                company=values["company"] or None,
-                source=values["source"] or "CSV Import",
-                service_type=values["service_type"] or None,
-                website=values.get("website") or None,
-                industry=values.get("industry") or None,
-                linkedin_url=values.get("linkedin_url") or None,
-                notes=values.get("notes") or None,
-                status="New",
-                assigned_to_id=assigned_to_id,
-                team_id=team_id,
-            )
-            created.append(lead)
+        created = insert_new_leads(
+            db,
+            user=current_user,
+            team_id=team_id,
+            preview=preview,
+            default_source="CSV Import",
+        )
         if created:
-            db.add_all(created)
-            db.flush()
-            record_batch(
-                db,
-                company_id=current_user.company_id,
-                entity_type="lead",
-                entity_ids=[lead.id for lead in created],
-                created_by_id=current_user.id,
-            )
-            db.commit()
-            for lead in created:
-                db.refresh(lead)
-                log_activity(
-                    db, user=current_user, action="created", entity_type="lead",
-                    entity_id=lead.id, entity_name=lead.name,
-                )
             db.commit()
         return _commit_response(preview, len(created))
     except UnicodeDecodeError:
@@ -232,44 +210,14 @@ def import_leads_text(
         if not body.commit:
             return preview
         team_id = _team_for_import(db, current_user, active_team_id)
-        assigned_to_id = None
-        created = []
-        for values in new_leads_from_preview(preview):
-            created.append(
-                Lead(
-                    company_id=current_user.company_id,
-                    name=values["name"],
-                    email=normalize_email(values["email"] or None),
-                    phone=normalize_phone(values["phone"] or None),
-                    company=values["company"] or None,
-                    source=values["source"] or "CSV Import",
-                    service_type=values["service_type"] or None,
-                    website=values.get("website") or None,
-                    industry=values.get("industry") or None,
-                    linkedin_url=values.get("linkedin_url") or None,
-                    notes=values.get("notes") or None,
-                    status="New",
-                    assigned_to_id=assigned_to_id,
-                    team_id=team_id,
-                )
-            )
+        created = insert_new_leads(
+            db,
+            user=current_user,
+            team_id=team_id,
+            preview=preview,
+            default_source="CSV Import",
+        )
         if created:
-            db.add_all(created)
-            db.flush()
-            record_batch(
-                db,
-                company_id=current_user.company_id,
-                entity_type="lead",
-                entity_ids=[lead.id for lead in created],
-                created_by_id=current_user.id,
-            )
-            db.commit()
-            for lead in created:
-                db.refresh(lead)
-                log_activity(
-                    db, user=current_user, action="created", entity_type="lead",
-                    entity_id=lead.id, entity_name=lead.name,
-                )
             db.commit()
         return _commit_response(preview, len(created))
     except UnicodeDecodeError:
@@ -492,85 +440,27 @@ async def import_leads(
         contents = await file.read(MAX_CSV_BYTES + 1)
         if len(contents) > MAX_CSV_BYTES:
             raise HTTPException(status_code=413, detail="CSV file too large. Maximum size is 2 MB.")
-        csv_file = io.StringIO(contents.decode('utf-8'))
-        reader = csv.DictReader(csv_file)
-        
-        if reader.fieldnames:
-            reader.fieldnames = [str(header).strip().lower() for header in reader.fieldnames]
-            
-        required_fields = ['name']
-        if not set(required_fields).issubset(set(reader.fieldnames or [])):
-            raise HTTPException(status_code=400, detail="CSV must contain at least a 'name' column.")
-            
-        leads_to_create = []
+        preview = preview_leads(db, current_user.company_id, contents, None)
         team_id = _team_for_import(db, current_user, active_team_id)
-        assigned_to_id = None
-        
-        row_count: int = 0
-        import_limited = False
-        for row in reader:
-            if row_count >= MAX_IMPORT_ROWS:
-                import_limited = True
-                break
-            
-            name_val = row.get('name', '')
-            if not name_val or not str(name_val).strip():
-                continue
-                
-            phone_raw = str(row.get('phone', '')).strip()
-            if phone_raw.lower().startswith('p:'):
-                phone_raw = phone_raw[2:].strip()
-            lead = Lead(
-                company_id=current_user.company_id,
-                name=str(name_val).strip(),
-                email=normalize_email(str(row.get('email', '')).strip() or None),
-                phone=normalize_phone(phone_raw or None),
-                company=str(row.get('company', '')).strip() or None,
-                source=str(row.get('source', '')).strip() or 'CSV Import',
-                service_type=str(row.get('service_type', '')).strip() or None,
-                website=str(row.get('website', '')).strip() or None,
-                industry=str(row.get('industry', '')).strip() or None,
-                linkedin_url=str(row.get('linkedin_url', '')).strip() or None,
-                notes=str(row.get('notes', '')).strip() or None,
-                status="New",
-                assigned_to_id=assigned_to_id,
-                team_id=team_id
-            )
-            leads_to_create.append(lead)
-            row_count = row_count + 1
-            
-        if not leads_to_create:
-            raise HTTPException(status_code=400, detail="No valid data found in CSV.")
-            
-        db.add_all(leads_to_create)
-        db.flush()
-        record_batch(
+        created = insert_new_leads(
             db,
-            company_id=current_user.company_id,
-            entity_type="lead",
-            entity_ids=[lead.id for lead in leads_to_create],
-            created_by_id=current_user.id,
+            user=current_user,
+            team_id=team_id,
+            preview=preview,
+            default_source="CSV Import",
         )
-        db.commit()
-        
-        for lead in leads_to_create:
-            db.refresh(lead)
-            log_activity(db, user=current_user, action='created', entity_type='lead',
-                         entity_id=lead.id, entity_name=lead.name)
-        db.commit()
-        
-        response = {"message": f"Successfully imported {len(leads_to_create)} leads.", "count": len(leads_to_create)}
-        if import_limited:
-            response["message"] = (
-                f"Successfully imported {len(leads_to_create)} leads. "
-                f"Import capped at {MAX_IMPORT_ROWS} rows per upload."
-            )
-            response["import_limited"] = True
-            response["max_rows"] = MAX_IMPORT_ROWS
-        return response
-        
+        if not created and preview["counts"]["duplicate"] == 0:
+            raise HTTPException(status_code=400, detail="No valid data found in CSV.")
+        if created:
+            db.commit()
+        return _commit_response(preview, len(created))
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail="Invalid CSV encoding. Please upload a UTF-8 encoded file.")
+    except ValueError as exc:
+        detail = str(exc)
+        if "name column" in detail:
+            detail = "CSV must contain at least a 'name' column."
+        raise HTTPException(status_code=400, detail=detail)
     except HTTPException:
         db.rollback()
         raise
@@ -578,3 +468,53 @@ async def import_leads(
         db.rollback()
         logger.exception("CSV import failed for user_id=%s", current_user.id)
         raise HTTPException(status_code=500, detail="Failed to process CSV file.")
+
+
+@router.get("/sheets")
+def get_lead_sheet(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_md),
+):
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
+    row = db.query(CompanySettings).filter(CompanySettings.company_id == current_user.company_id).first()
+    return serialize_sheet(row)
+
+
+@router.put("/sheets")
+def put_lead_sheet(
+    body: LeadSheetWrite,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_md),
+):
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
+    try:
+        row = save_sheet_url(db, current_user.company_id, body.url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(row)
+    return serialize_sheet(row)
+
+
+@router.post("/sheets/sync")
+def sync_lead_sheet(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_md),
+    active_team_id: int | None = Depends(get_active_team_id),
+):
+    if current_user.company_id is None:
+        raise HTTPException(status_code=403, detail="User must be assigned to a company")
+    team_id = _team_for_import(db, current_user, active_team_id)
+    try:
+        result = sync_sheet(db, user=current_user, team_id=team_id)
+    except ValueError as exc:
+        db.commit()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception:
+        db.rollback()
+        logger.exception("Lead sheet sync failed for user_id=%s", current_user.id)
+        raise HTTPException(status_code=500, detail="Failed to sync the Google Sheet.")
+    db.commit()
+    return result

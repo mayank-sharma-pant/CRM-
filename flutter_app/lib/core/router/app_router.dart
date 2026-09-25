@@ -26,6 +26,9 @@ import 'package:perioxia_crm/features/clients/presentation/clients_entry.dart';
 import 'package:perioxia_crm/features/clients/presentation/client_detail_screen.dart';
 import 'package:perioxia_crm/features/tasks/presentation/tasks_screen.dart';
 import 'package:perioxia_crm/features/follow_ups/presentation/follow_ups_screen.dart';
+import 'package:perioxia_crm/features/appointments/presentation/appointments_screen.dart';
+import 'package:perioxia_crm/features/conversations/presentation/conversations_screen.dart';
+import 'package:perioxia_crm/features/conversations/presentation/conversation_thread_screen.dart';
 import 'package:perioxia_crm/features/orders/presentation/orders_screen.dart';
 import 'package:perioxia_crm/features/orders/presentation/manager_orders_screen.dart';
 import 'package:perioxia_crm/features/orders/presentation/invoice_detail_screen.dart';
@@ -349,6 +352,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/follow-ups',
             name: RouteNames.followUps,
             builder: (_, __) => const FollowUpsScreen(),
+          ),
+          GoRoute(
+            path: '/appointments',
+            name: RouteNames.appointments,
+            builder: (_, __) => const AppointmentsScreen(),
+          ),
+          GoRoute(
+            path: '/conversations',
+            name: RouteNames.conversations,
+            builder: (_, __) => const ConversationsScreen(),
+            routes: [
+              GoRoute(
+                path: 'thread',
+                name: RouteNames.conversationThread,
+                builder: (_, state) {
+                  final q = state.uri.queryParameters;
+                  return ConversationThreadScreen(
+                    leadId: int.tryParse(q['leadId'] ?? ''),
+                    clientId: int.tryParse(q['clientId'] ?? ''),
+                    title: (q['name'] ?? '').isEmpty ? 'Conversation' : q['name']!,
+                    phone: q['phone'],
+                  );
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: '/orders',

@@ -67,5 +67,10 @@ class CompanySettings(Base):
     report_schedule_saved_report_id = Column(Integer, ForeignKey("saved_reports.id"), nullable=True)
     report_schedule_last_sent_at = Column(DateTime, nullable=True)
 
+    # Google Sheet lead pull. Share the sheet as anyone-with-the-link.
+    lead_sheet_url = Column(String(500), nullable=True)
+    lead_sheet_last_synced_at = Column(DateTime, nullable=True)
+    lead_sheet_last_result = Column(String(255), nullable=True)
+
     # Relationships
     company = relationship("Company", backref="settings")

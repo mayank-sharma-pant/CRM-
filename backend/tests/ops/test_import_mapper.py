@@ -76,9 +76,41 @@ def test_commit_inserts_new_skips_duplicate(client, db):
 def test_legacy_import_leads_still_works(client, db):
     company, admin = _setup(db, code="IM4")
     login_user(client, admin.email)
+    body = b"name,email\nLead A,a@a.com\n"
     resp = client.post(
         "/api/import/leads",
-        files={"file": ("ok.csv", b"name,email\nLead A,a@a.com\n", "text/csv")},
+        files={"file": ("ok.csv", body, "text/csv")},
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["count"] == 1
+    again = client.post(
+        "/api/import/leads",
+        files={"file": ("ok.csv", b"name,email\nLead A,a@a.com\nLead B,b@b.com\n", "text/csv")},
+    )
+    assert again.status_code == 200, again.text
+    assert again.json()["created"] == 1
+    assert again.json()["skipped_duplicate"] == 1
+    names = {row.name for row in db.query(Lead).filter(Lead.company_id == company.id).all()}
+    assert names == {"Lead A", "Lead B"}
+
+
+def test_reimport_skips_email_and_phone(client, db):
+    company, admin = _setup(db, code="IM5")
+    login_user(client, admin.email)
+    first = b"name,email,phone\nAda,ada@x.com,111\n"
+    resp = client.post(
+        "/api/import/leads/commit",
+        files={"file": ("leads.csv", first, "text/csv")},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["created"] == 1
+    second = b"name,email,phone\nAda,ada@x.com,111\nBea,bea@x.com,222\nSame,other@x.com,111\n"
+    again = client.post(
+        "/api/import/leads/commit",
+        files={"file": ("leads.csv", second, "text/csv")},
+    )
+    assert again.status_code == 200, again.text
+    assert again.json()["created"] == 1
+    assert again.json()["skipped_duplicate"] == 2
+    names = {row.name for row in db.query(Lead).filter(Lead.company_id == company.id).all()}
+    assert names == {"Ada", "Bea"}

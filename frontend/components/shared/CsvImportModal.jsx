@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { X, Loader2, Upload } from 'lucide-react';
 import api, { getActiveTeamId, setActiveTeamId } from '../../services/api';
-import { previewLeadsLocally, suggestNotesExtra, toLegacyLeadCsv } from '../../lib/leadCsv.cjs';
+import { suggestNotesExtra } from '../../lib/leadCsv.cjs';
 
 const NONE = '__none__';
 
@@ -56,7 +56,6 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [committing, setCommitting] = useState(false);
-  const [legacy, setLegacy] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -67,7 +66,6 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
       setError(null);
       setLoading(false);
       setCommitting(false);
-      setLegacy(false);
     }
   }, [isOpen]);
 
@@ -134,34 +132,14 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
     return postForm(path, fd);
   };
 
-  const applyLocalPreview = async (nextFile, nextMapping) => {
-    const text = await nextFile.text();
-    const local = previewLeadsLocally(text, nextMapping);
-    setLegacy(true);
-    setHeaders(local.headers);
-    setMapping(nextMapping || local.suggested_mapping || {});
-    setPreview(local);
-    setError(local.error);
-    return local;
-  };
-
   const handleFile = async (e) => {
     const next = e.target.files?.[0];
     if (!next) return;
     setFile(next);
     setError(null);
     setPreview(null);
-    setLegacy(false);
     setLoading(true);
     try {
-      if (entity === 'leads') {
-        try {
-          await applyLocalPreview(next);
-        } catch {
-          setError('Could not read this CSV file. Try exporting from Google Sheets as CSV (comma-separated).');
-        }
-        return;
-      }
       const fd = new FormData();
       fd.append('file', next);
       const res = await postForm(`/import/${entity}/preview`, fd);
@@ -182,12 +160,8 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
     setLoading(true);
     setError(null);
     try {
-      if (entity === 'leads' || legacy) {
-        await applyLocalPreview(file, nextMapping);
-      } else {
-        const res = await postImport(`/import/${entity}/preview`, nextMapping);
-        setPreview(res.data);
-      }
+      const res = await postImport(`/import/${entity}/preview`, nextMapping);
+      setPreview(res.data);
     } catch (err) {
       const detail = err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Could not preview CSV.');
@@ -200,14 +174,7 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
     setCommitting(true);
     setError(null);
     try {
-      if (entity === 'leads') {
-        const csv = toLegacyLeadCsv(await file.text(), mapping);
-        const fd = new FormData();
-        fd.append('file', new Blob([csv], { type: 'text/csv' }), 'leads-import.csv');
-        await postForm('/import/leads', fd);
-      } else {
-        await postImport(`/import/${entity}/commit`);
-      }
+      await postImport(`/import/${entity}/commit`);
       onRefresh?.();
       onClose();
     } catch (err) {
@@ -298,6 +265,11 @@ export default function CsvImportModal({ entity, isOpen, onClose, onRefresh }) {
               <p className="text-sm text-slate-600 dark:text-slate-300">
                 {counts.new} new · {counts.duplicate} duplicate · {counts.invalid} invalid
               </p>
+              {entity === 'leads' && (
+                <p className="text-xs text-slate-500">
+                  Importing this file again adds only new rows. A row is a duplicate when its email or phone already belongs to a lead.
+                </p>
+              )}
               <div className="max-h-48 overflow-auto border border-slate-200 dark:border-slate-600 rounded text-xs">
                 <table className="w-full">
                   <tbody>

@@ -147,6 +147,9 @@ MISSING_COLUMNS = [
     ("quotes", "executive_summary", "TEXT"),
     ("quotes", "scope_text", "TEXT"),
     ("quotes", "fee_inclusive", "INTEGER DEFAULT 1"),
+    ("company_settings", "lead_sheet_url", "VARCHAR(500)"),
+    ("company_settings", "lead_sheet_last_synced_at", "TIMESTAMP"),
+    ("company_settings", "lead_sheet_last_result", "VARCHAR(255)"),
 ]
 
 

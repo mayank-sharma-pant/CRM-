@@ -28,6 +28,8 @@ void main() {
     expect(salesNavIndex('/follow-ups'), 1);
     expect(salesNavIndex('/invoices/3'), 2);
     expect(salesNavIndex('/more'), 3);
+    expect(salesNavIndex('/appointments'), 3);
+    expect(salesNavIndex('/conversations/thread'), 3);
   });
 
   test('invoice list prefers items key', () {

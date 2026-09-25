@@ -16,6 +16,9 @@ class RouteNames {
   static const String clientDetail = 'clientDetail';
   static const String tasks = 'tasks';
   static const String followUps = 'followUps';
+  static const String appointments = 'appointments';
+  static const String conversations = 'conversations';
+  static const String conversationThread = 'conversationThread';
   static const String orders = 'orders';
   static const String managerOrders = 'managerOrders';
   static const String invoiceDetail = 'invoiceDetail';

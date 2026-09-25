@@ -175,6 +175,6 @@ Each phase is shippable alone. Phase 1 alone unlocks the SMB product demo.
 
 ## Flutter gap note
 
-**Has on mobile:** Leads list, lead detail (status, notes, tasks, convert), follow-ups (today/overdue). After Task 8, lead detail also supports **claim** (`POST /api/leads/{id}/claim` via `ApiEndpoints.leadClaim`) for unassigned leads and **WhatsApp** via `https://wa.me/<digits>` (`url_launcher`, dependency already in `pubspec.yaml`).
+**Has on mobile:** Leads list, lead detail (status, notes, tasks, convert, claim, Messages), follow-ups. **Appointments** at `/appointments` (today / upcoming / overdue / completed, create, complete, cancel) via `GET/POST /api/meetings` and `PATCH /api/meetings/{id}`. **Conversations** at `/conversations` via `GET /api/whatsapp/threads`, with a thread screen on `GET /api/whatsapp/messages` and `POST /api/whatsapp/session-send`, plus `wa.me` when a phone is present. Sales, manager, and MD reach both from More. The bottom bar is unchanged.
 
-**Missing / web-only:** **WhatsApp threads** — no `GET /api/whatsapp/threads`, no conversations inbox on Flutter; outbound chat only from lead phone. **Meetings** — no `GET /api/meetings?bucket=today` or appointments UI; use web `/sales/appointments` for today’s meetings. No new shell, manager parity, or calendar screen in this task.
+**Still web-only:** WhatsApp connection settings, email templates, and a full calendar. Purchase does not get these screens.

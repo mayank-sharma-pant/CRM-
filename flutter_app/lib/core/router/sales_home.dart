@@ -21,7 +21,9 @@ int salesNavIndex(String location) {
   if (location.startsWith('/invoices') || location.startsWith('/orders')) {
     return 2;
   }
-  if (location.startsWith('/more') ||
+  if (location.startsWith('/appointments') ||
+      location.startsWith('/conversations') ||
+      location.startsWith('/more') ||
       location.startsWith('/settings') ||
       location.startsWith('/profile') ||
       location.startsWith('/notifications') ||

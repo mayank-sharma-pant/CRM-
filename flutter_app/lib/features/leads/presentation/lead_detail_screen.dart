@@ -215,6 +215,24 @@ class LeadDetailScreen extends ConsumerWidget {
                     ],
                   ),
                 ],
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      context.push(Uri(
+                        path: '/conversations/thread',
+                        queryParameters: {
+                          'leadId': '$leadId',
+                          'name': name.isEmpty ? 'Lead' : name,
+                          if (phone != null && phone.isNotEmpty) 'phone': phone,
+                        },
+                      ).toString());
+                    },
+                    icon: const Icon(Icons.forum_outlined, size: 18),
+                    label: const Text('Messages'),
+                  ),
+                ),
                 if (ref.watch(authProvider).user?.isManager == true) ...[
                   const SizedBox(height: 12),
                   SizedBox(

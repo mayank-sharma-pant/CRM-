@@ -142,6 +142,7 @@ const ROLE_NAVIGATION = {
             icon: 'Settings',
             children: [
                 { name: 'Email', href: '/settings/email' },
+                { name: 'Lead sheet', href: '/settings/lead-sheet' },
                 { name: 'Calendar', href: '/settings/calendar' },
                 { name: 'Webhooks', href: '/settings/webhooks' },
                 { name: 'SAML SSO', href: '/settings/sso' },
@@ -180,6 +181,7 @@ const ROLE_NAVIGATION = {
             icon: 'Settings',
             children: [
                 { name: 'Email', href: '/settings/email' },
+                { name: 'Lead sheet', href: '/settings/lead-sheet' },
                 { name: 'Calendar', href: '/settings/calendar' },
                 { name: 'Webhooks', href: '/settings/webhooks' },
                 { name: 'SAML SSO', href: '/settings/sso' },

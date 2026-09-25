@@ -245,6 +245,26 @@ const hi = {
   "Connect WhatsApp": "व्हाट्सऐप जोड़ें",
   Dismiss: "छोड़ें",
   "Could not load sample data.": "नमूना डेटा लोड नहीं हो सका।",
+
+  // --- Google Sheet leads ---
+  "Google Sheet leads": "गूगल शीट लीड",
+  "Pull new rows from a shared Google Sheet. Existing email or phone matches are skipped.":
+    "साझा गूगल शीट से नई पंक्तियाँ लाएँ। मिलता ईमेल या फ़ोन छोड़ दिया जाता है।",
+  "New rows with a new email or phone are added. Matching leads stay as they are.":
+    "नए ईमेल या फ़ोन वाली पंक्तियाँ जुड़ती हैं। मिलती लीड वैसी ही रहती हैं।",
+  "Only a company admin or director can connect a sheet.":
+    "शीट केवल कंपनी एडमिन या निदेशक जोड़ सकते हैं।",
+  "Could not load the Google Sheet connection.": "गूगल शीट कनेक्शन लोड नहीं हो सका।",
+  "Could not save the Google Sheet link.": "गूगल शीट लिंक सहेजा नहीं जा सका।",
+  "Could not sync the Google Sheet.": "गूगल शीट सिंक नहीं हो सकी।",
+  "Google Sheets link": "गूगल शीट लिंक",
+  "Share the sheet as Anyone with the link can view. The first row must be column names, including a name column.":
+    "शीट को लिंक वाले किसी भी व्यक्ति के लिए साझा करें। पहली पंक्ति में कॉलम नाम हों, जिसमें नाम कॉलम हो।",
+  "Sync now pulls the latest rows. The reminder job pulls them too. Google does not notify this CRM the moment a cell changes.":
+    "अभी सिंक नई पंक्तियाँ लाता है। रिमाइंडर जॉब भी लाता है। सेल बदलते ही गूगल इस CRM को सूचना नहीं भेजता।",
+  "Last sync": "पिछला सिंक",
+  "Sync now": "अभी सिंक करें",
+  "Lead sheet": "लीड शीट",
 };
 
 module.exports = hi;

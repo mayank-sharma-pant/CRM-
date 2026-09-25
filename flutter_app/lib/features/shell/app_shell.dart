@@ -93,6 +93,8 @@ class AppShell extends ConsumerWidget {
           location.startsWith('/leads') ||
           location.startsWith('/tasks') ||
           location.startsWith('/follow-ups') ||
+          location.startsWith('/appointments') ||
+          location.startsWith('/conversations') ||
           location.startsWith('/orders') ||
           location.startsWith('/invoices') ||
           location.startsWith('/admin-hierarchy') ||
@@ -118,6 +120,8 @@ class AppShell extends ConsumerWidget {
           location.startsWith('/md-invoices') ||
           location.startsWith('/tasks') ||
           location.startsWith('/follow-ups') ||
+          location.startsWith('/appointments') ||
+          location.startsWith('/conversations') ||
           location.startsWith('/orders') ||
           location.startsWith('/invoices') ||
           location.startsWith('/report-bug') ||
@@ -137,6 +141,8 @@ class AppShell extends ConsumerWidget {
           location.startsWith('/reports') ||
           location.startsWith('/manager-orders') ||
           location.startsWith('/clients') ||
+          location.startsWith('/appointments') ||
+          location.startsWith('/conversations') ||
           location.startsWith('/invoices') ||
           location.startsWith('/orders') ||
           location.startsWith('/report-bug') ||

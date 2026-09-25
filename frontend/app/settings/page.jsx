@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Bell, Calendar, Shield, KeyRound, MessageCircle, MapPin, Mail, Webhook, Target, Brain, BookMarked, Layers, Store, FileText, Tags, ShieldCheck } from 'lucide-react';
+import { Bell, Calendar, Shield, KeyRound, MessageCircle, MapPin, Mail, Webhook, Target, Brain, BookMarked, Layers, Store, FileText, Tags, ShieldCheck, Table2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useT } from '../../contexts/LocaleContext';
 import NotificationPreferencesPanel from '../../components/shared/NotificationPreferencesPanel';
@@ -87,6 +87,29 @@ export default function SettingsHomePage() {
             >
               <FileText size={12} />
               {t('Email templates')}
+            </Link>
+          </div>
+        </div>
+
+        <div className="p-6 rounded-xl border border-border bg-surface">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 p-1.5 rounded-md bg-surface-elevated">
+                <Table2 size={14} className="text-muted" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-primary">{t('Google Sheet leads')}</div>
+                <div className="text-xs text-muted">
+                  {t('Pull new rows from a shared Google Sheet. Existing email or phone matches are skipped.')}
+                </div>
+              </div>
+            </div>
+            <Link
+              href="/settings/lead-sheet"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border border-border text-secondary hover:bg-surface-elevated"
+            >
+              <Table2 size={12} />
+              {t('Google Sheet leads')}
             </Link>
           </div>
         </div>

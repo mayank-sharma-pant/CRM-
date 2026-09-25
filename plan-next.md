@@ -1,5 +1,7 @@
 # Unassigned Pool, Appointments, Conversations Implementation Plan
 
+> **Status:** Shipped. Checkboxes synced 2026-09-25. Tracked complete in `plan-todo.md` Phase 1. Do not re-implement.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship three daily-ops pages — Unassigned Pool, Appointments, Conversations — on sales, manager, and MD (not admin/purchase), plus reusable email templates under Settings.
@@ -75,7 +77,7 @@ TikunCRM “Schedules” is the calendar toggle on Appointments, not a fourth mo
 - Consumes: existing `list_leads` role filters (sales: own + open on active team; manager: `Lead.team_id == active_team_id`; md/admin: company).
 - Produces: `GET /api/leads?unassigned=true&skip=0&limit=50` returns `LeadListResponse` with only `assigned_to_id IS NULL`. `total` is the badge count.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 # backend/tests/sales/test_unassigned_pool.py
@@ -156,7 +158,7 @@ def test_purchase_unassigned_is_empty_or_forbidden(client, db):
         assert resp.json()["items"] == [] or resp.json()["total"] == 0
 ```
 
-- [ ] **Step 2: Run tests — expect fail** (no `unassigned` query, owned leads still returned)
+- [x] **Step 2: Run tests — expect fail** (no `unassigned` query, owned leads still returned)
 
 ```bash
 cd backend && python -m pytest tests/sales/test_unassigned_pool.py -v
@@ -164,7 +166,7 @@ cd backend && python -m pytest tests/sales/test_unassigned_pool.py -v
 
 Expected: FAIL (`unassigned` ignored or items include `"Mine"`).
 
-- [ ] **Step 3: Implement the filter** in `list_leads` after role scoping, before status/search:
+- [x] **Step 3: Implement the filter** in `list_leads` after role scoping, before status/search:
 
 ```python
 unassigned: bool = Query(False),
@@ -175,7 +177,7 @@ if unassigned:
 
 Do not change `claim_lead`. Sales still claims via `POST /api/leads/{id}/claim`. Manager/MD still assign via `PUT /api/leads/{id}` `{ "assigned_to_id": n }`.
 
-- [ ] **Step 4: Re-run tests — expect pass**
+- [x] **Step 4: Re-run tests — expect pass**
 
 ```bash
 cd backend && python -m pytest tests/sales/test_unassigned_pool.py -v
@@ -198,7 +200,7 @@ cd backend && python -m pytest tests/sales/test_unassigned_pool.py -v
 - Consumes: `GET /api/leads?unassigned=true&limit=100` (`items`, `total`); `POST /api/leads/{id}/claim` (sales); `PUT /api/leads/{id}` `{assigned_to_id}` (manager/md); `GET /api/leads/team-members` (already returns `{ members: [{id, full_name, email}] }`). Today that endpoint 403s if a non-manager passes `team_id`. In this task, allow `md` to pass `team_id` or, with no team, list company sales execs (`User.role == "sales"`, company scoped). Sales does not call it.
 - Produces: pages at `/sales/leads/unassigned`, `/manager/leads/unassigned`, `/md/leads/unassigned`. Sidebar label `Unassigned Pool` with `total` badge.
 
-- [ ] **Step 1: Path helpers** in `frontend/lib/objectPaths.cjs`:
+- [x] **Step 1: Path helpers** in `frontend/lib/objectPaths.cjs`:
 
 ```javascript
 function unassignedLeadsPath(pathname = "") {
@@ -210,7 +212,7 @@ function unassignedLeadsPath(pathname = "") {
 
 Export it. Re-export from `frontend/lib/leadsPaths.js` if that is the public import.
 
-- [ ] **Step 2: Shared page** `UnassignedPoolPage.jsx`
+- [x] **Step 2: Shared page** `UnassignedPoolPage.jsx`
 
 Layout (Ledger Desk):
 - Title `Unassigned Pool`, subtitle `Leads with no owner`
@@ -223,7 +225,7 @@ Layout (Ledger Desk):
 
 Use `useAuth().user.role` and `leadsHomePath(pathname)` for links. `api` from `services/api` (already sends `X-Team-Id`).
 
-- [ ] **Step 3: Thin role pages** (same pattern as trash):
+- [x] **Step 3: Thin role pages** (same pattern as trash):
 
 ```jsx
 'use client';
@@ -232,7 +234,7 @@ export { default } from '../../../../components/leads/UnassignedPoolPage';
 
 Three files under `sales`, `manager`, `md`.
 
-- [ ] **Step 4: Sidebar** — after Leads, only in `ROLE_NAVIGATION.sales`, `.manager`, `.md`:
+- [x] **Step 4: Sidebar** — after Leads, only in `ROLE_NAVIGATION.sales`, `.manager`, `.md`:
 
 ```javascript
 { name: 'Unassigned Pool', href: '/sales/leads/unassigned', icon: 'Users' },
@@ -242,7 +244,7 @@ Manager href `/manager/leads/unassigned`, MD `/md/leads/unassigned`. Do not add 
 
 Badge: on mount, if nav includes Unassigned Pool, `GET /leads?unassigned=true&limit=1` and show `total` when `> 0` (same pill style as existing custom-module badges; if none exist, a `text-[11px]` count in a rounded `bg-accent-subtle text-accent` chip).
 
-- [ ] **Step 5: Hindi keys**
+- [x] **Step 5: Hindi keys**
 
 ```javascript
 "Unassigned Pool": "असाइन नहीं",
@@ -251,7 +253,7 @@ Badge: on mount, if nav includes Unassigned Pool, `GET /leads?unassigned=true&li
 "Pool is clear": "पूल खाली है",
 ```
 
-- [ ] **Step 6: Manual check** — sales sees only open leads and Claim works; manager Assign works; purchase sidebar has no item. Playwright: extend `frontend-smoke.spec.js` so sales/manager/md `goto` the unassigned path and assert heading `Unassigned Pool` and no “unable to load”.
+- [x] **Step 6: Manual check** — sales sees only open leads and Claim works; manager Assign works; purchase sidebar has no item. Playwright: extend `frontend-smoke.spec.js` so sales/manager/md `goto` the unassigned path and assert heading `Unassigned Pool` and no “unable to load”.
 
 ---
 
@@ -276,7 +278,7 @@ Row-scope rules for **list and summary**:
 
 Register `GET /meetings/summary` **before** `GET /{meeting_id:int}` so `"summary"` is not parsed as an id. Path converters already use `{meeting_id:int}` — still put summary first.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```python
 # backend/tests/sales/test_meetings_row_scope.py
@@ -346,15 +348,15 @@ def test_summary_counts_overdue(client, db):
     assert "today" in body and "upcoming" in body and "total_scheduled" in body
 ```
 
-- [ ] **Step 2: Run — expect fail** (`sales` currently sees company-wide meetings; `/summary` 404)
+- [x] **Step 2: Run — expect fail** (`sales` currently sees company-wide meetings; `/summary` 404)
 
 ```bash
 cd backend && python -m pytest tests/sales/test_meetings_row_scope.py -v
 ```
 
-- [ ] **Step 3: Implement** `_scoped_meetings_query(db, current_user, active_team_id)` and use it in `list_meetings`. Add `summary` that computes buckets in Python or SQL from the same query. `today` = scheduled and `starts_at` date == UTC today; `upcoming` = scheduled and `starts_at` > now; `overdue` = scheduled and `starts_at` < now; `completed_week` / `cancelled_week` = status in last 7 days; `total_scheduled` = status scheduled.
+- [x] **Step 3: Implement** `_scoped_meetings_query(db, current_user, active_team_id)` and use it in `list_meetings`. Add `summary` that computes buckets in Python or SQL from the same query. `today` = scheduled and `starts_at` date == UTC today; `upcoming` = scheduled and `starts_at` > now; `overdue` = scheduled and `starts_at` < now; `completed_week` / `cancelled_week` = status in last 7 days; `total_scheduled` = status scheduled.
 
-- [ ] **Step 4: Re-run — expect pass.** Also re-run `tests/sales/test_meetings_calls_api.py` so the admin roundtrip still works.
+- [x] **Step 4: Re-run — expect pass.** Also re-run `tests/sales/test_meetings_calls_api.py` so the admin roundtrip still works.
 
 ---
 
@@ -369,15 +371,15 @@ cd backend && python -m pytest tests/sales/test_meetings_row_scope.py -v
 - Consumes: `GET /api/meetings/summary`, `GET /api/meetings?skip&limit&status&bucket`, `POST /api/meetings`, `PATCH /api/meetings/{id}`
 - Produces: `/sales/appointments`, `/manager/appointments`, `/md/appointments`
 
-- [ ] **Step 1: Path helper** `appointmentsHomePath(pathname)` → `${prefix}/appointments` for sales/manager/md.
+- [x] **Step 1: Path helper** `appointmentsHomePath(pathname)` → `${prefix}/appointments` for sales/manager/md.
 
-- [ ] **Step 2: Shared page** — header “Appointments”, primary `+ New Appointment` opening a small form (subject, starts_at datetime-local, lead_id optional via search or numeric, location). KPI strip from summary: Today, Upcoming, Overdue, Completed (week), Cancelled (week), Total scheduled. Chip filters: All / Today / Upcoming / Overdue / Completed. Rows: subject, status pill, starts_at, linked lead name if `lead_id` (fetch lead names in one go or include `lead_name` in serialize — **add `lead_name` to `_serialize`** by loading Lead when `lead_id` set; cheaper than N+1: join in list). Actions: Complete (`PATCH status=completed`), Cancel (`PATCH status=cancelled`). Empty/error/loading.
+- [x] **Step 2: Shared page** — header “Appointments”, primary `+ New Appointment` opening a small form (subject, starts_at datetime-local, lead_id optional via search or numeric, location). KPI strip from summary: Today, Upcoming, Overdue, Completed (week), Cancelled (week), Total scheduled. Chip filters: All / Today / Upcoming / Overdue / Completed. Rows: subject, status pill, starts_at, linked lead name if `lead_id` (fetch lead names in one go or include `lead_name` in serialize — **add `lead_name` to `_serialize`** by loading Lead when `lead_id` set; cheaper than N+1: join in list). Actions: Complete (`PATCH status=completed`), Cancel (`PATCH status=cancelled`). Empty/error/loading.
 
 v1 is **list only**. No Calendar toggle.
 
-- [ ] **Step 3: Thin role re-exports** + sidebar under Workspace (near Follow-ups for sales; after Tasks for manager; after Leads for md). Badge = `summary.overdue` when > 0.
+- [x] **Step 3: Thin role re-exports** + sidebar under Workspace (near Follow-ups for sales; after Tasks for manager; after Leads for md). Badge = `summary.overdue` when > 0.
 
-- [ ] **Step 4: Hindi**
+- [x] **Step 4: Hindi**
 
 ```javascript
 Appointments: "अपॉइंटमेंट",
@@ -387,7 +389,7 @@ Upcoming: "आगामी",
 Overdue: "ओवरड्यू",
 ```
 
-- [ ] **Step 5: Smoke** — sales/manager/md open `/<role>/appointments`, heading visible, no load error. Purchase must not have the nav item.
+- [x] **Step 5: Smoke** — sales/manager/md open `/<role>/appointments`, heading visible, no load error. Purchase must not have the nav item.
 
 ---
 
@@ -425,13 +427,13 @@ Row-scope via the related Lead (same rules as Task 3). Threads with only `client
 
 Purchase: 403.
 
-- [ ] **Step 1: Failing tests** — two sales users; inbound on B’s lead; A’s `GET /whatsapp/threads` omits it; B sees `unanswered: true`. MD sees both companies’? No — same company only. Second company inbound must 404/omit.
+- [x] **Step 1: Failing tests** — two sales users; inbound on B’s lead; A’s `GET /whatsapp/threads` omits it; B sees `unanswered: true`. MD sees both companies’? No — same company only. Second company inbound must 404/omit.
 
-- [ ] **Step 2: Run — expect 404 on `/api/whatsapp/threads`.**
+- [x] **Step 2: Run — expect 404 on `/api/whatsapp/threads`.**
 
-- [ ] **Step 3: Implement** `list_threads` using a subquery `max(id)` per `lead_id` (and separately per `client_id` where `lead_id IS NULL`). Join Lead for name/phone/scope. Do not add a `read` column in v1.
+- [x] **Step 3: Implement** `list_threads` using a subquery `max(id)` per `lead_id` (and separately per `client_id` where `lead_id IS NULL`). Join Lead for name/phone/scope. Do not add a `read` column in v1.
 
-- [ ] **Step 4: Pass** `tests/sales/test_whatsapp_threads.py` and existing `test_whatsapp_api.py`.
+- [x] **Step 4: Pass** `tests/sales/test_whatsapp_threads.py` and existing `test_whatsapp_api.py`.
 
 ---
 
@@ -447,13 +449,13 @@ Purchase: 403.
 - Consumes: `GET /api/whatsapp/threads`, existing send endpoints inside `LeadWhatsAppPanel`
 - Produces: `/sales/conversations`, `/manager/conversations`, `/md/conversations`
 
-- [ ] **Step 1: Shared page** — two columns on `lg`: left thread list (name, last body truncated, time, inbound pill if `unanswered`), chip `Unanswered` vs `All`; right pane renders `LeadWhatsAppPanel` for the selected `lead_id`. Empty: “No conversations yet”. If thread has only `client_id`, link to client WhatsApp panel if one exists; otherwise show a read-only message list via `GET /whatsapp/messages?client_id=`.
+- [x] **Step 1: Shared page** — two columns on `lg`: left thread list (name, last body truncated, time, inbound pill if `unanswered`), chip `Unanswered` vs `All`; right pane renders `LeadWhatsAppPanel` for the selected `lead_id`. Empty: “No conversations yet”. If thread has only `client_id`, link to client WhatsApp panel if one exists; otherwise show a read-only message list via `GET /whatsapp/messages?client_id=`.
 
-- [ ] **Step 2: Role re-exports + sidebar** after Follow-ups/Tasks (Workspace). Badge = unanswered total from `GET /whatsapp/threads?unanswered=true&limit=1`.
+- [x] **Step 2: Role re-exports + sidebar** after Follow-ups/Tasks (Workspace). Badge = unanswered total from `GET /whatsapp/threads?unanswered=true&limit=1`.
 
-- [ ] **Step 3: Hindi** `Conversations: "बातचीत"`, `Unanswered: "जवाब बाकी"`.
+- [x] **Step 3: Hindi** `Conversations: "बातचीत"`, `Unanswered: "जवाब बाकी"`.
 
-- [ ] **Step 4: Smoke** for three roles. Confirm Auto WhatsApp is **not** a new nav item (cadence stays in `/settings/whatsapp`).
+- [x] **Step 4: Smoke** for three roles. Confirm Auto WhatsApp is **not** a new nav item (cadence stays in `/settings/whatsapp`).
 
 Do not add `/conversations` to `SHARED_PATHS` unless RouteGuard is changed; role-prefixed routes already work.
 
@@ -475,13 +477,13 @@ Schema: `id`, `company_id`, `name`, `subject`, `body`, `created_by_id`, `created
 
 Auth: `GET` any logged-in company user; `POST/PATCH/DELETE` `admin` or `md` (`require_admin_or_md`).
 
-- [ ] **Step 1: Failing tests** — sales GET 200 empty; sales POST 403; admin POST 201; other-company GET omits the row.
+- [x] **Step 1: Failing tests** — sales GET 200 empty; sales POST 403; admin POST 201; other-company GET omits the row.
 
-- [ ] **Step 2: Model + migration + router + wire in `backend/app/main.py`.**
+- [x] **Step 2: Model + migration + router + wire in `backend/app/main.py`.**
 
-- [ ] **Step 3: Settings page** (shared `/settings` already in `SHARED_PATHS`) — list, create name/subject/body, delete. Tile on `/settings` for everyone; mutate controls hidden unless `admin|md`.
+- [x] **Step 3: Settings page** (shared `/settings` already in `SHARED_PATHS`) — list, create name/subject/body, delete. Tile on `/settings` for everyone; mutate controls hidden unless `admin|md`.
 
-- [ ] **Step 4: Campaigns** — if `selected` campaign body is empty, a `<select>` of templates fills subject+body. Do not auto-send.
+- [x] **Step 4: Campaigns** — if `selected` campaign body is empty, a `<select>` of templates fills subject+body. Do not auto-send.
 
 Skip if blocked on migration numbering — read latest Alembic revision first and set `down_revision` correctly. Never guess the head.
 
@@ -493,7 +495,7 @@ Skip if blocked on migration numbering — read latest Alembic revision first an
 - Modify: `frontend/e2e/frontend-smoke.spec.js`
 - Modify: `frontend/e2e/local-smoke.spec.js`
 
-- [ ] **Step 1: Smoke cases**
+- [x] **Step 1: Smoke cases**
 
 ```javascript
 test('sales: unassigned, appointments, conversations load', async ({ page }) => {
@@ -507,15 +509,15 @@ test('sales: unassigned, appointments, conversations load', async ({ page }) => 
 
 Repeat for `manager` and `md` with their prefixes.
 
-- [ ] **Step 2: Purchase must not see the three labels** — after login as purchase, assert `getByRole('link', { name: 'Unassigned Pool' })` count 0 (and Appointments, Conversations).
+- [x] **Step 2: Purchase must not see the three labels** — after login as purchase, assert `getByRole('link', { name: 'Unassigned Pool' })` count 0 (and Appointments, Conversations).
 
-- [ ] **Step 3: Backend suite**
+- [x] **Step 3: Backend suite**
 
 ```bash
 cd backend && python -m pytest tests/sales/test_unassigned_pool.py tests/sales/test_meetings_row_scope.py tests/sales/test_meetings_calls_api.py tests/sales/test_whatsapp_threads.py tests/sales/test_whatsapp_api.py tests/sales/test_email_templates.py -v
 ```
 
-- [ ] **Step 4: Browser** — if the app is running, click the three pages as sales, manager, and MD: claim, assign, create appointment, open a WhatsApp thread. If browser tools are unavailable, say untested in the browser and rely on pytest + Playwright.
+- [x] **Step 4: Browser** — if the app is running, click the three pages as sales, manager, and MD: claim, assign, create appointment, open a WhatsApp thread. If browser tools are unavailable, say untested in the browser and rely on pytest + Playwright.
 
 ---
 

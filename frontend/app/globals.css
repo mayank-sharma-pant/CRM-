@@ -13,16 +13,26 @@
 @layer base {
 
   :root {
-    --color-page: #f2f3f5;
-    --color-surface: #ffffff;
-    --color-surface-elevated: #f7f8fa;
+    --color-page: #dfece8;
+    --color-surface: #f7fbfa;
+    --color-surface-elevated: #eef6f3;
+    --desk-wash:
+      radial-gradient(ellipse 90% 55% at 100% -8%, rgba(15, 107, 98, 0.16), transparent 52%),
+      radial-gradient(ellipse 42% 36% at 0% 100%, rgba(15, 107, 98, 0.09), transparent 50%),
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 31px,
+        rgba(15, 107, 98, 0.055) 31px,
+        rgba(15, 107, 98, 0.055) 32px
+      );
     --color-text-primary: #111318;
     --color-text-secondary: #5c6370;
     --color-text-muted: #8b919c;
     --color-text-inverse: #ffffff;
-    --color-border: #e6e8ec;
-    --color-border-subtle: #eeeff2;
-    --color-border-strong: #c9cdd4;
+    --color-border: #d3e4df;
+    --color-border-subtle: #e3efeb;
+    --color-border-strong: #b7cdc6;
     --color-accent: #0f6b62;
     --color-accent-hover: #0c5750;
     --color-accent-subtle: #e6f3f1;
@@ -36,13 +46,23 @@
     --spacing-gutter: 1.25rem;
     --radius-sm: 0.375rem;
     --radius-md: 0.5rem;
-    --shadow-card: 0 1px 2px rgba(17, 19, 24, 0.04);
+    --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.72) inset, 0 10px 28px -18px rgba(10, 61, 56, 0.45);
   }
 
   .dark {
-    --color-page: #0b0d11;
-    --color-surface: #12151c;
-    --color-surface-elevated: #1a1f28;
+    --color-page: #0e1614;
+    --color-surface: #15201d;
+    --color-surface-elevated: #1c2926;
+    --desk-wash:
+      radial-gradient(ellipse 80% 50% at 100% -10%, rgba(77, 182, 172, 0.16), transparent 55%),
+      radial-gradient(ellipse 40% 30% at 0% 100%, rgba(15, 107, 98, 0.2), transparent 50%),
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 31px,
+        rgba(244, 250, 249, 0.035) 31px,
+        rgba(244, 250, 249, 0.035) 32px
+      );
     --color-text-primary: #eceef2;
     --color-text-secondary: #9aa1ad;
     --color-text-muted: #6f7682;
@@ -76,6 +96,8 @@
 
   body {
     background-color: var(--color-page);
+    background-image: var(--desk-wash);
+    background-attachment: fixed;
     color: var(--color-text-primary);
     font-family: 'Source Sans 3', system-ui, -apple-system, sans-serif;
     font-size: 14px;
@@ -219,6 +241,8 @@
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
   }
 
   .card-elevated {
@@ -568,6 +592,34 @@
 
 .animate-fade-in-down {
   animation: fadeInDown 0.4s ease-out forwards;
+}
+
+@keyframes appPageIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.app-page-enter {
+  animation: appPageIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.app-desk {
+  background-color: var(--color-page);
+  background-image: var(--desk-wash);
+  background-attachment: fixed;
+}
+
+.bg-page:not(.landing) {
+  background-color: var(--color-page);
+  background-image: var(--desk-wash);
+  background-attachment: fixed;
 }
 
 /* Stagger delays */
@@ -1662,6 +1714,11 @@
   .sheet.is-front .stamp {
     transition: none;
     animation: none;
+  }
+
+  .app-page-enter {
+    animation: fadeIn 0.15s ease both;
+    transform: none;
   }
 }
 

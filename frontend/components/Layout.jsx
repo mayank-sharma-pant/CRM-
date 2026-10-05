@@ -29,7 +29,7 @@ export default function Layout({ children }) {
     }
 
     return (
-        <div className="min-h-screen bg-page flex text-primary">
+        <div className="app-desk min-h-screen flex text-primary">
             <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
             <div className={`flex-1 flex flex-col min-w-0 transition-[margin] duration-200 ${sidebarOpen ? 'ml-60' : 'ml-16'}`}>
                 {user?.is_sandbox && (
@@ -39,7 +39,9 @@ export default function Layout({ children }) {
                 )}
                 <TopBar />
                 <main className="flex-1 overflow-hidden">
-                    {children}
+                    <div key={pathname} className="app-page-enter h-full min-h-0 overflow-hidden">
+                        {children}
+                    </div>
                 </main>
             </div>
         </div>

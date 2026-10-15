@@ -68,6 +68,19 @@ class Settings(BaseSettings):
     # Public API base for OAuth redirect_uri (no trailing slash)
     PUBLIC_API_URL: str = "http://localhost:8000"
 
+    # Team chat. Off unless explicitly enabled; enabled without a valid key ⇒ 503.
+    CHAT_ENABLED: bool = False
+    # Comma-separated Fernet keys. First encrypts; all decrypt (rotation).
+    CHAT_ENCRYPTION_KEY: str = ""
+    # Exact browser origins allowed to open the chat WebSocket. Empty ⇒ CORS_ORIGINS.
+    CHAT_WS_ALLOWED_ORIGINS: str = ""
+    # Public WebSocket URL the browser connects to, e.g. wss://api.perioxia.com/api/chat/ws.
+    # Empty ⇒ the web app falls back to polling.
+    CHAT_WS_PUBLIC_URL: str = ""
+    # Shared by all workers: WS tickets, cross-worker events, presence, rate limits.
+    REDIS_URL: str = ""
+    CHAT_SEND_LIMIT_PER_10S: int = 20
+
     # SSO (Google / Microsoft). Empty client id ⇒ provider disabled.
     GOOGLE_OAUTH_CLIENT_ID: str = ""
     GOOGLE_OAUTH_CLIENT_SECRET: str = ""

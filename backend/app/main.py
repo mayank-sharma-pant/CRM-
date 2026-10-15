@@ -64,7 +64,11 @@ from app.routers.ai.company_assistant import router as company_ai_router
 from app.routers import teams
 from app.routers.billing import router as billing_router
 from app.routers.company.sandbox import router as sandbox_router
+from app.routers.chat.rest import router as chat_router
+from app.routers.chat.ws import router as chat_ws_router
+from app.services.chat.realtime import hub as chat_hub
 from app.config import settings
+from contextlib import asynccontextmanager
 import traceback
 import logging
 import logging.config
@@ -100,6 +104,16 @@ logger = logging.getLogger("app")
 # Disable docs in production. Read via settings: .env values are not exported to os.environ.
 is_production = (settings.ENVIRONMENT or "").lower() == "production"
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    await chat_hub.start()
+    try:
+        yield
+    finally:
+        await chat_hub.stop()
+
+
 app = FastAPI(
     title="Perioxia CRM API",
     version="1.0.0",
@@ -107,6 +121,7 @@ app = FastAPI(
     docs_url=None if is_production else "/docs",
     redoc_url=None if is_production else "/redoc",
     openapi_url=None if is_production else "/openapi.json",
+    lifespan=lifespan,
 )
 
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
@@ -232,6 +247,8 @@ app.include_router(company_ai_router, prefix="/api/ai", tags=["AI"])
 app.include_router(teams.router, prefix="/api/teams", tags=["Teams"])
 app.include_router(billing_router)  # Prefix is defined in the router itself
 app.include_router(sandbox_router, prefix="/api/sandbox", tags=["Sandbox"])
+app.include_router(chat_router, prefix="/api/chat", tags=["Chat"], include_in_schema=settings.CHAT_ENABLED)
+app.include_router(chat_ws_router, prefix="/api/chat")
 
 @app.get("/")
 def root():

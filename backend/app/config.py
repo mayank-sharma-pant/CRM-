@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     )
 
     ENVIRONMENT: str = "development"
+    LOG_LEVEL: str = "INFO"
+    # Hosts trusted for X-Forwarded-* headers (the reverse proxy), comma-separated.
+    TRUSTED_HOSTS: str = "127.0.0.1"
     DATABASE_URL: str = "sqlite:///./crm.db"
 
     def get_database_url(self) -> str:

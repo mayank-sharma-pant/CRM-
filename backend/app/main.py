@@ -68,12 +68,11 @@ from app.config import settings
 import traceback
 import logging
 import logging.config
-import os
 
 # -------------------------------------------------------
 # Structured logging — JSON-friendly format for production
 # -------------------------------------------------------
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+LOG_LEVEL = settings.LOG_LEVEL.upper()
 logging.config.dictConfig({
     "version": 1,
     "disable_existing_loggers": False,
@@ -98,8 +97,8 @@ logging.config.dictConfig({
 
 logger = logging.getLogger("app")
 
-# Disable docs in production
-is_production = os.getenv("ENVIRONMENT", "development") == "production"
+# Disable docs in production. Read via settings: .env values are not exported to os.environ.
+is_production = (settings.ENVIRONMENT or "").lower() == "production"
 
 app = FastAPI(
     title="Perioxia CRM API",
@@ -107,10 +106,11 @@ app = FastAPI(
     description="Perioxia CRM HTTP API",
     docs_url=None if is_production else "/docs",
     redoc_url=None if is_production else "/redoc",
+    openapi_url=None if is_production else "/openapi.json",
 )
 
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=os.getenv("TRUSTED_HOSTS", "127.0.0.1").split(","))
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=settings.TRUSTED_HOSTS.split(","))
 
 from app.middleware.security import SecurityHeadersMiddleware
 from app.tenancy import bind_tenant, path_uses_rls_bypass, reset_tenant

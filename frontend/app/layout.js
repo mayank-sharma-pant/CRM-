@@ -3,6 +3,7 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { LocaleProvider } from '../contexts/LocaleContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
+import { ChatProvider } from '../contexts/ChatContext';
 import Layout from '../components/Layout';
 import RouteGuard from '../components/RouteGuard';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -24,13 +25,15 @@ export default function RootLayout({ children }) {
                     <LocaleProvider>
                         <AuthProvider>
                             <NotificationProvider>
-                                <ErrorBoundary>
-                                    <RouteGuard>
-                                        <Layout>
-                                            {children}
-                                        </Layout>
-                                    </RouteGuard>
-                                </ErrorBoundary>
+                                <ChatProvider>
+                                    <ErrorBoundary>
+                                        <RouteGuard>
+                                            <Layout>
+                                                {children}
+                                            </Layout>
+                                        </RouteGuard>
+                                    </ErrorBoundary>
+                                </ChatProvider>
                             </NotificationProvider>
                         </AuthProvider>
                     </LocaleProvider>

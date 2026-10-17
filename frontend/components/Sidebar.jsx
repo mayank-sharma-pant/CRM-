@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { useT } from '../contexts/LocaleContext';
+import { useChat } from '../contexts/ChatContext';
 import LanguageToggle from './LanguageToggle';
 import { financeService } from '../services/financeService';
 import api from '../services/api';
@@ -41,6 +42,7 @@ import {
     PanelLeftClose,
     Mail,
     MessageCircle,
+    MessagesSquare,
     Building2,
     Layers,
 } from 'lucide-react';
@@ -75,6 +77,7 @@ const ICON_MAP = {
     Sparkles,
     Mail,
     MessageCircle,
+    MessagesSquare,
     Building2,
     Layers,
 };
@@ -206,6 +209,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     const pathname = usePathname();
     const { user, loading } = useAuth();
     const t = useT();
+    const { enabled: chatEnabled, unreadTotal: chatUnread } = useChat();
     const [navigation, setNavigation] = useState([]);
     const [authorizedLedgers, setAuthorizedLedgers] = useState([]);
     const [ledgerError, setLedgerError] = useState(null);
@@ -324,6 +328,11 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
         const navData = [...(ROLE_NAVIGATION[role] || ROLE_NAVIGATION.sales)];
 
+        if (chatEnabled) {
+            const dashboardIdx = navData.findIndex((item) => item.name === 'Dashboard');
+            navData.splice(dashboardIdx + 1, 0, { name: 'Chat', href: '/chat', icon: 'MessagesSquare' });
+        }
+
         if (!ledgerLoading && authorizedLedgers.length > 0) {
             navData.push({
                 name: 'Financial Ledgers',
@@ -356,7 +365,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         navData.push({ name: 'Report Bug', href: '/report-bug', icon: 'Bug' });
 
         setNavigation(navData);
-    }, [user?.role, loading, pathname, ledgerLoading, authorizedLedgers, customModules]);
+    }, [user?.role, loading, pathname, ledgerLoading, authorizedLedgers, customModules, chatEnabled]);
 
     return (
         <>
@@ -431,7 +440,9 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                     pathname={pathname}
                                     t={t}
                                     badge={
-                                        item.name === 'Unassigned Pool' && unassignedCount > 0
+                                        item.name === 'Chat' && chatUnread > 0
+                                            ? chatUnread
+                                            : item.name === 'Unassigned Pool' && unassignedCount > 0
                                             ? unassignedCount
                                             : item.name === 'Appointments' && overdueCount > 0
                                                 ? overdueCount

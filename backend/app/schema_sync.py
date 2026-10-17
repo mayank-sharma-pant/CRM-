@@ -185,10 +185,26 @@ def add_missing_columns(bind):
         apply(bind)
 
 
+def migration_owned_tables() -> frozenset[str]:
+    """Tables created only by their own Alembic migration, never by apply_schema."""
+    from app.models.core.chat import CHAT_TABLES
+
+    return frozenset(CHAT_TABLES)
+
+
 def apply_schema(bind) -> int:
-    """create_all, missing columns, RLS. Returns RLS table count (0 on SQLite)."""
+    """create_all, missing columns, RLS where missing. Returns tables whose RLS changed (0 on SQLite).
+
+    Skips migration-owned tables entirely (no CREATE, no policy DDL) and leaves
+    existing correct policies alone, so a routine run on an up-to-date database
+    issues no DDL.
+    """
     _load_models()
-    Base.metadata.create_all(bind=bind)
+    owned = migration_owned_tables()
+    Base.metadata.create_all(
+        bind=bind,
+        tables=[t for t in Base.metadata.sorted_tables if t.name not in owned],
+    )
     add_missing_columns(bind)
     from app.tenancy import enable_rls
-    return enable_rls(bind)
+    return enable_rls(bind, exclude=owned, only_missing=True)

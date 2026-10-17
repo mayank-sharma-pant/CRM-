@@ -4,12 +4,15 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models.core.company_settings import CompanySettings
 from app.models.core.user import User
 from app.models.sales.client import Client
 from app.models.sales.lead import Lead
 from app.models.sales.note import Note
 from app.models.sales.privacy_request import PrivacyRequest
+from app.services.chat.crypto import chat_crypto_configured
+from app.services.chat.service import export_sent_messages
 from app.utils.dependencies import apply_company_scope
 
 REDACTED = "Redacted"
@@ -92,7 +95,7 @@ def export_client(db: Session, user: User, client_id: int) -> dict:
 def export_me(db: Session, user: User) -> dict:
     _log(db, user, "export", "user", user.id)
     db.commit()
-    return {
+    out = {
         "subject_type": "user",
         "id": user.id,
         "email": user.email,
@@ -100,6 +103,9 @@ def export_me(db: Session, user: User) -> dict:
         "role": getattr(getattr(user, "role", None), "value", user.role),
         "company_id": user.company_id,
     }
+    if settings.CHAT_ENABLED and chat_crypto_configured():
+        out["chat_messages_sent"] = export_sent_messages(db, user)
+    return out
 
 
 def _blank_notes(notes: list[Note]) -> None:

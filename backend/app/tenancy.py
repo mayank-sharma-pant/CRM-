@@ -154,8 +154,27 @@ def _rls_after_begin(session, transaction, connection) -> None:
     apply_rls_to_connection(connection)
 
 
-def enable_rls(bind) -> int:
-    """Create/replace tenant policies. No-op on SQLite. Returns table count.
+def _tables_with_policy_in_place(conn, names: list[str]) -> set[str]:
+    rows = conn.execute(
+        text(
+            "SELECT c.relname FROM pg_class c "
+            "JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "WHERE n.nspname = current_schema() AND c.relkind = 'r' AND c.relname = ANY(:names) "
+            "AND c.relrowsecurity AND c.relforcerowsecurity "
+            "AND EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = n.nspname "
+            "AND p.tablename = c.relname AND p.policyname = 'tenant_isolation')"
+        ),
+        {"names": names},
+    )
+    return {r[0] for r in rows}
+
+
+def enable_rls(bind, *, exclude: frozenset[str] = frozenset(), only_missing: bool = False) -> int:
+    """Create/replace tenant policies. No-op on SQLite. Returns the number of tables changed.
+
+    only_missing=True leaves tables that already have RLS enabled, forced and a
+    tenant_isolation policy untouched, so routine runs issue no DDL (and take no
+    table locks). A changed policy definition therefore needs its own migration.
 
     When `bind` is an open connection (Alembic), run on that connection.
     Opening a second transaction deadlocks behind the caller's ALTER locks.
@@ -166,9 +185,11 @@ def enable_rls(bind) -> int:
     existing = set(inspector.get_table_names())
 
     def apply(conn) -> int:
+        names = [n for n in tenant_table_names() if n in existing and n not in exclude]
+        done = _tables_with_policy_in_place(conn, names) if only_missing and names else set()
         applied = 0
-        for name in tenant_table_names():
-            if name not in existing:
+        for name in names:
+            if name in done:
                 continue
             for stmt in policy_statements(name):
                 conn.execute(text(stmt))

@@ -14,7 +14,7 @@ def _scripts() -> ScriptDirectory:
 def test_alembic_has_exactly_one_head():
     heads = _scripts().get_heads()
     assert len(heads) == 1, heads
-    assert heads == ["038_quote_plans"]
+    assert heads == ["040_team_chat"]
 
 
 def test_catchup_revision_follows_015():
@@ -153,3 +153,15 @@ def test_quote_plans_revision_follows_037():
     rev = _scripts().get_revision("038_quote_plans")
     assert rev is not None
     assert rev.down_revision == "037_email_templates"
+
+
+def test_lead_sheet_revision_follows_038():
+    rev = _scripts().get_revision("039_lead_sheet")
+    assert rev is not None
+    assert rev.down_revision == "038_quote_plans"
+
+
+def test_team_chat_revision_follows_039():
+    rev = _scripts().get_revision("040_team_chat")
+    assert rev is not None
+    assert rev.down_revision == "039_lead_sheet"

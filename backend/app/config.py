@@ -1,4 +1,5 @@
 import warnings
+from urllib.parse import urlsplit
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
@@ -98,6 +99,26 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+def parse_origins(raw: Optional[str], production: bool) -> list[str]:
+    """Exact browser origins from a comma-separated setting (CORS_ORIGINS, CHAT_WS_ALLOWED_ORIGINS).
+
+    Browsers send Origin without a trailing slash, so one is dropped here rather than
+    silently never matching. In production, loopback origins are never allowed: a page
+    served from localhost can't be the live frontend.
+    """
+    out: list[str] = []
+    for item in (raw or "").split(","):
+        origin = item.strip().rstrip("/")
+        if not origin or origin in out:
+            continue
+        if production and urlsplit(origin).hostname in _LOOPBACK_HOSTS:
+            continue
+        out.append(origin)
+    return out
 
 
 def _warn_if_production_urls_point_to_localhost() -> None:

@@ -15,7 +15,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.config import settings
+from app.config import parse_origins, settings
 from app.database import get_db
 from app.services.chat import service
 from app.services.chat.crypto import chat_crypto_configured
@@ -42,8 +42,8 @@ CLOSE_SLOW_CONSUMER = 4429
 
 
 def allowed_origins() -> set[str]:
-    raw = settings.CHAT_WS_ALLOWED_ORIGINS or settings.CORS_ORIGINS or ""
-    return {o.strip().rstrip("/") for o in raw.split(",") if o.strip()}
+    production = (settings.ENVIRONMENT or "").lower() == "production"
+    return set(parse_origins(settings.CHAT_WS_ALLOWED_ORIGINS or settings.CORS_ORIGINS, production))
 
 
 def _load_account(db: Session, user_id: int, token_version: int):

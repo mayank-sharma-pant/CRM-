@@ -69,7 +69,7 @@ from app.routers.chat.ws import router as chat_ws_router
 from app.routers.chat.files import router as chat_files_router
 from app.services.chat.realtime import hub as chat_hub
 from app.services.chat.files import sweep_tmp as chat_sweep_tmp
-from app.config import settings
+from app.config import parse_origins, settings
 from contextlib import asynccontextmanager
 import traceback
 import logging
@@ -146,11 +146,10 @@ async def global_exception_handler(request: Request, exc: Exception):
         return JSONResponse(status_code=500, content={"detail": "Internal server error"})
     return JSONResponse(status_code=500, content={"detail": f"{type(exc).__name__}: {exc}"})
 
-# CORS Configuration (trim whitespace; duplicate .env keys can silently pick the wrong value)
-_raw_origins = settings.CORS_ORIGINS.split(",") if settings.CORS_ORIGINS else []
-allowed_origins = [o.strip() for o in _raw_origins if o.strip()] or [
-    "http://localhost:3000"
-]
+# CORS Configuration (exact origins; duplicate .env keys can silently pick the wrong value)
+allowed_origins = parse_origins(settings.CORS_ORIGINS, is_production) or (
+    [] if is_production else ["http://localhost:3000"]
+)
 
 app.add_middleware(
     CORSMiddleware,

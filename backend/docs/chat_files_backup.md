@@ -10,7 +10,9 @@ Chat attachments are stored on the API server's own disk; their metadata is in t
 | Temp uploads | `CHAT_FILES_DIR/tmp/` — deleted automatically after 1 hour. |
 | Quarantine | `CHAT_FILES_DIR/orphans/` — files with no row, kept 7 days, then deleted. |
 
-## 1. Backups (required before `CHAT_FILES_ENABLED=true`)
+## 1. Backups (required before real users)
+
+Not set up yet: during internal testing, files sent before backups start can't be recovered if the disk is lost. Set this up, and test one restore, before the CRM has real users.
 
 The instance's root EBS volume holds the files. Back it up with an AWS Data Lifecycle Manager policy:
 

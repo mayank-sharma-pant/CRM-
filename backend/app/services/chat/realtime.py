@@ -71,6 +71,8 @@ class Hub:
         self._mem_tickets: dict[str, tuple[float, dict]] = {}
         self._mem_presence: dict[int, float] = {}
         self._mem_rate: dict[str, deque] = defaultdict(deque)
+        self._mem_slots: dict[str, dict[str, float]] = defaultdict(dict)
+        self._mem_totals: dict[str, tuple[int, int]] = {}
         self._redis_down_until = 0.0
 
     # ---- lifecycle -------------------------------------------------------
@@ -320,6 +322,70 @@ class Hub:
         if len(bucket) >= limit:
             return False
         bucket.append(now)
+        return True
+
+    # ---- upload admission ------------------------------------------------
+
+    async def acquire_slot(self, key: str, token: str, limit: int, ttl_seconds: int) -> bool:
+        """Take one of `limit` concurrent slots. Each slot expires on its own after ttl,
+        so a crashed upload can't hold a slot forever."""
+        client = self._client()
+        if client is not None:
+            redis_key = f"chat:slots:{key}"
+            now = time.time()
+            try:
+                async with client.pipeline(transaction=True) as pipe:
+                    pipe.zremrangebyscore(redis_key, "-inf", now - ttl_seconds)
+                    pipe.zadd(redis_key, {token: now})
+                    pipe.zcard(redis_key)
+                    pipe.expire(redis_key, ttl_seconds)
+                    _, _, count, _ = await asyncio.wait_for(pipe.execute(), REDIS_OP_TIMEOUT)
+                if count > limit:
+                    await asyncio.wait_for(client.zrem(redis_key, token), REDIS_OP_TIMEOUT)
+                    return False
+                return True
+            except Exception as exc:
+                self._trip(exc)
+        now = time.monotonic()
+        slots = self._mem_slots[key]
+        for t in [t for t, exp in slots.items() if exp <= now]:
+            slots.pop(t, None)
+        if len(slots) >= limit:
+            return False
+        slots[token] = now + ttl_seconds
+        return True
+
+    async def release_slot(self, key: str, token: str) -> None:
+        self._mem_slots.get(key, {}).pop(token, None)
+        client = self._client()
+        if client is not None:
+            try:
+                await asyncio.wait_for(client.zrem(f"chat:slots:{key}", token), REDIS_OP_TIMEOUT)
+            except Exception as exc:
+                self._trip(exc)
+
+    async def consume(self, key: str, amount: int, limit: int, window_seconds: int) -> bool:
+        """Add `amount` to a fixed-window total; refuse (and add nothing) if it would exceed `limit`."""
+        window = int(time.time() // window_seconds)
+        client = self._client()
+        if client is not None:
+            redis_key = f"chat:total:{key}:{window}"
+            try:
+                total = await asyncio.wait_for(client.incrby(redis_key, int(amount)), REDIS_OP_TIMEOUT)
+                if total == int(amount):
+                    await asyncio.wait_for(client.expire(redis_key, window_seconds + 1), REDIS_OP_TIMEOUT)
+                if total > limit:
+                    await asyncio.wait_for(client.decrby(redis_key, int(amount)), REDIS_OP_TIMEOUT)
+                    return False
+                return True
+            except Exception as exc:
+                self._trip(exc)
+        current_window, total = self._mem_totals.get(key, (window, 0))
+        if current_window != window:
+            total = 0
+        if total + amount > limit:
+            return False
+        self._mem_totals[key] = (window, total + int(amount))
         return True
 
 

@@ -6,18 +6,20 @@ company. Anything else is a 404, including for admins, MDs and platform admins.
 """
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, update
+from sqlalchemy import func, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models.core.chat import ChatConversation, ChatMessage, ChatParticipant
+from app.models.core.chat import ChatAttachment, ChatConversation, ChatMessage, ChatParticipant
 from app.models.core.company import Company
 from app.models.core.team import Team
 from app.models.core.user import User
+from app.services.chat import files
 from app.services.chat.crypto import ChatDecryptError, decrypt_body, encrypt_body
 
 MAX_BODY_CHARS = 4000
@@ -25,6 +27,10 @@ PREVIEW_CHARS = 120
 PAGE_MAX = 50
 CONVERSATION_PAGE_MAX = 100
 DIRECTORY_MAX = 50
+LINKS_MAX = 100
+# Namespace for pg_advisory_xact_lock(namespace, company_id): serialises the final
+# storage-quota check of concurrent uploads in one company.
+_UPLOAD_QUOTA_LOCK = 41041
 
 
 def _not_found() -> HTTPException:
@@ -129,7 +135,28 @@ def _safe_decrypt(token: str) -> str | None:
         return None
 
 
-def _message_out(msg: ChatMessage) -> dict:
+def _attachment_out(att: ChatAttachment, viewer: User | None) -> dict:
+    out = {
+        "id": att.id,
+        "category": att.category,
+        "content_type": att.content_type,
+        "size": int(att.size_bytes),
+        "filename": _safe_decrypt(att.filename_enc),
+    }
+    if viewer is not None:
+        out.update(files.file_link(viewer.id, int(viewer.token_version or 0), att.id))
+    return out
+
+
+def _attachments_for(db: Session, message_ids: list[int]) -> dict[int, ChatAttachment]:
+    if not message_ids:
+        return {}
+    rows = db.query(ChatAttachment).filter(ChatAttachment.message_id.in_(message_ids))
+    return {att.message_id: att for att in rows}
+
+
+def _message_out(msg: ChatMessage, attachment: ChatAttachment | None = None, viewer: User | None = None) -> dict:
+    """`viewer` gets signed download links; without one (exports) links are omitted."""
     body = _safe_decrypt(msg.body_enc)
     return {
         "id": msg.id,
@@ -140,7 +167,13 @@ def _message_out(msg: ChatMessage) -> dict:
         "unavailable": body is None,
         "client_msg_id": msg.client_msg_id,
         "created_at": msg.created_at.isoformat() if msg.created_at else None,
+        "attachment": _attachment_out(attachment, viewer) if attachment is not None else None,
     }
+
+
+def _messages_out(db: Session, rows: list[ChatMessage], viewer: User | None) -> list[dict]:
+    attachments = _attachments_for(db, [m.id for m in rows])
+    return [_message_out(m, attachments.get(m.id), viewer) for m in rows]
 
 
 def directory(db: Session, me: User, q: str | None, limit: int) -> list[dict]:
@@ -233,6 +266,7 @@ def _summaries(db: Session, me: User, conversation_ids: list[int]) -> list[dict]
         .filter(ChatConversation.id.in_(list(mine)))
     }
     teams = _team_names(db, me.company_id, {u.team_id for _, u in others.values() if u.team_id})
+    last_attachments = _attachments_for(db, [m.id for m in last_messages.values()])
 
     out = []
     for cid in conversation_ids:
@@ -244,10 +278,12 @@ def _summaries(db: Session, me: User, conversation_ids: list[int]) -> list[dict]
         msg = last_messages.get(cid)
         if msg is not None:
             body = _safe_decrypt(msg.body_enc)
+            att = last_attachments.get(msg.id)
             last = {
                 "seq": msg.seq,
                 "sender_id": msg.sender_id,
                 "preview": body[:PREVIEW_CHARS] if body is not None else None,
+                "attachment": att.category if att is not None else None,
                 "created_at": msg.created_at.isoformat() if msg.created_at else None,
             }
         out.append({
@@ -315,21 +351,24 @@ def get_messages(
     return {
         "conversation_id": conv.id,
         "last_seq": conv.last_seq,
-        "items": [_message_out(m) for m in rows],
+        "items": _messages_out(db, rows, me),
         "has_more_before": bool(rows) and rows[0].seq > 1,
     }
 
 
-def validate_body(raw) -> str:
+def validate_body(raw, allow_empty: bool = False, max_chars: int = MAX_BODY_CHARS) -> str:
+    """A caption on a file message may be empty; a text message may not."""
+    if raw is None and allow_empty:
+        return ""
     if not isinstance(raw, str):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Message must be text")
     body = raw.strip()
-    if not body:
+    if not body and not allow_empty:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Message is empty")
-    if len(body) > MAX_BODY_CHARS:
+    if len(body) > max_chars:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Message is longer than {MAX_BODY_CHARS} characters",
+            detail=f"Message is longer than {max_chars} characters",
         )
     return body
 
@@ -349,23 +388,62 @@ def _existing_by_client_id(db: Session, me: User, client_msg_id: str) -> ChatMes
     )
 
 
-def send_message(db: Session, me: User, conversation_id: int, body: str, client_msg_id: str) -> tuple[dict, bool]:
-    """Returns (message, created). A retry with the same client_msg_id returns the original."""
+def existing_message(db: Session, me: User, conversation_id: int, client_msg_id: str) -> dict | None:
+    """The already-saved message for this client_msg_id (lets a retried upload skip re-sending the file)."""
+    conv, _ = _my_participation(db, me, conversation_id)
+    existing = _existing_by_client_id(db, me, client_msg_id)
+    if existing is None:
+        return None
+    if existing.conversation_id != conv.id:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="client_msg_id already used")
+    return _messages_out(db, [existing], me)[0]
+
+
+def _lock_company_uploads(db: Session, company_id: int) -> None:
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(:ns, :cid)"), {"ns": _UPLOAD_QUOTA_LOCK, "cid": int(company_id)})
+
+
+def send_message(
+    db: Session,
+    me: User,
+    conversation_id: int,
+    body: str,
+    client_msg_id: str,
+    upload: dict | None = None,
+) -> tuple[dict, bool]:
+    """Returns (message, created). A retry with the same client_msg_id returns the original.
+
+    `upload` (file messages) holds the verified temp file: temp_path, stored_name,
+    filename, content_type, category, size. The file is moved into place just
+    before commit and removed again if the commit doesn't happen; the caller
+    deletes the temp file whenever this returns created=False or raises.
+    """
     conv, _ = _my_participation(db, me, conversation_id)
 
     existing = _existing_by_client_id(db, me, client_msg_id)
     if existing is not None:
         if existing.conversation_id != conv.id:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="client_msg_id already used")
-        return _message_out(existing), False
+        return _messages_out(db, [existing], me)[0], False
 
     other = _other_participant(db, conv.id, me)
     if other is None or not other.is_active or getattr(other.status, "value", other.status) == "disabled":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This user is deactivated")
 
     ciphertext, key_id = encrypt_body(body)
+    attachment = None
+    if upload is not None:
+        filename_enc, filename_key_id = encrypt_body(upload["filename"])
     now = datetime.now(timezone.utc)
+    moved_to = None
     try:
+        if upload is not None:
+            # Concurrent uploads in one company take turns here, so together they can't exceed the quota.
+            _lock_company_uploads(db, me.company_id)
+            from app.services.billing.limits import assert_can_upload
+
+            assert_can_upload(db, me.company_id, int(upload["size"]))
         # Row lock on the conversation orders concurrent sends; seq is gap-free per conversation.
         seq = db.execute(
             update(ChatConversation)
@@ -393,15 +471,41 @@ def send_message(db: Session, me: User, conversation_id: int, body: str, client_
             )
             .values(last_read_seq=seq)
         )
+        if upload is not None:
+            db.flush()
+            attachment = ChatAttachment(
+                company_id=me.company_id,
+                conversation_id=conv.id,
+                message_id=msg.id,
+                uploader_id=me.id,
+                stored_name=upload["stored_name"],
+                filename_enc=filename_enc,
+                key_id=filename_key_id,
+                content_type=upload["content_type"],
+                category=upload["category"],
+                size_bytes=int(upload["size"]),
+                created_at=now,
+            )
+            db.add(attachment)
+            db.flush()
+            moved_to = files.final_path(upload["stored_name"])
+            os.replace(upload["temp_path"], moved_to)
         db.commit()
     except IntegrityError:
         db.rollback()
+        files.discard(moved_to)
         existing = _existing_by_client_id(db, me, client_msg_id)
         if existing is not None and existing.conversation_id == conv.id:
-            return _message_out(existing), False
+            return _messages_out(db, [existing], me)[0], False
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Message could not be saved, please retry")
+    except BaseException:
+        db.rollback()
+        files.discard(moved_to)
+        raise
     db.refresh(msg)
-    return _message_out(msg), True
+    if attachment is not None:
+        db.refresh(attachment)
+    return _message_out(msg, attachment, me), True
 
 
 def mark_read(db: Session, me: User, conversation_id: int, seq: int) -> dict:
@@ -469,4 +573,38 @@ def export_sent_messages(db: Session, user: User) -> list[dict]:
         .order_by(ChatMessage.conversation_id, ChatMessage.seq)
         .all()
     )
-    return [_message_out(m) for m in rows]
+    return _messages_out(db, rows, None)
+
+
+def attachment_for_download(db: Session, viewer: User, attachment_id: int) -> tuple[ChatAttachment, str]:
+    """(attachment, decrypted filename) if `viewer` takes part in its conversation; 404 otherwise."""
+    att = (
+        db.query(ChatAttachment)
+        .filter(ChatAttachment.id == attachment_id, ChatAttachment.company_id == viewer.company_id)
+        .first()
+    )
+    if att is None:
+        raise _not_found()
+    _my_participation(db, viewer, att.conversation_id)
+    return att, _safe_decrypt(att.filename_enc) or "file"
+
+
+def attachment_links(db: Session, me: User, attachment_ids: list[int]) -> dict[str, dict]:
+    """Fresh download links for the ids `me` may open; others are silently left out."""
+    ids = [int(i) for i in attachment_ids][:LINKS_MAX]
+    if not ids:
+        return {}
+    rows = (
+        db.query(ChatAttachment.id)
+        .join(
+            ChatParticipant,
+            (ChatParticipant.conversation_id == ChatAttachment.conversation_id) & (ChatParticipant.user_id == me.id),
+        )
+        .filter(
+            ChatAttachment.id.in_(ids),
+            ChatAttachment.company_id == me.company_id,
+            ChatParticipant.company_id == me.company_id,
+        )
+    )
+    tv = int(me.token_version or 0)
+    return {str(att_id): files.file_link(me.id, tv, att_id) for (att_id,) in rows}

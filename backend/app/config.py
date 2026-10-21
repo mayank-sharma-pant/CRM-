@@ -80,6 +80,14 @@ class Settings(BaseSettings):
     # Shared by all workers: WS tickets, cross-worker events, presence, rate limits.
     REDIS_URL: str = ""
     CHAT_SEND_LIMIT_PER_10S: int = 20
+    # Chat file sharing (photos, video, audio, documents). Off unless enabled and CHAT_FILES_DIR is set.
+    CHAT_FILES_ENABLED: bool = False
+    # Absolute directory outside the code checkout, e.g. /home/ubuntu/chat-files (mode 700).
+    CHAT_FILES_DIR: str = ""
+    CHAT_MAX_DOC_BYTES: int = 10 * 1024 * 1024
+    CHAT_MAX_MEDIA_BYTES: int = 25 * 1024 * 1024
+    # Uploads are refused when free disk would drop below this.
+    CHAT_FILES_MIN_FREE_BYTES: int = 2 * 1024 ** 3
 
     # SSO (Google / Microsoft). Empty client id ⇒ provider disabled.
     GOOGLE_OAUTH_CLIENT_ID: str = ""

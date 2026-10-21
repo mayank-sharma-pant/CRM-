@@ -19,6 +19,8 @@ def _reset_hub() -> None:
     hub._mem_tickets.clear()
     hub._mem_presence.clear()
     hub._mem_rate.clear()
+    hub._mem_slots.clear()
+    hub._mem_totals.clear()
 
 
 @pytest.fixture

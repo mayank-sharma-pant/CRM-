@@ -1,10 +1,12 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import BigInteger, Column, Integer, String, Text, DateTime, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.sql import func
 
 from app.database import Base
 
-# Created only by migration 040_team_chat; schema_sync.apply_schema never touches them.
-CHAT_TABLES = ("chat_conversations", "chat_participants", "chat_messages")
+# Each group is created only by its own migration; schema_sync.apply_schema never touches them.
+CHAT_TABLES_040 = ("chat_conversations", "chat_participants", "chat_messages")
+CHAT_TABLES_041 = ("chat_attachments",)
+CHAT_TABLES = CHAT_TABLES_040 + CHAT_TABLES_041
 
 
 class ChatConversation(Base):
@@ -61,4 +63,30 @@ class ChatMessage(Base):
     __table_args__ = (
         UniqueConstraint("conversation_id", "seq", name="uq_chat_messages_conversation_seq"),
         UniqueConstraint("sender_id", "client_msg_id", name="uq_chat_messages_sender_client_msg"),
+    )
+
+
+class ChatAttachment(Base):
+    """One file per message, stored on local disk under CHAT_FILES_DIR/<stored_name>."""
+
+    __tablename__ = "chat_attachments"
+
+    id = Column(Integer, primary_key=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+    conversation_id = Column(
+        Integer, ForeignKey("chat_conversations.id", ondelete="CASCADE"), nullable=False
+    )
+    message_id = Column(Integer, ForeignKey("chat_messages.id", ondelete="CASCADE"), nullable=False)
+    uploader_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    stored_name = Column(String(64), nullable=False)
+    filename_enc = Column(Text, nullable=False)
+    key_id = Column(String(16), nullable=False)
+    content_type = Column(String(100), nullable=False)
+    category = Column(String(8), nullable=False)
+    size_bytes = Column(BigInteger, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("message_id", name="uq_chat_attachments_message"),
+        UniqueConstraint("stored_name", name="uq_chat_attachments_stored_name"),
     )

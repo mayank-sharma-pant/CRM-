@@ -58,13 +58,22 @@ def assert_can_add_team(db: Session, company_id: int) -> None:
         _deny(plan.max_teams, used, "Team")
 
 
-def assert_can_upload(db: Session, company_id: int, incoming_bytes: int) -> None:
+def storage_used_bytes(db: Session, company_id: int) -> int:
+    """CRM documents plus team-chat files."""
+    from app.models.core.chat import ChatAttachment
     from app.models.ops.document import Document
+    documents = db.query(func.coalesce(func.sum(Document.file_size), 0)).filter(
+        Document.company_id == company_id).scalar() or 0
+    chat_files = db.query(func.coalesce(func.sum(ChatAttachment.size_bytes), 0)).filter(
+        ChatAttachment.company_id == company_id).scalar() or 0
+    return int(documents) + int(chat_files)
+
+
+def assert_can_upload(db: Session, company_id: int, incoming_bytes: int) -> None:
     plan = resolve_plan(db, company_id)
     if plan.max_storage_gb is None:
         return
-    used = db.query(func.coalesce(func.sum(Document.file_size), 0)).filter(
-        Document.company_id == company_id).scalar() or 0
+    used = storage_used_bytes(db, company_id)
     cap = plan.max_storage_gb * (1024 ** 3)
     if used + incoming_bytes > cap:
         _deny(cap, used, "Storage")

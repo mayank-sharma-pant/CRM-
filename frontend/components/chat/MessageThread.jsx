@@ -1,17 +1,20 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Loader2 } from 'lucide-react';
+import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Loader2, X } from 'lucide-react';
 import { useT } from '../../contexts/LocaleContext';
 import { useChat } from '../../contexts/ChatContext';
-import { chatApi, apiErrorMessage, newClientMsgId } from '../../services/chat';
+import { chatApi, apiErrorMessage, newClientMsgId, uploadChatFile } from '../../services/chat';
 import { dayLabel, groupMessages, mergeMessages, roleLabel, timeLabel } from '../../lib/chatFormat.cjs';
+import { applyLinks, expiringAttachmentIds, fileCategory } from '../../lib/chatMedia.cjs';
+import Attachment from './Attachment';
 import Avatar from './Avatar';
 import Composer from './Composer';
 
 const PAGE = 50;
 const POLL_WHEN_OFFLINE_MS = 5000;
 const NEAR_BOTTOM_PX = 120;
+const LINK_CHECK_MS = 30000;
 
 function lastConfirmedSeq(messages) {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -20,7 +23,7 @@ function lastConfirmedSeq(messages) {
     return 0;
 }
 
-export default function MessageThread({ conversation, online, maxChars, onBack, onActivity }) {
+export default function MessageThread({ conversation, online, maxChars, files, onBack, onActivity }) {
     const t = useT();
     const { myId, live, typing, subscribe, requestReconcile, sendTyping } = useChat();
     const conversationId = conversation.id;
@@ -42,7 +45,46 @@ export default function MessageThread({ conversation, online, maxChars, onBack, 
     const fetchingNewRef = useRef(false);
     const messagesRef = useRef(messages);
     const readSentRef = useRef(conversation.last_read_seq || 0);
+    const uploadsRef = useRef(new Map());
+    const previewUrlsRef = useRef(new Map());
+    const brokenRef = useRef(new Set());
+    const brokenTimer = useRef(null);
     messagesRef.current = messages;
+
+    const dropPreview = useCallback((clientMsgId) => {
+        const url = previewUrlsRef.current.get(clientMsgId);
+        if (url) URL.revokeObjectURL(url);
+        previewUrlsRef.current.delete(clientMsgId);
+    }, []);
+
+    useEffect(() => () => {
+        uploadsRef.current.forEach((controller) => controller.abort());
+        uploadsRef.current.clear();
+        previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+        previewUrlsRef.current.clear();
+        clearTimeout(brokenTimer.current);
+    }, [conversationId]);
+
+    const refreshLinks = useCallback(async (ids) => {
+        const unique = [...new Set(ids)].slice(0, 100);
+        if (!unique.length) return;
+        try {
+            const links = await chatApi.attachmentLinks(unique);
+            setMessages((prev) => applyLinks(prev, links));
+        } catch {
+            // The next check retries.
+        }
+    }, []);
+
+    const onBrokenAttachment = useCallback((id) => {
+        brokenRef.current.add(id);
+        clearTimeout(brokenTimer.current);
+        brokenTimer.current = setTimeout(() => {
+            const ids = [...brokenRef.current];
+            brokenRef.current.clear();
+            refreshLinks(ids);
+        }, 300);
+    }, [refreshLinks]);
 
     const scrollToBottom = useCallback((smooth = false) => {
         const el = scrollRef.current;
@@ -126,6 +168,13 @@ export default function MessageThread({ conversation, online, maxChars, onBack, 
         const timer = setInterval(fetchNew, POLL_WHEN_OFFLINE_MS);
         return () => clearInterval(timer);
     }, [live, loadState, fetchNew]);
+
+    // Download links expire after ~15 minutes; renew the ones about to lapse in one request.
+    useEffect(() => {
+        if (loadState !== 'ready') return undefined;
+        const timer = setInterval(() => refreshLinks(expiringAttachmentIds(messagesRef.current, Date.now())), LINK_CHECK_MS);
+        return () => clearInterval(timer);
+    }, [loadState, refreshLinks]);
 
     useEffect(() => {
         if (live !== 'live' || loadState !== 'ready') return undefined;
@@ -216,6 +265,59 @@ export default function MessageThread({ conversation, online, maxChars, onBack, 
         }
     }, [conversationId, myId, onActivity, t]);
 
+    const sendFile = useCallback(async (file, caption, existingClientId) => {
+        const clientMsgId = existingClientId || newClientMsgId();
+        const category = fileCategory(file.name);
+        let previewUrl = previewUrlsRef.current.get(clientMsgId) || null;
+        if (!previewUrl && (category === 'image' || category === 'video')) {
+            previewUrl = URL.createObjectURL(file);
+            previewUrlsRef.current.set(clientMsgId, previewUrl);
+        }
+        const pending = {
+            client_msg_id: clientMsgId,
+            body: caption,
+            sender_id: myId,
+            created_at: new Date().toISOString(),
+            status: 'sending',
+            progress: 0,
+            file,
+            attachment: { category, filename: file.name, size: file.size, url: previewUrl },
+        };
+        const update = (patch) => setMessages((prev) => prev.map((m) => (
+            m.client_msg_id === clientMsgId && !Number.isInteger(m.seq) ? { ...m, ...patch } : m
+        )));
+        nearBottomRef.current = true;
+        setMessages((prev) => mergeMessages(prev.filter((m) => m.client_msg_id !== clientMsgId || Number.isInteger(m.seq)), [pending]));
+
+        const controller = new AbortController();
+        uploadsRef.current.set(clientMsgId, controller);
+        try {
+            const saved = await uploadChatFile(conversationId, file, {
+                caption,
+                clientMsgId,
+                signal: controller.signal,
+                onProgress: (fraction) => update({ progress: fraction }),
+            });
+            readSentRef.current = Math.max(readSentRef.current, saved.seq);
+            setMessages((prev) => mergeMessages(prev, [saved]));
+            dropPreview(clientMsgId);
+            onActivity?.();
+        } catch (err) {
+            if (err.aborted) {
+                setMessages((prev) => prev.filter((m) => m.client_msg_id !== clientMsgId || Number.isInteger(m.seq)));
+                dropPreview(clientMsgId);
+                return;
+            }
+            update({ status: 'failed', error: apiErrorMessage(err, t('Not sent')) });
+        } finally {
+            uploadsRef.current.delete(clientMsgId);
+        }
+    }, [conversationId, dropPreview, myId, onActivity, t]);
+
+    const cancelUpload = useCallback((clientMsgId) => {
+        uploadsRef.current.get(clientMsgId)?.abort();
+    }, []);
+
     const days = useMemo(() => groupMessages(messages), [messages]);
     const lastMineSeq = useMemo(() => {
         for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -288,22 +390,37 @@ export default function MessageThread({ conversation, online, maxChars, onBack, 
                                             {run.messages.map((m, idx) => {
                                                 const last = idx === run.messages.length - 1;
                                                 return (
-                                                    <div key={m.seq ?? m.client_msg_id} className={`flex max-w-[78%] flex-col ${mine ? 'items-end' : 'items-start'}`}>
-                                                        <div
-                                                            className={`whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[14px] leading-relaxed ${
-                                                                mine
-                                                                    ? `bg-accent text-inverse ${last ? 'rounded-br-md' : ''} ${m.status === 'failed' ? 'opacity-60' : ''}`
-                                                                    : `border border-border bg-surface text-primary ${last ? 'rounded-bl-md' : ''}`
-                                                            }`}
-                                                        >
-                                                            {m.unavailable ? <span className="italic opacity-70">{t('Message unavailable')}</span> : m.body}
-                                                        </div>
-                                                        {last && (
+                                                    <div key={m.seq ?? m.client_msg_id} className={`flex max-w-[78%] flex-col gap-1 ${mine ? 'items-end' : 'items-start'}`}>
+                                                        {m.attachment && (
+                                                            <div className={m.status === 'failed' ? 'opacity-60' : ''}>
+                                                                <Attachment attachment={m.attachment} mine={mine} onBroken={onBrokenAttachment} />
+                                                            </div>
+                                                        )}
+                                                        {m.attachment && m.status === 'sending' && (
+                                                            <div className="flex items-center gap-2 px-1 text-[11px] text-muted">
+                                                                <span>{t('Uploading…')} {Math.round((m.progress || 0) * 100)}%</span>
+                                                                <button type="button" onClick={() => cancelUpload(m.client_msg_id)} className="inline-flex items-center gap-0.5 hover:text-primary" aria-label={t('Cancel')}>
+                                                                    <X size={12} /> {t('Cancel')}
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                        {(m.unavailable || m.body || !m.attachment) && (
+                                                            <div
+                                                                className={`whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[14px] leading-relaxed ${
+                                                                    mine
+                                                                        ? `bg-accent text-inverse ${last ? 'rounded-br-md' : ''} ${m.status === 'failed' ? 'opacity-60' : ''}`
+                                                                        : `border border-border bg-surface text-primary ${last ? 'rounded-bl-md' : ''}`
+                                                                }`}
+                                                            >
+                                                                {m.unavailable ? <span className="italic opacity-70">{t('Message unavailable')}</span> : m.body}
+                                                            </div>
+                                                        )}
+                                                        {last && !(m.attachment && m.status === 'sending') && (
                                                             <div className="mt-0.5 flex items-center gap-1 px-1 text-[11px] text-muted">
                                                                 {m.status === 'failed' ? (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => send(m.body, m.client_msg_id)}
+                                                                        onClick={() => (m.file ? sendFile(m.file, m.body, m.client_msg_id) : send(m.body, m.client_msg_id))}
                                                                         className="inline-flex items-center gap-1 text-error hover:underline"
                                                                     >
                                                                         <AlertCircle size={12} /> {m.error || t('Not sent')} · {t('Retry')}
@@ -359,7 +476,9 @@ export default function MessageThread({ conversation, online, maxChars, onBack, 
                 <Composer
                     conversationId={conversationId}
                     maxChars={maxChars}
+                    files={files}
                     onSend={(text) => send(text)}
+                    onSendFile={(file, caption) => sendFile(file, caption)}
                     onTyping={() => sendTyping(conversationId)}
                 />
             ) : (

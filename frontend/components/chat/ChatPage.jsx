@@ -7,6 +7,7 @@ import { useT } from '../../contexts/LocaleContext';
 import { useChat } from '../../contexts/ChatContext';
 import { chatApi, apiErrorMessage } from '../../services/chat';
 import { listTimeLabel, roleLabel } from '../../lib/chatFormat.cjs';
+import { attachmentLabel } from '../../lib/chatMedia.cjs';
 import Avatar from './Avatar';
 import MessageThread from './MessageThread';
 import NewChatDialog from './NewChatDialog';
@@ -26,6 +27,7 @@ export default function ChatPage() {
     const [online, setOnline] = useState(() => new Set());
     const [newOpen, setNewOpen] = useState(false);
     const [maxChars, setMaxChars] = useState(4000);
+    const [files, setFiles] = useState(null);
     const [extra, setExtra] = useState(null);
     const reloadTimer = useRef(null);
     const listReq = useRef(0);
@@ -57,7 +59,12 @@ export default function ChatPage() {
     useEffect(() => {
         if (availability !== 'ready') return;
         loadList();
-        chatApi.status().then((s) => setMaxChars(s.max_body_chars || 4000)).catch(() => {});
+        chatApi.status()
+            .then((s) => {
+                setMaxChars(s.max_body_chars || 4000);
+                setFiles(s.files || null);
+            })
+            .catch(() => {});
     }, [availability, loadList]);
 
     const scheduleReload = useCallback(() => {
@@ -199,7 +206,7 @@ export default function ChatPage() {
                             const preview = isTyping
                                 ? t('typing…')
                                 : last
-                                    ? `${last.sender_id === myId ? `${t('You')}: ` : ''}${last.preview ?? t('Message unavailable')}`
+                                    ? `${last.sender_id === myId ? `${t('You')}: ` : ''}${last.preview || (last.attachment ? t(attachmentLabel(last.attachment)) : last.preview ?? t('Message unavailable'))}`
                                     : t('No messages yet');
                             return (
                                 <li key={c.id}>
@@ -246,6 +253,7 @@ export default function ChatPage() {
                         conversation={selected}
                         online={online.has(selected.other_user?.id)}
                         maxChars={maxChars}
+                        files={files}
                         onBack={() => select(null)}
                         onActivity={scheduleReload}
                     />

@@ -176,3 +176,36 @@ def test_hub_start_never_raises_with_unreachable_redis(redis_settings, monkeypat
         await hub.stop()
 
     asyncio.run(scenario())
+
+
+def test_upload_slots_are_shared_and_expire_individually(redis_settings):
+    async def scenario():
+        a, b = await _two_workers()
+        try:
+            assert await a.acquire_slot("server", "s1", 2, 60)
+            assert await b.acquire_slot("server", "s2", 2, 60)
+            assert not await a.acquire_slot("server", "s3", 2, 60)  # full across workers
+            assert await b._redis.zcard("chat:slots:server") == 2  # refused slot left no trace
+            await a.release_slot("server", "s1")
+            assert await b.acquire_slot("server", "s3", 2, 60)
+            # A crashed upload's slot ages out on its own.
+            await a._redis.zadd("chat:slots:server", {"s2": time.time() - 120})
+            assert await a.acquire_slot("server", "s4", 2, 60)
+        finally:
+            await _stop(a, b)
+
+    asyncio.run(scenario())
+
+
+def test_byte_budget_is_shared_and_refusals_cost_nothing(redis_settings):
+    async def scenario():
+        a, b = await _two_workers()
+        try:
+            assert await a.consume("bytes:7", 600, 1000, 3600)
+            assert not await b.consume("bytes:7", 500, 1000, 3600)
+            assert await b.consume("bytes:7", 400, 1000, 3600)
+            assert not await a.consume("bytes:7", 1, 1000, 3600)
+        finally:
+            await _stop(a, b)
+
+    asyncio.run(scenario())

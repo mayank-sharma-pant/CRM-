@@ -35,8 +35,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if request.url.path.startswith("/api/"):
             response.headers["Content-Security-Policy"] = "default-src 'none'"
         
-        # Cache control for API responses
-        if request.url.path.startswith("/api/"):
+        # Cache control for API responses. Chat file downloads set their own short private
+        # cache (bounded by the link's expiry) so a photo isn't re-downloaded on every render.
+        if request.url.path.startswith("/api/") and not request.url.path.startswith("/api/chat/files/"):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
             response.headers["Pragma"] = "no-cache"
         

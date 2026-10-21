@@ -16,7 +16,7 @@ from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.engine import make_url
 
 from app.database import Base
-from app.models.core.chat import CHAT_TABLES
+from app.models.core.chat import CHAT_TABLES, CHAT_TABLES_040, CHAT_TABLES_041
 from app.schema_sync import apply_schema
 from tests.chat.safety import MIGRATION_DB_PREFIX, disposable_pg_url
 
@@ -132,7 +132,7 @@ def test_migrations_016_to_039_do_not_create_chat_tables(fresh):
     assert {"users", "leads", "company_settings"} <= tables
 
 
-def test_040_creates_chat_schema_matching_the_models_with_policies(fresh, monkeypatch):
+def test_040_and_041_create_chat_schema_matching_the_models_with_policies(fresh, monkeypatch):
     name, engine = fresh
     _alembic(name, monkeypatch, "head")
     insp = inspect(engine)
@@ -146,7 +146,7 @@ def test_040_creates_chat_schema_matching_the_models_with_policies(fresh, monkey
         assert model_indexes <= {i["name"] for i in insp.get_indexes(table)}
     assert _rls_state(engine, CHAT_TABLES) == {t: (True, True, True) for t in CHAT_TABLES}
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "040_team_chat"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "041_chat_attachments"
 
 
 def test_apply_schema_on_up_to_date_database_issues_no_ddl(fresh, monkeypatch):
@@ -204,3 +204,25 @@ def test_040_downgrade_then_upgrade_round_trip(fresh, monkeypatch):
     assert not set(inspect(engine).get_table_names()) & set(CHAT_TABLES)
     _alembic(name, monkeypatch, "head")
     assert set(CHAT_TABLES) <= set(inspect(engine).get_table_names())
+
+
+def test_041_refuses_a_mismatched_existing_attachments_table(fresh, monkeypatch):
+    name, engine = fresh
+    _alembic(name, monkeypatch, "040_team_chat")
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE chat_attachments (id integer primary key, path text)"))
+    with pytest.raises(RuntimeError, match="chat_attachments already exists"):
+        _alembic(name, monkeypatch, "head")
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "040_team_chat"
+
+
+def test_041_downgrade_drops_only_attachments(fresh, monkeypatch):
+    name, engine = fresh
+    _alembic(name, monkeypatch, "head")
+    _alembic(name, monkeypatch, "040_team_chat", downgrade=True)
+    tables = set(inspect(engine).get_table_names())
+    assert set(CHAT_TABLES_040) <= tables
+    assert not set(CHAT_TABLES_041) & tables
+    _alembic(name, monkeypatch, "head")
+    assert _rls_state(engine, CHAT_TABLES_041) == {t: (True, True, True) for t in CHAT_TABLES_041}

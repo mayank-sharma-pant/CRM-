@@ -11,7 +11,7 @@ import uuid
 
 import pytest
 from cryptography.fernet import Fernet
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, func, text
 from sqlalchemy.orm import sessionmaker
 from starlette.concurrency import run_in_threadpool
 
@@ -225,3 +225,54 @@ def test_ws_account_check_releases_the_connection(pg):
     with Session() as db:
         assert _load_account(db, ids["users"][0], 0) is not None
         assert not db.in_transaction()
+
+
+def test_concurrent_uploads_cannot_exceed_the_storage_quota(pg, tmp_path, monkeypatch):
+    """Eight uploads race for a 1 GB quota with 400 MB each: exactly two may fit."""
+    from types import SimpleNamespace
+
+    from fastapi import HTTPException
+
+    from app.models.core.chat import ChatAttachment
+    from app.services.billing import limits
+    from app.services.chat import files
+
+    _, Session, ids = pg
+    x, y, _ = ids["users"]
+    company_id = ids["companies"][0]
+    monkeypatch.setattr(settings, "CHAT_FILES_DIR", str(tmp_path))
+    monkeypatch.setattr(limits, "resolve_plan", lambda _db, _cid: SimpleNamespace(max_storage_gb=1))
+    monkeypatch.setattr(limits, "storage_used_bytes", lambda db, cid: int(
+        db.query(func.coalesce(func.sum(ChatAttachment.size_bytes), 0)).filter(ChatAttachment.company_id == cid).scalar()
+    ))
+    files.ensure_dirs()
+    with Session() as db:
+        conv_id = service.get_or_create_direct(db, _user(db, x), y)["id"]
+    size = 400 * 1024 * 1024
+
+    def send(i):
+        stored_name = files.new_stored_name()
+        temp = os.path.join(files.tmp_dir(), stored_name)
+        with open(temp, "wb") as fh:
+            fh.write(b"%PDF-1.7 test")
+        upload = {"temp_path": temp, "stored_name": stored_name, "filename": f"f{i}.pdf",
+                  "content_type": "application/pdf", "category": "file", "size": size}
+        with Session() as db:
+            try:
+                service.send_message(db, _user(db, x), conv_id, "", str(uuid.uuid4()), upload)
+                return "ok"
+            except HTTPException as exc:
+                return exc.status_code
+            finally:
+                files.discard(temp)
+
+    outcomes = _run_parallel(8, send)
+    assert sorted(outcomes, key=str) == [402] * 6 + ["ok"] * 2
+    with Session() as db:
+        stored = db.query(ChatAttachment).filter(ChatAttachment.company_id == company_id).all()
+        assert len(stored) == 2
+        assert sum(a.size_bytes for a in stored) <= 1024 ** 3
+        db.execute(text("DELETE FROM chat_attachments WHERE company_id = :c"), {"c": company_id})
+        db.commit()
+    on_disk = [n for n in os.listdir(tmp_path) if len(n) == 32]
+    assert len(on_disk) == 2

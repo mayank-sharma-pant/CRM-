@@ -66,7 +66,9 @@ from app.routers.billing import router as billing_router
 from app.routers.company.sandbox import router as sandbox_router
 from app.routers.chat.rest import router as chat_router
 from app.routers.chat.ws import router as chat_ws_router
+from app.routers.chat.files import router as chat_files_router
 from app.services.chat.realtime import hub as chat_hub
+from app.services.chat.files import sweep_tmp as chat_sweep_tmp
 from app.config import settings
 from contextlib import asynccontextmanager
 import traceback
@@ -108,6 +110,7 @@ is_production = (settings.ENVIRONMENT or "").lower() == "production"
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     await chat_hub.start()
+    chat_sweep_tmp()
     try:
         yield
     finally:
@@ -249,6 +252,7 @@ app.include_router(billing_router)  # Prefix is defined in the router itself
 app.include_router(sandbox_router, prefix="/api/sandbox", tags=["Sandbox"])
 app.include_router(chat_router, prefix="/api/chat", tags=["Chat"], include_in_schema=settings.CHAT_ENABLED)
 app.include_router(chat_ws_router, prefix="/api/chat")
+app.include_router(chat_files_router, prefix="/api/chat", tags=["Chat"], include_in_schema=settings.CHAT_ENABLED)
 
 @app.get("/")
 def root():

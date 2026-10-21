@@ -8,7 +8,7 @@ from starlette.concurrency import run_in_threadpool
 from app.config import settings
 from app.database import get_db
 from app.models.core.user import User
-from app.services.chat import service
+from app.services.chat import files, filetypes, service
 from app.services.chat.crypto import ChatCryptoUnavailable, chat_crypto_configured
 from app.services.chat.realtime import TICKET_TTL_SECONDS, RealtimeUnavailable, hub
 from app.utils.dependencies import get_current_user, oauth2_scheme
@@ -56,15 +56,49 @@ class ReadIn(BaseModel):
     seq: int
 
 
+class LinksIn(BaseModel):
+    ids: list[int]
+
+
 @router.get("/status")
 async def chat_status(me: User = Depends(chat_user)):
     live = bool(settings.CHAT_WS_PUBLIC_URL) and (hub.uses_redis or hub.memory_mode_allowed())
+    files_on = files.files_ready()
     return {
         "enabled": True,
         "user_id": me.id,
         "ws_url": settings.CHAT_WS_PUBLIC_URL if live else None,
         "max_body_chars": service.MAX_BODY_CHARS,
+        "files": {
+            "enabled": files_on,
+            "max_doc_bytes": settings.CHAT_MAX_DOC_BYTES,
+            "max_media_bytes": settings.CHAT_MAX_MEDIA_BYTES,
+            "max_caption_chars": files.MAX_CAPTION_CHARS,
+            "accept": filetypes.accept_list(),
+        } if files_on else {"enabled": False},
     }
+
+
+@router.post("/upload-token")
+async def chat_upload_token(me: User = Depends(chat_user)):
+    if not files.files_ready():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
+    await _limit(f"upload-token:{me.id}", 30, 600)
+    return {
+        "token": files.issue_upload_token(me.id, int(me.token_version or 0)),
+        "upload_base": f"{files.public_api_base()}/api/chat",
+        "expires_in": files.UPLOAD_TOKEN_TTL,
+    }
+
+
+@router.post("/attachments/links")
+async def chat_attachment_links(body: LinksIn, me: User = Depends(chat_user), db: Session = Depends(get_db)):
+    if not files.files_ready():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
+    if len(body.ids) > service.LINKS_MAX:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"At most {service.LINKS_MAX} ids")
+    await _limit(f"links:{me.id}", 60, 60)
+    return {"links": await _db(service.attachment_links, db, me, body.ids)}
 
 
 @router.get("/directory")

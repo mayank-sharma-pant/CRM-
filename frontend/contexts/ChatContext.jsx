@@ -22,6 +22,9 @@ export function ChatProvider({ children }) {
     const [unreadTotal, setUnreadTotal] = useState(0);
     const [syncState, setSyncState] = useState(null);
     const [typing, setTyping] = useState({});
+    // Identifies this tab's socket to the server (call setup is routed to one tab).
+    const [connId, setConnId] = useState(null);
+    const [callsEnabled, setCallsEnabled] = useState(false);
 
     const listeners = useRef(new Set());
     const activeRef = useRef(false);
@@ -133,6 +136,7 @@ export function ChatProvider({ children }) {
             }
             if (event.type === 'ready') {
                 attemptRef.current = 0;
+                setConnId(event.conn_id || null);
                 setLive('live');
                 reconcile();
                 return;
@@ -151,7 +155,9 @@ export function ChatProvider({ children }) {
         ws.onclose = () => {
             if (wsRef.current !== ws) return;
             wsRef.current = null;
+            setConnId(null);
             setLive('off');
+            emit({ type: 'socket.closed' });
             scheduleReconnect();
         };
     }, [clearTyping, emit, reconcile, requestReconcile, scheduleReconnect, showTyping]);
@@ -173,6 +179,7 @@ export function ChatProvider({ children }) {
             .then((status) => {
                 if (!activeRef.current) return;
                 setAvailability('ready');
+                setCallsEnabled(Boolean(status.calls?.enabled && status.ws_url));
                 wsUrlRef.current = status.ws_url || null;
                 reconcile();
                 if (wsUrlRef.current) connectRef.current();
@@ -215,6 +222,8 @@ export function ChatProvider({ children }) {
             setUnreadTotal(0);
             setSyncState(null);
             setTyping({});
+            setConnId(null);
+            setCallsEnabled(false);
         };
     }, [loading, myId, companyId, reconcile]);
 
@@ -225,6 +234,14 @@ export function ChatProvider({ children }) {
         if (now - (lastTypingSent.current[conversationId] || 0) < TYPING_SEND_MS) return;
         lastTypingSent.current[conversationId] = now;
         ws.send(JSON.stringify({ type: 'typing', conversation_id: conversationId }));
+    }, []);
+
+    /** Send a frame on this tab's chat socket. Returns false if the socket isn't open. */
+    const sendFrame = useCallback((frame) => {
+        const ws = wsRef.current;
+        if (!ws || ws.readyState !== 1) return false;
+        ws.send(JSON.stringify(frame));
+        return true;
     }, []);
 
     const value = useMemo(() => ({
@@ -239,7 +256,10 @@ export function ChatProvider({ children }) {
         reconcile,
         requestReconcile,
         sendTyping,
-    }), [availability, live, myId, unreadTotal, syncState, typing, subscribe, reconcile, requestReconcile, sendTyping]);
+        sendFrame,
+        connId,
+        callsEnabled,
+    }), [availability, live, myId, unreadTotal, syncState, typing, subscribe, reconcile, requestReconcile, sendTyping, sendFrame, connId, callsEnabled]);
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 }

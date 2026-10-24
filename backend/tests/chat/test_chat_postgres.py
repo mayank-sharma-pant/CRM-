@@ -276,3 +276,31 @@ def test_concurrent_uploads_cannot_exceed_the_storage_quota(pg, tmp_path, monkey
         db.commit()
     on_disk = [n for n in os.listdir(tmp_path) if len(n) == 32]
     assert len(on_disk) == 2
+
+
+def test_concurrent_call_endings_write_exactly_one_entry(pg):
+    """Hang-up from both sides, a timeout and a failure report racing: one final status, one chat entry."""
+    from app.models.core.chat import ChatCall
+    from app.services.chat import calls
+
+    _, Session, ids = pg
+    x, y, _ = ids["users"]
+    with Session() as db:
+        conv_id = service.get_or_create_direct(db, _user(db, x), y)["id"]
+        call = calls.create_call(db, _user(db, x), conv_id)
+        call_id, company_id = call.id, call.company_id
+        assert calls.mark_active(db, call_id, company_id)
+
+    statuses = ["completed", "completed", "failed", "missed"] * 2
+
+    def end(i):
+        with Session() as db:
+            return calls.finish_call(db, call_id, company_id, statuses[i]) is not None
+
+    assert sum(_run_parallel(len(statuses), end)) == 1
+    with Session() as db:
+        row = db.query(ChatCall).filter(ChatCall.id == call_id).one()
+        assert row.status in statuses and row.message_id is not None
+        assert db.query(ChatMessage).filter(ChatMessage.conversation_id == conv_id).count() == 1
+        db.execute(text("DELETE FROM chat_calls WHERE id = :i"), {"i": call_id})
+        db.commit()

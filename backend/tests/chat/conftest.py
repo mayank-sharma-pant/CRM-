@@ -21,6 +21,16 @@ def _reset_hub() -> None:
     hub._mem_rate.clear()
     hub._mem_slots.clear()
     hub._mem_totals.clear()
+    hub._mem_kv.clear()
+
+
+@pytest.fixture(autouse=True)
+def _calls_use_test_db(monkeypatch):
+    """Call code opens its own sessions; in tests they must hit the in-memory test database."""
+    from app.services.chat import call_live
+    from tests.conftest import TestingSessionLocal
+
+    monkeypatch.setattr(call_live, "SessionFactory", TestingSessionLocal)
 
 
 @pytest.fixture

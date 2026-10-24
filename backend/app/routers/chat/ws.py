@@ -9,6 +9,9 @@ import asyncio
 import json
 import logging
 import time
+from collections import deque
+
+import anyio
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi import HTTPException
@@ -17,20 +20,24 @@ from starlette.concurrency import run_in_threadpool
 
 from app.config import parse_origins, settings
 from app.database import get_db
-from app.services.chat import service
+from app.services.chat import call_live, service
 from app.services.chat.crypto import chat_crypto_configured
-from app.services.chat.realtime import Connection, hub
+from app.services.chat.realtime import Connection, RealtimeUnavailable, hub
 from app.tenancy import bind_tenant, reset_tenant
 
 logger = logging.getLogger("app.chat.ws")
 router = APIRouter()
 
 AUTH_TIMEOUT = 10.0
-MAX_FRAME_CHARS = 4096
+# Large enough for a WebRTC SDP offer/answer (call setup); everything else is far smaller.
+MAX_FRAME_CHARS = 16384
 PING_SECONDS = 25.0
 RECHECK_SECONDS = 60.0
 TYPING_MIN_INTERVAL = 2.0
 PARTICIPANT_CACHE_SECONDS = 60.0
+CALL_FRAMES_PER_10S = 120
+CALL_INVITES_PER_MINUTE = 10
+CONNECTION_REPORTS = ("direct", "relay", "failed")
 
 CLOSE_POLICY = 1008
 CLOSE_TOO_BIG = 1009
@@ -112,11 +119,85 @@ async def chat_ws(websocket: WebSocket, db: Session = Depends(get_db)):
     conn = Connection(user_id, company_id)
     hub.register(conn)
     await hub.touch_presence(user_id)
-    conn.offer(json.dumps({"type": "ready", "user_id": user_id}))
+    conn.offer(json.dumps({"type": "ready", "user_id": user_id, "conn_id": conn.conn_id}))
 
     allowed_conversations: dict[int, tuple[float, list[int]]] = {}
     last_typing: dict[int, float] = {}
     close_code = {"value": 1000}
+    my_calls: set[int] = set()
+    call_frames: deque = deque()
+
+    def _call_frame_allowed() -> bool:
+        now = time.monotonic()
+        while call_frames and call_frames[0] <= now - 10:
+            call_frames.popleft()
+        if len(call_frames) >= CALL_FRAMES_PER_10S:
+            return False
+        call_frames.append(now)
+        return True
+
+    def _reply(event: dict) -> None:
+        conn.offer(json.dumps(event, separators=(",", ":")))
+
+    async def handle_call(msg: dict) -> None:
+        kind = msg["type"]
+        request_id = msg.get("request_id") if isinstance(msg.get("request_id"), str) else None
+        if request_id is not None:
+            request_id = request_id[:64]
+        if not call_live.calls_ready() or not _call_frame_allowed():
+            if kind == "call.invite":
+                _reply({"type": "call.error", "request_id": request_id, "code": "unavailable"})
+            return
+        try:
+            if kind == "call.invite":
+                conv_id = msg.get("conversation_id")
+                if not isinstance(conv_id, int) or conv_id <= 0:
+                    return
+                if not await hub.allow(f"call-invite:{user_id}", CALL_INVITES_PER_MINUTE, 60):
+                    _reply({"type": "call.error", "request_id": request_id, "code": "rate_limited"})
+                    return
+                try:
+                    call = await call_live.invite(conn, conv_id)
+                except HTTPException as exc:
+                    code = "busy_self" if "already in a call" in str(exc.detail) else (
+                        "deactivated" if exc.status_code == 409 else "not_found"
+                    )
+                    _reply({"type": "call.error", "request_id": request_id, "code": code})
+                    return
+                my_calls.add(call["id"])
+                _reply({
+                    "type": "call.outgoing",
+                    "request_id": request_id,
+                    "call_id": call["id"],
+                    "conversation_id": call["conversation_id"],
+                    "callee": {"id": call["callee_id"], "full_name": call["callee_name"]},
+                })
+                if call["end_now"]:
+                    await call_live.finish(call, call["end_now"])
+                return
+            call_id = msg.get("call_id")
+            if not isinstance(call_id, int) or call_id <= 0:
+                return
+            if kind == "call.accept":
+                if await call_live.accept(conn, call_id):
+                    my_calls.add(call_id)
+            elif kind in ("call.decline", "call.cancel", "call.hangup"):
+                await call_live.end(conn, call_id, kind.split(".", 1)[1])
+            elif kind == "call.signal":
+                data = msg.get("data")
+                if isinstance(data, dict):
+                    await call_live.signal(conn, call_id, data)
+            elif kind == "call.report":
+                connection = msg.get("connection")
+                if connection in CONNECTION_REPORTS:
+                    await call_live.report(conn, call_id, connection)
+        except RealtimeUnavailable:
+            if kind == "call.invite":
+                _reply({"type": "call.error", "request_id": request_id, "code": "unavailable"})
+        except Exception as exc:  # noqa: BLE001 — a failed call frame must not drop the chat socket
+            logger.warning("Call frame %s failed: %s", kind[:32], type(exc).__name__)
+            if kind == "call.invite":
+                _reply({"type": "call.error", "request_id": request_id, "code": "unavailable"})
 
     async def sender() -> None:
         while True:
@@ -136,7 +217,12 @@ async def chat_ws(websocket: WebSocket, db: Session = Depends(get_db)):
                 msg = json.loads(text)
             except ValueError:
                 continue
-            if not isinstance(msg, dict) or msg.get("type") != "typing":
+            if not isinstance(msg, dict):
+                continue
+            if isinstance(msg.get("type"), str) and msg["type"].startswith("call."):
+                await handle_call(msg)
+                continue
+            if msg.get("type") != "typing":
                 continue
             conv_id = msg.get("conversation_id")
             if not isinstance(conv_id, int) or conv_id <= 0:
@@ -167,6 +253,11 @@ async def chat_ws(websocket: WebSocket, db: Session = Depends(get_db)):
                 return
             conn.offer(json.dumps({"type": "ping"}))
             await hub.touch_presence(user_id)
+            if my_calls:
+                try:
+                    await call_live.keep_alive(conn, my_calls)
+                except RealtimeUnavailable:
+                    pass
             if time.monotonic() >= next_recheck:
                 next_recheck = time.monotonic() + RECHECK_SECONDS
                 if await run_in_threadpool(_load_account, db, user_id, token_version) is None:
@@ -190,6 +281,11 @@ async def chat_ws(websocket: WebSocket, db: Session = Depends(get_db)):
                 logger.warning("Chat socket task failed: %s", type(exc).__name__)
     finally:
         hub.unregister(conn)
+        if my_calls:
+            # Shielded: ending the calls (log + chat entry + telling the other side) must finish even
+            # when this task is being cancelled; bounded so shutdown can't hang. The sweep is the backstop.
+            with anyio.CancelScope(shield=True, deadline=anyio.current_time() + 10):
+                await call_live.socket_closed(conn, my_calls)
         try:
             await websocket.close(code=close_code["value"])
         except Exception:

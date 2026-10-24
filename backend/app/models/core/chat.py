@@ -6,7 +6,8 @@ from app.database import Base
 # Each group is created only by its own migration; schema_sync.apply_schema never touches them.
 CHAT_TABLES_040 = ("chat_conversations", "chat_participants", "chat_messages")
 CHAT_TABLES_041 = ("chat_attachments",)
-CHAT_TABLES = CHAT_TABLES_040 + CHAT_TABLES_041
+CHAT_TABLES_042 = ("chat_calls",)
+CHAT_TABLES = CHAT_TABLES_040 + CHAT_TABLES_041 + CHAT_TABLES_042
 
 
 class ChatConversation(Base):
@@ -89,4 +90,33 @@ class ChatAttachment(Base):
     __table_args__ = (
         UniqueConstraint("message_id", name="uq_chat_attachments_message"),
         UniqueConstraint("stored_name", name="uq_chat_attachments_stored_name"),
+    )
+
+
+class ChatCall(Base):
+    """One 1-to-1 voice call. Audio and connection details never reach the server; this is the log."""
+
+    __tablename__ = "chat_calls"
+
+    id = Column(Integer, primary_key=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+    conversation_id = Column(
+        Integer, ForeignKey("chat_conversations.id", ondelete="CASCADE"), nullable=False
+    )
+    caller_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    callee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    # ringing | active while live; completed | missed | declined | cancelled | busy | unavailable | failed | interrupted once ended
+    status = Column(String(12), nullable=False)
+    # direct | relay | unknown — how the browsers connected, reported by the caller
+    connection = Column(String(8), nullable=False, default="unknown", server_default="unknown")
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    answered_at = Column(DateTime(timezone=True), nullable=True)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    duration_s = Column(Integer, nullable=True)
+    # The chat-history entry written when the call ends.
+    message_id = Column(Integer, ForeignKey("chat_messages.id", ondelete="CASCADE"), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("message_id", name="uq_chat_calls_message"),
+        Index("ix_chat_calls_status", "status"),
     )

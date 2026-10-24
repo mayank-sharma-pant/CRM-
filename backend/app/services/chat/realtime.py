@@ -16,6 +16,7 @@ import json
 import logging
 import secrets
 import time
+import uuid
 from collections import defaultdict, deque
 
 from app.config import settings
@@ -41,6 +42,8 @@ class Connection:
     def __init__(self, user_id: int, company_id: int):
         self.user_id = user_id
         self.company_id = company_id
+        # Identifies this socket (one browser tab) so call setup can reach exactly one tab.
+        self.conn_id = uuid.uuid4().hex
         self.queue: asyncio.Queue[str] = asyncio.Queue(maxsize=QUEUE_MAX)
         self.overflowed = False
         self._loop = asyncio.get_running_loop()
@@ -73,6 +76,7 @@ class Hub:
         self._mem_rate: dict[str, deque] = defaultdict(deque)
         self._mem_slots: dict[str, dict[str, float]] = defaultdict(dict)
         self._mem_totals: dict[str, tuple[int, int]] = {}
+        self._mem_kv: dict[str, tuple[float, str]] = {}
         self._redis_down_until = 0.0
 
     # ---- lifecycle -------------------------------------------------------
@@ -179,37 +183,45 @@ class Hub:
     def local_connection_count(self) -> int:
         return sum(len(c) for c in self._local.values())
 
-    def _deliver_local(self, user_ids: list[int], event: dict) -> None:
+    def _deliver_local(self, user_ids: list[int], event: dict, conn_id: str | None = None) -> None:
         payload = json.dumps(event, separators=(",", ":"))
         for uid in user_ids:
             for conn in list(self._local.get(uid, ())):
-                conn.offer(payload)
+                if conn_id is None or conn.conn_id == conn_id:
+                    conn.offer(payload)
 
     def _deliver_raw(self, data) -> None:
         try:
             envelope = json.loads(data)
             to = [int(u) for u in envelope["to"]]
             event = envelope["event"]
-        except (TypeError, ValueError, KeyError):
+            conn_id = envelope.get("conn")
+        except (TypeError, ValueError, KeyError, AttributeError):
             logger.warning("Dropped malformed chat event envelope")
             return
-        self._deliver_local(to, event)
+        self._deliver_local(to, event, conn_id if isinstance(conn_id, str) else None)
 
     # ---- events ----------------------------------------------------------
 
-    async def publish(self, user_ids: list[int], event: dict) -> None:
-        """Fire-and-forget fan-out; never raises. Event payloads must not contain message text."""
+    async def publish(self, user_ids: list[int], event: dict, conn_id: str | None = None) -> None:
+        """Fire-and-forget fan-out; never raises. Event payloads must not contain message text.
+
+        With `conn_id`, only that one socket (tab) of the given user receives the event.
+        """
         if not user_ids:
             return
         client = self._client()
         if client is not None:
-            envelope = json.dumps({"to": list(user_ids), "event": event}, separators=(",", ":"))
+            body = {"to": list(user_ids), "event": event}
+            if conn_id is not None:
+                body["conn"] = conn_id
+            envelope = json.dumps(body, separators=(",", ":"))
             try:
                 await asyncio.wait_for(client.publish(CHANNEL, envelope), REDIS_OP_TIMEOUT)
                 return
             except Exception as exc:
                 self._trip(exc)
-        self._deliver_local(user_ids, event)
+        self._deliver_local(user_ids, event, conn_id)
 
     # ---- tickets ---------------------------------------------------------
 
@@ -387,6 +399,81 @@ class Hub:
             return False
         self._mem_totals[key] = (window, total + int(amount))
         return True
+
+
+    # ---- small shared key/value store (call state) -------------------------
+
+    def _kv_client(self):
+        """Redis client, None for the in-process store, or RealtimeUnavailable if Redis is configured but down."""
+        if self.uses_redis:
+            client = self._client()
+            if client is None:
+                raise RealtimeUnavailable()
+            return client
+        if not self.memory_mode_allowed():
+            raise RealtimeUnavailable()
+        return None
+
+    def _mem_live(self, key: str) -> tuple[float, str] | None:
+        entry = self._mem_kv.get(key)
+        if entry is not None and entry[0] <= time.monotonic():
+            self._mem_kv.pop(key, None)
+            return None
+        return entry
+
+    async def kv_set(self, key: str, value: str, ttl_seconds: int, only_if_absent: bool = False) -> bool:
+        client = self._kv_client()
+        if client is not None:
+            try:
+                ok = await asyncio.wait_for(
+                    client.set(key, value, ex=ttl_seconds, nx=only_if_absent or None), REDIS_OP_TIMEOUT
+                )
+            except Exception as exc:
+                self._trip(exc)
+                raise RealtimeUnavailable() from exc
+            return bool(ok)
+        if only_if_absent and self._mem_live(key) is not None:
+            return False
+        self._mem_kv[key] = (time.monotonic() + ttl_seconds, value)
+        return True
+
+    async def kv_get(self, key: str) -> str | None:
+        client = self._kv_client()
+        if client is not None:
+            try:
+                return await asyncio.wait_for(client.get(key), REDIS_OP_TIMEOUT)
+            except Exception as exc:
+                self._trip(exc)
+                raise RealtimeUnavailable() from exc
+        entry = self._mem_live(key)
+        return entry[1] if entry is not None else None
+
+    async def kv_delete(self, *keys: str) -> None:
+        if not keys:
+            return
+        client = self._kv_client()
+        if client is not None:
+            try:
+                await asyncio.wait_for(client.delete(*keys), REDIS_OP_TIMEOUT)
+            except Exception as exc:
+                self._trip(exc)
+                raise RealtimeUnavailable() from exc
+            return
+        for key in keys:
+            self._mem_kv.pop(key, None)
+
+    async def kv_expire(self, key: str, ttl_seconds: int) -> None:
+        client = self._kv_client()
+        if client is not None:
+            try:
+                await asyncio.wait_for(client.expire(key, ttl_seconds), REDIS_OP_TIMEOUT)
+            except Exception as exc:
+                self._trip(exc)
+                raise RealtimeUnavailable() from exc
+            return
+        entry = self._mem_live(key)
+        if entry is not None:
+            self._mem_kv[key] = (time.monotonic() + ttl_seconds, entry[1])
 
 
 hub = Hub()

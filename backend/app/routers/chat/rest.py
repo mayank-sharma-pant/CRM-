@@ -1,4 +1,8 @@
+import logging
+import re
 from typing import Any, Optional
+
+import httpx
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
@@ -8,11 +12,19 @@ from starlette.concurrency import run_in_threadpool
 from app.config import settings
 from app.database import get_db
 from app.models.core.user import User
-from app.services.chat import files, filetypes, service
+from app.services.chat import call_live, files, filetypes, service
 from app.services.chat.crypto import ChatCryptoUnavailable, chat_crypto_configured
 from app.services.chat.realtime import TICKET_TTL_SECONDS, RealtimeUnavailable, hub
 from app.utils.dependencies import get_current_user, oauth2_scheme
 from app.utils.security import decode_access_token
+
+
+logger = logging.getLogger("app.chat.rest")
+
+TURN_URL = "https://rtc.live.cloudflare.com/v1/turn/keys/{key_id}/credentials/generate-ice-servers"
+TURN_TTL_SECONDS = 2 * 3600
+# Browsers block port 53; with it in the list ICE would wait for a timeout.
+_PORT_53 = re.compile(r":53(?:[/?]|$)")
 
 
 def require_chat_ready() -> None:
@@ -76,7 +88,54 @@ async def chat_status(me: User = Depends(chat_user)):
             "max_caption_chars": files.MAX_CAPTION_CHARS,
             "accept": filetypes.accept_list(),
         } if files_on else {"enabled": False},
+        "calls": {"enabled": call_live.calls_ready(), "ring_seconds": settings.CHAT_CALL_RING_SECONDS},
     }
+
+
+def _stun_servers() -> list[dict]:
+    urls = [u.strip() for u in (settings.CHAT_STUN_URLS or "").split(",") if u.strip()]
+    return [{"urls": urls}] if urls else []
+
+
+def _without_port_53(servers: list) -> list[dict]:
+    out = []
+    for server in servers:
+        if not isinstance(server, dict):
+            continue
+        urls = server.get("urls")
+        urls = [urls] if isinstance(urls, str) else (urls or [])
+        kept = [u for u in urls if isinstance(u, str) and not _PORT_53.search(u)]
+        if kept:
+            out.append({**server, "urls": kept})
+    return out
+
+
+async def _turn_servers() -> list[dict] | None:
+    """Short-lived Cloudflare TURN credentials, or None (not configured / unreachable)."""
+    if not (settings.CHAT_TURN_KEY_ID and settings.CHAT_TURN_API_TOKEN):
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            res = await client.post(
+                TURN_URL.format(key_id=settings.CHAT_TURN_KEY_ID),
+                headers={"Authorization": f"Bearer {settings.CHAT_TURN_API_TOKEN}"},
+                json={"ttl": TURN_TTL_SECONDS},
+            )
+        res.raise_for_status()
+        servers = _without_port_53(res.json().get("iceServers") or [])
+        return servers or None
+    except (httpx.HTTPError, ValueError, AttributeError) as exc:
+        logger.warning("TURN credentials unavailable (%s); calls fall back to STUN only", type(exc).__name__)
+        return None
+
+
+@router.get("/calls/ice-servers")
+async def chat_ice_servers(me: User = Depends(chat_user)):
+    if not call_live.calls_ready():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
+    await _limit(f"ice:{me.id}", 30, 600)
+    turn = await _turn_servers()
+    return {"ice_servers": (turn or _stun_servers()), "relay": turn is not None}
 
 
 @router.post("/upload-token")

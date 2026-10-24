@@ -209,3 +209,54 @@ def test_byte_budget_is_shared_and_refusals_cost_nothing(redis_settings):
             await _stop(a, b)
 
     asyncio.run(scenario())
+
+
+def test_event_for_one_connection_reaches_only_that_tab_on_another_worker(redis_settings):
+    async def scenario():
+        a, b = await _two_workers()
+        try:
+            tab1, tab2 = Connection(7, 3), Connection(7, 3)
+            b.register(tab1)
+            b.register(tab2)
+            await a.publish([7], {"type": "call.signal", "call_id": 1, "data": {"kind": "offer"}}, tab2.conn_id)
+            await asyncio.sleep(0.3)
+            assert tab1.queue.empty()
+            assert json.loads(tab2.queue.get_nowait())["type"] == "call.signal"
+            await a.publish([7], {"type": "call.incoming", "call_id": 1})
+            await asyncio.sleep(0.3)
+            assert not tab1.queue.empty() and not tab2.queue.empty()
+        finally:
+            await _stop(a, b)
+
+    asyncio.run(scenario())
+
+
+def test_call_state_store_is_shared_and_answer_claim_is_atomic(redis_settings):
+    async def scenario():
+        a, b = await _two_workers()
+        try:
+            assert await a.kv_set("chat:call:1", '{"state":"ringing"}', 60)
+            assert await b.kv_get("chat:call:1") == '{"state":"ringing"}'
+            claims = await asyncio.gather(*(
+                h.kv_set("chat:call:1:answered", f"tab{i}", 60, only_if_absent=True)
+                for i, h in enumerate([a, b, a, b, a, b])
+            ))
+            assert sum(claims) == 1
+            await b.kv_expire("chat:call:1", 1)
+            assert 0 < await a._redis.ttl("chat:call:1") <= 1
+            await a.kv_delete("chat:call:1", "chat:call:1:answered")
+            assert await b.kv_get("chat:call:1") is None
+        finally:
+            await _stop(a, b)
+
+    asyncio.run(scenario())
+
+
+def test_call_state_refuses_when_redis_is_down_in_production(redis_settings, monkeypatch):
+    async def scenario():
+        h = Hub()
+        h._redis = None  # never started / tripped
+        with pytest.raises(RealtimeUnavailable):
+            await h.kv_get("chat:call:1")
+
+    asyncio.run(scenario())

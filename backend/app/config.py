@@ -89,6 +89,14 @@ class Settings(BaseSettings):
     CHAT_MAX_MEDIA_BYTES: int = 25 * 1024 * 1024
     # Uploads are refused when free disk would drop below this.
     CHAT_FILES_MIN_FREE_BYTES: int = 2 * 1024 ** 3
+    # 1-to-1 voice calls (WebRTC, peer-to-peer). Signaling uses the chat WebSocket.
+    CHAT_CALLS_ENABLED: bool = False
+    # Comma-separated STUN URLs handed to browsers.
+    CHAT_STUN_URLS: str = "stun:stun.cloudflare.com:3478,stun:stun.l.google.com:19302"
+    # Cloudflare Realtime TURN relay; both empty ⇒ no relay (STUN only).
+    CHAT_TURN_KEY_ID: str = ""
+    CHAT_TURN_API_TOKEN: str = ""
+    CHAT_CALL_RING_SECONDS: int = 45
 
     # SSO (Google / Microsoft). Empty client id ⇒ provider disabled.
     GOOGLE_OAUTH_CLIENT_ID: str = ""

@@ -21,6 +21,33 @@ def _reset_hub() -> None:
     hub._mem_rate.clear()
     hub._mem_slots.clear()
     hub._mem_totals.clear()
+    hub._mem_kv.clear()
+
+
+@pytest.fixture(autouse=True)
+def _calls_use_test_db(monkeypatch):
+    """Call code opens its own sessions; in tests they must hit the in-memory test database.
+
+    That database is one SQLite connection shared by every thread (StaticPool), which crashes
+    when two threads use it at once — e.g. both sides hanging up at the same moment. In
+    production each session has its own Postgres connection and the call row lock decides the
+    winner (covered by tests/chat/test_chat_postgres.py). Here the call code's database work
+    takes turns, like a database serializing two writers on the same row.
+    """
+    import threading
+
+    from app.services.chat import call_live
+    from tests.conftest import TestingSessionLocal
+
+    monkeypatch.setattr(call_live, "SessionFactory", TestingSessionLocal)
+    real_run = call_live._run
+    one_at_a_time = threading.Lock()
+
+    def serialized_run(company_id, fn, *args):
+        with one_at_a_time:
+            return real_run(company_id, fn, *args)
+
+    monkeypatch.setattr(call_live, "_run", serialized_run)
 
 
 @pytest.fixture

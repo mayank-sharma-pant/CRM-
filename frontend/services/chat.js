@@ -76,6 +76,7 @@ export const chatApi = {
   markRead: (id, seq) => api.post(`/chat/conversations/${id}/read`, { seq }).then((r) => r.data),
   wsTicket: () => api.post('/chat/ws-ticket').then((r) => r.data),
   attachmentLinks: (ids) => api.post('/chat/attachments/links', { ids }).then((r) => r.data.links),
+  iceServers: () => api.get('/chat/calls/ice-servers').then((r) => r.data.ice_servers),
 };
 
 export function apiErrorMessage(err, fallback) {

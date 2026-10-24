@@ -4,6 +4,8 @@ import { ThemeProvider } from '../contexts/ThemeContext';
 import { LocaleProvider } from '../contexts/LocaleContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { ChatProvider } from '../contexts/ChatContext';
+import { CallProvider } from '../contexts/CallContext';
+import CallOverlay from '../components/chat/CallOverlay';
 import Layout from '../components/Layout';
 import RouteGuard from '../components/RouteGuard';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -26,13 +28,16 @@ export default function RootLayout({ children }) {
                         <AuthProvider>
                             <NotificationProvider>
                                 <ChatProvider>
-                                    <ErrorBoundary>
-                                        <RouteGuard>
-                                            <Layout>
-                                                {children}
-                                            </Layout>
-                                        </RouteGuard>
-                                    </ErrorBoundary>
+                                    <CallProvider>
+                                        <ErrorBoundary>
+                                            <RouteGuard>
+                                                <Layout>
+                                                    {children}
+                                                </Layout>
+                                            </RouteGuard>
+                                        </ErrorBoundary>
+                                        <CallOverlay />
+                                    </CallProvider>
                                 </ChatProvider>
                             </NotificationProvider>
                         </AuthProvider>

@@ -69,8 +69,10 @@ from app.routers.chat.ws import router as chat_ws_router
 from app.routers.chat.files import router as chat_files_router
 from app.services.chat.realtime import hub as chat_hub
 from app.services.chat.files import sweep_tmp as chat_sweep_tmp
+from app.services.chat import call_live as chat_call_live
 from app.config import parse_origins, settings
 from contextlib import asynccontextmanager
+import asyncio
 import traceback
 import logging
 import logging.config
@@ -111,9 +113,16 @@ is_production = (settings.ENVIRONMENT or "").lower() == "production"
 async def lifespan(_app: FastAPI):
     await chat_hub.start()
     chat_sweep_tmp()
+    call_sweeper = asyncio.create_task(chat_call_live.sweep_forever()) if chat_call_live.calls_ready() else None
     try:
         yield
     finally:
+        if call_sweeper is not None:
+            call_sweeper.cancel()
+            try:
+                await call_sweeper
+            except asyncio.CancelledError:
+                pass
         await chat_hub.stop()
 
 

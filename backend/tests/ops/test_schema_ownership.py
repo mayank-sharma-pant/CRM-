@@ -1,4 +1,4 @@
-"""Chat tables belong to their own migrations (040, 041) only; the broad apply_schema path must not create them."""
+"""Chat tables belong to their own migrations (040, 041, 042) only; the broad apply_schema path must not create them."""
 import importlib.util
 from pathlib import Path
 
@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.pool import StaticPool
 
 from app.database import Base
-from app.models.core.chat import CHAT_TABLES, CHAT_TABLES_040, CHAT_TABLES_041
+from app.models.core.chat import CHAT_TABLES, CHAT_TABLES_040, CHAT_TABLES_041, CHAT_TABLES_042
 from app.schema_sync import apply_schema, migration_owned_tables
 
 VERSIONS = Path(__file__).resolve().parents[2] / "alembic" / "versions"
@@ -33,7 +33,11 @@ def test_every_chat_table_is_migration_owned():
 
 
 def test_chat_migrations_match_the_models():
-    for filename, tables in (("040_team_chat.py", CHAT_TABLES_040), ("041_chat_attachments.py", CHAT_TABLES_041)):
+    for filename, tables in (
+        ("040_team_chat.py", CHAT_TABLES_040),
+        ("041_chat_attachments.py", CHAT_TABLES_041),
+        ("042_chat_calls.py", CHAT_TABLES_042),
+    ):
         migration = _load(filename)
         assert tuple(migration.CHAT_TABLES) == tuple(tables), filename
         for table in tables:

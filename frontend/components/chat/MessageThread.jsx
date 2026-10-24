@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Loader2, X } from 'lucide-react';
+import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, Loader2, Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, X } from 'lucide-react';
 import { useT } from '../../contexts/LocaleContext';
 import { useChat } from '../../contexts/ChatContext';
+import { useCall } from '../../contexts/CallContext';
 import { chatApi, apiErrorMessage, newClientMsgId, uploadChatFile } from '../../services/chat';
 import { dayLabel, groupMessages, mergeMessages, roleLabel, timeLabel } from '../../lib/chatFormat.cjs';
 import { applyLinks, expiringAttachmentIds, fileCategory } from '../../lib/chatMedia.cjs';
+import { callEntryLabel } from '../../lib/chatCalls.cjs';
 import Attachment from './Attachment';
 import Avatar from './Avatar';
 import Composer from './Composer';
@@ -26,6 +28,7 @@ function lastConfirmedSeq(messages) {
 export default function MessageThread({ conversation, online, maxChars, files, onBack, onActivity }) {
     const t = useT();
     const { myId, live, typing, subscribe, requestReconcile, sendTyping } = useChat();
+    const { callsEnabled, canCall, startCall } = useCall();
     const conversationId = conversation.id;
     const other = conversation.other_user;
     const otherActive = Boolean(other?.is_active);
@@ -347,6 +350,18 @@ export default function MessageThread({ conversation, online, maxChars, files, o
                                 : [t(roleLabel(other?.role)), other?.team, online ? t('Online') : null].filter(Boolean).join(' · ')}
                     </p>
                 </div>
+                {callsEnabled && (
+                    <button
+                        type="button"
+                        onClick={() => startCall(conversation)}
+                        disabled={!canCall || !otherActive}
+                        title={!otherActive ? t('This person has been deactivated') : live !== 'live' ? t('Calls need a live connection') : t('Voice call')}
+                        aria-label={`${t('Voice call')} ${other?.full_name || ''}`}
+                        className="btn btn-ghost ml-auto h-9 w-9 shrink-0 p-0 disabled:opacity-40"
+                    >
+                        <Phone size={17} />
+                    </button>
+                )}
             </header>
 
             <div ref={scrollRef} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-4" aria-live="polite">
@@ -389,6 +404,20 @@ export default function MessageThread({ conversation, online, maxChars, files, o
                                         <div key={`${run.messages[0].seq ?? run.messages[0].client_msg_id}`} className={`flex flex-col gap-0.5 ${mine ? 'items-end' : 'items-start'}`}>
                                             {run.messages.map((m, idx) => {
                                                 const last = idx === run.messages.length - 1;
+                                                if (m.call) {
+                                                    const entry = callEntryLabel(m.call, myId);
+                                                    const Icon = entry.missed ? PhoneMissed : entry.outgoing ? PhoneOutgoing : PhoneIncoming;
+                                                    return (
+                                                        <div key={m.seq ?? m.client_msg_id} className="flex w-full justify-center py-1">
+                                                            <span className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-[12px] ${entry.missed ? 'text-error' : 'text-muted'}`}>
+                                                                <Icon size={13} aria-hidden="true" />
+                                                                {t(entry.text)}
+                                                                {entry.duration ? ` · ${entry.duration}` : ''}
+                                                                <span className="text-muted">· {timeLabel(m.created_at)}</span>
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                }
                                                 return (
                                                     <div key={m.seq ?? m.client_msg_id} className={`flex max-w-[78%] flex-col gap-1 ${mine ? 'items-end' : 'items-start'}`}>
                                                         {m.attachment && (

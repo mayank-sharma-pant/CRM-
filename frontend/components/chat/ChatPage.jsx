@@ -8,6 +8,7 @@ import { useChat } from '../../contexts/ChatContext';
 import { chatApi, apiErrorMessage } from '../../services/chat';
 import { listTimeLabel, roleLabel } from '../../lib/chatFormat.cjs';
 import { attachmentLabel } from '../../lib/chatMedia.cjs';
+import { callEntryLabel } from '../../lib/chatCalls.cjs';
 import Avatar from './Avatar';
 import MessageThread from './MessageThread';
 import NewChatDialog from './NewChatDialog';
@@ -205,7 +206,9 @@ export default function ChatPage() {
                             const last = c.last_message;
                             const preview = isTyping
                                 ? t('typing…')
-                                : last
+                                : last?.call
+                                    ? t(callEntryLabel(last.call, myId).text)
+                                    : last
                                     ? `${last.sender_id === myId ? `${t('You')}: ` : ''}${last.preview || (last.attachment ? t(attachmentLabel(last.attachment)) : last.preview ?? t('Message unavailable'))}`
                                     : t('No messages yet');
                             return (

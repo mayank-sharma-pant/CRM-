@@ -15,7 +15,7 @@ from sqlalchemy import func, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models.core.chat import ChatAttachment, ChatConversation, ChatMessage, ChatParticipant
+from app.models.core.chat import ChatAttachment, ChatCall, ChatConversation, ChatMessage, ChatParticipant
 from app.models.core.company import Company
 from app.models.core.team import Team
 from app.models.core.user import User
@@ -155,7 +155,30 @@ def _attachments_for(db: Session, message_ids: list[int]) -> dict[int, ChatAttac
     return {att.message_id: att for att in rows}
 
 
-def _message_out(msg: ChatMessage, attachment: ChatAttachment | None = None, viewer: User | None = None) -> dict:
+def _calls_for(db: Session, message_ids: list[int]) -> dict[int, ChatCall]:
+    if not message_ids:
+        return {}
+    rows = db.query(ChatCall).filter(ChatCall.message_id.in_(message_ids))
+    return {call.message_id: call for call in rows}
+
+
+def _call_out(call: ChatCall) -> dict:
+    return {
+        "id": call.id,
+        "status": call.status,
+        "duration_s": call.duration_s,
+        "connection": call.connection,
+        "caller_id": call.caller_id,
+        "callee_id": call.callee_id,
+    }
+
+
+def _message_out(
+    msg: ChatMessage,
+    attachment: ChatAttachment | None = None,
+    viewer: User | None = None,
+    call: ChatCall | None = None,
+) -> dict:
     """`viewer` gets signed download links; without one (exports) links are omitted."""
     body = _safe_decrypt(msg.body_enc)
     return {
@@ -168,12 +191,15 @@ def _message_out(msg: ChatMessage, attachment: ChatAttachment | None = None, vie
         "client_msg_id": msg.client_msg_id,
         "created_at": msg.created_at.isoformat() if msg.created_at else None,
         "attachment": _attachment_out(attachment, viewer) if attachment is not None else None,
+        "call": _call_out(call) if call is not None else None,
     }
 
 
 def _messages_out(db: Session, rows: list[ChatMessage], viewer: User | None) -> list[dict]:
-    attachments = _attachments_for(db, [m.id for m in rows])
-    return [_message_out(m, attachments.get(m.id), viewer) for m in rows]
+    ids = [m.id for m in rows]
+    attachments = _attachments_for(db, ids)
+    calls = _calls_for(db, ids)
+    return [_message_out(m, attachments.get(m.id), viewer, calls.get(m.id)) for m in rows]
 
 
 def directory(db: Session, me: User, q: str | None, limit: int) -> list[dict]:
@@ -266,7 +292,9 @@ def _summaries(db: Session, me: User, conversation_ids: list[int]) -> list[dict]
         .filter(ChatConversation.id.in_(list(mine)))
     }
     teams = _team_names(db, me.company_id, {u.team_id for _, u in others.values() if u.team_id})
-    last_attachments = _attachments_for(db, [m.id for m in last_messages.values()])
+    last_ids = [m.id for m in last_messages.values()]
+    last_attachments = _attachments_for(db, last_ids)
+    last_calls = _calls_for(db, last_ids)
 
     out = []
     for cid in conversation_ids:
@@ -279,11 +307,13 @@ def _summaries(db: Session, me: User, conversation_ids: list[int]) -> list[dict]
         if msg is not None:
             body = _safe_decrypt(msg.body_enc)
             att = last_attachments.get(msg.id)
+            call = last_calls.get(msg.id)
             last = {
                 "seq": msg.seq,
                 "sender_id": msg.sender_id,
                 "preview": body[:PREVIEW_CHARS] if body is not None else None,
                 "attachment": att.category if att is not None else None,
+                "call": _call_out(call) if call is not None else None,
                 "created_at": msg.created_at.isoformat() if msg.created_at else None,
             }
         out.append({
@@ -404,6 +434,51 @@ def _lock_company_uploads(db: Session, company_id: int) -> None:
         db.execute(text("SELECT pg_advisory_xact_lock(:ns, :cid)"), {"ns": _UPLOAD_QUOTA_LOCK, "cid": int(company_id)})
 
 
+def append_message(
+    db: Session,
+    company_id: int,
+    conversation_id: int,
+    sender_id: int,
+    ciphertext: str,
+    key_id: str,
+    client_msg_id: str,
+    now: datetime,
+) -> ChatMessage:
+    """Insert the next message of a conversation (caller commits).
+
+    The row lock taken by the UPDATE on the conversation orders concurrent sends,
+    so seq is gap-free per conversation. The sender's own message counts as read.
+    """
+    seq = db.execute(
+        update(ChatConversation)
+        .where(ChatConversation.id == conversation_id)
+        .values(last_seq=ChatConversation.last_seq + 1, last_message_at=now)
+        .returning(ChatConversation.last_seq)
+    ).scalar_one()
+    msg = ChatMessage(
+        company_id=company_id,
+        conversation_id=conversation_id,
+        seq=seq,
+        sender_id=sender_id,
+        body_enc=ciphertext,
+        key_id=key_id,
+        client_msg_id=client_msg_id,
+        created_at=now,
+    )
+    db.add(msg)
+    db.execute(
+        update(ChatParticipant)
+        .where(
+            ChatParticipant.conversation_id == conversation_id,
+            ChatParticipant.user_id == sender_id,
+            ChatParticipant.last_read_seq < seq,
+        )
+        .values(last_read_seq=seq)
+    )
+    db.flush()
+    return msg
+
+
 def send_message(
     db: Session,
     me: User,
@@ -444,35 +519,8 @@ def send_message(
             from app.services.billing.limits import assert_can_upload
 
             assert_can_upload(db, me.company_id, int(upload["size"]))
-        # Row lock on the conversation orders concurrent sends; seq is gap-free per conversation.
-        seq = db.execute(
-            update(ChatConversation)
-            .where(ChatConversation.id == conv.id)
-            .values(last_seq=ChatConversation.last_seq + 1, last_message_at=now)
-            .returning(ChatConversation.last_seq)
-        ).scalar_one()
-        msg = ChatMessage(
-            company_id=me.company_id,
-            conversation_id=conv.id,
-            seq=seq,
-            sender_id=me.id,
-            body_enc=ciphertext,
-            key_id=key_id,
-            client_msg_id=client_msg_id,
-            created_at=now,
-        )
-        db.add(msg)
-        db.execute(
-            update(ChatParticipant)
-            .where(
-                ChatParticipant.conversation_id == conv.id,
-                ChatParticipant.user_id == me.id,
-                ChatParticipant.last_read_seq < seq,
-            )
-            .values(last_read_seq=seq)
-        )
+        msg = append_message(db, me.company_id, conv.id, me.id, ciphertext, key_id, client_msg_id, now)
         if upload is not None:
-            db.flush()
             attachment = ChatAttachment(
                 company_id=me.company_id,
                 conversation_id=conv.id,

@@ -71,7 +71,19 @@ test("callReducer: incoming call, taken elsewhere, no second call while busy", (
   assert.equal(callReducer(s, { type: "taken", callId: 3 }), IDLE);
   s = callReducer(s, { type: "accepting", callId: 3 });
   assert.equal(s.phase, "connecting");
-  assert.equal(callReducer(s, { type: "taken", callId: 3 }).phase, "connecting");
+  // Pressed Accept but another tab won (no "answered" for this tab): step aside.
+  assert.equal(callReducer(s, { type: "taken", callId: 3 }), IDLE);
+  assert.equal(callReducer(s, { type: "taken", callId: 99 }).phase, "connecting");
+});
+
+test("callReducer: the tab whose answer was confirmed ignores taken", () => {
+  let s = callReducer(IDLE, { type: "incoming", callId: 3, conversationId: 1, peer: { id: 1 } });
+  s = callReducer(s, { type: "accepting", callId: 3 });
+  s = callReducer(s, { type: "answered", callId: 3 });
+  assert.equal(s.answered, true);
+  assert.equal(callReducer(s, { type: "taken", callId: 3 }), s);
+  s = callReducer(s, { type: "connected", callId: 3, at: 1 });
+  assert.equal(callReducer(s, { type: "taken", callId: 3 }).phase, "active");
 });
 
 test("callReducer: errors only end the matching outgoing attempt", () => {

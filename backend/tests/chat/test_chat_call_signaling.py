@@ -484,3 +484,113 @@ def test_ice_servers_fall_back_to_stun_when_turn_fails(calls_on, monkeypatch, ca
     body = As("sales@a.test").get("/api/chat/calls/ice-servers").json()
     assert body["relay"] is False and body["ice_servers"][0]["urls"][0].startswith("stun:")
     assert "token-secret" not in caplog.text
+
+
+# ---- two tabs answering + races ---------------------------------------------------------------
+
+
+def test_losing_tab_cannot_fail_the_winning_tabs_call(calls_on, db):
+    conv_id = _conv(calls_on)
+    caller, winner, loser = Tab(As("sales@a.test")), Tab(As("md@a.test")), Tab(As("md@a.test"))
+    call_id = _ring(caller, [winner, loser], conv_id)
+    _answer(caller, winner, call_id)
+    # The losing tab pressed Accept too late; what its connect timeout would send:
+    loser.send(type="call.accept", call_id=call_id)
+    assert loser.next("call.taken")["call_id"] == call_id
+    loser.send(type="call.report", call_id=call_id, connection="failed")
+    loser.send(type="call.report", call_id=call_id, connection="relay")
+    assert not [f for f in caller.drain(0.5) if f["type"] == "call.ended"]
+    assert not [f for f in winner.drain(0.3) if f["type"] == "call.ended"]
+    row = _call_row(db, call_id)
+    assert row.status == "active" and row.connection == "unknown"
+    # The call is still fully usable between the two real sockets.
+    caller.send(type="call.signal", call_id=call_id, data={"kind": "ice", "candidate": {"candidate": "x"}})
+    assert winner.next("call.signal")["call_id"] == call_id
+    # Only a socket in the call can report how it connected or that it failed.
+    winner.send(type="call.report", call_id=call_id, connection="direct")
+    time.sleep(0.3)
+    assert _call_row(db, call_id).connection == "direct"
+    winner.send(type="call.report", call_id=call_id, connection="failed")
+    assert caller.next("call.ended")["status"] == "failed"
+    for t in (caller, winner, loser):
+        t.close()
+
+
+def test_ring_timeout_after_answer_does_nothing(calls_on, db, monkeypatch):
+    conv_id = _conv(calls_on)
+    caller, callee = Tab(As("sales@a.test")), Tab(As("md@a.test"))
+    call_id = _ring(caller, [callee], conv_id)
+    _answer(caller, callee, call_id)
+    monkeypatch.setattr(settings, "CHAT_CALL_RING_SECONDS", 0)
+    asyncio.run(call_live._ring_timeout(call_id))
+    assert not [f for f in caller.drain(0.4) if f["type"] == "call.ended"]
+    assert _call_row(db, call_id).status == "active"
+    assert _entries(db, conv_id) == 0
+    caller.close()
+    callee.close()
+
+
+def test_cancel_after_answer_completes(calls_on, db):
+    conv_id = _conv(calls_on)
+    caller, callee = Tab(As("sales@a.test")), Tab(As("md@a.test"))
+    call_id = _ring(caller, [callee], conv_id)
+    _answer(caller, callee, call_id)
+    caller.send(type="call.cancel", call_id=call_id)
+    assert callee.next("call.ended")["status"] == "completed"
+    row = _call_row(db, call_id)
+    assert row.status == "completed" and row.answered_at is not None
+    assert _entries(db, conv_id) == 1
+    caller.close()
+    callee.close()
+
+
+def test_answer_after_cancel_is_refused_cleanly(calls_on, db):
+    conv_id = _conv(calls_on)
+    caller, callee = Tab(As("sales@a.test")), Tab(As("md@a.test"))
+    call_id = _ring(caller, [callee], conv_id)
+    caller.send(type="call.cancel", call_id=call_id)
+    assert caller.next("call.ended")["status"] == "cancelled"
+    callee.send(type="call.accept", call_id=call_id)
+    frames = [f for f in callee.drain(0.6) if f.get("call_id") == call_id]
+    assert {"type": "call.ended", "call_id": call_id, "status": "cancelled"} in frames
+    assert not [f for f in frames if f["type"] == "call.answered"]
+    row = _call_row(db, call_id)
+    assert row.status == "cancelled" and row.answered_at is None
+    assert _entries(db, conv_id) == 1
+    assert not [k for k in hub._mem_kv if k.startswith("chat:incall:") or k == f"chat:call:{call_id}"]
+    caller.close()
+    callee.close()
+
+
+@pytest.mark.parametrize("competitor,expected", [("cancel", "cancelled"), ("timeout", "missed")])
+def test_event_landing_in_the_middle_of_an_answer(calls_on, db, monkeypatch, competitor, expected):
+    """A cancel or the ring timeout arrives after the answer wrote its live state but before the
+    database recorded the answer: the call must end once, consistently, with no live state left."""
+    from app.services.chat import calls
+
+    conv_id = _conv(calls_on)
+    caller, callee = Tab(As("sales@a.test")), Tab(As("md@a.test"))
+    call_id = _ring(caller, [callee], conv_id)
+    real_mark_active = calls.mark_active
+    company_id = _call_row(db, call_id).company_id
+    caller_id = calls_on["users"]["sales"].id
+
+    def racing_mark_active(session, cid, comp):
+        if competitor == "cancel":
+            calls.end_call(session, cid, comp, caller_id, "cancel")
+        else:
+            calls.end_call(session, cid, comp, None, "timeout")
+        return real_mark_active(session, cid, comp)
+
+    monkeypatch.setattr(calls, "mark_active", racing_mark_active)
+    callee.send(type="call.accept", call_id=call_id)
+    frames = [f for f in callee.drain(0.8) if f.get("call_id") == call_id]
+    assert {"type": "call.ended", "call_id": call_id, "status": expected} in frames
+    assert not [f for f in frames if f["type"] == "call.answered"]
+    assert not [f for f in caller.drain(0.3) if f["type"] == "call.answered"]
+    row = _call_row(db, call_id)
+    assert row.status == expected and row.answered_at is None and row.company_id == company_id
+    assert _entries(db, conv_id) == 1
+    assert not [k for k in hub._mem_kv if k.startswith("chat:incall:") or k.startswith(f"chat:call:{call_id}")]
+    caller.close()
+    callee.close()

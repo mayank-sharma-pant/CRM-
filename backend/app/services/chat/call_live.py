@@ -8,7 +8,11 @@ stored or logged.
 Ending rules (kept simple on purpose — no resumption):
 - caller cancels / callee declines while ringing; nobody answers in time → missed
 - either side hangs up, or the caller's/callee's socket closes → the call ends
-- the browser reports the connection failed → failed
+- one of the two sockets in the call reports the connection failed → failed
+
+The outcome is decided in the database under the call's row lock (calls.end_call), and
+Redis is cleaned up afterwards, so racing events (answer vs. cancel vs. timeout, duplicate
+hang-ups) always end in one consistent status and one chat entry.
 """
 from __future__ import annotations
 
@@ -120,23 +124,42 @@ async def _clear_busy(state: dict) -> None:
             await hub.kv_delete(_busy_key(uid))
 
 
-async def finish(call: dict, final_status: str) -> None:
-    """Close a call everywhere: Redis state, busy markers, the log + chat entry, and tell both sides."""
+async def _drop_live_state(call: dict) -> None:
     try:
         await hub.kv_delete(_state_key(call["id"]), _answer_key(call["id"]))
         await _clear_busy(call)
     except RealtimeUnavailable:
         logger.warning("Call %s ended while Redis was unavailable; its keys expire on their own", call["id"])
-    done = await _db(call["company_id"], calls.finish_call, call["id"], call["company_id"], final_status)
+
+
+async def _announce(call: dict, done: dict) -> None:
     users = [call["caller_id"], call["callee_id"]]
-    await hub.publish(users, {"type": "call.ended", "call_id": call["id"], "status": final_status})
+    await hub.publish(users, {"type": "call.ended", "call_id": call["id"], "status": done["status"]})
+    await hub.publish(users, {
+        "type": "message.new",
+        "conversation_id": call["conversation_id"],
+        "seq": done["message"]["seq"],
+        "sender_id": call["caller_id"],
+    })
+
+
+async def finish(call: dict, final_status: str) -> None:
+    """End a call with an explicit outcome (busy, unavailable, failed, …): log + chat entry first,
+    then Redis state and busy markers, then tell both sides. Safe to repeat."""
+    done = await _db(call["company_id"], calls.finish_call, call["id"], call["company_id"], final_status)
+    await _drop_live_state(call)
     if done is not None:
-        await hub.publish(users, {
-            "type": "message.new",
-            "conversation_id": call["conversation_id"],
-            "seq": done["message"]["seq"],
-            "sender_id": call["caller_id"],
-        })
+        await _announce(call, done)
+
+
+async def _end(call: dict, actor_id: int | None, action: str) -> None:
+    """End a call because of cancel / decline / hangup / timeout; the database decides the outcome."""
+    done = await _db(call["company_id"], calls.end_call, call["id"], call["company_id"], actor_id, action)
+    if done is None and action == "timeout":
+        return  # answered (or ended) before the timeout: leave it alone
+    await _drop_live_state(call)
+    if done is not None:
+        await _announce(call, done)
 
 
 async def invite(conn: Connection, conversation_id: int) -> dict:
@@ -178,7 +201,7 @@ async def _ring_timeout(call_id: int) -> None:
     try:
         call = await _load(call_id)
         if call is not None and call["state"] == "ringing":
-            await finish(call, "missed")
+            await _end(call, None, "timeout")
     except RealtimeUnavailable:
         pass
     except Exception:
@@ -193,31 +216,39 @@ async def accept(conn: Connection, call_id: int) -> bool:
     if call["state"] != "ringing" or not await hub.kv_set(_answer_key(call_id), conn.conn_id, ACTIVE_TTL, only_if_absent=True):
         await _send(conn, {"type": "call.taken", "call_id": call_id})
         return False
-    if not await _db(call["company_id"], calls.mark_active, call_id, call["company_id"]):
-        await _send(conn, {"type": "call.ended", "call_id": call_id, "status": "cancelled"})
-        return False
+    # Live state first, then the database: if a cancel or the ring timeout ends the call in
+    # between, the database refuses the answer below and the live state is removed again.
     call.update({"state": "active", "callee_conn": conn.conn_id})
     await _save(call, ACTIVE_TTL)
     for uid in (call["caller_id"], call["callee_id"]):
         await hub.kv_set(_busy_key(uid), str(call_id), ACTIVE_TTL)
+    outcome = await _db(call["company_id"], calls.mark_active, call_id, call["company_id"])
+    if outcome != "active":
+        await _drop_live_state(call)
+        await _send(conn, {"type": "call.ended", "call_id": call_id, "status": outcome or "cancelled"})
+        return False
     await hub.publish([call["caller_id"]], {"type": "call.answered", "call_id": call_id}, call["caller_conn"])
     await hub.publish([call["callee_id"]], {"type": "call.answered", "call_id": call_id}, conn.conn_id)
     await hub.publish([call["callee_id"]], {"type": "call.taken", "call_id": call_id})
     return True
 
 
+def _in_call(conn: Connection, call: dict) -> bool:
+    """True for the two sockets actually in the call (the caller's, and the callee tab that answered)."""
+    return conn.conn_id in (call["caller_conn"], call["callee_conn"])
+
+
 async def end(conn: Connection, call_id: int, action: str) -> None:
-    """decline | cancel | hangup | failed, from either participant (any of their tabs)."""
+    """decline | cancel | hangup from either participant (any of their tabs); failed only from one of
+    the two sockets in the call, so another tab of the same person can't end a call it isn't part of."""
     call = await _load(call_id)
     if call is None or conn.user_id not in (call["caller_id"], call["callee_id"]) or call["company_id"] != conn.company_id:
         return
     if action == "failed":
-        final = "failed"
-    elif call["state"] == "active":
-        final = "completed"
-    else:
-        final = "cancelled" if conn.user_id == call["caller_id"] else "declined"
-    await finish(call, final)
+        if _in_call(conn, call):
+            await finish(call, "failed")
+        return
+    await _end(call, conn.user_id, action)
 
 
 async def signal(conn: Connection, call_id: int, data: dict) -> None:
@@ -237,6 +268,9 @@ async def signal(conn: Connection, call_id: int, data: dict) -> None:
 async def report(conn: Connection, call_id: int, connection: str) -> None:
     if connection == "failed":
         await end(conn, call_id, "failed")
+        return
+    call = await _load(call_id)
+    if call is None or not _in_call(conn, call):
         return
     await _db(conn.company_id, calls.set_connection, call_id, conn.company_id, conn.user_id, connection)
 
@@ -262,9 +296,9 @@ async def socket_closed(conn: Connection, call_ids: set[int]) -> None:
             if call is None:
                 continue
             if call["state"] == "ringing" and conn.conn_id == call["caller_conn"]:
-                await finish(call, "cancelled")
-            elif call["state"] == "active" and conn.conn_id in (call["caller_conn"], call["callee_conn"]):
-                await finish(call, "completed")
+                await _end(call, conn.user_id, "cancel")
+            elif call["state"] == "active" and _in_call(conn, call):
+                await _end(call, conn.user_id, "hangup")
         except RealtimeUnavailable:
             pass
         except Exception:

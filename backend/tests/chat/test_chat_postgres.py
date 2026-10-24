@@ -304,3 +304,45 @@ def test_concurrent_call_endings_write_exactly_one_entry(pg):
         assert db.query(ChatMessage).filter(ChatMessage.conversation_id == conv_id).count() == 1
         db.execute(text("DELETE FROM chat_calls WHERE id = :i"), {"i": call_id})
         db.commit()
+
+
+def test_answer_cancel_and_timeout_racing_end_consistently(pg):
+    """Answer, cancel and ring timeout fired at the same moment, many times: every call ends once,
+    with a status that matches whether it was answered, and exactly one history entry."""
+    from app.models.core.chat import ChatCall
+    from app.services.chat import calls
+
+    _, Session, ids = pg
+    x, y, _ = ids["users"]
+    with Session() as db:
+        conv_id = service.get_or_create_direct(db, _user(db, x), y)["id"]
+
+    outcomes = []
+    for _round in range(12):
+        with Session() as db:
+            call = calls.create_call(db, _user(db, x), conv_id)
+            call_id, company_id = call.id, call.company_id
+
+        def act(i):
+            with Session() as db:
+                if i == 0:
+                    return calls.mark_active(db, call_id, company_id)
+                if i == 1:
+                    return calls.end_call(db, call_id, company_id, x, "cancel")
+                return calls.end_call(db, call_id, company_id, None, "timeout")
+
+        _run_parallel(3, act)
+        with Session() as db:
+            row = db.query(ChatCall).filter(ChatCall.id == call_id).one()
+            if row.status == "active":  # answered first; the cancel/timeout then saw an active call
+                calls.end_call(db, call_id, company_id, x, "hangup")
+                db.expire_all()
+                row = db.query(ChatCall).filter(ChatCall.id == call_id).one()
+            answered = row.answered_at is not None
+            assert row.status in (("completed",) if answered else ("cancelled", "missed")), (row.status, answered)
+            assert row.message_id is not None
+            outcomes.append(row.status)
+    with Session() as db:
+        assert db.query(ChatMessage).filter(ChatMessage.conversation_id == conv_id).count() == len(outcomes)
+        db.execute(text("DELETE FROM chat_calls WHERE conversation_id = :c"), {"c": conv_id})
+        db.commit()

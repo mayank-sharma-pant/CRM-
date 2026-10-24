@@ -11,14 +11,16 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from app.models.core.chat import ChatCall
+from app.models.core.chat import ChatCall, ChatParticipant
 from app.models.core.user import User
 from app.services.chat import service
 from app.services.chat.crypto import encrypt_body
 
 LIVE = ("ringing", "active")
+END_ACTIONS = ("cancel", "decline", "hangup", "timeout")
 FINAL = ("completed", "missed", "declined", "cancelled", "busy", "unavailable", "failed", "interrupted")
 CONNECTIONS = ("direct", "relay", "unknown")
 
@@ -58,16 +60,18 @@ def _locked(db: Session, call_id: int, company_id: int) -> ChatCall | None:
     )
 
 
-def mark_active(db: Session, call_id: int, company_id: int) -> bool:
-    """ringing → active. False if the call already moved on (e.g. cancelled meanwhile)."""
+def mark_active(db: Session, call_id: int, company_id: int) -> str | None:
+    """ringing → active. Returns the call's status afterwards: "active" if this answered it,
+    otherwise the status it already had (e.g. "cancelled" or "missed" won the race), or None."""
     call = _locked(db, call_id, company_id)
     if call is None or call.status != "ringing":
+        current = call.status if call is not None else None
         db.rollback()
-        return False
+        return current
     call.status = "active"
     call.answered_at = datetime.now(timezone.utc)
     db.commit()
-    return True
+    return "active"
 
 
 def set_connection(db: Session, call_id: int, company_id: int, user_id: int, connection: str) -> bool:
@@ -84,11 +88,10 @@ def set_connection(db: Session, call_id: int, company_id: int, user_id: int, con
 
 
 def finish_call(db: Session, call_id: int, company_id: int, final_status: str) -> dict | None:
-    """End a call once: set the final status and duration and write its chat-history entry.
+    """End a live call with an explicit outcome (busy, unavailable, failed, interrupted, …).
 
-    Returns {"message": ..., "recipients": [...], "conversation_id": ...} for the call that was
-    ended now, or None if it had already ended (duplicate hang-ups, races) — callers can call
-    this freely.
+    Returns the result for the call that was ended now, or None if it had already ended —
+    duplicate or racing endings are harmless and write exactly one history entry.
     """
     if final_status not in FINAL:
         raise ValueError(f"not a final call status: {final_status}")
@@ -96,6 +99,45 @@ def finish_call(db: Session, call_id: int, company_id: int, final_status: str) -
     if call is None or call.status in FINAL:
         db.rollback()
         return None
+    return _close(db, call, final_status)
+
+
+def end_call(db: Session, call_id: int, company_id: int, actor_id: int | None, action: str) -> dict | None:
+    """End a call because someone acted, deciding the outcome from the call's real state
+    (under the row lock, so racing events can't produce contradictory results):
+
+    - cancel / decline / hangup while ringing → "cancelled" (by the caller) or "declined" (by the callee)
+    - any of them once answered → "completed"
+    - timeout → "missed" only if still ringing; an answered call is left alone
+
+    Returns the result, or None if nothing changed (already ended, answered before the timeout,
+    or `actor_id` isn't a participant).
+    """
+    if action not in END_ACTIONS:
+        raise ValueError(f"unknown call action: {action}")
+    call = _locked(db, call_id, company_id)
+    if call is None or call.status in FINAL:
+        db.rollback()
+        return None
+    if action == "timeout":
+        if call.status != "ringing":
+            db.rollback()
+            return None
+        final = "missed"
+    elif call.status == "active":
+        final = "completed"
+    elif actor_id == call.caller_id:
+        final = "cancelled"
+    elif actor_id == call.callee_id:
+        final = "declined"
+    else:
+        db.rollback()
+        return None
+    return _close(db, call, final)
+
+
+def _close(db: Session, call: ChatCall, final_status: str) -> dict:
+    """Set the final status and duration and write the call's one chat-history entry (locked row)."""
     now = datetime.now(timezone.utc)
     answered = call.answered_at
     if answered is not None and answered.tzinfo is None:
@@ -108,10 +150,23 @@ def finish_call(db: Session, call_id: int, company_id: int, final_status: str) -
         db, call.company_id, call.conversation_id, call.caller_id, ciphertext, key_id, str(uuid.uuid4()), now
     )
     call.message_id = msg.id
+    if answered is not None or final_status == "declined":
+        # The callee handled this call (answered or declined it), so its entry isn't news to them.
+        # Only advance their read position when nothing else is unread — never hide other messages.
+        db.execute(
+            update(ChatParticipant)
+            .where(
+                ChatParticipant.conversation_id == call.conversation_id,
+                ChatParticipant.user_id == call.callee_id,
+                ChatParticipant.last_read_seq == msg.seq - 1,
+            )
+            .values(last_read_seq=msg.seq)
+        )
     db.commit()
     db.refresh(msg)
     db.refresh(call)
     return {
+        "status": final_status,
         "message": service._message_out(msg, None, None, call),
         "recipients": [call.caller_id, call.callee_id],
         "conversation_id": call.conversation_id,

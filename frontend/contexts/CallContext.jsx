@@ -91,6 +91,11 @@ export function CallProvider({ children }) {
     const reported = useRef(false);
     // Cancel pressed before the server named the call: cancel it as soon as it does.
     const cancelRequest = useRef(null);
+    // Set the moment the server confirms this tab answered/connected the call. A ref, not state:
+    // "answered" and "taken" can arrive back to back before React re-renders.
+    const answeredHere = useRef(null);
+    // The call this tab is currently accepting; cleared by release() if it lost or ended meanwhile.
+    const accepting = useRef(null);
     const ringtone = useRef(null);
 
     useEffect(() => {
@@ -121,6 +126,8 @@ export function CallProvider({ children }) {
         if (audioRef.current) audioRef.current.srcObject = null;
         pendingIce.current = [];
         reported.current = false;
+        answeredHere.current = null;
+        accepting.current = null;
         setMuted(false);
     }, []);
 
@@ -233,13 +240,18 @@ export function CallProvider({ children }) {
                 }
                 break;
             case 'call.taken':
-                if (current.phase === 'incoming' && current.callId === event.call_id) {
-                    ringtone.current?.stop();
+                // Answered in another tab. If this tab was still ringing, or had pressed Accept but
+                // lost the race, close quietly and free the microphone — never report a failure
+                // against the call the other tab is now in.
+                if (current.callId === event.call_id && answeredHere.current !== event.call_id
+                    && (current.phase === 'incoming' || current.phase === 'connecting')) {
+                    release();
                     dispatch({ type: 'taken', callId: event.call_id });
                 }
                 break;
             case 'call.answered':
                 if (current.callId !== event.call_id) break;
+                answeredHere.current = event.call_id;
                 dispatch({ type: 'answered', callId: event.call_id });
                 if (current.role === 'caller' && streamRef.current) {
                     (async () => {
@@ -313,12 +325,21 @@ export function CallProvider({ children }) {
         const current = callRef.current;
         if (current.phase !== 'incoming') return;
         ringtone.current?.stop();
+        accepting.current = current.callId;
         dispatch({ type: 'accepting', callId: current.callId });
         try {
-            streamRef.current = await openMicrophone();
+            const stream = await openMicrophone();
+            if (accepting.current !== current.callId) {
+                // Taken by another tab or ended while the microphone prompt was open.
+                stream.getTracks().forEach((track) => track.stop());
+                return;
+            }
+            streamRef.current = stream;
             iceRef.current = await chatApi.iceServers();
+            if (accepting.current !== current.callId) return;
             createPeer(current.callId);
         } catch (err) {
+            if (accepting.current !== current.callId) return;
             sendFrame({ type: 'call.decline', call_id: current.callId });
             showEnded(err?.reason || 'failed', current.callId);
             return;

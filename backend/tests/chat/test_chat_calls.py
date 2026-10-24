@@ -77,7 +77,8 @@ def test_mark_active_only_from_ringing(org, db):
     u = _users(db, org)
     call = calls.create_call(db, u["sales"], conv_id)
     calls.finish_call(db, call.id, call.company_id, "cancelled")
-    assert calls.mark_active(db, call.id, call.company_id) is False
+    assert calls.mark_active(db, call.id, call.company_id) == "cancelled"
+    assert calls.mark_active(db, 999999, call.company_id) is None
 
 
 def test_connection_report_only_from_participants_and_known_values(org, db):
@@ -125,7 +126,7 @@ def test_other_company_cannot_touch_a_call(org, db):
     u = _users(db, org)
     call = calls.create_call(db, u["sales"], conv_id)
     other_company = org["b"].id
-    assert calls.mark_active(db, call.id, other_company) is False
+    assert calls.mark_active(db, call.id, other_company) is None
     assert calls.finish_call(db, call.id, other_company, "completed") is None
     assert calls.set_connection(db, call.id, other_company, u["sales"].id, "direct") is False
     assert db.query(ChatCall).filter(ChatCall.id == call.id).one().status == "ringing"
@@ -156,3 +157,112 @@ def test_export_includes_calls_without_media_details(org, db):
     calls.finish_call(db, call.id, call.company_id, "missed")
     exported = service.export_sent_messages(db, u["sales"])
     assert exported[-1]["call"]["status"] == "missed"
+
+
+# ---- outcome decided from the call's real state (races) --------------------------------------
+
+
+def _fresh(db, org, conv_id):
+    return calls.create_call(db, _users(db, org)["sales"], conv_id)
+
+
+@pytest.mark.parametrize("actor,action,expected", [
+    ("sales", "cancel", "cancelled"),
+    ("sales", "hangup", "cancelled"),
+    ("md", "decline", "declined"),
+    ("md", "hangup", "declined"),
+    (None, "timeout", "missed"),
+])
+def test_end_call_while_ringing(org, db, actor, action, expected):
+    _, _, conv_id = _conversation(org)
+    call = _fresh(db, org, conv_id)
+    actor_id = _users(db, org)[actor].id if actor else None
+    assert calls.end_call(db, call.id, call.company_id, actor_id, action)["status"] == expected
+
+
+@pytest.mark.parametrize("actor,action", [("sales", "cancel"), ("md", "decline"), ("md", "hangup")])
+def test_any_ending_after_answer_is_completed(org, db, actor, action):
+    _, _, conv_id = _conversation(org)
+    call = _fresh(db, org, conv_id)
+    assert calls.mark_active(db, call.id, call.company_id) == "active"
+    done = calls.end_call(db, call.id, call.company_id, _users(db, org)[actor].id, action)
+    assert done["status"] == "completed"
+
+
+def test_timeout_leaves_an_answered_call_alone(org, db):
+    _, _, conv_id = _conversation(org)
+    call = _fresh(db, org, conv_id)
+    calls.mark_active(db, call.id, call.company_id)
+    assert calls.end_call(db, call.id, call.company_id, None, "timeout") is None
+    assert db.query(ChatCall).filter(ChatCall.id == call.id).one().status == "active"
+    assert db.query(ChatMessage).filter(ChatMessage.conversation_id == conv_id).count() == 0
+
+
+def test_answer_after_cancel_is_refused_and_cancel_after_answer_completes(org, db):
+    _, _, conv_id = _conversation(org)
+    u = _users(db, org)
+    first = _fresh(db, org, conv_id)
+    calls.end_call(db, first.id, first.company_id, u["sales"].id, "cancel")
+    assert calls.mark_active(db, first.id, first.company_id) == "cancelled"
+    second = _fresh(db, org, conv_id)
+    calls.mark_active(db, second.id, second.company_id)
+    assert calls.end_call(db, second.id, second.company_id, u["sales"].id, "cancel")["status"] == "completed"
+    statuses = {c.id: (c.status, c.answered_at is not None) for c in db.query(ChatCall).all()}
+    assert statuses == {first.id: ("cancelled", False), second.id: ("completed", True)}
+
+
+def test_outsider_and_unknown_actions_change_nothing(org, db):
+    _, _, conv_id = _conversation(org)
+    call = _fresh(db, org, conv_id)
+    assert calls.end_call(db, call.id, call.company_id, _users(db, org)["manager"].id, "hangup") is None
+    with pytest.raises(ValueError):
+        calls.end_call(db, call.id, call.company_id, None, "explode")
+    assert db.query(ChatCall).filter(ChatCall.id == call.id).one().status == "ringing"
+
+
+# ---- unread: only calls the callee didn't handle stay unread ---------------------------------
+
+
+def _unread(who: As) -> int:
+    return who.get("/api/chat/unread").json()["unread_total"]
+
+
+@pytest.mark.parametrize("how,callee_unread", [
+    ("answered", 0),
+    ("declined", 0),
+    ("answered_then_failed", 0),
+    ("missed", 1),
+    ("unavailable", 1),
+    ("busy", 1),
+    ("cancelled", 1),
+])
+def test_callee_unread_only_for_calls_they_did_not_handle(org, db, how, callee_unread):
+    sales, md, conv_id = _conversation(org)
+    u = _users(db, org)
+    call = _fresh(db, org, conv_id)
+    if how == "answered":
+        calls.mark_active(db, call.id, call.company_id)
+        calls.end_call(db, call.id, call.company_id, u["sales"].id, "hangup")
+    elif how == "declined":
+        calls.end_call(db, call.id, call.company_id, u["md"].id, "decline")
+    elif how == "answered_then_failed":
+        calls.mark_active(db, call.id, call.company_id)
+        calls.finish_call(db, call.id, call.company_id, "failed")
+    elif how == "missed":
+        calls.end_call(db, call.id, call.company_id, None, "timeout")
+    elif how == "cancelled":
+        calls.end_call(db, call.id, call.company_id, u["sales"].id, "cancel")
+    else:
+        calls.finish_call(db, call.id, call.company_id, how)
+    assert _unread(md) == callee_unread
+    assert _unread(sales) == 0
+
+
+def test_handled_call_never_hides_earlier_unread_messages(org, db):
+    sales, md, conv_id = _conversation(org)
+    u = _users(db, org)
+    assert sales.send(conv_id, "are you free?").status_code == 201
+    call = _fresh(db, org, conv_id)
+    calls.mark_active(db, call.id, call.company_id)
+    calls.end_call(db, call.id, call.company_id, u["md"].id, "hangup")
+    assert _unread(md) == 2  # the text and the call entry stay unread until md opens the chat

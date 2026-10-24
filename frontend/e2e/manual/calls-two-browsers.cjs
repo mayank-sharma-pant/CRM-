@@ -22,6 +22,12 @@ const RECORD_PCS = `(() => {
   if (!Orig) return;
   window.__pcs = [];
   window.RTCPeerConnection = class extends Orig { constructor(...a) { super(...a); window.__pcs.push(this); } };
+  window.__streams = [];
+  const md = navigator.mediaDevices;
+  if (md && md.getUserMedia) {
+    const gum = md.getUserMedia.bind(md);
+    md.getUserMedia = async (c) => { const st = await gum(c); window.__streams.push(st); return st; };
+  }
 })();`;
 
 const results = [];
@@ -208,6 +214,41 @@ async function dial(page) {
   await micMsg.waitFor({ timeout: 15000 });
   check('blocked microphone (simulated denial) shows "Microphone blocked" and no call rings', /Microphone blocked/.test(await micMsg.textContent())
     && (await callee.locator('[role="alertdialog"]').count()) === 0, await micMsg.textContent());
+
+  // 5. Same person, two tabs, both press Accept at once: one wins, the other steps aside and frees
+  //    its microphone, and the winner's call survives past the 15 s connect timeout.
+  const calleeTab2 = await calleeCtx.newPage();
+  await calleeTab2.addInitScript(RECORD_PCS);
+  await calleeTab2.goto(`${BASE}${calleeHome}`);
+  await calleeTab2.waitForTimeout(2500);
+  await caller.waitForTimeout(3000);
+  await dial(caller);
+  const rings = [callee.locator('[role="alertdialog"]'), calleeTab2.locator('[role="alertdialog"]')];
+  await Promise.all(rings.map((r) => r.waitFor({ timeout: 15000 })));
+  await Promise.all(rings.map((r) => r.getByRole('button', { name: 'Accept' }).click()));
+  await waitActive(caller);
+  await caller.waitForTimeout(17000);
+  const tabs = [callee, calleeTab2];
+  const activeTabs = [];
+  for (const tab of tabs) {
+    if (await overlayStatus(tab).filter({ hasText: /^\d+:\d\d$/ }).count()) activeTabs.push(tab);
+  }
+  check('exactly one of the two tabs is in the call after 17 s', activeTabs.length === 1, `${activeTabs.length} tab(s) in the call`);
+  const winnerTab = activeTabs[0];
+  const loserTab = tabs.find((t) => t !== winnerTab);
+  const w1 = winnerTab ? await audio(winnerTab) : null;
+  await caller.waitForTimeout(2000);
+  const w2 = winnerTab ? await audio(winnerTab) : null;
+  check("winner's call is still connected and carrying audio", Boolean(w1 && w2 && w2.inBytes > w1.inBytes && (await overlayStatus(caller).filter({ hasText: /^\d+:\d\d$/ }).count()) === 1),
+    w1 && w2 ? `received +${w2.inBytes - w1.inBytes} B` : 'no connected peer');
+  const loserState = loserTab && await loserTab.evaluate(() => ({
+    liveTracks: (window.__streams || []).flatMap((st) => st.getTracks()).filter((t) => t.readyState === 'live').length,
+    openPcs: (window.__pcs || []).filter((p) => p.connectionState !== 'closed' && p.signalingState !== 'closed').length,
+  }));
+  check('losing tab released its microphone and connection, and shows no call', Boolean(loserState && loserState.liveTracks === 0 && loserState.openPcs === 0
+    && (await loserTab.locator('[role="region"][aria-label="Voice call"], [role="alertdialog"]').count()) === 0), JSON.stringify(loserState));
+  await caller.locator('button[aria-label="Hang up"]').click();
+  await endedToast(winnerTab || callee).waitFor({ timeout: 15000 });
 
   await browser.close();
   console.log(`\nSUMMARY: ${results.filter(Boolean).length}/${results.length} passed`);

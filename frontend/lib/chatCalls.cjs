@@ -81,7 +81,7 @@ function callReducer(state, action) {
       return state.phase === 'incoming' && state.callId === action.callId ? { ...state, phase: 'connecting' } : state;
     case 'answered':
       return state.callId === action.callId && (state.phase === 'outgoing' || state.phase === 'connecting')
-        ? { ...state, phase: 'connecting' }
+        ? { ...state, phase: 'connecting', answered: true }
         : state;
     case 'connected':
       return state.callId === action.callId && (state.phase === 'connecting' || state.phase === 'active')
@@ -90,7 +90,10 @@ function callReducer(state, action) {
     case 'reconnecting':
       return state.callId === action.callId && state.phase === 'active' ? { ...state, reconnecting: action.value } : state;
     case 'taken':
-      return state.phase === 'incoming' && state.callId === action.callId ? IDLE : state;
+      // Answered in another tab: a ringing tab, or a tab whose own answer lost the race
+      // (connecting but never confirmed), steps aside. The tab that won ignores it.
+      if (state.callId !== action.callId) return state;
+      return state.phase === 'incoming' || (state.phase === 'connecting' && !state.answered) ? IDLE : state;
     case 'ended':
       if (action.callId != null && state.callId !== action.callId) return state;
       if (state.phase === 'idle') return state;

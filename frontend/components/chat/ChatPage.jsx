@@ -177,7 +177,7 @@ export default function ChatPage() {
                     </p>
                 )}
                 <div className="min-h-0 flex-1 overflow-y-auto">
-                    {listState === 'loading' && (
+                    {listState === 'loading' && items.length === 0 && (
                         <div className="flex justify-center py-10">
                             <Loader2 className="h-5 w-5 animate-spin text-accent" aria-label={t('Loading')} />
                         </div>

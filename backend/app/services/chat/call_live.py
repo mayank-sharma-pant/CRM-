@@ -313,8 +313,15 @@ async def sweep_once() -> int:
     for call_id, company_id in await _db(None, calls.stale_candidates, STALE_AFTER):
         if await hub.kv_get(_state_key(call_id)) is not None:
             continue
-        if await _db(company_id, calls.finish_call, call_id, company_id, "interrupted") is not None:
+        done = await _db(company_id, calls.finish_call, call_id, company_id, "interrupted")
+        if done is not None:
             closed += 1
+            # Tell both people, so no tab keeps showing the call and the chat shows its entry.
+            caller_id, callee_id = done["recipients"]
+            await _announce(
+                {"id": call_id, "caller_id": caller_id, "callee_id": callee_id, "conversation_id": done["conversation_id"]},
+                done,
+            )
     return closed
 
 

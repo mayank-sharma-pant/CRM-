@@ -37,8 +37,12 @@ function callEntryLabel(call, viewerId) {
 }
 
 /**
- * From RTCPeerConnection.getStats(): 'relay' if the selected pair goes through a TURN relay,
- * 'direct' otherwise, or null if no pair has been selected yet.
+ * From RTCPeerConnection.getStats(): 'relay' if the pair in use goes through a TURN relay,
+ * 'direct' otherwise, or null if no pair has succeeded yet.
+ *
+ * The pair in use: the transport's selected pair (Chrome), a pair flagged `selected` (Firefox),
+ * a nominated succeeded pair, or else — Safari reports none of those — the succeeded pair that
+ * has carried the most data.
  */
 function connectionFromStats(stats) {
   const byId = new Map();
@@ -49,7 +53,23 @@ function connectionFromStats(stats) {
   });
   if (!pair) {
     byId.forEach((report) => {
+      if (!pair && report.type === 'candidate-pair' && report.selected) pair = report;
+    });
+  }
+  if (!pair) {
+    byId.forEach((report) => {
       if (!pair && report.type === 'candidate-pair' && report.state === 'succeeded' && report.nominated) pair = report;
+    });
+  }
+  if (!pair) {
+    let busiest = -1;
+    byId.forEach((report) => {
+      if (report.type !== 'candidate-pair' || report.state !== 'succeeded') return;
+      const bytes = (report.bytesReceived || 0) + (report.bytesSent || 0);
+      if (bytes > busiest) {
+        busiest = bytes;
+        pair = report;
+      }
     });
   }
   if (!pair) return null;

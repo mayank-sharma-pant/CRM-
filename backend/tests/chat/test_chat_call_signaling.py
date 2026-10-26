@@ -421,6 +421,33 @@ def test_sweep_closes_calls_whose_live_state_is_gone(calls_on, db):
     hub._mem_kv.pop("chat:calls:sweep", None)
 
 
+def test_sweep_tells_both_people_when_it_closes_a_call(calls_on, db):
+    """A call whose live state vanished (e.g. a worker restart lost its ring timer) is closed by the
+    sweeper, and both participants' open tabs are told, so neither keeps showing it."""
+    conv_id = _conv(calls_on)
+    caller, callee = Tab(As("sales@a.test")), Tab(As("md@a.test"))
+    from app.services.chat import calls
+
+    stale = calls.create_call(db, db.merge(calls_on["users"]["sales"]), conv_id)
+    db.query(ChatCall).filter(ChatCall.id == stale.id).update(
+        {"started_at": datetime.now(timezone.utc) - timedelta(minutes=10)}, synchronize_session=False
+    )
+    db.commit()
+    assert asyncio.run(call_live.sweep_once()) == 1
+    entry_seq = None
+    for tab in (caller, callee):
+        assert tab.next("call.ended") == {"type": "call.ended", "call_id": stale.id, "status": "interrupted"}
+        new = tab.next("message.new")
+        assert new["conversation_id"] == conv_id and new["sender_id"] == calls_on["users"]["sales"].id
+        assert entry_seq in (None, new["seq"])
+        entry_seq = new["seq"]
+    assert _call_row(db, stale.id).status == "interrupted"
+    assert _entries(db, conv_id) == 1
+    hub._mem_kv.pop("chat:calls:sweep", None)
+    caller.close()
+    callee.close()
+
+
 def test_busy_markers_expire_on_their_own(calls_on):
     conv_id = _conv(calls_on)
     caller, callee = Tab(As("sales@a.test")), Tab(As("md@a.test"))

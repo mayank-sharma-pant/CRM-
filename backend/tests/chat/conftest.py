@@ -25,8 +25,8 @@ def _reset_hub() -> None:
 
 
 @pytest.fixture(autouse=True)
-def _calls_use_test_db(monkeypatch):
-    """Call code opens its own sessions; in tests they must hit the in-memory test database.
+def _call_db_work_takes_turns(monkeypatch):
+    """Call code opens its own sessions on the in-memory test database (tests/conftest.py).
 
     That database is one SQLite connection shared by every thread (StaticPool), which crashes
     when two threads use it at once — e.g. both sides hanging up at the same moment. In
@@ -37,9 +37,7 @@ def _calls_use_test_db(monkeypatch):
     import threading
 
     from app.services.chat import call_live
-    from tests.conftest import TestingSessionLocal
 
-    monkeypatch.setattr(call_live, "SessionFactory", TestingSessionLocal)
     real_run = call_live._run
     one_at_a_time = threading.Lock()
 

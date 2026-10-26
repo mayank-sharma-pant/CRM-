@@ -1,11 +1,18 @@
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+import os
 
-from app.main import app
-from app.database import Base, get_db
+# Settings are built once, at import, and environment variables beat backend/.env. A developer's
+# .env may turn voice calls on for manual testing; app startup would then launch the stale-call
+# sweeper inside every test. Tests that need calls turn them on themselves (calls_on fixture).
+os.environ["CHAT_CALLS_ENABLED"] = "false"
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
+
+from app.main import app  # noqa: E402
+from app.database import Base, get_db  # noqa: E402
 
 # Use in-memory SQLite for tests
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -23,6 +30,15 @@ def db_engine():
     Base.metadata.create_all(bind=engine)
     yield engine
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def _call_code_uses_test_db(monkeypatch):
+    """Call code opens its own sessions (call_live.SessionFactory, SessionLocal by default); in
+    tests they must hit the in-memory test database, never the developer's DATABASE_URL."""
+    from app.services.chat import call_live
+
+    monkeypatch.setattr(call_live, "SessionFactory", TestingSessionLocal)
 
 
 @pytest.fixture(scope="function")

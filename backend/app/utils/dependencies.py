@@ -1,5 +1,6 @@
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sa_func
 from typing import Optional, Any
@@ -50,39 +51,27 @@ class OAuth2PasswordBearerWithCookie(OAuth2PasswordBearer):
 oauth2_scheme = OAuth2PasswordBearerWithCookie(tokenUrl="/api/auth/login", auto_error=False)
 
 
-async def get_current_user(
-    token: Optional[str] = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
-) -> User:
-    """Extract and validate the current user from JWT token (header or cookie), enforce company status."""
-    credentials_exception = HTTPException(
+def _credentials_exception() -> HTTPException:
+    return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    if token is None:
-        raise credentials_exception
 
-    payload = decode_access_token(token, audience="crm")
-    if payload is None:
-        raise credentials_exception
-
-    email: str = payload.get("sub")
-    if email is None:
-        raise credentials_exception
-
+def _load_current_user(db: Session, email: str, claimed_version: Any) -> User:
+    """Database part of get_current_user: find the account and enforce user and company status.
+    Blocking queries, so get_current_user runs this in the thread pool."""
     user = db.query(User).filter(sa_func.lower(User.email) == email.lower()).first()
     if user is None:
-        raise credentials_exception
+        raise _credentials_exception()
 
-    claimed = payload.get("ver", 0)
     try:
-        claimed = int(claimed)
+        claimed = int(claimed_version)
     except (TypeError, ValueError):
-        raise credentials_exception
+        raise _credentials_exception()
     if int(getattr(user, "token_version", 0) or 0) != claimed:
-        raise credentials_exception
+        raise _credentials_exception()
 
     if not user.is_active or user.status.value == "disabled":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled")
@@ -105,9 +94,38 @@ async def get_current_user(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Trial expired. Please upgrade to continue."
                 )
+    return user
 
+
+def _apply_tenant(db: Session) -> None:
+    from app.tenancy import apply_rls_to_connection
+    apply_rls_to_connection(db.connection())
+
+
+async def get_current_user(
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> User:
+    """Extract and validate the current user from JWT token (header or cookie), enforce company status."""
+    if token is None:
+        raise _credentials_exception()
+
+    payload = decode_access_token(token, audience="crm")
+    if payload is None:
+        raise _credentials_exception()
+
+    email: str = payload.get("sub")
+    if email is None:
+        raise _credentials_exception()
+
+    user = await run_in_threadpool(_load_current_user, db, email, payload.get("ver", 0))
+
+    # The tenant lives in ContextVars, so bind it here in the request's own context (a sync
+    # dependency would bind it in a copied thread context the endpoint never sees). Applying it
+    # to the session is SQL, so that runs in the thread pool, which inherits the binding.
     from app.tenancy import bind_for_user
-    bind_for_user(user, db)
+    bind_for_user(user)
+    await run_in_threadpool(_apply_tenant, db)
     return user
 
 

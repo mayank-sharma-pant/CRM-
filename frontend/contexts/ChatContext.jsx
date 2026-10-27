@@ -25,6 +25,7 @@ export function ChatProvider({ children }) {
     // Identifies this tab's socket to the server (call setup is routed to one tab).
     const [connId, setConnId] = useState(null);
     const [callsEnabled, setCallsEnabled] = useState(false);
+    const [ringSeconds, setRingSeconds] = useState(null);
 
     const listeners = useRef(new Set());
     const activeRef = useRef(false);
@@ -117,6 +118,9 @@ export function ChatProvider({ children }) {
             return;
         }
         if (!activeRef.current) return;
+        // The reconnect timer and returning to the page can both start a connect() while the other
+        // is still waiting for its ticket: only the first to get here opens a socket.
+        if (wsRef.current && wsRef.current.readyState <= 1) return;
         let ws;
         try {
             ws = new WebSocket(wsUrlRef.current);
@@ -128,6 +132,11 @@ export function ChatProvider({ children }) {
         wsRef.current = ws;
         ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', ticket }));
         ws.onmessage = (e) => {
+            // A second socket in the same tab would deliver events out of order with this one.
+            if (wsRef.current !== ws) {
+                ws.close();
+                return;
+            }
             let event;
             try {
                 event = JSON.parse(e.data);
@@ -180,6 +189,7 @@ export function ChatProvider({ children }) {
                 if (!activeRef.current) return;
                 setAvailability('ready');
                 setCallsEnabled(Boolean(status.calls?.enabled && status.ws_url));
+                setRingSeconds(Number(status.calls?.ring_seconds) || null);
                 wsUrlRef.current = status.ws_url || null;
                 reconcile();
                 if (wsUrlRef.current) connectRef.current();
@@ -224,6 +234,7 @@ export function ChatProvider({ children }) {
             setTyping({});
             setConnId(null);
             setCallsEnabled(false);
+            setRingSeconds(null);
         };
     }, [loading, myId, companyId, reconcile]);
 
@@ -259,7 +270,8 @@ export function ChatProvider({ children }) {
         sendFrame,
         connId,
         callsEnabled,
-    }), [availability, live, myId, unreadTotal, syncState, typing, subscribe, reconcile, requestReconcile, sendTyping, sendFrame, connId, callsEnabled]);
+        ringSeconds,
+    }), [availability, live, myId, unreadTotal, syncState, typing, subscribe, reconcile, requestReconcile, sendTyping, sendFrame, connId, callsEnabled, ringSeconds]);
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 }

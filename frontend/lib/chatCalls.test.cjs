@@ -42,6 +42,27 @@ test("connectionFromStats uses the selected pair", () => {
   assert.equal(connectionFromStats(stats([{ id: "L1", type: "local-candidate", candidateType: "host" }])), null);
 });
 
+test("connectionFromStats without a selected pair (Safari) and with Firefox's selected flag", () => {
+  const candidates = [
+    { id: "L1", type: "local-candidate", candidateType: "srflx" },
+    { id: "L2", type: "local-candidate", candidateType: "relay" },
+    { id: "R1", type: "remote-candidate", candidateType: "host" },
+  ];
+  const pair = (id, local, extra) => ({ id, type: "candidate-pair", localCandidateId: local, remoteCandidateId: "R1", ...extra });
+  // Safari: no transport selection and no `nominated`, just a succeeded pair carrying the audio.
+  assert.equal(connectionFromStats(stats([...candidates, pair("P1", "L1", { state: "succeeded", bytesSent: 900, bytesReceived: 800 })])), "direct");
+  assert.equal(connectionFromStats(stats([...candidates, pair("P2", "L2", { state: "succeeded", bytesSent: 900, bytesReceived: 800 })])), "relay");
+  // Several succeeded pairs: the one that has carried the most data is the one in use.
+  const busyRelay = [pair("Pa", "L1", { state: "succeeded", bytesSent: 50, bytesReceived: 50 }), pair("Pb", "L2", { state: "succeeded", bytesSent: 4000, bytesReceived: 3000 })];
+  assert.equal(connectionFromStats(stats([...candidates, ...busyRelay])), "relay");
+  const busyDirect = [pair("Pa", "L1", { state: "succeeded", bytesSent: 4000, bytesReceived: 3000 }), pair("Pb", "L2", { state: "succeeded", bytesSent: 50, bytesReceived: 50 })];
+  assert.equal(connectionFromStats(stats([...candidates, ...busyDirect])), "direct");
+  // Firefox flags the pair in use with `selected`; it wins over a busier pair.
+  assert.equal(connectionFromStats(stats([...candidates, ...busyDirect.slice(0, 1), pair("Psel", "L2", { state: "succeeded", selected: true, bytesSent: 10, bytesReceived: 10 })])), "relay");
+  // Nothing has succeeded yet: unknown.
+  assert.equal(connectionFromStats(stats([...candidates, pair("P3", "L1", { state: "in-progress" }), pair("P4", "L2", { state: "failed" })])), null);
+});
+
 test("callReducer: outgoing call lifecycle", () => {
   let s = callReducer(IDLE, { type: "dial", requestId: "r1", conversationId: 5, peer: { id: 2 } });
   assert.equal(s.phase, "outgoing");

@@ -9,6 +9,13 @@ import { IDLE, callReducer, connectionFromStats } from '../lib/chatCalls.cjs';
 // chat socket. A page reload, a closed tab or a dropped chat connection ends the call.
 const CONNECT_TIMEOUT_MS = 15000;
 const ENDED_VISIBLE_MS = 3500;
+// The server ends unanswered calls after its ring time; if that message never arrives (lost
+// connection, server restart), this tab stops ringing on its own a little later.
+const DEFAULT_RING_SECONDS = 45;
+const RING_SAFETY_MARGIN_S = 15;
+// The ICE server list is the same for every call and its endpoint is rate-limited per user, so a
+// tab reuses it for a while (TURN credentials in it stay valid for hours).
+const ICE_REUSE_MS = 10 * 60 * 1000;
 
 const CallContext = createContext(null);
 
@@ -75,7 +82,7 @@ function createRingtone() {
 }
 
 export function CallProvider({ children }) {
-    const { subscribe, sendFrame, callsEnabled, live, myId } = useChat();
+    const { subscribe, sendFrame, callsEnabled, live, myId, ringSeconds } = useChat();
     const [call, dispatch] = useReducer(callReducer, IDLE);
     const [muted, setMuted] = useState(false);
 
@@ -84,6 +91,7 @@ export function CallProvider({ children }) {
     const pcRef = useRef(null);
     const streamRef = useRef(null);
     const iceRef = useRef([]);
+    const iceFetchedAt = useRef(0);
     const audioRef = useRef(null);
     const pendingIce = useRef([]);
     const failTimer = useRef(null);
@@ -129,6 +137,17 @@ export function CallProvider({ children }) {
         answeredHere.current = null;
         accepting.current = null;
         setMuted(false);
+    }, []);
+
+    /** Make sure iceRef holds a usable server list; a failed refresh keeps the last one. */
+    const loadIceServers = useCallback(async () => {
+        if (iceFetchedAt.current && Date.now() - iceFetchedAt.current < ICE_REUSE_MS) return;
+        try {
+            iceRef.current = await chatApi.iceServers();
+            iceFetchedAt.current = Date.now();
+        } catch (err) {
+            if (!iceFetchedAt.current) throw err;
+        }
     }, []);
 
     const showEnded = useCallback((reason, callId) => {
@@ -288,10 +307,28 @@ export function CallProvider({ children }) {
         }
     }), [subscribe, sendFrame, createPeer, handleSignal, failCall, release, showEnded]);
 
+    // Nobody keeps ringing (or "Calling…") forever if the server's end-of-ringing never arrives.
+    const { phase: ringPhase, callId: ringCallId, requestId: ringRequestId } = call;
+    useEffect(() => {
+        if (ringPhase !== 'outgoing' && ringPhase !== 'incoming') return undefined;
+        const timer = setTimeout(() => {
+            const current = callRef.current;
+            if (current.phase !== ringPhase || current.callId !== ringCallId) return;
+            if (ringPhase === 'outgoing') {
+                if (ringCallId) sendFrame({ type: 'call.cancel', call_id: ringCallId });
+                else cancelRequest.current = ringRequestId;
+            }
+            showEnded('missed', ringCallId);
+        }, ((ringSeconds || DEFAULT_RING_SECONDS) + RING_SAFETY_MARGIN_S) * 1000);
+        return () => clearTimeout(timer);
+    }, [ringPhase, ringCallId, ringRequestId, ringSeconds, sendFrame, showEnded]);
+
     // Logging out (or switching user) ends any call and frees the microphone.
     useEffect(() => () => {
         release();
         clearTimeout(resetTimer.current);
+        iceRef.current = [];
+        iceFetchedAt.current = 0;
         dispatch({ type: 'reset' });
     }, [myId, release]);
 
@@ -303,7 +340,7 @@ export function CallProvider({ children }) {
         dispatch({ type: 'dial', requestId: rid, conversationId: conversation.id, peer: conversation.other_user });
         try {
             streamRef.current = await openMicrophone();
-            iceRef.current = await chatApi.iceServers();
+            await loadIceServers();
         } catch (err) {
             release();
             dispatch({ type: 'error', requestId: rid, reason: err?.reason || 'failed' });
@@ -319,7 +356,7 @@ export function CallProvider({ children }) {
         if (!sendFrame({ type: 'call.invite', conversation_id: conversation.id, request_id: rid })) {
             showEnded('connection_lost', null);
         }
-    }, [callsEnabled, live, release, sendFrame, showEnded]);
+    }, [callsEnabled, live, loadIceServers, release, sendFrame, showEnded]);
 
     const accept = useCallback(async () => {
         const current = callRef.current;
@@ -335,7 +372,7 @@ export function CallProvider({ children }) {
                 return;
             }
             streamRef.current = stream;
-            iceRef.current = await chatApi.iceServers();
+            await loadIceServers();
             if (accepting.current !== current.callId) return;
             createPeer(current.callId);
         } catch (err) {
@@ -345,7 +382,7 @@ export function CallProvider({ children }) {
             return;
         }
         if (!sendFrame({ type: 'call.accept', call_id: current.callId })) showEnded('connection_lost', current.callId);
-    }, [createPeer, sendFrame, showEnded]);
+    }, [createPeer, loadIceServers, sendFrame, showEnded]);
 
     const decline = useCallback(() => {
         const current = callRef.current;

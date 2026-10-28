@@ -2,8 +2,8 @@
 
 Handshake: exact Origin allowlist → accept → first frame must be
 {"type": "auth", "ticket": "..."} within AUTH_TIMEOUT. Tickets are single-use
-(see realtime.Hub.consume_ticket). The socket closes at the JWT's expiry and
-re-checks the account every RECHECK_SECONDS.
+(see realtime.Hub.consume_ticket). The socket closes at the JWT's expiry (or
+when a call it is in ends, if later) and re-checks the account every RECHECK_SECONDS.
 """
 import asyncio
 import json
@@ -240,15 +240,26 @@ async def chat_ws(websocket: WebSocket, db: Session = Depends(get_db)):
             if user_id in cached[1] and recipients:
                 await hub.publish(recipients, {"type": "typing", "conversation_id": conv_id, "user_id": user_id})
 
+    async def login_over() -> bool:
+        # Closing at the login's expiry makes the tab reconnect with its renewed login, but it would
+        # also end a call this socket is in, so that waits for the call to end. The account re-check
+        # below still closes the socket on logout or deactivation.
+        if expires_at - time.time() > 0:
+            return False
+        try:
+            return not await call_live.holds_call(conn, my_calls)
+        except RealtimeUnavailable:
+            return True
+
     async def watchdog() -> None:
         next_recheck = time.monotonic() + RECHECK_SECONDS
         while True:
-            remaining = expires_at - time.time()
-            if remaining <= 0:
+            if await login_over():
                 close_code["value"] = CLOSE_UNAUTHORIZED
                 return
-            await asyncio.sleep(min(PING_SECONDS, remaining))
-            if expires_at - time.time() <= 0:
+            remaining = expires_at - time.time()
+            await asyncio.sleep(min(PING_SECONDS, remaining) if remaining > 0 else PING_SECONDS)
+            if await login_over():
                 close_code["value"] = CLOSE_UNAUTHORIZED
                 return
             conn.offer(json.dumps({"type": "ping"}))

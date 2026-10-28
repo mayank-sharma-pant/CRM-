@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { createRenewer, shouldRenew } from '../lib/authRefresh.cjs';
 
 // Always same-origin `/api` so Next.js rewrites (next.config.mjs → BACKEND_URL) handle the hop.
 // The browser never calls AWS directly → no CORS. Do not set NEXT_PUBLIC_API_URL to another host
@@ -31,12 +32,23 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor: handle 401 globally
+const renewLogin = createRenewer({
+  refresh: () => api.post('/auth/refresh'),
+  locks: typeof navigator !== 'undefined' ? navigator.locks : undefined,
+});
+
+// Response interceptor: renew an expired login once and retry, otherwise handle 401 globally
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (!error.response) {
       console.warn('NETWORK_ERROR: Backend unreachable (check /api rewrite and BACKEND_URL)');
+    }
+
+    if (shouldRenew(error)) {
+      error.config._authRetried = true;
+      const renewed = await renewLogin().then(() => true, () => false);
+      if (renewed) return api(error.config);
     }
 
     if (error.response?.status === 401) {

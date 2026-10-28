@@ -288,6 +288,19 @@ async def keep_alive(conn: Connection, call_ids: set[int]) -> None:
             await hub.kv_expire(_busy_key(conn.user_id), ACTIVE_TTL)
 
 
+async def holds_call(conn: Connection, call_ids: set[int]) -> bool:
+    """True while closing this socket would end one of its calls (see socket_closed)."""
+    for call_id in list(call_ids):
+        call = await _load(call_id)
+        if call is None:
+            continue
+        if call["state"] == "ringing" and conn.conn_id == call["caller_conn"]:
+            return True
+        if call["state"] == "active" and _in_call(conn, call):
+            return True
+    return False
+
+
 async def socket_closed(conn: Connection, call_ids: set[int]) -> None:
     """A tab went away: end the calls it was part of (ringing as caller, or active on either side)."""
     for call_id in list(call_ids):

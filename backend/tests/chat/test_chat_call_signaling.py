@@ -33,9 +33,9 @@ def calls_on(org, monkeypatch):
 class Tab:
     """One browser tab: a logged-in caller plus an open chat socket."""
 
-    def __init__(self, caller: As):
+    def __init__(self, caller: As, ticket: str | None = None):
         self.caller = caller
-        ticket = caller.post("/api/chat/ws-ticket").json()["ticket"]
+        ticket = ticket or caller.post("/api/chat/ws-ticket").json()["ticket"]
         self._ctx = caller.client.websocket_connect(WS, headers={"origin": ORIGIN})
         self.sock = self._ctx.__enter__()
         self.sock.send_text(json.dumps({"type": "auth", "ticket": ticket}))
@@ -373,6 +373,77 @@ def test_closing_a_tab_during_the_call_ends_it(calls_on, db):
     assert caller.next("call.ended")["status"] == "completed"
     assert _call_row(db, call_id).status == "completed"
     caller.close()
+
+
+def _ticket_expiring_in(org, who: str, seconds: int) -> str:
+    user = org["users"][who]
+    return anyio.run(hub.issue_ticket, {
+        "user_id": user.id,
+        "company_id": user.company_id,
+        "token_version": int(user.token_version or 0),
+        "exp": int(time.time()) + seconds,
+    })
+
+
+def _frame_types_for(tab: Tab, seconds: float) -> list[str]:
+    types, deadline = [], time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        try:
+            types.append(tab.recv(max(0.05, deadline - time.monotonic()))["type"])
+        except TimeoutError:
+            pass
+    return types
+
+
+def _expect_close(tab: Tab, code: int, timeout: float = 3.0) -> None:
+    with pytest.raises(WebSocketDisconnect) as closed:
+        tab.next("never", timeout=timeout)
+    assert closed.value.code == code
+
+
+def test_login_expiring_mid_call_keeps_the_call_until_it_ends(calls_on, db, monkeypatch):
+    from app.routers.chat import ws as ws_module
+
+    monkeypatch.setattr(ws_module, "PING_SECONDS", 0.1)
+    conv_id = _conv(calls_on)
+    caller = Tab(As("sales@a.test"), ticket=_ticket_expiring_in(calls_on, "sales", 2))
+    callee = Tab(As("md@a.test"))
+    call_id = _ring(caller, [callee], conv_id)
+    _answer(caller, callee, call_id)
+
+    assert "call.ended" not in _frame_types_for(callee, 3)
+    ice = {"kind": "ice", "candidate": {"candidate": "candidate:1 1 udp 2122260223 192.168.1.5 50000 typ host"}}
+    callee.send(type="call.signal", call_id=call_id, data=ice)
+    assert caller.next("call.signal")["data"] == ice
+
+    callee.send(type="call.hangup", call_id=call_id)
+    assert caller.next("call.ended")["status"] == "completed"
+    _expect_close(caller, ws_module.CLOSE_UNAUTHORIZED)
+    assert _call_row(db, call_id).status == "completed"
+    caller.close()
+    callee.close()
+
+
+def test_logout_still_disconnects_a_call_past_login_expiry(calls_on, db, monkeypatch):
+    from app.models.core.user import User
+    from app.routers.chat import ws as ws_module
+
+    monkeypatch.setattr(ws_module, "PING_SECONDS", 0.1)
+    monkeypatch.setattr(ws_module, "RECHECK_SECONDS", 0.2)
+    conv_id = _conv(calls_on)
+    caller = Tab(As("sales@a.test"), ticket=_ticket_expiring_in(calls_on, "sales", 1))
+    callee = Tab(As("md@a.test"))
+    call_id = _ring(caller, [callee], conv_id)
+    _answer(caller, callee, call_id)
+    assert "call.ended" not in _frame_types_for(callee, 2)
+
+    user = db.query(User).filter(User.id == calls_on["users"]["sales"].id).first()
+    user.token_version = int(user.token_version or 0) + 1
+    db.commit()
+    _expect_close(caller, ws_module.CLOSE_FORBIDDEN)
+    assert callee.next("call.ended")["status"] == "completed"
+    caller.close()
+    callee.close()
 
 
 def test_closing_one_of_the_callees_ringing_tabs_keeps_ringing(calls_on, db):

@@ -10,6 +10,7 @@ import json
 import re
 import difflib
 
+import anyio
 import httpx
 
 from app.database import get_db
@@ -1438,7 +1439,7 @@ def _execute_action(db: Session, current_user: User, action: str, normalized: di
 
 
 @router.post("/company-assistant", response_model=AIChatResponse)
-async def company_assistant(
+def company_assistant(
     request: Request,
     body: AIChatRequest,
     db: Session = Depends(get_db),
@@ -1506,7 +1507,8 @@ async def company_assistant(
                 context_block = ""
 
         prompt = system + context_block + "User: " + body.message.strip()
-        plan = await _ai_plan(prompt, ai_params)
+        # The database work above and below runs in this worker thread; only the AI call goes back to the event loop.
+        plan = anyio.from_thread.run(_ai_plan, prompt, ai_params)
         if not isinstance(plan, dict):
             raise HTTPException(status_code=502, detail="AI output was not a JSON object")
 

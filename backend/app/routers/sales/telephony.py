@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.database import get_db
 from app.models.core.company_settings import CompanySettings
@@ -177,5 +178,5 @@ async def exotel_webhook(request: Request, db: Session = Depends(get_db)):
         call_sid = form.get("CallSid") or form.get("Sid")
         status_val = form.get("Status") or form.get("CallStatus")
         duration = form.get("DialCallDuration") or form.get("Duration")
-    apply_webhook(db, call_sid=str(call_sid or ""), status=status_val, duration=duration)
+    await run_in_threadpool(apply_webhook, db, call_sid=str(call_sid or ""), status=status_val, duration=duration)
     return None

@@ -41,10 +41,10 @@ logger = logging.getLogger("app")
 MAX_CSV_BYTES = 2 * 1024 * 1024  # 2 MB hard cap per upload
 
 
-async def _csv_bytes(file: UploadFile) -> bytes:
+def _csv_bytes(file: UploadFile) -> bytes:
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Invalid file type. Only CSV files are allowed.")
-    contents = await file.read(MAX_CSV_BYTES + 1)
+    contents = file.file.read(MAX_CSV_BYTES + 1)
     if len(contents) > MAX_CSV_BYTES:
         raise HTTPException(status_code=413, detail="CSV file too large. Maximum size is 2 MB.")
     return contents
@@ -133,7 +133,7 @@ def undo_import(
 
 
 @router.post("/leads/preview")
-async def preview_leads_import(
+def preview_leads_import(
     file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     db: Session = Depends(get_db),
@@ -142,7 +142,7 @@ async def preview_leads_import(
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
     try:
-        contents = await _csv_bytes(file)
+        contents = _csv_bytes(file)
         return preview_leads(db, current_user.company_id, contents, mapping)
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail="Invalid CSV encoding. Please upload a UTF-8 encoded file.")
@@ -156,7 +156,7 @@ async def preview_leads_import(
 
 
 @router.post("/leads/commit")
-async def commit_leads_import(
+def commit_leads_import(
     file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     db: Session = Depends(get_db),
@@ -166,7 +166,7 @@ async def commit_leads_import(
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
     try:
-        contents = await _csv_bytes(file)
+        contents = _csv_bytes(file)
         preview = preview_leads(db, current_user.company_id, contents, mapping)
         team_id = _team_for_import(db, current_user, active_team_id)
         created = insert_new_leads(
@@ -234,7 +234,7 @@ def import_leads_text(
 
 
 @router.post("/clients/preview")
-async def preview_clients_import(
+def preview_clients_import(
     file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     db: Session = Depends(get_db),
@@ -243,7 +243,7 @@ async def preview_clients_import(
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
     try:
-        contents = await _csv_bytes(file)
+        contents = _csv_bytes(file)
         return preview_clients(db, current_user.company_id, contents, mapping)
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail="Invalid CSV encoding. Please upload a UTF-8 encoded file.")
@@ -257,7 +257,7 @@ async def preview_clients_import(
 
 
 @router.post("/clients/commit")
-async def commit_clients_import(
+def commit_clients_import(
     file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     db: Session = Depends(get_db),
@@ -267,7 +267,7 @@ async def commit_clients_import(
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
     try:
-        contents = await _csv_bytes(file)
+        contents = _csv_bytes(file)
         preview = preview_clients(db, current_user.company_id, contents, mapping)
         team_id = _team_for_import(db, current_user, active_team_id)
         assigned_to_id = None
@@ -295,12 +295,12 @@ async def commit_clients_import(
                 entity_ids=[row.id for row in created],
                 created_by_id=current_user.id,
             )
+            saved = [(row.id, row.name) for row in created]
             db.commit()
-            for row in created:
-                db.refresh(row)
+            for row_id, row_name in saved:
                 log_activity(
                     db, user=current_user, action="created", entity_type="client",
-                    entity_id=row.id, entity_name=row.name,
+                    entity_id=row_id, entity_name=row_name,
                 )
             db.commit()
         return _commit_response(preview, len(created))
@@ -318,7 +318,7 @@ async def commit_clients_import(
 
 
 @router.post("/deals/preview")
-async def preview_deals_import(
+def preview_deals_import(
     file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     db: Session = Depends(get_db),
@@ -327,7 +327,7 @@ async def preview_deals_import(
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
     try:
-        contents = await _csv_bytes(file)
+        contents = _csv_bytes(file)
         return preview_deals(db, current_user.company_id, contents, mapping)
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail="Invalid CSV encoding. Please upload a UTF-8 encoded file.")
@@ -341,7 +341,7 @@ async def preview_deals_import(
 
 
 @router.post("/deals/commit")
-async def commit_deals_import(
+def commit_deals_import(
     file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     db: Session = Depends(get_db),
@@ -351,7 +351,7 @@ async def commit_deals_import(
     if current_user.company_id is None:
         raise HTTPException(status_code=403, detail="User must be assigned to a company")
     try:
-        contents = await _csv_bytes(file)
+        contents = _csv_bytes(file)
         preview = preview_deals(db, current_user.company_id, contents, mapping)
         pipeline = ensure_default_pipeline(db, current_user.company_id)
         first_stage = (
@@ -400,12 +400,12 @@ async def commit_deals_import(
                 entity_ids=[deal.id for deal in created],
                 created_by_id=current_user.id,
             )
+            saved = [(deal.id, deal.title) for deal in created]
             db.commit()
-            for deal in created:
-                db.refresh(deal)
+            for deal_id, deal_title in saved:
                 log_activity(
                     db, user=current_user, action="created", entity_type="deal",
-                    entity_id=deal.id, entity_name=deal.title,
+                    entity_id=deal_id, entity_name=deal_title,
                 )
             db.commit()
         return _commit_response(preview, len(created))
@@ -423,7 +423,7 @@ async def commit_deals_import(
 
 
 @router.post("/leads")
-async def import_leads(
+def import_leads(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -437,7 +437,7 @@ async def import_leads(
         raise HTTPException(status_code=400, detail="Invalid file type. Only CSV files are allowed.")
         
     try:
-        contents = await file.read(MAX_CSV_BYTES + 1)
+        contents = file.file.read(MAX_CSV_BYTES + 1)
         if len(contents) > MAX_CSV_BYTES:
             raise HTTPException(status_code=413, detail="CSV file too large. Maximum size is 2 MB.")
         preview = preview_leads(db, current_user.company_id, contents, None)

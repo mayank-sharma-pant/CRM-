@@ -85,3 +85,32 @@ def test_refresh_with_invalid_token_is_401(client, db):
     _login(client, db)
     resp = client.post("/api/auth/refresh", json={"refresh_token": "not-a-real-token"})
     assert resp.status_code == 401
+
+
+def test_refresh_deletes_only_the_users_long_expired_tokens(client, db):
+    from datetime import datetime, timedelta, timezone
+
+    from app.models.core.refresh_token import RefreshToken
+    from app.models.core.user import User
+
+    login = _login(client, db)
+    user = db.query(User).filter(User.email == "user@rt.co").one()
+    other = create_active_user(db, email="other@rt.co", role="admin", company_id=user.company_id, full_name="Other")
+    now = datetime.now(timezone.utc)
+    for owner, token_hash, expires_at in (
+        (user.id, "a" * 64, now - timedelta(days=3)),
+        (user.id, "b" * 64, now - timedelta(hours=2)),
+        (other.id, "c" * 64, now - timedelta(days=3)),
+    ):
+        db.add(RefreshToken(user_id=owner, token_hash=token_hash, expires_at=expires_at))
+    db.commit()
+
+    resp = client.post("/api/auth/refresh", json={"refresh_token": login.json()["refresh_token"]})
+    assert resp.status_code == 200, resp.text
+
+    db.expire_all()
+    left = {row.token_hash for row in db.query(RefreshToken).all()}
+    assert "a" * 64 not in left, "a token expired days ago is deleted"
+    assert "b" * 64 in left, "a recently expired token is kept"
+    assert "c" * 64 in left, "other users' tokens are untouched"
+    assert len([h for h in left if h not in {"b" * 64, "c" * 64}]) == 2, "the rotated and the new token remain"

@@ -27,7 +27,7 @@ MAX_FILES = 5
 
 
 @router.post("")
-async def submit_bug_report(
+def submit_bug_report(
     message: str = Form(..., min_length=10, max_length=5000),
     category: str = Form("Bug"),
     files: Optional[List[UploadFile]] = File(None),
@@ -45,7 +45,7 @@ async def submit_bug_report(
         for f in files:
             if not f.filename:
                 continue
-            content = await f.read()
+            content = f.file.read()
             if len(content) > MAX_FILE_SIZE:
                 raise HTTPException(
                     status_code=400,

@@ -52,7 +52,7 @@ class DocumentResponse(BaseModel):
 
 
 @router.post("/upload", response_model=DocumentResponse)
-async def upload_document(
+def upload_document(
     file: UploadFile = File(...),
     lead_id: Optional[int] = Form(None),
     client_id: Optional[int] = Form(None),
@@ -105,7 +105,7 @@ async def upload_document(
         allowed = ", ".join(sorted(ALLOWED_DOCUMENT_EXTENSIONS))
         raise HTTPException(status_code=400, detail=f"Unsupported file type. Allowed extensions: {allowed}")
 
-    file_bytes = await file.read(MAX_DOCUMENT_BYTES + 1)
+    file_bytes = file.file.read(MAX_DOCUMENT_BYTES + 1)
     if len(file_bytes) > MAX_DOCUMENT_BYTES:
         raise HTTPException(status_code=413, detail="File too large. Maximum size is 10 MB.")
 

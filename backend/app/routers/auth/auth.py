@@ -452,6 +452,11 @@ def refresh(request: Request, response: Response, body: RefreshRequest | None = 
     record.revoked = True
     access_token = crm_access_token(user)
     new_refresh = _issue_refresh_token(db, user)
+    # Every renewal adds a row; drop this user's long-expired ones so the table stays small.
+    db.query(RefreshToken).filter(
+        RefreshToken.user_id == user.id,
+        RefreshToken.expires_at < datetime.now(timezone.utc) - timedelta(days=1),
+    ).delete(synchronize_session=False)
     db.commit()
 
     _set_auth_cookie(response, access_token)

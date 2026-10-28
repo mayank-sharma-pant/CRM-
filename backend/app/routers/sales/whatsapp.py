@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.database import get_db
 from app.models.core.company_settings import CompanySettings
@@ -471,7 +472,7 @@ async def gupshup_webhook(request: Request, db: Session = Depends(get_db)):
             body = {k: form.get(k) for k in form.keys()}
             if query_source is None:
                 query_source = form.get("destination") or form.get("app")
-    ingest_gupshup_inbound(db, body, query_source=query_source)
+    await run_in_threadpool(ingest_gupshup_inbound, db, body, query_source=query_source)
     return None
 
 

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 from app.database import get_db
 from app.models.billing import Subscription, WebhookEvent, Plan
 from app.models.core.user import User
@@ -18,9 +19,13 @@ _KIND_TO_STATUS = {"activated": "active", "cancelled": "cancelled", "past_due": 
 @router.post("/webhook")
 async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
     raw = await request.body()
+    return await run_in_threadpool(_apply_webhook, db, dict(request.headers), raw)
+
+
+def _apply_webhook(db: Session, headers: dict, raw: bytes) -> dict:
     provider = get_billing_provider()
     try:
-        event = provider.verify_and_parse(dict(request.headers), raw)
+        event = provider.verify_and_parse(headers, raw)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid signature")
 

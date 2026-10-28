@@ -1,5 +1,5 @@
 from app.models.sales.lead import Lead
-from app.routers.ops import imports as imports_router
+from app.services.sales import lead_import
 from tests.helpers.auth import create_active_user, login_user
 from tests.helpers.factories import create_company
 
@@ -41,7 +41,7 @@ def test_import_leads_internal_error_returns_sanitized_500(client, db, monkeypat
     def _raise_log_error(*_args, **_kwargs):
         raise RuntimeError("SENSITIVE-STACK-MESSAGE")
 
-    monkeypatch.setattr(imports_router, "log_activity", _raise_log_error)
+    monkeypatch.setattr(lead_import, "log_activity", _raise_log_error)
 
     response = client.post(
         "/api/import/leads",
@@ -51,8 +51,8 @@ def test_import_leads_internal_error_returns_sanitized_500(client, db, monkeypat
     assert response.json()["detail"] == "Failed to process CSV file."
     assert "sensitive" not in response.json()["detail"].lower()
 
-    # The row was created before activity logging; this test only verifies sanitization.
-    assert db.query(Lead).filter(Lead.company_id == company.id).count() == 1
+    # Activity logging runs before the commit, so a failure there saves nothing.
+    assert db.query(Lead).filter(Lead.company_id == company.id).count() == 0
 
 
 def test_import_leads_rejects_oversized_csv(client, db):

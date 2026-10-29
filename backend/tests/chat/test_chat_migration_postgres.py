@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import IntegrityError
 
 from app.database import Base
 from app.models.core.chat import CHAT_TABLES, CHAT_TABLES_040, CHAT_TABLES_041, CHAT_TABLES_042
@@ -146,7 +147,7 @@ def test_chat_migrations_create_schema_matching_the_models_with_policies(fresh, 
         assert model_indexes <= {i["name"] for i in insp.get_indexes(table)}
     assert _rls_state(engine, CHAT_TABLES) == {t: (True, True, True) for t in CHAT_TABLES}
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "042_chat_calls"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "043_company_id_sequence"
 
 
 def test_apply_schema_on_up_to_date_database_issues_no_ddl(fresh, monkeypatch):
@@ -248,3 +249,88 @@ def test_042_downgrade_drops_only_calls(fresh, monkeypatch):
     assert not set(CHAT_TABLES_042) & tables
     _alembic(name, monkeypatch, "head")
     assert _rls_state(engine, CHAT_TABLES_042) == {t: (True, True, True) for t in CHAT_TABLES_042}
+
+
+# ---- 043: the companies id counter on a database built from migrations ------------------------
+
+
+@pytest.fixture(scope="module")
+def db_at_042():
+    """A database migrated from scratch to 042, before the counter fix, used as a template."""
+    name = _create_db()
+    mp = pytest.MonkeyPatch()
+    try:
+        _alembic(name, mp, "042_chat_calls")
+    finally:
+        mp.undo()
+    yield name
+    _drop_db(name)
+
+
+@pytest.fixture
+def at_042(db_at_042):
+    name = _create_db(template=db_at_042)
+    engine = create_engine(_url(name))
+    yield name, engine
+    engine.dispose()
+    _drop_db(name)
+
+
+def _add_company(engine, code: str) -> int:
+    with engine.begin() as conn:
+        return conn.execute(
+            text("INSERT INTO companies (name, company_code, status) VALUES (:name, :code, 'active') RETURNING id"),
+            {"name": f"Company {code}", "code": code},
+        ).scalar()
+
+
+def _companies(engine) -> list:
+    with engine.connect() as conn:
+        return conn.execute(text("SELECT id, name, status, plan FROM companies ORDER BY id")).all()
+
+
+def test_before_043_a_fresh_database_cannot_add_its_first_company(at_042):
+    _, engine = at_042
+    with pytest.raises(IntegrityError, match="companies_pkey"):
+        _add_company(engine, "AAA")
+
+
+def test_043_lets_a_fresh_database_add_companies(at_042, monkeypatch):
+    name, engine = at_042
+    before = _companies(engine)
+    assert [row.id for row in before] == [1]
+    _alembic(name, monkeypatch, "043_company_id_sequence")
+    assert [_add_company(engine, "AAA"), _add_company(engine, "BBB")] == [2, 3]
+    assert _companies(engine)[:1] == before
+
+
+def test_043_never_moves_a_used_counter_backwards(at_042, monkeypatch):
+    name, engine = at_042
+    with engine.begin() as conn:
+        conn.execute(text("SELECT setval(pg_get_serial_sequence('companies', 'id'), 500, true)"))
+    _alembic(name, monkeypatch, "043_company_id_sequence")
+    assert _add_company(engine, "AAA") == 501
+
+
+def test_043_keeps_an_unused_counter_that_is_already_ahead(at_042, monkeypatch):
+    name, engine = at_042
+    with engine.begin() as conn:
+        conn.execute(text("SELECT setval(pg_get_serial_sequence('companies', 'id'), 50, false)"))
+    _alembic(name, monkeypatch, "043_company_id_sequence")
+    assert _add_company(engine, "AAA") == 50
+
+
+def test_043_moves_past_rows_added_with_explicit_ids(at_042, monkeypatch):
+    name, engine = at_042
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO companies (id, name, company_code, status) VALUES (10, 'Ten', 'TEN', 'active')"))
+    _alembic(name, monkeypatch, "043_company_id_sequence")
+    assert _add_company(engine, "AAA") == 11
+
+
+def test_043_on_an_empty_companies_table_starts_at_1(at_042, monkeypatch):
+    name, engine = at_042
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM companies"))
+    _alembic(name, monkeypatch, "043_company_id_sequence")
+    assert _add_company(engine, "AAA") == 1

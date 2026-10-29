@@ -1,0 +1,99 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: crm_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d crm_ci_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7.0.15
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      # Throwaway service containers; the tests only run against a local *_test database.
+      CHAT_PG_TEST_URL: postgresql://ci:ci@127.0.0.1:5432/crm_ci_test
+      CHAT_REDIS_TEST_URL: redis://127.0.0.1:6379/15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.3"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Migrate the test database
+        env:
+          DATABASE_URL: postgresql+psycopg://ci:ci@127.0.0.1:5432/crm_ci_test
+        run: alembic upgrade head
+      - name: Run tests
+        run: python -m pytest -q -p no:cacheprovider -rsx
+
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      # The repo root is an npm workspace whose lockfile only lists Windows binaries;
+      # --workspaces=false makes npm use frontend/package-lock.json (all platforms).
+      - name: Install dependencies
+        run: npm ci --workspaces=false
+      - name: Unit tests
+        run: |
+          status=0
+          for script in test:paths test:landing test:brand test:store test:i18n test:chat test:auth; do
+            echo "::group::$script"
+            npm run --workspaces=false "$script" || status=1
+            echo "::endgroup::"
+          done
+          exit $status
+      - name: Build
+        run: npm run --workspaces=false build
